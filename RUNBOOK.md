@@ -28,6 +28,7 @@
 | [10](#10-疑難排解) | 疑難排解 | 出事再看 |
 | [11](#11-名詞表) | 名詞表 | 查閱 |
 | [12](#12-一頁速查表) | 一頁速查表 | 熟了之後只看這頁 |
+| [12.5](#125-下一階段開工前要先裝的東西) | **W02 / W05 開工前要補裝的東西** | 開新階段前必看 |
 | [13](#13-怎麼維護這份文件) | 怎麼維護這份文件 | 讀 2 分鐘 |
 | [14](#14-變更紀錄) | 變更紀錄 | — |
 
@@ -802,6 +803,102 @@ make help          # 列出所有指令
 
 ---
 
+## 12.5 下一階段開工前要先裝的東西
+
+> W01 **沒有**裝這些,是刻意的 —— 理由寫在 [`PROGRESS.md`](PROGRESS.md) 的
+> 「Deliberately not done in W01」。
+> **開始 W02 / W05 之前先回來看這節。**
+
+### W02(硬體)開工前
+
+零件到貨那天,一次做完:
+
+```powershell
+# PowerShell(系統管理員)—— 把 USB 裝置接進 WSL 用
+winget install --interactive --exact dorssel.usbipd-win
+```
+
+裝完**重開 PowerShell**,確認:
+
+```powershell
+usbipd list
+```
+
+會列出你插著的 USB 裝置。之後把 USB-TTL 轉接板接給 WSL 的流程是:
+
+```powershell
+usbipd list                      # 找到轉接板的 BUSID,例如 2-4
+usbipd bind   --busid 2-4        # 只要做一次(需要管理員)
+usbipd attach --wsl --busid 2-4  # 每次插拔都要做
+```
+
+然後在 WSL 裡:
+
+```bash
+ls /dev/ttyUSB*                  # 應該出現 /dev/ttyUSB0
+picocom -b 115200 /dev/ttyUSB0   # 常見鮑率:115200 或 57600
+```
+
+> 離開 picocom 是 **Ctrl-A 然後 Ctrl-X**。
+
+> ⚠️ **接線前務必先確認電壓是 3.3V,不是 5V。** 接錯會燒掉路由器的 SoC。
+> 轉接板上通常有跳線或切換開關。**用三用電表量過再接。**
+
+### W05(動態分析)開工前
+
+**先試輕量的路** —— 工具已經裝好了,不用額外安裝。**W01 收工時實測過,可以動:**
+
+```bash
+R=~/fwre-work/extracted/v2.1.2/squashfs-root
+sudo cp /usr/bin/qemu-mips-static "$R/"
+sudo chroot "$R" /qemu-mips-static /bin/busybox
+sudo chroot "$R" /qemu-mips-static /bin/boa --help
+```
+
+實際輸出:
+
+```
+BusyBox v1.13.4 (2015-08-11 17:26:34 CST) multi-call binary
+Copyright (C) 1998-2008 Erik Andersen, Rob Landley, Denys Vlasenko
+and others. Licensed under GPLv2.
+
+Usage: busybox [function] [arguments]...
+```
+
+```
+/bin/boa: invalid option -- -
+Usage: /bin/boa [-c serverroot] [-d] [-f configfile] [-r chroot] [-l debug_level]
+  To calculate the debug level, logically 'or'
+  some of the following values together to get a debug level:
+	1:	Alias
+	2:	CGI Output
+	4:	CGI Input
+	8:	CGI Environment
+...
+```
+
+**這代表 2015 年的 MIPS 執行檔可以在你的 x86 電腦上直接跑。** `boa` 吐出了自己
+真正的用法說明,包含 `-c serverroot` 和 `-f configfile` —— 這正是之後要餵它設定檔
+把 web 伺服器整個拉起來的入口。
+
+> `qemu-mips-static` 是**大端序** MIPS 用的(`qemu-mipsel-static` 是小端序)。
+> 這台機器是大端序,所以用前者 —— 見 [§9 G1 第 3 題](#9-驗收)。
+> 用錯的那個會直接說 `Invalid ELF image`。
+
+> ⚠️ 「能啟動」不等於「能完整跑」。`boa` 真的服務請求時會去呼叫 `libapmib.so`,
+> 而 apmib 會直接讀快閃記憶體分割區(`/dev/mtd*`),那在 chroot 裡不存在。
+> 到時候可能要偽造那些節點,或用 `LD_PRELOAD` 攔掉。**這是 W05 要解的問題,
+> 不是現在。**
+
+跑不動再考慮 FirmAE(**全系統模擬**,連 Linux 核心一起跑):
+
+```bash
+cd ~ && git clone https://github.com/pr0v3rbs/FirmAE
+cd FirmAE && ./install.sh      # 30–60 分鐘
+```
+
+---
+
 ## 13. 怎麼維護這份文件
 
 **規則:每完成一段新工作,回來更新這份文件,而且要在同一個 commit 裡。**
@@ -841,6 +938,7 @@ make help          # 列出所有指令
 | 日期 | 週次 | 改了什麼 |
 |---|---|---|
 | 2026-08-07 | W01 | 初版。涵蓋環境建置、韌體取得、解包、`fwrecon` 報告、Ghidra headless 分析,以及 W01 實際踩到的 13 個坑。 |
+| 2026-08-07 | W01 收工 | 新增 §12.5:W02 / W05 開工前要補裝的東西(usbipd、UART 3.3V 警告、qemu chroot 先於 FirmAE)。這三項 W01 刻意沒做,理由記在 `PROGRESS.md`。 |
 
 ---
 

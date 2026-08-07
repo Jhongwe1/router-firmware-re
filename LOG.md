@@ -186,6 +186,33 @@ Windows PowerShell 5.1 對原生程式做 stderr 重導向,會把每一行包成
 
 ---
 
+### 收工前多做的十分鐘(結果比預期好)
+
+寫 RUNBOOK 的時候我寫了一道 `qemu-mips-static` + chroot 的指令,按照自己定的規則
+「只寫跑過的東西」,就去實測了一下。結果:
+
+```
+$ sudo chroot $ROOTFS /qemu-mips-static /bin/busybox
+BusyBox v1.13.4 (2015-08-11 17:26:34 CST) multi-call binary
+
+$ sudo chroot $ROOTFS /qemu-mips-static /bin/boa --help
+Usage: /bin/boa [-c serverroot] [-d] [-f configfile] [-r chroot] [-l debug_level]
+```
+
+**2015 年的大端序 MIPS 執行檔,在我的 x86 筆電上跑起來了。** 而且 `boa` 吐的是它
+自己真正的用法說明,不是崩潰訊息。
+
+這把計畫書裡列為 W05 風險的「模擬環境」先解掉一半 —— 大概率**不需要 FirmAE**
+(全系統模擬,要裝 30–60 分鐘)。
+
+⚠️ 但別高興太早,講清楚這證明了什麼:**只證明「載得起來、跑得動」**。真的要服務
+HTTP 請求時,`boa` 會呼叫 `libapmib.so`,而 apmib 會直接讀 `/dev/mtd*` 快閃記憶體
+分割區 —— chroot 裡沒有那些東西。那是 W05 要處理的。
+
+**方法上的收穫**:我原本只是要驗證文件裡的一行指令,結果順手把下下週的一個風險
+提前解掉了。**「只寫你跑過的東西」這條規則的價值,不只是文件正確,而是它逼你真的
+去跑。** 這次是撿到,但邏輯上不是偶然。
+
 ### 明天 / 下一步
 
 1. Ghidra:找 Boa 的 handler dispatch table,把 `formSysCmd` 的真實註冊名挖出來
