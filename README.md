@@ -25,6 +25,7 @@ about its security — with results another person can reproduce.
 
 | Path | |
 |---|---|
+| [`RUNBOOK.md`](RUNBOOK.md) | **Start here to reproduce this.** Step-by-step from a bare Windows machine, written for someone with no reverse-engineering background. Every command carries its real expected output. (Traditional Chinese) |
 | [`notes/anatomy-n150rt.md`](notes/anatomy-n150rt.md) | How the firmware is built: container format, flash map, binaries, mitigations |
 | [`notes/prior-art.md`](notes/prior-art.md) | Who disclosed what, when — and which claims survive contact with these images |
 | [`notes/attack-surface.md`](notes/attack-surface.md) | Where to look, ranked |
@@ -60,6 +61,9 @@ device, which turns a teardown into a before/after comparison.
   `PT_GNU_STACK` on most binaries — an executable stack. Boa runs as root.
 
 ## Reproducing
+
+[`RUNBOOK.md`](RUNBOOK.md) walks through this from a bare Windows machine,
+assuming no prior reverse-engineering knowledge. The short version:
 
 ```bash
 make setup     # install the toolchain (Linux side)
