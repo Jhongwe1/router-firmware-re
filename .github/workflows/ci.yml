@@ -85,22 +85,8 @@ jobs:
           python-version: "3.12"
 
       # Reports cannot be regenerated without the firmware, but they can be
-      # checked for self-consistency: every committed report must parse and
-      # carry the schema version the current code emits. That catches the
-      # common failure of changing the report shape and forgetting to
-      # regenerate.
-      - name: Validate report schema
-        run: |
-          python - <<'PY'
-          import json, pathlib, re, sys
-          src = pathlib.Path("tools/fwrecon/src/fwrecon/report.py").read_text()
-          expected = re.search(r'SCHEMA_VERSION = "([^"]+)"', src).group(1)
-          bad = []
-          for p in pathlib.Path("reports").glob("*.json"):
-              d = json.loads(p.read_text())
-              if d.get("schema_version") != expected:
-                  bad.append(f"{p}: {d.get('schema_version')} != {expected}")
-          if bad:
-              print("\n".join(bad)); sys.exit(1)
-          print(f"all reports at schema {expected}")
-          PY
+      # checked for self-consistency: every committed report must parse, be
+      # recognisable as the output of one of the two producers (fwrecon and the
+      # Ghidra script), and carry the schema version the current source emits.
+      - name: Validate reports
+        run: python tools/check-reports.py

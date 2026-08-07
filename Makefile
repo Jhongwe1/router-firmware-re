@@ -17,7 +17,7 @@ V1_IMG    := $(FW)/TOTOLINK-N150RT-V2.1.2-B20150825.1601.web
 V2_IMG    := $(FW)/TOTOLINK-N150RT-V3.4.0-B20201030.1142.web
 
 .DEFAULT_GOAL := help
-.PHONY: help setup verify fetch unpack venv test lint recon diff clean-work
+.PHONY: help setup verify fetch unpack venv test lint recon diff check-reports clean-work
 
 help: ## Show this help
 	@grep -hE '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) \
@@ -58,6 +58,9 @@ recon: venv ## Regenerate every report under reports/
 	$(PY) -m fwrecon report --image "$(V2_IMG)" --rootfs "$(EX)/v3.4.0/squashfs-root" \
 		--label "$(V2_LABEL)" -f md   -o $(REPORTS)/n150rt-3.4.0.md
 	$(MAKE) diff
+
+check-reports: ## Verify the committed reports still match the tooling (what CI runs)
+	python3 tools/check-reports.py
 
 diff: venv ## Diff the two builds
 	$(PY) -m fwrecon diff $(REPORTS)/n150rt-2.1.2.json $(REPORTS)/n150rt-3.4.0.json \
