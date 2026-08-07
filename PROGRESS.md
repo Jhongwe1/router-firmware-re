@@ -69,6 +69,40 @@ Full working: [`notes/anatomy-n150rt.md`](notes/anatomy-n150rt.md)
 | Backdoor account in `/etc/passwd` | **There is no `/etc/passwd`** in either image. The credential check is inside a binary. |
 | `formSysCmd` is the RCE entry point | The string is **absent** from both `/bin/boa` binaries, though `sysCmdselect`, `sysCmdLog` and `/tmp/syscmd.log` are all present. Handler name resolution is now a W03 task. |
 
+### Deliberately not done in W01
+
+The plan listed these as W01 tasks. Each is deferred with a reason, so that a
+later session finds a decision rather than an oversight.
+
+| Item | Plan slot | Needed for | Why deferred |
+|---|---|---|---|
+| `usbipd-win` | Day 6 | **W02** — attaching the USB-TTL serial adapter to WSL | The adapter has not arrived. Installing it needs elevation, so it belongs in the same sitting as the rest of the hardware setup. **First thing W02 does.** |
+| FirmAE | Day 1 | W05 — dynamic analysis | A 30–60 minute install that pulls its own toolchain — and probably the wrong tool here. `qemu-mips-static` plus a chroot into the extracted rootfs is already installed and **was verified working at W01 close-out** (see below). The plan's own risk table rates FirmAE "impact: low, does not affect this week". |
+| PuTTY | Day 6 | W02 — serial console | Not needed. `picocom` is installed and does the same job from inside WSL, where the rest of the tooling lives. |
+
+### Bonus: the W05 emulation risk is already partly retired
+
+The plan flagged emulation as a W05 risk. A ten-minute check at W01 close-out
+shows the cheap path works — the 2015 MIPS binaries run on an x86 host under
+`qemu-mips-static` in a chroot:
+
+```
+$ sudo chroot $ROOTFS /qemu-mips-static /bin/busybox
+BusyBox v1.13.4 (2015-08-11 17:26:34 CST) multi-call binary
+
+$ sudo chroot $ROOTFS /qemu-mips-static /bin/boa --help
+Usage: /bin/boa [-c serverroot] [-d] [-f configfile] [-r chroot] [-l debug_level]
+```
+
+`boa` prints its real usage text, including `-c serverroot` and `-f configfile`
+— which is the entry point for standing the web server up under emulation.
+
+Scope of the claim: this shows the binaries **load and start**. Serving an
+actual request goes through `libapmib.so`, which reads flash partitions
+(`/dev/mtd*`) that do not exist in a chroot. Bridging that is W05's problem.
+What is settled is that a full-system emulator is not needed just to get the
+target's code executing.
+
 ### Open, carried forward
 
 1. Which firmware build is actually on my unit — only a flash dump decides (W02).
