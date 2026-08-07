@@ -1,0 +1,166 @@
+#!/usr/bin/env bash
+#
+# fetch-firmware.sh — obtain the firmware images declared in firmware/SOURCES.json,
+# verify them, and record what was actually observed in firmware/MANIFEST.json.
+#
+# Why this exists rather than "just download it"
+# ----------------------------------------------
+# A firmware analysis is only meaningful if the reader knows *which bytes* were
+# analysed. Vendor download pages rot, mirrors silently re-upload, and "N150RT
+# firmware" names half a dozen different binaries. So:
+#
+#   SOURCES.json   hand-curated intent:   where to get it, what it should hash to
+#   MANIFEST.json  generated observation: what we actually got, and when
+#
+# The two are kept separate on purpose. When a mirror changes a file underneath
+# us, that shows up as a diff between intent and observation instead of quietly
+# invalidating every downstream result.
+#
+# Images themselves are never committed (see .gitignore) — this is vendor
+# firmware for an EOL device, and redistributing it is not ours to do.
+#
+# Usage:
+#   ./tools/fetch-firmware.sh            # fetch all declared images
+#   ./tools/fetch-firmware.sh <image-id> # fetch one
+#
+# Environment:
+#   FWRE_WORK  artefact root. Defaults to ~/fwre-work.
+#              Must be on a real Linux filesystem — see docs/workspace-layout.md.
+#
+set -euo pipefail
+
+REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+SOURCES="$REPO/firmware/SOURCES.json"
+MANIFEST="$REPO/firmware/MANIFEST.json"
+WORK="${FWRE_WORK:-$HOME/fwre-work}"
+DEST="$WORK/firmware"
+
+c_ok()   { printf '\033[32m  ok  \033[0m %s\n' "$*"; }
+c_run()  { printf '\033[36m ==>  \033[0m %s\n' "$*"; }
+c_warn() { printf '\033[33m warn \033[0m %s\n' "$*"; }
+c_err()  { printf '\033[31m FAIL \033[0m %s\n' "$*" >&2; }
+
+command -v jq >/dev/null || { c_err "jq is required (apt install jq)"; exit 2; }
+[ -f "$SOURCES" ] || { c_err "missing $SOURCES"; exit 2; }
+
+mkdir -p "$DEST"
+
+# Compare an observed value against the declared expectation.
+#   returns 0 = match or nothing declared, 1 = mismatch
+check_field() {
+  local label="$1" expected="$2" actual="$3"
+  if [ "$expected" = "null" ] || [ -z "$expected" ]; then
+    c_warn "$(printf '%-7s' "$label") not pinned yet -> observed ${actual}"
+    return 0
+  fi
+  if [ "$expected" = "$actual" ]; then
+    c_ok "$(printf '%-7s' "$label") matches declared value"
+    return 0
+  fi
+  c_err "$(printf '%-7s' "$label") MISMATCH  expected=$expected  actual=$actual"
+  return 1
+}
+
+fetch_one() {
+  local id="$1"
+  local img
+  img="$(jq -c --arg id "$id" '.images[] | select(.id==$id)' "$SOURCES")"
+  [ -n "$img" ] || { c_err "no image with id '$id' in SOURCES.json"; return 1; }
+
+  local filename url out
+  filename="$(jq -r '.filename' <<<"$img")"
+  url="$(jq -r '.sources[0].url' <<<"$img")"
+  out="$DEST/$filename"
+
+  echo
+  echo "--- $id ---------------------------------------------------------------"
+
+  if [ -s "$out" ]; then
+    c_ok "already present: $out"
+  else
+    c_run "downloading from $url"
+    # -L: archive.org redirects to a node host.
+    # --retry: mirrors are flaky; a transient 5xx should not fail the whole run.
+    if ! curl -fL --retry 3 --retry-delay 3 --connect-timeout 20 \
+              -o "$out.part" "$url"; then
+      c_err "download failed for $id"
+      rm -f "$out.part"
+      return 1
+    fi
+    mv "$out.part" "$out"
+    c_ok "downloaded $(stat -c %s "$out") bytes"
+  fi
+
+  # ---- observe -------------------------------------------------------------
+  local size md5 sha1 sha256
+  size="$(stat -c %s "$out")"
+  md5="$(md5sum    "$out" | cut -d' ' -f1)"
+  sha1="$(sha1sum  "$out" | cut -d' ' -f1)"
+  sha256="$(sha256sum "$out" | cut -d' ' -f1)"
+
+  # ---- verify against declared expectations --------------------------------
+  local rc=0
+  check_field size   "$(jq -r '.expected.size'   <<<"$img")" "$size"   || rc=1
+  check_field md5    "$(jq -r '.expected.md5'    <<<"$img")" "$md5"    || rc=1
+  check_field sha1   "$(jq -r '.expected.sha1'   <<<"$img")" "$sha1"   || rc=1
+  check_field sha256 "$(jq -r '.expected.sha256' <<<"$img")" "$sha256" || rc=1
+
+  if [ "$rc" -ne 0 ]; then
+    c_err "$id failed integrity verification — NOT recording in manifest"
+    return 1
+  fi
+
+  # ---- record observation --------------------------------------------------
+  local entry
+  entry="$(jq -n \
+    --arg id "$id" --arg filename "$filename" --arg url "$url" \
+    --arg path "$out" --argjson size "$size" \
+    --arg md5 "$md5" --arg sha1 "$sha1" --arg sha256 "$sha256" \
+    --arg fetched_at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+    '{id:$id, filename:$filename, source_url:$url, local_path:$path,
+      size:$size, md5:$md5, sha1:$sha1, sha256:$sha256, fetched_at:$fetched_at}')"
+
+  local tmp; tmp="$(mktemp)"
+  if [ -f "$MANIFEST" ]; then
+    jq --argjson e "$entry" \
+       '.images |= ((map(select(.id != $e.id))) + [$e] | sort_by(.id))' \
+       "$MANIFEST" > "$tmp"
+  else
+    jq -n --argjson e "$entry" \
+       '{_comment:"GENERATED by tools/fetch-firmware.sh — do not hand-edit. Declared expectations live in SOURCES.json.", images:[$e]}' > "$tmp"
+  fi
+  mv "$tmp" "$MANIFEST"
+  c_ok "recorded in firmware/MANIFEST.json"
+
+  # Nudge to pin anything that was previously unknown, so the next run is a real check.
+  if [ "$(jq -r --arg id "$id" '.images[]|select(.id==$id)|.expected.sha256' "$SOURCES")" = "null" ]; then
+    c_warn "pin this in SOURCES.json -> \"sha256\": \"$sha256\""
+  fi
+}
+
+main() {
+  echo "artefact root : $WORK"
+  echo "               (override with FWRE_WORK; must be a Linux fs, not /mnt/c)"
+
+  local ids
+  if [ $# -gt 0 ]; then
+    ids="$*"
+  else
+    ids="$(jq -r '.images[].id' "$SOURCES")"
+  fi
+
+  local failed=0
+  for id in $ids; do
+    fetch_one "$id" || failed=$((failed + 1))
+  done
+
+  echo
+  if [ "$failed" -eq 0 ]; then
+    c_ok "all images fetched and verified"
+  else
+    c_err "$failed image(s) failed — see above"
+    return 1
+  fi
+}
+
+main "$@"

@@ -1,81 +1,100 @@
 # Router Firmware Reverse Engineering — TOTOLINK N150RT
 
-> **Status:** 🚧 In progress — project just started (independent learning / portfolio project)
+> **Status:** W01 complete (recon + unpacking). Hardware phase pending.
 
-A hands-on firmware reverse-engineering study of a consumer router I own, for
-**learning and portfolio purposes**. The goal is to take a real, end-of-life
-embedded device, rebuild an understanding of its firmware from scratch, and
-reproduce **already-publicly-disclosed** vulnerabilities down to the exact
-function in the binary — then document the root-cause analysis.
+A firmware reverse-engineering study of a consumer router I own, done for
+learning and as a portfolio piece. The goal is to take a real, end-of-life
+embedded device, rebuild an understanding of its firmware from nothing, and
+trace **already-publicly-disclosed** vulnerabilities down to the responsible
+function in the binary.
 
-This is the "break" half of a personal skills portfolio (the other half is a
-system I built). The point is not the specific device — it is demonstrating that
-I can take an undocumented binary system on an unfamiliar architecture, build
-understanding from zero, and reason about its security.
+The point is not the device. It is being able to take an undocumented binary
+system on an unfamiliar architecture, build understanding from zero, and reason
+about its security — with results another person can reproduce.
 
 ## Target
 
-- **Device:** TOTOLINK N150RT (V2 hardware) — a 2018, 150 Mbps consumer router
-- **Support status:** End-of-life / no longer vendor-supported
-- **Ownership:** Personally owned; all work is performed on my own hardware
-- **Platform:** Realtek SDK · MIPS · Boa HTTP server (`Boa/0.94.14rc21`-class) ·
-  CGI handlers under `/boafrm/form*` · SquashFS root filesystem
+- **Device:** TOTOLINK N150RT, hardware V2.0 — a 2018-era 150 Mbps consumer router
+- **Support status:** end-of-life, no longer vendor-supported
+- **Ownership:** personally owned; all work is on my own hardware
+- **Platform (measured, not assumed):** big-endian MIPS-I / o32 · Realtek SDK ·
+  Boa 0.94.14rc21 running as root · SquashFS 4.0 root filesystem ·
+  handlers dispatched under `/boafrm/form*`
+
+## What is here
+
+| Path | |
+|---|---|
+| [`RUNBOOK.md`](RUNBOOK.md) | **Start here to reproduce this.** Step-by-step from a bare Windows machine, written for someone with no reverse-engineering background. Every command carries its real expected output. (Traditional Chinese) |
+| [`notes/anatomy-n150rt.md`](notes/anatomy-n150rt.md) | How the firmware is built: container format, flash map, binaries, mitigations |
+| [`notes/prior-art.md`](notes/prior-art.md) | Who disclosed what, when — and which claims survive contact with these images |
+| [`notes/attack-surface.md`](notes/attack-surface.md) | Where to look, ranked |
+| [`notes/ghidra-triage.md`](notes/ghidra-triage.md) | Which functions to open first, and why |
+| [`reports/`](reports/) | Generated analysis: per-version reports, version diff, Ghidra string xrefs |
+| [`tools/fwrecon/`](tools/fwrecon/) | The analysis tool written for this project |
+| [`LOG.md`](LOG.md) | Running log, including every wrong turn |
+| [`PROGRESS.md`](PROGRESS.md) | Gate status |
+
+## Selected findings from W01
+
+Two firmware images were analysed: **V2.1.2 (2015-08-25)** and **V3.4.0
+(2020-10-30)**. They bracket both public disclosure events affecting this
+device, which turns a teardown into a before/after comparison.
+
+- **The 2015 build is the vendor's response to Pierre Kim's July 2015
+  disclosure — and the response was to comment out one line.** `/etc/init.d/rcS`
+  contains `#skt&`; `/bin/skt`, a socket-driven `system()` wrapper, is still
+  shipped and still executable. Not starting a backdoor and not having one are
+  different properties.
+- **In the 2020 build — nine months after the Realtek SDK full disclosure —
+  `/web/config.dat` is a symlink to `/var/config.dat`,** and `rcS` copies `/web/*`
+  into the live document root. The exposure path behind CVE-2019-19822 is
+  structurally intact. Whether it is *reachable unauthenticated* depends on Boa's
+  request-authorisation code, which is W03's job; the structural evidence is
+  recorded without over-claiming.
+- **`formSysCmd` does not appear in either binary** — but `sysCmdselect`,
+  `sysCmdLog` and `/tmp/syscmd.log` do. The CVE-2019-19824 feature is compiled
+  in; only its dispatch name is missing from the string table.
+- **Published specs say 2 MB of flash. The firmware's own flash map needs at
+  least 3.57 MiB.** Settled physically in W02.
+- **No exploit mitigations anywhere:** no canary, RELRO, PIE or FORTIFY, and no
+  `PT_GNU_STACK` on most binaries — an executable stack. Boa runs as root.
+
+## Reproducing
+
+[`RUNBOOK.md`](RUNBOOK.md) walks through this from a bare Windows machine,
+assuming no prior reverse-engineering knowledge. The short version:
+
+```bash
+make setup     # install the toolchain (Linux side)
+make verify    # G0: every tool answers when called
+make fetch     # download + hash-verify the firmware (not redistributed here)
+make unpack    # carve and extract the root filesystems
+make recon     # regenerate everything under reports/
+make test      # fwrecon test suite
+```
+
+```powershell
+# Windows side: pinned JDK 21 + Ghidra 12.1.2, no admin rights needed
+powershell -ExecutionPolicy Bypass -File tools\setup\setup-windows.ps1 all
+.\ghidra\import.ps1 -Label 2.1.2 -Binary \\wsl$\Ubuntu-24.04\home\<user>\fwre-work\extracted\v2.1.2\squashfs-root\bin\boa
+```
+
+A pinned container image is in [`docker/Dockerfile`](docker/Dockerfile); CI
+builds it on every push, so the toolchain pins are checked continuously.
+
+Artefacts live outside the repository, on a Linux filesystem — see
+[`docs/workspace-layout.md`](docs/workspace-layout.md) for why that is a
+correctness requirement here and not a preference.
 
 ## Scope & ethics
 
-- Work is limited to **hardware I own**, in an **isolated lab environment** — no
-  connection to production networks or the public internet during testing.
-- The focus is **reproducing and understanding publicly disclosed CVEs**, not
-  developing or releasing novel weaponized exploits.
+- Work is limited to **hardware I own**, in an **isolated lab environment** —
+  nothing is connected to production networks during testing.
+- The focus is **understanding publicly disclosed issues**, not producing
+  weaponised exploits.
 - I do **not** test third-party, production, or ISP-owned devices.
-- **Coordinated disclosure:** anything genuinely new is reported through
-  **TWCERT/CC** before any public discussion. No 0-day is published directly.
-- Stock firmware images are **not redistributed** in this repository.
-
-## Approach / methodology
-
-1. **Firmware acquisition** — obtain the stock firmware image (vendor download or
-   on-device dump).
-2. **Unpacking** — `binwalk` / `unblob` to extract the SquashFS root filesystem.
-3. **Static analysis** — load the Boa web-server binary and its `/boafrm/form*`
-   handlers into **Ghidra**; map how request parameters flow toward sinks.
-4. **CVE mapping** — for each publicly disclosed issue (e.g. OS command injection
-   via the `formSysCmd` handler, buffer overflows in various `form*` handlers,
-   plaintext config/credential disclosure on Realtek-SDK Boa devices), trace the
-   public description down to the responsible function in the binary.
-5. **Reproduction** — reproduce known issues in an **isolated / emulated**
-   environment (e.g. FirmAE where supported) to confirm understanding.
-6. **Write-up** — document the root cause, the vulnerable code path, and the
-   defensive lessons ("if I were building this firmware…").
-
-## Tooling
-
-`binwalk` · `unblob` · Ghidra · QEMU / FirmAE · flashrom + CH341A (if SPI NOR) ·
-USB-TTL UART (3.3V)
-
-## Planned deliverables
-
-- A full technical write-up (primary deliverable).
-- Root-cause analysis of at least one known CVE, traced to the binary, with a
-  reproduction in an isolated environment.
-- A running notes / error-diagnosis log (`LOG.md`) — including the wrong turns,
-  not just the successes.
-- (Optional) small analysis tooling for firmware unpacking / attack-surface
-  enumeration.
-
-## Repository structure (planned)
-
-```
-firmware/    stock firmware images (NOT redistributed)
-dumps/       flash / UART dumps from my own device
-ghidra/      Ghidra project + analysis scripts
-notes/       per-CVE analysis notes
-poc/         minimal reproductions (isolated-lab only)
-LOG.md       running log, including dead ends
-```
-
-## Legal
-
-This project targets a personally owned, end-of-life device and is conducted in
-an isolated environment for educational and defensive-research purposes. Firmware
-is not redistributed. New findings follow coordinated disclosure via TWCERT/CC.
+- **Coordinated disclosure:** anything genuinely new goes to **TWCERT/CC** before
+  any public discussion.
+- Vendor firmware is **not redistributed** here — only the provenance and hashes
+  needed to obtain and verify identical copies.

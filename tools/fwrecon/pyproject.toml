@@ -1,0 +1,45 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fwrecon"
+version = "0.1.0"
+description = "Structured reconnaissance for Realtek-SDK router firmware"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+# No runtime dependencies on purpose. This tool parses ELF and the Realtek
+# container itself rather than shelling out, so a report can be reproduced from
+# a bare Python install years from now.
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "ruff>=0.6"]
+
+[project.scripts]
+fwrecon = "fwrecon.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint.isort]
+# The test suite imports fwrecon as an installed package; without this, isort
+# groups it with third-party libraries and fights the layout.
+known-first-party = ["fwrecon"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM", "RUF"]
+ignore = [
+    # The ELF/SquashFS parsers unpack fixed struct layouts; naming every unused
+    # field is clearer than eliding them.
+    "F841",
+]

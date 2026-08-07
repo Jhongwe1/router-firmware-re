@@ -1,0 +1,2233 @@
+{
+  "schema_version": "1.0",
+  "generated_at_utc": "2026-08-07T06:25:43+00:00",
+  "label": "N150RT V3.4.0-B20201030",
+  "image_file": "/home/key/fwre-work/firmware/TOTOLINK-N150RT-V3.4.0-B20201030.1142.web",
+  "image_sha256": "a73f5bcf8b1d406a3db03abd57a3a0a43ad360aefbea3ab5cb279a9b357900d2",
+  "image": {
+    "path": "/home/key/fwre-work/firmware/TOTOLINK-N150RT-V3.4.0-B20201030.1142.web",
+    "size": 3393595,
+    "sections": [
+      {
+        "index": 0,
+        "offset": 0,
+        "tag": "cr6c",
+        "description": "kernel image (LZMA-compressed, preceded by a raw boot stub)",
+        "start_addr": 2160066560,
+        "burn_addr": 65536,
+        "length": 1234946,
+        "payload_offset": 16,
+        "payload_actual": 1234946,
+        "payload_type": "raw/unrecognised",
+        "inner_findings": [
+          "lzma (alone format, lc=3 lp=0 pb=2) at +0x2808"
+        ],
+        "squashfs": null,
+        "anomalies": []
+      },
+      {
+        "index": 1,
+        "offset": 1234962,
+        "tag": "r6cr",
+        "description": "root filesystem",
+        "start_addr": 2949120,
+        "burn_addr": 1572864,
+        "length": 2158594,
+        "payload_offset": 1234978,
+        "payload_actual": 2158594,
+        "payload_type": "squashfs (little-endian superblock)",
+        "inner_findings": [],
+        "squashfs": {
+          "offset": 1234978,
+          "version": "4.0",
+          "compression": "xz",
+          "inodes": 827,
+          "block_size": 131072,
+          "fragments": 43,
+          "bytes_used": 2155236,
+          "mkfs_time_raw": 2163023872,
+          "mkfs_time_utc": "2038-07-17T23:57:52+00:00",
+          "anomalies": [
+            "mkfs_time is implausible (2038-07-17T23:57:52+00:00); raw=0x80ed2000. Byte-reversed it reads 0x0020ed80, which is suspiciously close to the filesystem size - possibly a vendor build-script bug writing a size into this field."
+          ]
+        },
+        "anomalies": []
+      }
+    ],
+    "trailer": "TOTOLINK-N150RT-V2.1.0",
+    "trailer_offset": 3393572,
+    "flash_map": [
+      {
+        "tag": "cr6c",
+        "flash_offset": 65536,
+        "flash_offset_hex": "0x010000",
+        "length": 1234946,
+        "end": 1300482,
+        "ram_load_addr": "0x80c00000"
+      },
+      {
+        "tag": "r6cr",
+        "flash_offset": 1572864,
+        "flash_offset_hex": "0x180000",
+        "length": 2158594,
+        "end": 3731458,
+        "ram_load_addr": "0x002d0000"
+      }
+    ],
+    "min_flash_size": 3731458,
+    "anomalies": []
+  },
+  "rootfs": {
+    "root": "/home/key/fwre-work/extracted/v3.4.0/squashfs-root",
+    "label": "N150RT V3.4.0-B20201030",
+    "file_count": 364,
+    "dir_count": 33,
+    "symlink_count": 102,
+    "total_bytes": 7470641,
+    "web_server": "/bin/boa",
+    "web_server_banner": "Boa/0.94.14rc21",
+    "document_root": "/var/web",
+    "handlers": [
+      "formAdvanceSetup",
+      "formAjaxGet",
+      "formAjaxSet",
+      "formAlgSip",
+      "formDMZ",
+      "formDdns",
+      "formDosCfg",
+      "formFilter",
+      "formIPTV",
+      "formIpQoS",
+      "formLogin",
+      "formLogout",
+      "formNewSchedule",
+      "formNtp",
+      "formOpMode",
+      "formPasswordSetup",
+      "formPocketWizard",
+      "formPortFw",
+      "formRebootCheck",
+      "formRebootSchedule",
+      "formReflashClientTbl",
+      "formRoute",
+      "formSaveConfig",
+      "formSchedule",
+      "formSiteSurveyProfile",
+      "formSpiFwall",
+      "formStaticDHCP",
+      "formStats",
+      "formSysLog",
+      "formTR069Config",
+      "formTcpipSetup",
+      "formUpload",
+      "formUploadConfig",
+      "formUploadFile",
+      "formVlan",
+      "formWanStatus",
+      "formWanTcpipSetup",
+      "formWdsEncrypt",
+      "formWep",
+      "formWirelessTbl",
+      "formWizard",
+      "formWlAc",
+      "formWlEncrypt",
+      "formWlSiteSurvey",
+      "formWlWds",
+      "formWlanMultipleAP",
+      "formWlanRedirect",
+      "formWlanSetup",
+      "formWsc"
+    ],
+    "handler_source": "/bin/boa",
+    "binaries": [
+      {
+        "path": "/bin/UDPserver",
+        "size": 9976,
+        "mode": "-rwxr-xr-x",
+        "endian": "big",
+        "machine": "MIPS mips1",
+        "load_base": "0x00400000",
+        "entry": "0x00401ae0",
+        "stripped_sections": true,
+        "needed": [],
+        "sinks": {},
+        "hardening": {
+          "nx": false,
+          "pie": false,
+          "relro": "none",
+          "canary": false,
+          "fortify": false,
+          "rwx_segments": [],
+          "text_relocations": false
+        }
+      },
+      {
+        "path": "/bin/acltd",
+        "size": 10032,
+        "mode": "-rwxr-xr-x",
+        "endian": "big",
+        "machine": "MIPS mips1",
+        "load_base": "0x00400000",
+        "entry": "0x004008d0",
+        "stripped_sections": false,
+        "needed": [
+          "libc.so.0"
+        ],
+        "sinks": {
+          "unbounded_copy": [
+            "strcpy"
+          ],
+          "format_string": [
+            "printf"
+          ],
+          "input_parse": [
+            "sscanf"
+          ]
+        },
+        "hardening": {
+          "nx": null,
+          "pie": false,
+          "relro": "none",
+          "canary": false,
+          "fortify": false,
+          "rwx_segments": [],
+          "text_relocations": false
+        }
+      },
+      {
+        "path": "/bin/auth",
+        "size": 121272,
+        "mode": "-rwxr-xr-x",
+        "endian": "big",
+        "machine": "MIPS mips1",
+        "load_base": "0x00400000",
+        "entry": "0x00401980",
+        "stripped_sections": true,
+        "needed": [
+          "libgcc_s.so.1",
+          "libc.so.0"
+        ],
+        "sinks": {
+          "unbounded_copy": [
+            "sprintf",
+            "strcpy"
+          ],
+          "bounded_but_error_prone": [
+            "memcpy",
+            "snprintf",
+            "strncat",
+            "strncpy"
+          ],
+          "format_string": [
+            "fprintf",
+            "printf",
+            "syslog"
+          ],
+          "input_parse": [
+            "atoi",
+            "sscanf",
+            "strtol"
+          ]
+        },
+        "hardening": {
+          "nx": false,
+          "pie": false,
+          "relro": "none",
+          "canary": false,
+          "fortify": false,
+          "rwx_segments": [],
+          "text_relocations": false
+        }
+      },
+      {
+        "path": "/bin/batchUpgrade",
+        "size": 14376,
+        "mode": "-rwxr-xr-x",
+        "endian": "big",
+        "machine": "MIPS mips1",
+        "load_base": "0x00400000",
+        "entry": "0x00400d30",
+        "stripped_sections": true,
+        "needed": [],
+        "sinks": {},
+        "hardening": {
+          "nx": false,
+          "pie": false,
+          "relro": "none",
+          "canary": false,
+          "fortify": false,
+          "rwx_segments": [],
+          "text_relocations": false
+        }
+      },
+      {
+        "path": "/bin/boa",
+        "size": 404904,
+        "mode": "-rwxr-xr-x",
+        "endian": "big",
+        "machine": "MIPS mips1",
+        "load_base": "0x00400000",
+        "entry": "0x004034d0",
+        "stripped_sections": true,
+        "needed": [
+          "libcjson.so",
+          "libmtdapi.so",
+          "libapmib.so",
+          "libgcc_s.so.1",
+          "libc.so.0"
+        ],
+        "sinks": {
+          "command_exec": [
+            "execl",
+            "execv",
+            "execve",
+            "popen",
+            "system"
+          ],
+          "unbounded_copy": [
+            "sprintf",
+            "strcat",
+            "strcpy"
+          ],
+          "bounded_but_error_prone": [
+            "memcpy",
+            "memmove",
+            "snprintf",
+            "strncpy",
+            "vsnprintf"
+          ],
+          "format_string": [
+            "fprintf",
+            "printf"
+          ],
+          "input_parse": [
+            "atoi",
+            "fscanf",
+            "sscanf",
+            "strtol"
+          ]
+        },
+        "hardening": {
+          "nx": false,
+          "pie": false,
+          "relro": "none",
+          "canary": false,
+          "fortify": false,
+          "rwx_segments": [],
+          "text_relocations": false
+        }
+      },
+      {
+        "path": "/bin/brctl",
+        "size": 23844,
+        "mode": "-rwxr-xr-x",
+        "endian": "big",
+        "machine": "MIPS mips1",
+        "load_base": "0x00400000",
+        "entry": "0x00400d40",
+        "stripped_sections": true,
+        "needed": [
+          "libgcc_s.so.1",
+          "libc.so.0"
+        ],
+        "sinks": {
+          "bounded_but_error_prone": [
+            "memcpy",
+            "strncpy"
+          ],
+          "format_string": [
+            "fprintf",
+            "printf"
+          ],
+          "input_parse": [
+            "sscanf"
+          ]
+        },
+        "hardening": {
+          "nx": false,
+          "pie": false,
+          "relro": "none",
+          "canary": false,
+          "fortify": false,
+          "rwx_segments": [],
+          "text_relocations": false
+        }
+      },
+      {
+        "path": "/bin/busybox",
+        "size": 305216,
+        "mode": "-rwxr-xr-x",
+        "endian": "big",
+        "machine": "MIPS mips1",
+        "load_base": "0x00400000",
+        "entry": "0x00403bd0",
+        "stripped_sections": true,
+        "needed": [
+          "libc.so.0"
+        ],
+        "sinks": {
+          "command_exec": [
+            "execlp",
+            "execv",
+            "execve",
+            "execvp",
+            "popen",
+            "system"
+          ],
+          "unbounded_copy": [
+            "sprintf",
+            "strcat",
+            "strcpy",
+            "vsprintf"
+          ],
+          "bounded_but_error_prone": [
+            "memcpy",
+            "memmove",
+            "snprintf",
+            "strncat",
+            "strncpy",
+            "vsnprintf"
+          ],
+          "format_string": [
+            "fprintf",
+            "printf",
+            "syslog",
+            "vfprintf",
+            "vprintf"
+          ],
+          "input_parse": [
+            "atoi",
+            "fscanf",
+            "sscanf",
+            "strtol"
+          ]
+        },
+        "hardening": {
+          "nx": false,
+          "pie": false,
+          "relro": "none",
+          "canary": false,
+          "fortify": false,
+          "rwx_segments": [],
+          "text_relocations": false
+        }
+      },
+      {
+        "path": "/bin/cwmpClient",
+        "size": 480512,
+        "mode": "-rwxr-xr-x",
+        "endian": "big",
+        "machine": "MIPS mips1",
+        "load_base": "0x00400000",
+        "entry": "0x00403330",
+        "stripped_sections": true,
+        "needed": [
+          "libmtdapi.so",
+          "libapmib.so",
+          "libpthread.so.0",
+          "libgcc_s.so.1",
+          "libc.so.0"
+        ],
+        "sinks": {
+          "command_exec": [
+            "execve",
+            "system"
+          ],
+          "unbounded_copy": [
+            "sprintf",
+            "strcat",
+            "strcpy"
+          ],
+          "bounded_but_error_prone": [
+            "memcpy",
+            "snprintf",
+            "strncat",
+            "strncpy",
+            "vsnprintf"
+          ],
+          "format_string": [
+            "fprintf",
+            "printf"
+          ],
+          "input_parse": [
+            "atoi",
+            "fscanf",
+            "sscanf",
+            "strtol"
+          ]
+        },
+        "hardening": {
+          "nx": false,
+          "pie": false,
+          "relro": "none",
+          "canary": false,
+          "fortify": false,
+          "rwx_segments": [],
+          "text_relocations": false
+        }
+      },
+      {
+        "path": "/bin/ddns_inet",
+        "size": 11528,
+        "mode": "-rwxr-xr-x",
+        "endian": "big",
+        "machine": "MIPS mips1",
+        "load_base": "0x00400000",
+        "entry": "0x004012e0",
+        "stripped_sections": true,
+        "needed": [],
+        "sinks": {},
+        "hardening": {
+          "nx": false,
+          "pie": false,
+          "relro": "none",
+          "canary": false,
+          "fortify": false,
+          "rwx_segments": [],
+          "text_relocations": false
+        }
+      },
+      {
+        "path": "/bin/dnrd",
+        "size": 39640,
+        "mode": "-rwxr-xr-x",
+        "endian": "big",
+        "machine": "MIPS mips1",
+        "load_base": "0x00400000",
+        "entry": "0x00402500",
+        "stripped_sections": true,
+        "needed": [
+          "libgcc_s.so.1",
+          "libc.so.0"
+        ],
+        "sinks": {
+          "unbounded_copy": [
+            "strcpy"
+          ],
+          "bounded_but_error_prone": [
+            "memcpy",
+            "snprintf"
+          ],
+          "format_string": [
+            "fprintf",
+            "printf",
+            "vfprintf"
+          ],
+          "input_parse": [
+            "atoi",
+            "fscanf"
+          ]
+        },
+        "hardening": {
+          "nx": false,
+          "pie": false,
+          "relro": "none",
+          "canary": false,
+          "fortify": false,
+          "rwx_segments": [],
+          "text_relocations": false
+        }
+      },
+      {
+        "path": "/bin/dnsspoof",
+        "size": 7656,
+        "mode": "-rwxr-xr-x",
+        "endian": "big",
+        "machine": "MIPS mips1",
+        "load_base": "0x00400000",
+        "entry": "0x00400ba0",
+        "stripped_sections": true,
+        "needed": [],
+        "sinks": {},
+        "hardening": {
+          "nx": false,
+          "pie": false,
+          "relro": "none",
+          "canary": false,
+          "fortify": false,
+          "rwx_segments": [],
+          "text_relocations": false
+        }
+      },
+      {
+        "path": "/bin/flash",
+        "size": 86568,
+        "mode": "-rwxr-xr-x",
+        "endian": "big",
+        "machine": "MIPS mips1",
+        "load_base": "0x00400000",
+        "entry": "0x0040a0b0",
+        "stripped_sections": true,
+        "needed": [
+          "libmtdapi.so",
+          "libapmib.so",
+          "libgcc_s.so.1",
+          "libc.so.0"
+        ],
+        "sinks": {
+          "command_exec": [
+            "system"
+          ],
+          "unbounded_copy": [
+            "sprintf",
+            "strcat",
+            "strcpy"
+          ],
+          "bounded_but_error_prone": [
+            "memcpy",
+            "snprintf",
+            "strncpy"
+          ],
+          "format_string": [
+            "fprintf",
+            "printf"
+          ],
+          "input_parse": [
+            "atoi",
+            "sscanf",
+            "strtol"
+          ]
+        },
+        "hardening": {
+          "nx": false,
+          "pie": false,
+          "relro": "none",
+          "canary": false,
+          "fortify": false,
+          "rwx_segments": [],
+          "text_relocations": false
+        }
+      },
+      {
+        "path": "/bin/fwd",
+        "size": 10824,
+        "mode": "-rwxr-xr-x",
+        "endian": "big",
+        "machine": "MIPS mips1",
+        "load_base": "0x00400000",
+        "entry": "0x00400c80",
+        "stripped_sections": true,
+        "needed": [],
+        "sinks": {},
+        "hardening": {
+          "nx": false,
+          "pie": false,
+          "relro": "none",
+          "canary": false,
+          "fortify": false,
+          "rwx_segments": [],
+          "text_relocations": false
+        }
+      },
+      {
+        "path": "/bin/iapp",
+        "size": 13320,
+        "mode": "-rwxr-xr-x",
+        "endian": "big",
+        "machine": "MIPS mips1",
+        "load_base": "0x00400000",
+        "entry": "0x00402680",
+        "stripped_sections": true,
+        "needed": [],
+        "sinks": {},
+        "hardening": {
+          "nx": false,
+          "pie": false,
+          "relro": "none",
+          "canary": false,
+          "fortify": false,
+          "rwx_segments": [],
+          "text_relocations": false
+        }
+      },
+      {
+        "path": "/bin/igmpproxy",
+        "size": 20824,
+        "mode": "-rwxr-xr-x",
+        "endian": "big",
+        "machine": "MIPS mips1",
+        "load_base": "0x00400000",
+        "entry": "0x00401820",
+        "stripped_sections": true,
+        "needed": [],
+        "sinks": {},
+        "hardening": {
+          "nx": false,
+          "pie": false,
+          "relro": "none",
+          "canary": false,
+          "fortify": false,
+          "rwx_segments": [],
+          "text_relocations": false
+        }
+      },
+      {
+        "path": "/bin/iptables",
+        "size": 281688,
+        "mode": "-rwxr-xr-x",
+        "endian": "big",
+        "machine": "MIPS mips1",
+        "load_base": "0x00400000",
+        "entry": "0x00401ed0",
+        "stripped_sections": true,
+        "needed": [
+          "libm.so.0",
+          "libgcc_s.so.1",
+          "libc.so.0"
+        ],
+        "sinks": {
+          "command_exec": [
+            "execv"
+          ],
+          "unbounded_copy": [
+            "sprintf",
+            "strcat",
+            "strcpy"
+          ],
+          "bounded_but_error_prone": [
+            "memcpy",
+            "snprintf",
+            "strncpy"
+          ],
+          "format_string": [
+            "fprintf",
+            "printf",
+            "vfprintf"
+          ],
+          "input_parse": [
+            "atoi",
+            "sscanf",
+            "strtol"
+          ]
+        },
+        "hardening": {
+          "nx": false,
+          "pie": false,
+          "relro": "none",
+          "canary": false,
+          "fortify": false,
+          "rwx_segments": [],
+          "text_relocations": false
+        }
+      },
+      {
+        "path": "/bin/iwcontrol",
+        "size": 37208,
+        "mode": "-rwxr-xr-x",
+        "endian": "big",
+        "machine": "MIPS mips1",
+        "load_base": "0x00400000",
+        "entry": "0x00401a00",
+        "stripped_sections": true,
+        "needed": [],
+        "sinks": {},
+        "hardening": {
+          "nx": false,
+          "pie": false,
+          "relro": "none",
+          "canary": false,
+          "fortify": false,
+          "rwx_segments": [],
+          "text_relocations": false
+        }
+      },
+      {
+        "path": "/bin/iwpriv",
+        "size": 25911,
+        "mode": "-rwxr-xr-x",
+        "endian": "big",
+        "machine": "MIPS mips1",
+        "load_base": "0x00400000",
+        "entry": "0x004010d0",
+        "stripped_sections": true,
+        "needed": [],
+        "sinks": {},
+        "hardening": {
+          "nx": false,
+          "pie": false,
+          "relro": "none",
+          "canary": false,
+          "fortify": false,
+          "rwx_segments": [],
+          "text_relocations": false
+        }
+      },
+      {
+        "path": "/bin/l2tpd",
+        "size": 90584,
+        "mode": "-rwxr-xr-x",
+        "endian": "big",
+        "machine": "MIPS mips1",
+        "load_base": "0x00400000",
+        "entry": "0x00401780",
+        "stripped_sections": true,
+        "needed": [
+          "libgcc_s.so.1",
+          "libc.so.0"
+        ],
+        "sinks": {
+          "command_exec": [
+            "execv",
+            "system"
+          ],
+          "unbounded_copy": [
+            "sprintf",
+            "strcat",
+            "strcpy"
+          ],
+          "bounded_but_error_prone": [
+            "memcpy",
+            "snprintf",
+            "strncpy",
+            "vsnprintf"
+          ],
+          "format_string": [
+            "printf",
+            "syslog"
+          ],
+          "input_parse": [
+            "atoi",
+            "fscanf",
+            "sscanf"
+          ]
+        },
+        "hardening": {
+          "nx": false,
+          "pie": false,
+          "relro": "none",
+          "canary": false,
+          "fortify": false,
+          "rwx_segments": [],
+          "text_relocations": false
+        }
+      },
+      {
+        "path": "/bin/lld2d",
+        "size": 54136,
+        "mode": "-rwxr-xr-x",
+        "endian": "big",
+        "machine": "MIPS mips1",
+        "load_base": "0x00400000",
+        "entry": "0x004018e0",
+        "stripped_sections": true,
+        "needed": [
+          "libgcc_s.so.1",
+          "libc.so.0"
+        ],
+        "sinks": {
+          "command_exec": [
+            "system"
+          ],
+          "unbounded_copy": [
+            "sprintf",
+            "strcat",
+            "strcpy"
+          ],
+          "bounded_but_error_prone": [
+            "memcpy",
+            "snprintf",
+            "strncpy"
+          ],
+          "format_string": [
+            "fprintf",
+            "printf",
+            "vfprintf"
+          ],
+          "input_parse": [
+            "atoi",
+            "sscanf",
+            "strtol"
+          ]
+        },
+        "hardening": {
+          "nx": false,
+          "pie": false,
+          "relro": "none",
+          "canary": false,
+          "fortify": false,
+          "rwx_segments": [],
+          "text_relocations": false
+        }
+      },
+      {
+        "path": "/bin/main_lc5761",
+        "size": 79984,
+        "mode": "-rwxr-xr-x",
+        "endian": "big",
+        "machine": "MIPS mips1",
+        "load_base": "0x00400000",
+        "entry": "0x004003e0",
+        "stripped_sections": true,
+        "needed": [],
+        "sinks": {},
+        "hardening": {
+          "nx": false,
+          "pie": false,
+          "relro": "none",
+          "canary": false,
+          "fortify": false,
+          "rwx_segments": [],
+          "text_relocations": false
+        }
+      },
+      {
+        "path": "/bin/miniigd",
+        "size": 80904,
+        "mode": "-rwxr-xr-x",
+        "endian": "big",
+        "machine": "MIPS mips1",
+        "load_base": "0x00400000",
+        "entry": "0x00402ba0",
+        "stripped_sections": true,
+        "needed": [
+          "libgcc_s.so.1",
+          "libc.so.0"
+        ],
+        "sinks": {
+          "command_exec": [
+            "system"
+          ],
+          "unbounded_copy": [
+            "sprintf",
+            "strcat",
+            "strcpy"
+          ],
+          "bounded_but_error_prone": [
+            "memcpy",
+            "memmove",
+            "snprintf",
+            "strncpy"
+          ],
+          "format_string": [
+            "fprintf",
+            "printf",
+            "syslog"
+          ],
+          "input_parse": [
+            "atoi",
+            "fscanf",
+            "sscanf"
+          ]
+        },
+        "hardening": {
+          "nx": false,
+          "pie": false,
+          "relro": "none",
+          "canary": false,
+          "fortify": false,
+          "rwx_segments": [],
+          "text_relocations": false
+        }
+      },
+      {
+        "path": "/bin/ntp_inet",
+        "size": 12936,
+        "mode": "-rwxr-xr-x",
+        "endian": "big",
+        "machine": "MIPS mips1",
+        "load_base": "0x00400000",
+        "entry": "0x00401580",
+        "stripped_sections": true,
+        "needed": [],
+        "sinks": {},
+        "hardening": {
+          "nx": false,
+          "pie": false,
+          "relro": "none",
+          "canary": false,
+          "fortify": false,
+          "rwx_segments": [],
+          "text_relocations": false
+        }
+      },
+      {
+        "path": "/bin/ntpclient",
+        "size": 28935,
+        "mode": "-rwxr-xr-x",
+        "endian": "big",
+        "machine": "MIPS mips1",
+        "load_base": "0x00400000",
+        "entry": "0x00401220",
+        "stripped_sections": true,
+        "needed": [],
+        "sinks": {},
+        "hardening": {
+          "nx": false,
+          "pie": false,
+          "relro": "none",
+          "canary": false,
+          "fortify": false,
+          "rwx_segments": [],
+          "text_relocations": false
+        }
+      },
+      {
+        "path": "/bin/ppp_inet",
+        "size": 12056,
+        "mode": "-rwxr-xr-x",
+        "endian": "big",
+        "machine": "MIPS mips1",
+        "load_base": "0x00400000",
+        "entry": "0x00401470",
+        "stripped_sections": true,
+        "needed": [],
+        "sinks": {},
+        "hardening": {
+          "nx": false,
+          "pie": false,
+          "relro": "none",
+          "canary": false,
+          "fortify": false,
+          "rwx_segments": [],
+          "text_relocations": false
+        }
+      },
+      {
+        "path": "/bin/pppd",
+        "size": 240600,
+        "mode": "-rwxr-xr-x",
+        "endian": "big",
+        "machine": "MIPS mips1",
+        "load_base": "0x00400000",
+        "entry": "0x00408450",
+        "stripped_sections": true,
+        "needed": [
+          "libcrypt.so.0",
+          "libgcc_s.so.1",
+          "libc.so.0"
+        ],
+        "sinks": {
+          "command_exec": [
+            "execl",
+            "execve",
+            "system"
+          ],
+          "unbounded_copy": [
+            "sprintf",
+            "strcpy"
+          ],
+          "bounded_but_error_prone": [
+            "memcpy",
+            "snprintf",
+            "strncat",
+            "strncpy"
+          ],
+          "format_string": [
+            "fprintf",
+            "printf",
+            "syslog"
+          ],
+          "input_parse": [
+            "atoi",
+            "fscanf",
+            "sscanf",
+            "strtol"
+          ]
+        },
+        "hardening": {
+          "nx": false,
+          "pie": false,
+          "relro": "none",
+          "canary": false,
+          "fortify": false,
+          "rwx_segments": [],
+          "text_relocations": false
+        }
+      },
+      {
+        "path": "/bin/pptp",
+        "size": 51620,
+        "mode": "-rwxr-xr-x",
+        "endian": "big",
+        "machine": "MIPS mips1",
+        "load_base": "0x00400000",
+        "entry": "0x00402220",
+        "stripped_sections": true,
+        "needed": [
+          "libgcc_s.so.1",
+          "libc.so.0"
+        ],
+        "sinks": {
+          "command_exec": [
+            "execvp",
+            "popen"
+          ],
+          "unbounded_copy": [
+            "strcpy"
+          ],
+          "bounded_but_error_prone": [
+            "memcpy",
+            "memmove",
+            "snprintf",
+            "strncpy",
+            "vsnprintf"
+          ],
+          "format_string": [
+            "fprintf",
+            "syslog"
+          ],
+          "input_parse": [
+            "atoi"
+          ]
+        },
+        "hardening": {
+          "nx": false,
+          "pie": false,
+          "relro": "none",
+          "canary": false,
+          "fortify": false,
+          "rwx_segments": [],
+          "text_relocations": false
+        }
+      },
+      {
+        "path": "/bin/rebootschedule",
+        "size": 2952,
+        "mode": "-rwxr-xr-x",
+        "endian": "big",
+        "machine": "MIPS mips1",
+        "load_base": "0x00400000",
+        "entry": "0x004008d0",
+        "stripped_sections": true,
+        "needed": [],
+        "sinks": {},
+        "hardening": {
+          "nx": false,
+          "pie": false,
+          "relro": "none",
+          "canary": false,
+          "fortify": false,
+          "rwx_segments": [],
+          "text_relocations": false
+        }
+      },
+      {
+        "path": "/bin/rebootschedules",
+        "size": 2792,
+        "mode": "-rwxr-xr-x",
+        "endian": "big",
+        "machine": "MIPS mips1",
+        "load_base": "0x00400000",
+        "entry": "0x00400830",
+        "stripped_sections": true,
+        "needed": [],
+        "sinks": {},
+        "hardening": {
+          "nx": false,
+          "pie": false,
+          "relro": "none",
+          "canary": false,
+          "fortify": false,
+          "rwx_segments": [],
+          "text_relocations": false
+        }
+      },
+      {
+        "path": "/bin/reload",
+        "size": 10520,
+        "mode": "-rwxr-xr-x",
+        "endian": "big",
+        "machine": "MIPS mips1",
+        "load_base": "0x00400000",
+        "entry": "0x00401420",
+        "stripped_sections": true,
+        "needed": [],
+        "sinks": {},
+        "hardening": {
+          "nx": false,
+          "pie": false,
+          "relro": "none",
+          "canary": false,
+          "fortify": false,
+          "rwx_segments": [],
+          "text_relocations": false
+        }
+      },
+      {
+        "path": "/bin/reset",
+        "size": 2376,
+        "mode": "-rwxr-xr-x",
+        "endian": "big",
+        "machine": "MIPS mips1",
+        "load_base": "0x00400000",
+        "entry": "0x00400690",
+        "stripped_sections": true,
+        "needed": [],
+        "sinks": {},
+        "hardening": {
+          "nx": false,
+          "pie": false,
+          "relro": "none",
+          "canary": false,
+          "fortify": false,
+          "rwx_segments": [],
+          "text_relocations": false
+        }
+      },
+      {
+        "path": "/bin/routed",
+        "size": 40984,
+        "mode": "-rwxr-xr-x",
+        "endian": "big",
+        "machine": "MIPS mips1",
+        "load_base": "0x00400000",
+        "entry": "0x00402030",
+        "stripped_sections": true,
+        "needed": [
+          "libgcc_s.so.1",
+          "libc.so.0"
+        ],
+        "sinks": {
+          "command_exec": [
+            "execv",
+            "execve",
+            "system"
+          ],
+          "unbounded_copy": [
+            "sprintf",
+            "strcpy"
+          ],
+          "bounded_but_error_prone": [
+            "memcpy",
+            "strncpy"
+          ],
+          "format_string": [
+            "fprintf",
+            "printf",
+            "syslog"
+          ],
+          "input_parse": [
+            "atoi",
+            "fscanf",
+            "sscanf"
+          ]
+        },
+        "hardening": {
+          "nx": false,
+          "pie": false,
+          "relro": "none",
+          "canary": false,
+          "fortify": false,
+          "rwx_segments": [],
+          "text_relocations": false
+        }
+      },
+      {
+        "path": "/bin/sysconf",
+        "size": 128392,
+        "mode": "-rwxr-xr-x",
+        "endian": "big",
+        "machine": "MIPS mips1",
+        "load_base": "0x00400000",
+        "entry": "0x00402b00",
+        "stripped_sections": true,
+        "needed": [
+          "libmtdapi.so",
+          "libapmib.so",
+          "libgcc_s.so.1",
+          "libc.so.0"
+        ],
+        "sinks": {
+          "command_exec": [
+            "execvp",
+            "popen",
+            "system"
+          ],
+          "unbounded_copy": [
+            "sprintf",
+            "strcat",
+            "strcpy"
+          ],
+          "bounded_but_error_prone": [
+            "memcpy",
+            "snprintf",
+            "strncpy",
+            "vsnprintf"
+          ],
+          "format_string": [
+            "fprintf",
+            "printf"
+          ],
+          "input_parse": [
+            "atoi",
+            "fscanf",
+            "sscanf",
+            "strtol"
+          ]
+        },
+        "hardening": {
+          "nx": false,
+          "pie": false,
+          "relro": "none",
+          "canary": false,
+          "fortify": false,
+          "rwx_segments": [],
+          "text_relocations": false
+        }
+      },
+      {
+        "path": "/bin/tc",
+        "size": 220852,
+        "mode": "-rwxr-xr-x",
+        "endian": "big",
+        "machine": "MIPS mips1",
+        "load_base": "0x00400000",
+        "entry": "0x004050b0",
+        "stripped_sections": true,
+        "needed": [
+          "libm.so.0",
+          "libdl.so.0",
+          "libgcc_s.so.1",
+          "libc.so.0"
+        ],
+        "sinks": {
+          "unbounded_copy": [
+            "sprintf",
+            "strcat",
+            "strcpy"
+          ],
+          "bounded_but_error_prone": [
+            "memcpy",
+            "snprintf",
+            "strncpy"
+          ],
+          "format_string": [
+            "fprintf",
+            "printf",
+            "vfprintf"
+          ],
+          "input_parse": [
+            "atoi",
+            "fscanf",
+            "sscanf",
+            "strtol"
+          ]
+        },
+        "hardening": {
+          "nx": false,
+          "pie": false,
+          "relro": "none",
+          "canary": false,
+          "fortify": false,
+          "rwx_segments": [],
+          "text_relocations": false
+        }
+      },
+      {
+        "path": "/bin/timelycheck",
+        "size": 124280,
+        "mode": "-rwxr-xr-x",
+        "endian": "big",
+        "machine": "MIPS mips1",
+        "load_base": "0x00400000",
+        "entry": "0x004018d0",
+        "stripped_sections": true,
+        "needed": [
+          "libmtdapi.so",
+          "libapmib.so",
+          "libgcc_s.so.1",
+          "libc.so.0"
+        ],
+        "sinks": {
+          "command_exec": [
+            "execvp",
+            "system"
+          ],
+          "unbounded_copy": [
+            "sprintf",
+            "strcat",
+            "strcpy"
+          ],
+          "bounded_but_error_prone": [
+            "memcpy",
+            "snprintf",
+            "strncpy",
+            "vsnprintf"
+          ],
+          "format_string": [
+            "fprintf",
+            "printf"
+          ],
+          "input_parse": [
+            "atoi",
+            "fscanf",
+            "sscanf",
+            "strtol"
+          ]
+        },
+        "hardening": {
+          "nx": false,
+          "pie": false,
+          "relro": "none",
+          "canary": false,
+          "fortify": false,
+          "rwx_segments": [],
+          "text_relocations": false
+        }
+      },
+      {
+        "path": "/bin/traceroute",
+        "size": 61304,
+        "mode": "-rwxr-xr-x",
+        "endian": "big",
+        "machine": "MIPS mips1",
+        "load_base": "0x00400000",
+        "entry": "0x004026d0",
+        "stripped_sections": true,
+        "needed": [
+          "libm.so.0",
+          "libgcc_s.so.1",
+          "libc.so.0"
+        ],
+        "sinks": {
+          "unbounded_copy": [
+            "strcat"
+          ],
+          "bounded_but_error_prone": [
+            "memcpy",
+            "snprintf",
+            "strncpy"
+          ],
+          "format_string": [
+            "fprintf",
+            "printf",
+            "vfprintf"
+          ],
+          "input_parse": [
+            "sscanf",
+            "strtol"
+          ]
+        },
+        "hardening": {
+          "nx": false,
+          "pie": false,
+          "relro": "none",
+          "canary": false,
+          "fortify": false,
+          "rwx_segments": [],
+          "text_relocations": false
+        }
+      },
+      {
+        "path": "/bin/udhcpd",
+        "size": 48040,
+        "mode": "-rwxr-xr-x",
+        "endian": "big",
+        "machine": "MIPS mips1",
+        "load_base": "0x00400000",
+        "entry": "0x00401c90",
+        "stripped_sections": true,
+        "needed": [
+          "../boa/apmib/libapmib.so",
+          "libgcc_s.so.1",
+          "libc.so.0"
+        ],
+        "sinks": {
+          "command_exec": [
+            "execle",
+            "system"
+          ],
+          "unbounded_copy": [
+            "sprintf",
+            "strcat",
+            "strcpy"
+          ],
+          "bounded_but_error_prone": [
+            "memcpy",
+            "snprintf",
+            "strncat",
+            "strncpy"
+          ],
+          "format_string": [
+            "fprintf",
+            "printf"
+          ],
+          "input_parse": [
+            "atoi",
+            "fscanf",
+            "sscanf",
+            "strtol"
+          ]
+        },
+        "hardening": {
+          "nx": false,
+          "pie": false,
+          "relro": "none",
+          "canary": false,
+          "fortify": false,
+          "rwx_segments": [],
+          "text_relocations": false
+        }
+      },
+      {
+        "path": "/bin/updatedd",
+        "size": 132295,
+        "mode": "-rwxr-xr-x",
+        "endian": "big",
+        "machine": "MIPS mips1",
+        "load_base": "0x00400000",
+        "entry": "0x00400380",
+        "stripped_sections": true,
+        "needed": [],
+        "sinks": {},
+        "hardening": {
+          "nx": false,
+          "pie": false,
+          "relro": "none",
+          "canary": false,
+          "fortify": false,
+          "rwx_segments": [],
+          "text_relocations": false
+        }
+      },
+      {
+        "path": "/bin/wget",
+        "size": 845488,
+        "mode": "-rwxr-xr-x",
+        "endian": "big",
+        "machine": "MIPS mips1",
+        "load_base": "0x00400000",
+        "entry": "0x00404aa0",
+        "stripped_sections": true,
+        "needed": [
+          "libc.so.0",
+          "libgcc_s.so.1"
+        ],
+        "sinks": {
+          "unbounded_copy": [
+            "sprintf",
+            "strcat",
+            "strcpy",
+            "wcscat"
+          ],
+          "bounded_but_error_prone": [
+            "memcpy",
+            "memmove",
+            "snprintf",
+            "strncat",
+            "vsnprintf"
+          ],
+          "format_string": [
+            "fprintf",
+            "printf",
+            "vfprintf"
+          ],
+          "input_parse": [
+            "atoi",
+            "fscanf",
+            "sscanf",
+            "strtol"
+          ]
+        },
+        "hardening": {
+          "nx": false,
+          "pie": false,
+          "relro": "none",
+          "canary": false,
+          "fortify": false,
+          "rwx_segments": [],
+          "text_relocations": false
+        }
+      },
+      {
+        "path": "/bin/wscd",
+        "size": 296480,
+        "mode": "-rwxr-xr-x",
+        "endian": "big",
+        "machine": "MIPS mips1",
+        "load_base": "0x00400000",
+        "entry": "0x00404100",
+        "stripped_sections": true,
+        "needed": [
+          "libgcc_s.so.1",
+          "libc.so.0"
+        ],
+        "sinks": {
+          "command_exec": [
+            "system"
+          ],
+          "unbounded_copy": [
+            "sprintf",
+            "strcat",
+            "strcpy"
+          ],
+          "bounded_but_error_prone": [
+            "memcpy",
+            "snprintf",
+            "strncat",
+            "strncpy"
+          ],
+          "format_string": [
+            "fprintf",
+            "printf"
+          ],
+          "input_parse": [
+            "atoi",
+            "sscanf",
+            "strtol"
+          ]
+        },
+        "hardening": {
+          "nx": false,
+          "pie": false,
+          "relro": "none",
+          "canary": false,
+          "fortify": false,
+          "rwx_segments": [],
+          "text_relocations": false
+        }
+      },
+      {
+        "path": "/lib/ld-uClibc-0.9.33.so",
+        "size": 24784,
+        "mode": "-rwxr-xr-x",
+        "endian": "big",
+        "machine": "MIPS mips1",
+        "load_base": "0x00000000",
+        "entry": "0x00000b00",
+        "stripped_sections": true,
+        "needed": [],
+        "sinks": {},
+        "hardening": {
+          "nx": false,
+          "pie": true,
+          "relro": "partial",
+          "canary": false,
+          "fortify": false,
+          "rwx_segments": [],
+          "text_relocations": false
+        }
+      },
+      {
+        "path": "/lib/libapmib.so",
+        "size": 106960,
+        "mode": "-rwxr-xr-x",
+        "endian": "big",
+        "machine": "MIPS mips1",
+        "load_base": "0x00000000",
+        "entry": "0x000023d0",
+        "stripped_sections": true,
+        "needed": [
+          "libgcc_s.so.1",
+          "libc.so.0"
+        ],
+        "sinks": {
+          "command_exec": [
+            "system"
+          ],
+          "unbounded_copy": [
+            "sprintf",
+            "strcat",
+            "strcpy"
+          ],
+          "bounded_but_error_prone": [
+            "memcpy",
+            "strncpy"
+          ],
+          "format_string": [
+            "fprintf",
+            "printf"
+          ],
+          "input_parse": [
+            "fscanf",
+            "sscanf"
+          ]
+        },
+        "hardening": {
+          "nx": false,
+          "pie": true,
+          "relro": "none",
+          "canary": false,
+          "fortify": false,
+          "rwx_segments": [],
+          "text_relocations": false
+        }
+      },
+      {
+        "path": "/lib/libcjson.so",
+        "size": 44056,
+        "mode": "-rwxr-xr-x",
+        "endian": "big",
+        "machine": "MIPS mips1",
+        "load_base": "0x00000000",
+        "entry": "0x00000de0",
+        "stripped_sections": true,
+        "needed": [
+          "libm.so.0",
+          "libgcc_s.so.1",
+          "libc.so.0"
+        ],
+        "sinks": {
+          "unbounded_copy": [
+            "sprintf",
+            "strcpy"
+          ],
+          "bounded_but_error_prone": [
+            "memcpy"
+          ]
+        },
+        "hardening": {
+          "nx": false,
+          "pie": true,
+          "relro": "none",
+          "canary": false,
+          "fortify": false,
+          "rwx_segments": [],
+          "text_relocations": false
+        }
+      },
+      {
+        "path": "/lib/libcrypt-0.9.33.so",
+        "size": 24708,
+        "mode": "-rwxr-xr-x",
+        "endian": "big",
+        "machine": "MIPS mips1",
+        "load_base": "0x00000000",
+        "entry": "0x00000550",
+        "stripped_sections": true,
+        "needed": [
+          "libc.so.0"
+        ],
+        "sinks": {
+          "unbounded_copy": [
+            "strcpy"
+          ],
+          "bounded_but_error_prone": [
+            "memcpy",
+            "snprintf",
+            "strncpy"
+          ]
+        },
+        "hardening": {
+          "nx": null,
+          "pie": true,
+          "relro": "none",
+          "canary": false,
+          "fortify": false,
+          "rwx_segments": [],
+          "text_relocations": false
+        }
+      },
+      {
+        "path": "/lib/libdl-0.9.33.so",
+        "size": 12456,
+        "mode": "-rwxr-xr-x",
+        "endian": "big",
+        "machine": "MIPS mips1",
+        "load_base": "0x00000000",
+        "entry": "0x000008f0",
+        "stripped_sections": true,
+        "needed": [
+          "libc.so.0",
+          "ld-uClibc.so.0"
+        ],
+        "sinks": {
+          "bounded_but_error_prone": [
+            "memcpy"
+          ]
+        },
+        "hardening": {
+          "nx": null,
+          "pie": true,
+          "relro": "partial",
+          "canary": false,
+          "fortify": false,
+          "rwx_segments": [],
+          "text_relocations": false
+        }
+      },
+      {
+        "path": "/lib/libgcc_s.so.1",
+        "size": 91228,
+        "mode": "-rwxr-xr-x",
+        "endian": "big",
+        "machine": "MIPS mips1",
+        "load_base": "0x00000000",
+        "entry": "0x00003360",
+        "stripped_sections": true,
+        "needed": [
+          "libc.so.0"
+        ],
+        "sinks": {
+          "bounded_but_error_prone": [
+            "memcpy"
+          ]
+        },
+        "hardening": {
+          "nx": false,
+          "pie": true,
+          "relro": "none",
+          "canary": false,
+          "fortify": false,
+          "rwx_segments": [],
+          "text_relocations": false
+        }
+      },
+      {
+        "path": "/lib/libm-0.9.33.so",
+        "size": 102844,
+        "mode": "-rwxr-xr-x",
+        "endian": "big",
+        "machine": "MIPS mips1",
+        "load_base": "0x00000000",
+        "entry": "0x00001400",
+        "stripped_sections": true,
+        "needed": [
+          "libc.so.0"
+        ],
+        "sinks": {
+          "unbounded_copy": [
+            "sprintf"
+          ]
+        },
+        "hardening": {
+          "nx": null,
+          "pie": true,
+          "relro": "none",
+          "canary": false,
+          "fortify": false,
+          "rwx_segments": [],
+          "text_relocations": false
+        }
+      },
+      {
+        "path": "/lib/libmtdapi.so",
+        "size": 3560,
+        "mode": "-rwxr-xr-x",
+        "endian": "big",
+        "machine": "MIPS mips1",
+        "load_base": "0x00000000",
+        "entry": "0x000006b0",
+        "stripped_sections": true,
+        "needed": [
+          "libgcc_s.so.1",
+          "libc.so.0"
+        ],
+        "sinks": {
+          "command_exec": [
+            "popen"
+          ],
+          "unbounded_copy": [
+            "sprintf"
+          ],
+          "input_parse": [
+            "sscanf"
+          ]
+        },
+        "hardening": {
+          "nx": false,
+          "pie": true,
+          "relro": "none",
+          "canary": false,
+          "fortify": false,
+          "rwx_segments": [],
+          "text_relocations": false
+        }
+      },
+      {
+        "path": "/lib/libpthread-0.9.33.so",
+        "size": 71228,
+        "mode": "-rwxr-xr-x",
+        "endian": "big",
+        "machine": "MIPS mips1",
+        "load_base": "0x00000000",
+        "entry": "0x00002f10",
+        "stripped_sections": true,
+        "needed": [
+          "libc.so.0",
+          "ld-uClibc.so.0"
+        ],
+        "sinks": {
+          "bounded_but_error_prone": [
+            "memcpy"
+          ]
+        },
+        "hardening": {
+          "nx": false,
+          "pie": true,
+          "relro": "partial",
+          "canary": false,
+          "fortify": false,
+          "rwx_segments": [],
+          "text_relocations": false
+        }
+      },
+      {
+        "path": "/lib/libuClibc-0.9.33.so",
+        "size": 296004,
+        "mode": "-rwxr-xr-x",
+        "endian": "big",
+        "machine": "MIPS mips1",
+        "load_base": "0x00000000",
+        "entry": "0x00006b60",
+        "stripped_sections": true,
+        "needed": [
+          "ld-uClibc.so.0"
+        ],
+        "sinks": {},
+        "hardening": {
+          "nx": false,
+          "pie": true,
+          "relro": "none",
+          "canary": false,
+          "fortify": false,
+          "rwx_segments": [],
+          "text_relocations": false
+        }
+      }
+    ],
+    "command_exec_binaries": [
+      "/bin/boa",
+      "/bin/busybox",
+      "/bin/cwmpClient",
+      "/bin/flash",
+      "/bin/iptables",
+      "/bin/l2tpd",
+      "/bin/lld2d",
+      "/bin/miniigd",
+      "/bin/pppd",
+      "/bin/pptp",
+      "/bin/routed",
+      "/bin/sysconf",
+      "/bin/timelycheck",
+      "/bin/udhcpd",
+      "/bin/wscd",
+      "/lib/libapmib.so",
+      "/lib/libmtdapi.so"
+    ],
+    "suspect_symlinks": [
+      {
+        "path": "/dev/log",
+        "target": "/tmp/log",
+        "reason": "read-only image path redirected to writable storage",
+        "in_docroot": false
+      },
+      {
+        "path": "/dev/oprofile",
+        "target": "/var/oprofile",
+        "reason": "read-only image path redirected to writable storage",
+        "in_docroot": false
+      },
+      {
+        "path": "/etc/TZ",
+        "target": "/var/TZ",
+        "reason": "read-only image path redirected to writable storage",
+        "in_docroot": false
+      },
+      {
+        "path": "/etc/boa",
+        "target": "/var/boa",
+        "reason": "read-only image path redirected to writable storage",
+        "in_docroot": false
+      },
+      {
+        "path": "/etc/cwmp_config",
+        "target": "/var/cwmp_config",
+        "reason": "read-only image path redirected to writable storage",
+        "in_docroot": false
+      },
+      {
+        "path": "/etc/cwmp_default",
+        "target": "/var/cwmp_default",
+        "reason": "read-only image path redirected to writable storage",
+        "in_docroot": false
+      },
+      {
+        "path": "/etc/dnrd",
+        "target": "/var/dnrd",
+        "reason": "read-only image path redirected to writable storage",
+        "in_docroot": false
+      },
+      {
+        "path": "/etc/group",
+        "target": "/var/group",
+        "reason": "read-only image path redirected to writable storage",
+        "in_docroot": false
+      },
+      {
+        "path": "/etc/hosts",
+        "target": "/var/hosts",
+        "reason": "read-only image path redirected to writable storage",
+        "in_docroot": false
+      },
+      {
+        "path": "/etc/linuxigd",
+        "target": "/var/linuxigd",
+        "reason": "read-only image path redirected to writable storage",
+        "in_docroot": false
+      },
+      {
+        "path": "/etc/passwd",
+        "target": "/var/passwd",
+        "reason": "read-only image path redirected to writable storage",
+        "in_docroot": false
+      },
+      {
+        "path": "/etc/ppp",
+        "target": "/var/ppp",
+        "reason": "read-only image path redirected to writable storage",
+        "in_docroot": false
+      },
+      {
+        "path": "/etc/resolv.conf",
+        "target": "/var/resolv.conf",
+        "reason": "read-only image path redirected to writable storage",
+        "in_docroot": false
+      },
+      {
+        "path": "/etc/simplecfg",
+        "target": "/var/wps",
+        "reason": "read-only image path redirected to writable storage",
+        "in_docroot": false
+      },
+      {
+        "path": "/etc/udhcpc",
+        "target": "/var/udhcpc",
+        "reason": "read-only image path redirected to writable storage",
+        "in_docroot": false
+      },
+      {
+        "path": "/etc/udhcpd",
+        "target": "/var/udhcpd",
+        "reason": "read-only image path redirected to writable storage",
+        "in_docroot": false
+      },
+      {
+        "path": "/root",
+        "target": "/var/root",
+        "reason": "read-only image path redirected to writable storage",
+        "in_docroot": false
+      },
+      {
+        "path": "/usr/share/udhcpc/br0.deconfig",
+        "target": "/var/udhcpc/br0.deconfig",
+        "reason": "read-only image path redirected to writable storage",
+        "in_docroot": false
+      },
+      {
+        "path": "/usr/share/udhcpc/eth0.deconfig",
+        "target": "/var/udhcpc/eth0.deconfig",
+        "reason": "read-only image path redirected to writable storage",
+        "in_docroot": false
+      },
+      {
+        "path": "/usr/share/udhcpc/eth1.1.deconfig",
+        "target": "/var/udhcpc/eth1.1.deconfig",
+        "reason": "read-only image path redirected to writable storage",
+        "in_docroot": false
+      },
+      {
+        "path": "/usr/share/udhcpc/eth1.2.deconfig",
+        "target": "/var/udhcpc/eth1.2.deconfig",
+        "reason": "read-only image path redirected to writable storage",
+        "in_docroot": false
+      },
+      {
+        "path": "/usr/share/udhcpc/eth1.3.deconfig",
+        "target": "/var/udhcpc/eth1.3.deconfig",
+        "reason": "read-only image path redirected to writable storage",
+        "in_docroot": false
+      },
+      {
+        "path": "/usr/share/udhcpc/eth1.4.deconfig",
+        "target": "/var/udhcpc/eth1.4.deconfig",
+        "reason": "read-only image path redirected to writable storage",
+        "in_docroot": false
+      },
+      {
+        "path": "/usr/share/udhcpc/eth1.deconfig",
+        "target": "/var/udhcpc/eth1.deconfig",
+        "reason": "read-only image path redirected to writable storage",
+        "in_docroot": false
+      },
+      {
+        "path": "/usr/share/udhcpc/usb0.deconfig",
+        "target": "/var/udhcpc/usb0.deconfig",
+        "reason": "read-only image path redirected to writable storage",
+        "in_docroot": false
+      },
+      {
+        "path": "/usr/share/udhcpc/wlan0-vxd.deconfig",
+        "target": "/var/udhcpc/wlan0-vxd.deconfig",
+        "reason": "read-only image path redirected to writable storage",
+        "in_docroot": false
+      },
+      {
+        "path": "/usr/share/udhcpc/wlan0.deconfig",
+        "target": "/var/udhcpc/wlan0.deconfig",
+        "reason": "read-only image path redirected to writable storage",
+        "in_docroot": false
+      },
+      {
+        "path": "/usr/share/udhcpc/wlan1-vxd.deconfig",
+        "target": "/var/udhcpc/wlan1-vxd.deconfig",
+        "reason": "read-only image path redirected to writable storage",
+        "in_docroot": false
+      },
+      {
+        "path": "/usr/share/udhcpc/wlan1.deconfig",
+        "target": "/var/udhcpc/wlan1.deconfig",
+        "reason": "read-only image path redirected to writable storage",
+        "in_docroot": false
+      },
+      {
+        "path": "/web/ca.cer",
+        "target": "/var/ca.cer",
+        "reason": "web-reachable path resolves into runtime-writable storage; whatever the firmware writes there becomes downloadable",
+        "in_docroot": true
+      },
+      {
+        "path": "/web/config.dat",
+        "target": "/var/config.dat",
+        "reason": "web-reachable path resolves into runtime-writable storage; whatever the firmware writes there becomes downloadable",
+        "in_docroot": true
+      },
+      {
+        "path": "/web/user.cer",
+        "target": "/var/user.cer",
+        "reason": "web-reachable path resolves into runtime-writable storage; whatever the firmware writes there becomes downloadable",
+        "in_docroot": true
+      }
+    ],
+    "setuid_files": [],
+    "world_writable": [],
+    "credential_files": [
+      "/etc/certificate.crt (1391 bytes)",
+      "/etc/privateKey.key (1704 bytes)"
+    ],
+    "init_findings": [
+      {
+        "file": "/etc/init.d/rcS",
+        "line_no": 25,
+        "line": "###for tr069",
+        "commented": true
+      },
+      {
+        "file": "/etc/init.d/rcS",
+        "line_no": 33,
+        "line": "##For miniigd",
+        "commented": true
+      },
+      {
+        "file": "/etc/init.d/rcS",
+        "line_no": 46,
+        "line": "#snmpd",
+        "commented": true
+      },
+      {
+        "file": "/etc/init.d/rcS",
+        "line_no": 55,
+        "line": "cp -rf /etc/boa.org /var/boa",
+        "commented": false
+      },
+      {
+        "file": "/etc/init.d/rcS",
+        "line_no": 122,
+        "line": "boa",
+        "commented": false
+      },
+      {
+        "file": "/etc/init.d/rcS",
+        "line_no": 124,
+        "line": "#telnetd &",
+        "commented": true
+      },
+      {
+        "file": "/etc/init.d/rcS_32M",
+        "line_no": 25,
+        "line": "###for tr069",
+        "commented": true
+      },
+      {
+        "file": "/etc/init.d/rcS_32M",
+        "line_no": 33,
+        "line": "##For miniigd",
+        "commented": true
+      },
+      {
+        "file": "/etc/init.d/rcS_32M",
+        "line_no": 46,
+        "line": "#snmpd",
+        "commented": true
+      },
+      {
+        "file": "/etc/init.d/rcS_32M",
+        "line_no": 55,
+        "line": "cp -rf /etc/boa.org /var/boa",
+        "commented": false
+      },
+      {
+        "file": "/etc/init.d/rcS_32M",
+        "line_no": 124,
+        "line": "#telnetd &",
+        "commented": true
+      }
+    ],
+    "disabled_services": [
+      "miniigd",
+      "snmpd",
+      "telnetd",
+      "tr069"
+    ],
+    "notes": [
+      "Services present in the image but disabled only by commenting out their init line: miniigd, snmpd, telnetd, tr069. The binaries are still on the device and remain reachable to anything that can execute a command.",
+      "No /etc/passwd in the image: local accounts, if any, are created at runtime or authentication is handled entirely inside the application, not by the C library. Any credential check therefore lives in a binary and must be found by reversing, not by reading a config file."
+    ]
+  },
+  "findings": [
+    {
+      "severity": "high",
+      "kind": "web-exposed-runtime-file",
+      "detail": "/web/ca.cer -> /var/ca.cer",
+      "why": "web-reachable path resolves into runtime-writable storage; whatever the firmware writes there becomes downloadable"
+    },
+    {
+      "severity": "high",
+      "kind": "web-exposed-runtime-file",
+      "detail": "/web/config.dat -> /var/config.dat",
+      "why": "web-reachable path resolves into runtime-writable storage; whatever the firmware writes there becomes downloadable"
+    },
+    {
+      "severity": "high",
+      "kind": "web-exposed-runtime-file",
+      "detail": "/web/user.cer -> /var/user.cer",
+      "why": "web-reachable path resolves into runtime-writable storage; whatever the firmware writes there becomes downloadable"
+    },
+    {
+      "severity": "medium",
+      "kind": "service-disabled-not-removed",
+      "detail": "miniigd, snmpd, telnetd, tr069",
+      "why": "init line commented out, binary still present in the image"
+    },
+    {
+      "severity": "info",
+      "kind": "command-exec-surface",
+      "detail": "17 binaries import system()/popen()/exec*()",
+      "why": "each is a place where attacker-influenced data could reach a shell"
+    },
+    {
+      "severity": "info",
+      "kind": "no-nx-marker",
+      "detail": "4 binaries have no PT_GNU_STACK segment",
+      "why": "toolchain predates the marker, so the kernel maps the stack executable; memory-corruption bugs need no ROP chain"
+    },
+    {
+      "severity": "info",
+      "kind": "web-handler-surface",
+      "detail": "49 form handlers in /bin/boa",
+      "why": "each handler parses request parameters and is a candidate entry point"
+    },
+    {
+      "severity": "info",
+      "kind": "squashfs-anomaly",
+      "detail": "mkfs_time is implausible (2038-07-17T23:57:52+00:00); raw=0x80ed2000. Byte-reversed it reads 0x0020ed80, which is suspiciously close to the filesystem size - possibly a vendor build-script bug writing a size into this field.",
+      "why": "filesystem metadata"
+    },
+    {
+      "severity": "info",
+      "kind": "flash-size-lower-bound",
+      "detail": "image requires at least 3731458 bytes (3.56 MiB) of flash",
+      "why": "highest burnAddr + length across sections; use this to sanity-check the part marking before dumping"
+    }
+  ]
+}
