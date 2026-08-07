@@ -33,6 +33,7 @@ about its security — with results another person can reproduce.
 | [`reports/`](reports/) | Generated analysis: per-version reports, version diff, Ghidra string xrefs |
 | [`tools/fwrecon/`](tools/fwrecon/) | The analysis tool written for this project |
 | [`LOG.md`](LOG.md) | Running log, including every wrong turn |
+| [`study/QA.md`](study/QA.md) | Self-examination bank — the questions a hostile interviewer would ask about this work, with collapsible answers (Traditional Chinese) |
 | [`PROGRESS.md`](PROGRESS.md) | Gate status |
 
 ## Selected findings from W01

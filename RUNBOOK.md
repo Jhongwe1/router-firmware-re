@@ -939,6 +939,7 @@ cd FirmAE && ./install.sh      # 30–60 分鐘
 |---|---|---|
 | 2026-08-07 | W01 | 初版。涵蓋環境建置、韌體取得、解包、`fwrecon` 報告、Ghidra headless 分析,以及 W01 實際踩到的 13 個坑。 |
 | 2026-08-07 | W01 收工 | 新增 §12.5:W02 / W05 開工前要補裝的東西(usbipd、UART 3.3V 警告、qemu chroot 先於 FirmAE)。這三項 W01 刻意沒做,理由記在 `PROGRESS.md`。 |
+| 2026-08-07 | W01 收工 | 新增 [`study/QA.md`](study/QA.md) 自我檢核題庫(39 題)。之後每週的問題都往那裡累積。 |
 
 ---
 
@@ -953,3 +954,4 @@ cd FirmAE && ./install.sh      # 30–60 分鐘
 | [`notes/prior-art.md`](notes/prior-art.md) | 前人研究:誰在什麼時候發現了什麼 |
 | [`notes/attack-surface.md`](notes/attack-surface.md) | 攻擊面地圖 |
 | [`notes/ghidra-triage.md`](notes/ghidra-triage.md) | Ghidra 裡該先看哪些函式 |
+| [`study/QA.md`](study/QA.md) | **自我檢核題庫** —— 面試官會怎麼追殺你,答案是折疊的 |
