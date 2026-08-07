@@ -1,0 +1,132 @@
+# Attack surface — v1
+
+Derived from [`reports/`](../reports/), which `make recon` regenerates. This is
+the **W01 map**: what exists and where to look, not what is exploitable. Nothing
+here has been confirmed on a running device.
+
+Ranking rule used throughout: an entry earns attention from *reachability ×
+privilege × evidence of unchecked input*, in that order. Boa runs as root, so
+the privilege term is constant and maximal — which means reachability decides.
+
+---
+
+## 1. The unauthenticated web surface
+
+`/bin/boa`, `Boa/0.94.14rc21`, `User root`, `DocumentRoot /var/web`
+(3.4.0) or `/web` → `/var/web` (2.1.2). Port 80.
+
+### 1.1 Static files in the document root that are generated at runtime
+
+Highest-value entries in the whole map, because they need **no authentication
+and no parameter parsing** — just a GET.
+
+| Path (3.4.0) | Resolves to | Why it matters |
+|---|---|---|
+| `/config.dat` | `/var/config.dat` | The apmib configuration dump. Per CVE-2019-19823 it holds credentials in plaintext `COMPCS` format. |
+| `/ca.cer` | `/var/ca.cer` | CA certificate written at runtime |
+| `/user.cer` | `/var/user.cer` | User certificate — if the private material lands here, it is downloadable |
+
+Absent from the 2015 image; introduced by 2020. `/etc/init.d/rcS` line 56 copies
+`/web/*` into the live document root, so the symlinks land in the served tree.
+
+**To confirm (W03):** whether Boa applies an authentication check before serving
+a `.dat`/`.cer` path. The advisory says form-based auth did not restrict `.dat`.
+The symlink proves the file is *in* the docroot; only the request-handling code
+proves whether that is reachable unauthenticated.
+
+### 1.2 Handler endpoints
+
+`POST /boafrm/<name>`. 59 handlers in 2.1.2, 49 in 3.4.0.
+
+Ranked starting points:
+
+| Handler | Present in | Why it is interesting |
+|---|---|---|
+| `formLogin` | both | The authentication boundary. Everything below depends on how it decides. CVE-2019-19825's CAPTCHA bypass lives here; `getSanvas` appears only in 3.4.0. |
+| *(`formSysCmd`)* | **name not found in either binary** | The published RCE endpoint. `sysCmdselect`, `sysCmdLog`, `/tmp/syscmd.log` are all present, so the feature exists. Recovering the real registration name is the single highest-value W03 task. |
+| `formUpload`, `formUploadConfig`, `formUploadFile` | 2.1.2 / both / 3.4.0 | Firmware and config upload. Reaches flash writes and, via config restore, the apmib parser. `formUploadFile` is new in 3.4.0. |
+| `formWsc` | both | WPS. CVE-2025-4462 (`localPin`) and CVE-2025-6299 (`targetAPSsid`) target this family on sibling models. |
+| `formWlWds` | both | WDS. CVE-2025-3992 names `formWlwds` — different capitalisation; verify before believing. |
+| `formStaticDHCP` | both | CVE-2025-3995 names `fromStaticDHCP`; again a naming mismatch to resolve. |
+| `formTR069Config`, `formPortFw`, `formDdns`, `formNtp`, `formRoute` | both | Each takes a string that plausibly ends up in a shell command — DDNS and NTP especially, since both spawn helper processes. |
+| `formAjaxGet`, `formAjaxSet` | 3.4.0 only | New JSON API surface, matching the new `libcjson.so` dependency. Newer code, less scrutinised. |
+
+Full lists: [`reports/n150rt-2.1.2.md`](../reports/n150rt-2.1.2.md),
+[`reports/n150rt-3.4.0.md`](../reports/n150rt-3.4.0.md).
+
+### 1.3 Command-execution sinks inside Boa
+
+`/bin/boa` imports `system`, `popen`, `execl`, `execve` in both builds. Two
+format strings recovered from 3.4.0's string table are already shaped like
+injection candidates:
+
+```
+cp /var/web/config.dat %s
+rm -rf /var/config.dat >/dev/null 2>&1
+```
+
+A `%s` reaching `system()` is the classic pattern. **W03/W04: find the callers
+and trace where the `%s` argument comes from.**
+
+---
+
+## 2. The rest of the process surface
+
+33 binaries in 2.1.2 and 17 in 3.4.0 import a command-execution function. They
+are not directly network-reachable, but each is a place where data that crossed
+the network earlier can reach a shell.
+
+Worth a look after Boa:
+
+| Binary | In | Note |
+|---|---|---|
+| `/bin/skt` | 2.1.2 only | Pierre Kim's backdoor. Autostart commented out (`#skt&`), binary still shipped. Reads a socket, calls `system()`. |
+| `/bin/wscd` | both | WPS daemon — the runtime behind the `formWsc` CVEs |
+| `/bin/cwmpClient` | both | TR-069. Talks to a remote ACS and touches `config.dat`. |
+| `/bin/miniigd` | both | UPnP IGD. Listed as commented out in `rcS` in both builds. |
+| `/bin/udhcpd`, `/bin/dnsmasq` | 2.1.2 | Parse hostnames from the LAN; hostname strings reaching `system()` is a well-worn bug class |
+| `/bin/auth` | 3.4.0 only | New, 121 KB, and named after the thing with no `/etc/passwd` behind it. Likely holds the credential check. |
+| `/bin/batchUpgrade`, `/bin/UDPserver` | 3.4.0 only | New network-facing code |
+
+---
+
+## 3. Services present but disabled
+
+Reported as `service-disabled-not-removed`. Commenting out an init line stops it
+starting; it does not remove the capability.
+
+| Service | 2.1.2 | 3.4.0 |
+|---|---|---|
+| `skt` (backdoor) | disabled, binary present | removed entirely |
+| `telnetd` | — | disabled, busybox applet still present |
+| `snmpd`, `miniigd`, TR-069 | disabled | disabled |
+
+`/etc/init.d/rcS_32M`, a variant init script for higher-RAM boards, exists in
+3.4.0 and carries its own set of these lines. Worth diffing against `rcS` in
+W03 — alternate init paths are a classic place for a forgotten service.
+
+---
+
+## 4. What makes any of this cheap to exploit
+
+From [`anatomy-n150rt.md`](anatomy-n150rt.md): **no canary, no RELRO, no PIE, no
+FORTIFY, and no `PT_GNU_STACK` on most binaries** — so an executable stack.
+Boa runs as root.
+
+A stack overflow in a handler therefore needs no information leak and no ROP
+chain, and lands as root on first try. When reading the 2025 buffer-overflow
+CVEs against this device family, that is the exploitation context to assume.
+
+---
+
+## 5. Not yet examined
+
+Named so they are not silently forgotten:
+
+- **The kernel** — carved but not unpacked. LZMA at `+0x2808` inside `cr6c`.
+- **The bootloader** — absent from both images; only a flash dump has it (W02).
+- **`libapmib.so`** — the `COMPCS` serialiser. Central to 19822/19823 and unread.
+- **The `w6cg` web bundle format** (2015) — decompressed but its archive
+  structure is only sketched.
+- **Wireless firmware / driver** — `/lib/modules`, untouched.
+- **The physical surface** — UART, SPI flash, JTAG. W02, blocked on hardware.

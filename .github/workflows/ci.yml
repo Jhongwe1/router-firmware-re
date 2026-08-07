@@ -1,0 +1,106 @@
+name: CI
+
+# What CI can and cannot check here
+# ---------------------------------
+# It cannot run the analysis: vendor firmware is not redistributed, so no image
+# is available to a runner. What it *can* check is that the tooling which
+# produces the analysis is correct and installable — the test suite builds every
+# structure it needs (a section-header-stripped MIPS ELF, a Realtek container, a
+# SquashFS superblock) from scratch, precisely so that this holds.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  tooling:
+    name: fwrecon (lint + tests)
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        # 3.11 is the floor declared in pyproject; 3.12 is what the WSL
+        # workstation actually runs. Both must stay green.
+        python: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+
+      - name: Install fwrecon
+        working-directory: tools/fwrecon
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e '.[dev]'
+
+      - name: Lint
+        working-directory: tools/fwrecon
+        run: ruff check src tests
+
+      - name: Test
+        working-directory: tools/fwrecon
+        run: pytest -q
+
+  shellcheck:
+    name: shell scripts
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run shellcheck
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq shellcheck
+          shellcheck --severity=warning tools/*.sh tools/setup/*.sh
+
+  toolbox-image:
+    name: toolchain image builds
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      # The Dockerfile ends in a smoke test that runs every pinned tool, so a
+      # successful build is itself the assertion that the pins still resolve to
+      # something that works.
+      - name: Build fwre-toolbox
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/Dockerfile
+          push: false
+          tags: fwre-toolbox:ci
+
+  reports-current:
+    name: committed reports match the tooling
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # Reports cannot be regenerated without the firmware, but they can be
+      # checked for self-consistency: every committed report must parse and
+      # carry the schema version the current code emits. That catches the
+      # common failure of changing the report shape and forgetting to
+      # regenerate.
+      - name: Validate report schema
+        run: |
+          python - <<'PY'
+          import json, pathlib, re, sys
+          src = pathlib.Path("tools/fwrecon/src/fwrecon/report.py").read_text()
+          expected = re.search(r'SCHEMA_VERSION = "([^"]+)"', src).group(1)
+          bad = []
+          for p in pathlib.Path("reports").glob("*.json"):
+              d = json.loads(p.read_text())
+              if d.get("schema_version") != expected:
+                  bad.append(f"{p}: {d.get('schema_version')} != {expected}")
+          if bad:
+              print("\n".join(bad)); sys.exit(1)
+          print(f"all reports at schema {expected}")
+          PY

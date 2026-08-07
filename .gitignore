@@ -1,2 +1,65 @@
+# ---------------------------------------------------------------------------
+# Private planning material (kept local, not part of the public write-up)
+# ---------------------------------------------------------------------------
 archive/
 plan/
+
+# ---------------------------------------------------------------------------
+# Vendor firmware is NOT redistributed. Only provenance metadata is committed
+# (firmware/MANIFEST.json), so a reader can fetch and hash-verify the exact
+# same image without this repository hosting copyrighted binaries.
+# ---------------------------------------------------------------------------
+*.web
+*.bin
+*.img
+*.trx
+*.squashfs
+*.rom
+firmware/*
+!firmware/.gitkeep
+!firmware/SOURCES.json
+!firmware/MANIFEST.json
+!firmware/README.md
+
+# Flash / UART dumps from my own device: raw images stay local, hashes are committed.
+dumps/*
+!dumps/.gitkeep
+!dumps/MANIFEST.json
+!dumps/README.md
+
+# Unpacked filesystems — large, and reconstructible from the manifest + tooling.
+extracted/
+squashfs-root*/
+_*.extracted/
+
+# Ghidra project state (multi-GB, machine-specific). Scripts are committed.
+ghidra/projects/
+*.gpr
+*.rep/
+
+# Generated reports ARE committed. They are the readable product of this work,
+# and a reader without the (non-redistributable) firmware should still be able
+# to see what the analysis found. `make recon` regenerates them byte-for-byte
+# from an image whose hash is in firmware/MANIFEST.json.
+
+# ---------------------------------------------------------------------------
+# Language / editor
+# ---------------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+dist/
+build/
+.coverage
+htmlcov/
+
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
