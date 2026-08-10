@@ -9,12 +9,19 @@ trace **already-publicly-disclosed** vulnerabilities down to the responsible
 function in the binary.
 
 > 🚧 **In progress since 2026-07-30. G0 ✅ · G1 ✅ · G2 ⏸ blocked on hardware
-> delivery · G3 ▶ next.**
+> delivery · G3 ◐ 7 of 8, W04 closes it.**
 > Two firmware images are unpacked and measured — **V2.1.2 (2015-08-25)** and
 > **V3.4.0 (2020-10-30)** — and they bracket both public disclosure events
 > affecting this device, which turns a teardown into a before/after comparison.
 > Board below; the evidence behind every ticked box is in
 > [`PROGRESS.md`](PROGRESS.md).
+>
+> **Latest (W03):** Boa's authorisation gate is keyed on whether the request URI
+> contains the substring `htm`. Everything else — `/config.dat`, `/ca.cer`, and
+> all 59 `/boafrm/form*` handlers — is served without an authorisation check.
+> That is the mechanism behind CVE-2019-19822, and it is much broader than the
+> advisory's "`.dat` files are not restricted". **Static result; no device has
+> been powered on yet.**
 
 The point is not the device. It is being able to take an undocumented binary
 system on an unfamiliar architecture, build understanding from zero, and reason
@@ -104,20 +111,38 @@ that is not backed by a command someone else can re-run.
   > when the USB-TTL adapter arrives: install `usbipd-win` (needs elevation, so
   > it belongs in the same sitting as the rest of the hardware setup).
 
-- [ ] **G3 — point at the line in the binary** (W03–W04) ▶ **next**
-  - [ ] the `/boafrm/` dispatch table found, with ≥ 10 handlers listed
-  - [ ] ≥ 1 authentication candidate function identified
-  - [ ] **where `formSysCmd` is really registered** — read `handleForm`
-  - [ ] **whether Boa authenticates `.dat` requests** — read `translate_uri`
-  - [ ] `FUN_00440eec` in the 2020 build holds `cp /var/web/config.dat %s` — trace the `%s`
-  - [ ] `notes/sink-inventory.md`, and ≥ 5 functions renamed in Ghidra
-  - [ ] `notes/auth-flow.md` complete
-  - [ ] ≥ 1 of the CVE-2025 series root-caused
+- [ ] **G3 — point at the line in the binary** (W03–W04) ◐ **7 of 8; W04 closes it** ← [PROGRESS.md](PROGRESS.md#w03--2026-08-10)
+  - [x] the `/boafrm/` dispatch table found, with ≥ 10 handlers listed — **59 in 2015, 49 in 2020**, both `root_form[]` arrays recovered with the function that reads each
+  - [x] ≥ 1 authentication candidate function identified — `process_header_end` @ `0x0040be0c`, the *only* gate in the request path
+  - [x] **where `formSysCmd` is really registered** — **nowhere.** It is in neither dispatch table, and `handleForm` matches names exactly with no fallback
+  - [x] **whether Boa authenticates `.dat` requests** — **no**, and not because `.dat` is special: the gate only runs when the URI contains `htm`
+  - [x] `FUN_00440eec` holds `cp /var/web/config.dat %s` — traced: it is `formSaveConfig` and the `%s` is a `localtime()` filename. **Not injectable**
+  - [x] [`notes/sink-inventory.md`](notes/sink-inventory.md), and ≥ 5 functions renamed in Ghidra — **185 named** from table evidence, in the project database
+  - [x] [`notes/auth-flow.md`](notes/auth-flow.md) complete for the 2015 build
+  - [ ] ≥ 1 of the CVE-2025 series root-caused — mechanism located for the `formWsc` parameters the 2025 series names (`localPin`, `targetAPSsid`), but those CVEs are assigned to sibling models; tying them to this one is W04
 
-  > 📌 The first three boxes are literally the [open questions carried out of
-  > W01](PROGRESS.md#open-carried-forward). Starting points are already picked and
-  > justified in [`notes/ghidra-triage.md`](notes/ghidra-triage.md) — this gate
-  > opens with a reading list, not a blank Ghidra window.
+  > ### ★ What W03 turned up
+  >
+  > - **The authorisation gate is a substring test.** `strstr(uri, "htm")` at
+  >   `0x0040c23c`; if it returns NULL the whole check is branched over. Read out
+  >   of the disassembly, not the decompiler, because the decompiler warned three
+  >   times on that function.
+  > - **`formSysCmd` does not exist here.** W01's leading candidate,
+  >   `FUN_0044c610`, is `sysCmdLog` in the *ASP page-variable* table — the log
+  >   viewer, not a request handler. The real command-execution surface is
+  >   **`formWsc`**: `localPin` and `peerPin` reach `system()` unfiltered and
+  >   unbounded; `targetAPSsid` is length-checked but interpolated inside shell
+  >   double quotes unescaped. Identical in both builds, five years apart.
+  > - **`/bin/skt` decoded end to end.** TCP 5555; `hel,xasf` runs
+  >   `iptables -I INPUT -p tcp --dport 80 -i eth1 -j ACCEPT`. Combined with the
+  >   gate above, the 2015 image contains a complete unauthenticated-remote-root
+  >   chain built from two independently shipped defects.
+  > - **A negative result kept:** W01's "highest-value single function" was a
+  >   false positive, and says so in place.
+  >
+  > ⚠️ **All of it is static.** No device has been powered on — W02 is still
+  > blocked. What would settle it is three `curl`s, listed at the end of
+  > [`notes/auth-flow.md`](notes/auth-flow.md).
 
 - [ ] **G4 — a PoC a stranger can follow** (W05–W06)
   - [ ] ≥ 1 CVE reproduced on the physical unit or under emulation
@@ -145,7 +170,12 @@ that is not backed by a command someone else can re-run.
 | [`notes/anatomy-n150rt.md`](notes/anatomy-n150rt.md) | How the firmware is built: container format, flash map, binaries, mitigations |
 | [`notes/prior-art.md`](notes/prior-art.md) | Who disclosed what, when — and which claims survive contact with these images |
 | [`notes/attack-surface.md`](notes/attack-surface.md) | Where to look, ranked |
-| [`notes/ghidra-triage.md`](notes/ghidra-triage.md) | Which functions to open first, and why |
+| [`notes/ghidra-triage.md`](notes/ghidra-triage.md) | Which functions to open first, and why — with the three W01 calls W03 overturned |
+| [`notes/dispatch-table.md`](notes/dispatch-table.md) | `root_form[]` recovered: every `/boafrm/` route in both builds, and what changed between them |
+| [`notes/auth-flow.md`](notes/auth-flow.md) | **How Boa decides you are allowed in** — the substring gate, the IP-as-session model, the uninitialised credential compare |
+| [`notes/sink-inventory.md`](notes/sink-inventory.md) | Every `system`/`strcpy`/`sprintf` call site, ranked — and how the first version of the census was wrong |
+| [`notes/formSysCmd-analysis.md`](notes/formSysCmd-analysis.md) | The CVE endpoint that is not there, and why three pieces of evidence pointed the wrong way |
+| [`notes/skt-analysis.md`](notes/skt-analysis.md) | The 2015 backdoor decoded: port, magic words, and the one `iptables` line it exists to run |
 | [`reports/`](reports/) | Generated analysis: per-version reports, version diff, Ghidra string xrefs |
 | [`tools/fwrecon/`](tools/fwrecon/) | The analysis tool written for this project |
 | [`plan/`](plan/) | The ten week plans the gates above come from (Traditional Chinese) |
@@ -169,8 +199,17 @@ make test      # fwrecon test suite
 ```powershell
 # Windows side: pinned JDK 21 + Ghidra 12.1.2, no admin rights needed
 powershell -ExecutionPolicy Bypass -File tools\setup\setup-windows.ps1 all
-.\ghidra\import.ps1 -Label 2.1.2 -Binary \\wsl$\Ubuntu-24.04\home\<user>\fwre-work\extracted\v2.1.2\squashfs-root\bin\boa
+
+$boa = '\\wsl$\Ubuntu-24.04\home\<user>\fwre-work\extracted\v2.1.2\squashfs-root\bin\boa'
+.\ghidra\import.ps1  -Label 2.1.2 -Binary $boa                    # analyse once (minutes)
+.\ghidra\analyze.ps1 -Label 2.1.2 -Script BoaFormTable -Binary $boa   # recover root_form[]
+.\ghidra\analyze.ps1 -Label 2.1.2 -Script BoaSinks     -Binary $boa   # sink census
 ```
+
+Import and analysis are separated on purpose: auto-analysis is expensive and
+cached in the project, a script is cheap and gets rewritten a dozen times a day.
+Every Ghidra report records the SHA-256 of the binary it describes, and CI fails
+if one does not — a report that cannot name its own input is not evidence.
 
 A pinned container image is in [`docker/Dockerfile`](docker/Dockerfile); CI
 builds it on every push, so the toolchain pins are checked continuously.

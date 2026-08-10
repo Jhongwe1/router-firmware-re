@@ -29,6 +29,7 @@
 | [4. 漏洞與攻擊面](#4-漏洞與攻擊面) | 8 | — | ／8 |
 | [5. 工程實踐](#5-工程實踐) | 5 | — | ／5 |
 | [6. 開放題](#6-開放題) | 4 | — | — |
+| [7. 分派表與授權流程(W03)](#7-分派表與授權流程w03) | 21 | — | ／21 |
 
 ---
 
@@ -817,3 +818,445 @@ Ghidra 和 JDK 都對 SHA-256。
 - [ ] W03:`handleForm` 的 dispatch 機制是什麼?
 - [ ] W03:Boa 的認證檢查在哪個環節?
 - [ ] W03:`libapmib.so` 的 `COMPCS` 格式長什麼樣?
+
+---
+
+## 7. 分派表與授權流程(W03)
+
+> 這一章是本專案目前**最會被追殺**的部分。因為結論很重(「所有 handler 都不用認證」),
+> 而證據全部是靜態的。面試官會從兩個方向打:**「你怎麼確定?」**和**「那為什麼公告不是這樣寫?」**
+
+### 7.1 🔵 一個 `POST /boafrm/formWsc` 進來之後,怎麼走到 handler 的?
+
+<details><summary>答案</summary>
+
+```
+process_requests()          Boa 原生的狀態機
+ └─ read_header()
+      └─ process_header_end()      ← 唯一的授權關卡
+           └─ translate_uri()      ← Boa 原生 alias.c,只做路徑轉換
+                └─ write_body() ─> handleForm()
+                                     └─ handler(req, 0, 0)
+```
+
+`handleForm` 做的事:`strstr(uri, "/boafrm/")` 找到前綴,跳過 8 個字元,然後
+拿剩下的字串去走 `root_form[]` 這個以 NULL 結尾的陣列,比對方式是
+**`strlen` 相等 + `memcmp` 全等**。命中就 `send_r_request_ok2()` 然後呼叫函式指標。
+
+表格元素是 `{char *name; void (*fn)(request*, int, char**)}`,一項 8 bytes。
+
+</details>
+
+### 7.2 🔴 你說有 59 個 handler。你怎麼知道不會有第 60 個在別的地方註冊?
+
+<details><summary>答案</summary>
+
+因為 `handleForm` 的迴圈條件是 `*ppuVar5 != NULL`,**它只看這一張表**,沒有
+fallback、沒有第二張表、沒有前綴比對、沒有 hash 表。所以「能被 `/boafrm/<name>`
+叫到的東西」= 這張表的內容,這是封閉的。
+
+**但要誠實說出這句話的邊界**:我證明的是「`handleForm` 只能到這 59 個」。
+沒有排除的是:
+
+- 別的 binary 自己開 port 提供服務(`/bin/skt` 就是一個例子)
+- `formAjaxSet`(2020 才有)在它的 JSON body 裡自己再做一層分派
+- CGI 路徑 —— `translate_uri` 還認得 `application/x-httpd-cgi`
+
+**加分講法**:「我證明的是這個 dispatcher 的封閉性,不是這台機器攻擊面的封閉性。
+這兩件事常被混為一談。」
+
+</details>
+
+### 7.3 🔴 網路上的 rtl819x SDK 原始碼寫 `char name[80]`,你說是 `char *name`。誰錯了?
+
+<details><summary>答案</summary>
+
+兩個都沒錯 —— **是不同的 SDK 版本/設定**。重點是我怎麼知道手上這支是哪一種:
+
+1. **反編譯器**:`ppuVar1 = ppuVar5 + 2`,在 `char**` 上就是 8 bytes 一項。
+   如果名字是 `char name[80]` 內嵌,步進會是 84。
+2. **交叉檢查**:復原出來的表項數(59 / 49)剛好等於 W01 用完全不同方法
+   (數字串表裡的 `form*` 字串)得到的數量。
+
+而且我的復原腳本**沒有假設任何一種佈局**:它測試「`[字串指標][可執行位址]` 是否
+以固定間距重複」。如果哪天遇到真的用 `char[80]` 的映像,它會找不到東西並且說找不到,
+而不是吐出垃圾。
+
+**加分講法**:「外流的 SDK 是對眼前 binary 的**假設**,不是規格。我拿它當假設來源,
+不當事實來源。」
+
+</details>
+
+### 7.4 🔵 `formSysCmd` 在這台機器上在哪裡?
+
+<details><summary>答案</summary>
+
+**不在。** 不在 2015 版的 59 項裡,也不在 2020 版的 49 項裡。
+`POST /boafrm/formSysCmd` 會走到 `send_r_not_found`。
+
+</details>
+
+### 7.5 🔴 那 `/tmp/syscmd.log`、`sysCmdselect`、`sysCmdLog` 這些字串是怎麼回事?
+
+<details><summary>答案</summary>
+
+它們是這個功能的**另外半邊**——顯示的那半,不是執行的那半。
+
+W01 提名 `FUN_0044c610`(唯一引用 `/tmp/syscmd.log` 的函式)當 CVE-2019-19824 的
+handler。W03 復原表格之後看到:它在 **ASP 頁面變數表**(`0x004885d0`)裡註冊為
+`sysCmdLog`,而那張表是 `handleScript` 讀的,不是 `handleForm`。
+也就是「頁面裡寫 `<% sysCmdLog %>` 時把 log 印出來」的那個函式。
+
+Realtek SDK 的 `root_form[]` 是照 build-time 的功能開關組出來的。這個產品編進了
+log viewer 和 `sysCmdselect` 頁面片段,但沒編進會執行命令的 handler。
+**剩下的字串是設定的痕跡,不是功能的證據。**
+
+**這題真正在考的**:三條線索(字串消失、有 log 路徑、有頁面片段)全部指向同一個
+**錯誤**答案。把資料結構挖出來一次就結案。**復原結構 > 累積交叉引用。**
+
+</details>
+
+### 7.6 🔵 Boa 的授權檢查在哪一行?
+
+<details><summary>答案</summary>
+
+`process_header_end` @ `0x0040be0c`(V2.1.2)。整段授權區塊的進入條件裡有這一項:
+
+```c
+&& strstr(uri, "htm") != NULL
+```
+
+也就是說:**URI 裡沒有 `htm` 這三個字,整段檢查被跳過。**
+
+`translate_uri` 是 Boa 原生的 `alias.c`(debug 訊息還印著 `"alias.c"` 和行號),
+只做路徑轉換,沒有認證;`handleForm` 也沒有;59 個 handler 沒有任何一個自己再檢查
+一次(全部反編譯之後 grep 過 MIB `0x1ec`/`0x1ed`/`0x1ee`,只有 `formLogin` 碰)。
+所以那一行就是全部。
+
+</details>
+
+### 7.7 🔴 反編譯器會騙人。你憑什麼確定分支方向是「沒有 htm 就跳過」而不是相反?
+
+<details><summary>答案</summary>
+
+**因為我沒有只看反編譯器。** 這支函式的反編譯輸出頂上掛了三行
+`WARNING: Heritage AFTER dead removal` / `Restarted to delay deadcode elimination`,
+等於它自己承認處理得不好,所以我去讀組語:
+
+```
+0040c234  lw t9,-0x7cbc(gp)        -> PTR_strstr_0048b2f4
+0040c238  addiu a1,a1,-0x2be0        "htm"
+0040c23c  jalr t9                  -> strstr
+0040c240  _move a0,s1                             ; a0 = request URI
+0040c248  beq v0,zero,0x0040c3a0                  ; 回 NULL → 跳到 LAB_0040c3a0
+```
+
+關鍵是**跟旁邊那幾條比**:白名單頁面(`status.htm`、`login.htm`…)用的都是
+`bne v0,zero` —— 「有命中就跳過檢查」。只有這一條是 `beq v0,zero` ——
+「**沒**命中就跳過檢查」。而它們全部跳到同一個 `LAB_0040c3a0`,也就是繞過授權區塊、
+直接進 `translate_uri`。
+
+**加分講法**:「反編譯器宣告它有困難的時候,從它輸出得到的任何結論都是猜的。
+我為此寫了一支輸出組語的腳本,而不是截圖。」
+
+</details>
+
+### 7.8 🟠 公告說的是「`.dat` 檔沒被限制」。你的說法有比較嚴重嗎?
+
+<details><summary>答案</summary>
+
+嚴重很多,而且是**範圍**的差別,不是程度的差別。
+
+公告描述的是**現象**:`.dat` 沒被保護。聽起來像是「漏了一種副檔名」,修法就是
+「把 `.dat` 加進檢查清單」。
+
+實際的**原因**是:授權是拿 URI 做子字串比對,所以它保護的只有 HTML 介面。
+「沒被保護的東西」不是一份清單,是一整個補集:
+
+| 路徑 | 含 `htm`? | 檢查? |
+|---|---|---|
+| `/home.htm` | 是 | 有 |
+| `/config.dat` | 否 | **沒有** |
+| `/ca.cer` | 否 | **沒有** |
+| `POST /boafrm/formPasswordSetup` | 否 | **沒有** |
+| 全部 59 個 handler | 否 | **沒有** |
+
+**這是 default-allow 的設計**(黑名單思維),不是一個漏掉的副檔名。
+`.dat` 從來不是特例,它只是「不是 `.htm`」。
+
+</details>
+
+### 7.9 🔴 可是 CVE-2019-19824 的公告明明寫「authenticated attacker」。你是不是搞錯了?
+
+<details><summary>答案</summary>
+
+三件事要分開講,不要含糊過去:
+
+1. **19824 的端點在這台機器上根本不存在**,所以那條公告的認證前提在這台機器上
+   無從驗證。
+2. 公告作者用了 `--user "admin:password"` 去測。**「他帶了憑證去測」不等於
+   「不帶憑證就進不去」**——這是研究方法造成的描述,不是被測出來的邊界。
+3. 那份公告涵蓋的是一整個 Realtek SDK 裝置家族。`root_form[]` 是每個產品各自
+   build 出來的,授權那段程式碼各家也可能改過。**跨型號的結論不能直接套。**
+
+**而最重要的一句**:我的結論目前也**只是靜態的**。我讀出了程式碼怎麼寫,
+沒有證明機器怎麼跑。要證實只要三個 `curl`,寫在 `notes/auth-flow.md` 最後。
+在跑出來之前,正確的講法是「程式碼是這樣寫的」,不是「這台機器可以被這樣打」。
+
+**這題其實在考誠實度,不是技術。** 敢說「我還沒證實」比硬凹有價值得多。
+
+</details>
+
+### 7.10 🟠 登入成功之後,這台機器怎麼記得你是誰?
+
+<details><summary>答案</summary>
+
+**記你的 IP 位址。** 沒有 cookie、沒有 token、沒有 nonce。
+
+`formLogin` 比對成功之後:
+
+```c
+apmib_set(0x1ec, req + 0x4bd);   /* 用戶端 IP */
+apmib_set(0x1ed, username);
+apmib_set(0x1ee, userpass);
+```
+
+之後每個 `.htm` 請求就拿 `apmib_get(0x1ec)` 跟來源 IP 做 `strcmp`。
+閒置超過 600 秒就把它設回 `0.0.0.0`。
+
+順帶一提:帳密是**明文**存進 APMIB 的(`0x1ed`/`0x1ee`),而 `config.dat` 就是
+APMIB 的序列化檔案。這條線把 CVE-2019-19822(設定檔外洩)和 19823(明文密碼)
+接了起來——拿到 `config.dat` 就等於拿到這裡比對用的那兩個值。
+
+</details>
+
+### 7.11 🔴 用 IP 當 session,實際上要多少成本才能繞過?
+
+<details><summary>答案</summary>
+
+看攻擊者在哪:
+
+- **同一台機器上的另一個程式**(惡意 App、另一個使用者):零成本,IP 一樣。
+- **同一個 NAT 後面**(公司、宿舍、咖啡廳):零成本,對外 IP 一樣。這是最現實的場景。
+- **同一個 L2 網段**:ARP 欺騙即可,幾秒。
+- **純遠端、不同 IP**:需要 IP spoofing,而 TCP 三向交握要求收得到回包,
+  所以實務上很難——**但這台機器的 handler 根本不需要通過這關**,因為
+  `/boafrm/*` 從頭到尾就沒進授權檢查。
+
+**最後這句才是重點**:IP session 有多弱其實不太重要,因為要改設定的路徑根本繞過它。
+IP session 只保護 HTML 頁面。
+
+</details>
+
+### 7.12 🟠 `formLogin` 的錯誤訊息有什麼問題?
+
+<details><summary>答案</summary>
+
+```c
+if (strcmp(username, cfg_user) == 0) {
+    if (strcmp(userpass, cfg_pass) == 0) { /* 成功 */ }
+    msg = "ERROR: Password error.";      /* 帳號對、密碼錯 */
+} else {
+    msg = "ERROR: Username error.";      /* 帳號就錯了 */
+}
+```
+
+**帳號列舉(username enumeration)**:兩種失敗回不同的字串,攻擊者可以先確定帳號
+存不存在,再去猜密碼。沒有看到任何速率限制。
+
+另外 `strcmp` 不是常數時間,理論上有 timing side channel;不過在這種裝置上
+網路抖動遠大於那點差異,**不值得當成賣點講**——會顯得你在背名詞。
+
+</details>
+
+### 7.13 🔴 你說有個「拿未初始化的堆疊當密碼比」。這是漏洞嗎?
+
+<details><summary>答案</summary>
+
+**目前只能說是候選,不能說是漏洞。** 這題的正確答案是把兩件事分乾淨:
+
+**已經確定的**(組語層級):V2.1.2 的 HTTP Basic 路徑會把使用者送的帳密拿去跟
+`sp+0x40` 和 `sp+0x60` 比,比中了給 `authorized = 2`(比一般帳號高一級,
+像是 supervisor)。整支函式對這兩個位址**只有三次存取**:兩次是拿位址當 `strcmp`
+參數,一次是讀第一個 byte。**沒有任何寫入,位址也沒被傳出去過。**
+
+**還沒確定的**:那塊堆疊在真實執行時裝什麼。這是動態問題:
+
+- 如果 `sp+0x40` 剛好是 NUL 開頭,空帳號就會比中;密碼那邊在 `auth_pass` 為空時
+  改讀 `lb v0,0x60(sp)`,那個 byte 是 0 的話也算過。
+- Boa 是單一 process、迴圈處理請求,所以固定 frame offset 上的殘留值
+  比多執行緒伺服器可重現得多。
+
+**所以現在的處置**:記在 `notes/auth-flow.md` 當 W05/W06 的候選,
+**在證實或否證之前不會報給任何人**。
+
+**加分講法**:「靜態分析能證明程式碼寫錯了,不能證明錯得可以被利用。
+把這兩件事混在一起講,是漏洞報告被退件最常見的原因。」
+
+</details>
+
+### 7.14 🔵 `formWsc` 有哪些請求參數會進 `system()`?
+
+<details><summary>答案</summary>
+
+- **`localPin`** → `sprintf(buf[100], "flash set HW_WLAN0_WSC_PIN %s", localPin)` → `system()`。
+  **沒長度檢查、沒字元過濾。** 同時是命令注入和堆疊溢位。
+- **`peerPin`** → 兩條路徑:
+  - 一條只抽數字進 `local_254[52]`,**但抽的時候索引沒有上限** → 純溢位。
+  - 一條 `sprintf(buf, "echo %s > /var/wps_peer_pin", peerPin)` → **原始值直接進 `system()`**。
+- **`targetAPSsid`** → `iwpriv wlan%d set_mib wsc_specssid="%s"` → `system()`。
+  有長度檢查(< 33),但**沒有跳脫**。
+
+2015 和 2020 兩版**一模一樣**,五年沒動。
+
+</details>
+
+### 7.15 🔴 `targetAPSsid` 有長度檢查了,為什麼還是漏洞?
+
+<details><summary>答案</summary>
+
+因為長度檢查擋的是**溢位**,擋不了**注入**。它被塞進 shell 命令的雙引號裡:
+
+```c
+sprintf(buf, "iwpriv wlan%d set_mib wsc_specssid=\"%s\" ", wlan_idx, targetAPSsid);
+system(buf);
+```
+
+送 `a";reboot;"` 就把引號關掉、接上自己的命令,而且長度遠小於 33。
+
+**根因要講精確**:「缺的不是長度檢查(那個有),是**在把資料放進另一種語言的
+語法之前沒有做對應的跳脫**。」加引號不是跳脫,引號本身也是資料的一部分。
+
+</details>
+
+### 7.16 🔴 同一支函式裡,`targetAPMac` 有嚴格過濾,`targetAPSsid` 沒有。這說明什麼?
+
+<details><summary>答案</summary>
+
+`targetAPMac` 是逐字元檢查是不是 `[0-9a-fA-F]`,而且要求長度剛好 12。
+十行之後的 `targetAPSsid` 只檢查長度。
+
+說明:**開發者會寫過濾,而且知道怎麼寫**。問題不是能力,是**每個參數各自為政**——
+沒有統一的輸入處理層,每個欄位靠寫的人當下記不記得。
+
+這是 ad-hoc 輸入處理的典型長相,而且它的失敗模式是**隨機的**:同一支函式裡有的
+參數安全、有的不安全,審查的時候很容易看到前面那個安全的就放心了。
+
+**面試加分點**:能把它講成「這是架構問題不是個案」,並且提出修法方向
+(集中式的參數取得層,在 `req_get_cstream_var` 那一層就依用途做白名單),
+比列出三個 bug 有價值得多。
+
+</details>
+
+### 7.17 🔵 `/bin/skt` 做什麼?
+
+<details><summary>答案</summary>
+
+10 KB、36 個函式,可以整支看懂。
+
+- 不帶參數執行 → `TcpServer(0x15b3, 0xe10)`,**聽 TCP 5555**。
+- 收到 `hel,xasf` → `system("iptables -I INPUT -p tcp --dport 80 -i eth1 -j ACCEPT")`
+- 收到 `oki,xasf` → 同一條規則的 `-D`(刪除)
+- 另外還有 `gvr,xasf`、`bye,xasf` 兩個暗號(沒有副作用,推測是握手/關閉)
+
+**它不給 shell,也不繞密碼。它是「可達性後門」**:把本來被防火牆擋在外面的
+管理介面打開。`eth1` 在這塊板子上應該是 WAN 側 —— 但那是從 iptables 規則讀出來的,
+還沒在實機驗證(W02)。
+
+</details>
+
+### 7.18 🟠 `rcS` 裡 `skt` 那行被註解掉了(`#skt&`),它沒在跑。那還算漏洞嗎?
+
+<details><summary>答案</summary>
+
+**「不啟動後門」和「沒有後門」是兩件不同的事。**
+
+V2.1.2 的日期是 2015-08-25,大約在 Pierre Kim 2015 年 7 月揭露之後五週。
+廠商對一個已公開後門的回應,是**把啟動它的那一行註解掉,然後照樣把 binary
+出貨**——放在 `/bin`,而且是可執行的。
+
+任何能執行一條命令的東西,都能執行 `/bin/skt &`。而這台機器的 web 介面上就有
+好幾條能執行命令的路徑(`formWsc`)。所以它把「一個 RCE」升級成「一個 RCE 加上
+一條持久化的對外通道」。
+
+**而這件事可以量化,不是嘴砲**:V3.4.0(五年後)把檔案整個刪掉了。
+廠商後來做對了;2015 年做的是便宜的那個。
+
+</details>
+
+### 7.19 🔴 你的 sink 統計第一版說 2020 版只有 1 個 `strcpy`。你怎麼發現那是錯的?
+
+<details><summary>答案</summary>
+
+**因為它跟旁邊的數字對不起來。** 2015 版 589 個、2020 版 1 個,可是:
+
+- 兩者是同一份程式碼,大小只差 11%
+- `sprintf` 兩邊都是 694 個,`memcpy` 是 110 vs 112
+- `nm -D` 明明說 2020 版還在 import `strcpy`
+
+一份 C 程式不可能只有一次 `strcpy` 而有 694 次 `sprintf`。**兩個來源不一致的時候,
+不一致本身就是資料。**
+
+原因:2020 版被 `sstrip` 過(沒有 section header)而且有真正的 PLT
+(`DT_MIPS_PLTGOT`)。Ghidra 找不到 `.plt` 去標它,只有部分項目被建成函式——
+`system`、`sprintf` 有,`strcpy` 沒有。所以呼叫方指到一個**沒有名字的 stub**,
+而我只數了指到 symbol 本身的參考。
+
+**這是 W01 `readelf` 那個坑的第二次。** 所以現在報告裡有 `self_check`:
+只要有 symbol 被 import 卻找不到呼叫方,整份檔案標成 `SUSPECT`。
+
+</details>
+
+### 7.20 🔴 那你怎麼修的?別跟我說你用猜的。
+
+<details><summary>答案</summary>
+
+**先量再修。** 修之前先數:`jal = 9979`、`jalr = 16`。
+所以幾乎所有呼叫都是直接跳 PLT,不是 `lw t9,%call16(gp)` 那種 GOT 間接呼叫——
+代表**不需要**去解 `gp`,問題單純是 PLT 項目沒被辨識出來。
+
+而 MIPS 的 PLT entry 是 binutils 產生的四道固定指令,每個欄位都由 `.got.plt`
+的 slot 位址 `S` 決定:
+
+```
+lui   $15, %hi(S)        3C 0F hi
+lw    $25, %lo(S)($15)   8D F9 lo
+addiu $24, $15, %lo(S)   25 F8 lo
+jr    $25                03 20 00 08
+```
+
+所以我是**把這 16 個 byte 算出來**再去記憶體找,而且規定「只能命中一次;
+命中兩次或零次就不採用」——寧可回報找不到,也不要挑一個。
+
+順手還修了一件事:從**函式外面**來的 data reference 是 GOT 欄位,不是呼叫點。
+就是它讓 `strcpy` 回報「1」而不是誠實的「0」。**把 1 變回 0,才會觸發 self_check。**
+
+修完:587 vs 577,兩個 build 對得上了。
+
+</details>
+
+### 7.21 ⚪ 你這週所有結論都是靜態的,機器還沒到。要怎麼證明它們是對的?
+
+<details><summary>思考方向</summary>
+
+先承認靜態分析能給什麼、不能給什麼:
+
+- **能給**:程式碼寫成什麼樣、資料結構長什麼樣、哪條路徑存在。
+- **不能給**:實際執行時的狀態(堆疊殘留)、設定相依的分支(那個 MIB `0x10e`
+  兩條路徑走哪條)、以及最重要的——**這台機器上實際跑的是哪個 build**。
+
+驗證分三層,成本由低到高:
+
+1. **模擬**(W05):W01 已經證明 `qemu-mips-static` + chroot 可以讓 2015 版的
+   `boa` 跑起來並印出 usage。缺的是 `libapmib.so` 會去讀 `/dev/mtd*`。
+   把那層擋掉或做假,就能發真的 HTTP 請求。
+2. **實機**(W02 到貨後):三個 `curl` 就結案 ——
+   `GET /config.dat` 應該回 200、`GET /home.htm` 應該回 401、
+   `POST /boafrm/formPasswordSetup` 應該真的改掉密碼。
+3. **交叉比對**:找同家族其他型號的韌體,看 `strstr(uri,"htm")` 這個模式是不是
+   Realtek SDK 的共通寫法。如果是,這就不是一台機器的 bug。
+
+**面試加分點**:主動說出「我的結論還沒被執行驗證過」比被問出來好一百倍。
+而且要能講清楚**驗證計畫**——有計畫的未完成,和沒想過的未完成,是完全不同的東西。
+
+</details>

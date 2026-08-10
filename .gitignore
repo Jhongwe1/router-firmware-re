@@ -37,6 +37,13 @@ ghidra/projects/
 *.gpr
 *.rep/
 
+# Decompiled C exported by ghidra/scripts/BoaDecompile.java.
+# Decompiler output is a derivative of the vendor binary, so committing the whole
+# corpus would redistribute the firmware by another route — see "Scope & ethics"
+# in README.md. Short excerpts quoted inside an analysis, with commentary, are a
+# different thing and those are committed under notes/.
+ghidra/decomp/
+
 # Generated reports ARE committed. They are the readable product of this work,
 # and a reader without the (non-redistributable) firmware should still be able
 # to see what the analysis found. `make recon` regenerates them byte-for-byte

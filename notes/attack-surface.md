@@ -4,6 +4,28 @@ Derived from [`reports/`](../reports/), which `make recon` regenerates. This is
 the **W01 map**: what exists and where to look, not what is exploitable. Nothing
 here has been confirmed on a running device.
 
+> **W03 resolved the three questions this page marked "to confirm".** Kept as
+> written; the answers live in the new notes:
+>
+> - **§1.1 "whether Boa applies an authentication check before serving a `.dat`
+>   path"** — it does not, and the reason is broader than `.dat`. The single
+>   authorisation gate runs only when the URI contains the substring `htm`, so
+>   `.dat`, `.cer` and every `/boafrm/` endpoint fall outside it.
+>   → [`auth-flow.md`](auth-flow.md)
+> - **§1.2 "recovering the real registration name [of `formSysCmd`] is the
+>   single highest-value W03 task"** — there is no registration. It is in
+>   neither build's dispatch table. → [`formSysCmd-analysis.md`](formSysCmd-analysis.md)
+> - **§1.3 "find the callers [of `cp /var/web/config.dat %s`] and trace where
+>   the `%s` comes from"** — `/boafrm/formSaveConfig`, and the `%s` is a
+>   timestamp-derived filename. Not injectable.
+>   → [`sink-inventory.md`](sink-inventory.md) §6
+>
+> The handler counts in §1.2 (59 and 49) were derived here from string counting
+> and are confirmed exactly by the recovered `root_form[]` arrays — two methods,
+> one answer. The **ranking** in §1.2 did not survive as well: `formLogin` and
+> the upload handlers were ranked above `formWsc`, and `formWsc` is where the
+> unfiltered `system()` calls actually are.
+
 Ranking rule used throughout: an entry earns attention from *reachability ×
 privilege × evidence of unchecked input*, in that order. Boa runs as root, so
 the privilege term is constant and maximal — which means reachability decides.

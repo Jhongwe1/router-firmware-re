@@ -23,7 +23,8 @@
 | [5](#5-part-1--取得韌體) | **Part 1** — 取得韌體 | 1 分鐘 |
 | [6](#6-part-2--解包韌體) | **Part 2** — 解包韌體 | 1 分鐘 |
 | [7](#7-part-3--產生分析報告) | **Part 3** — 產生分析報告 | 10 秒 |
-| [8](#8-part-4--ghidra-靜態分析) | **Part 4** — Ghidra 靜態分析 | 5 分鐘 |
+| [8](#8-part-4--ghidra-靜態分析) | **Part 4** — Ghidra 靜態分析 | 10 分鐘 |
+| [8.5](#85-part-5--讀出授權流程w03) | **Part 5** — 讀出授權流程(W03) | 讀 20 分鐘 |
 | [9](#9-驗收) | 驗收:G0 與 G1 | 10 分鐘 |
 | [10](#10-疑難排解) | 疑難排解 | 出事再看 |
 | [11](#11-名詞表) | 名詞表 | 查閱 |
@@ -501,13 +502,25 @@ cat reports/diff-2.1.2-to-3.4.0.md
 
 路由器裡的 `/bin/boa` 是編譯好的執行檔,人類讀不懂。Ghidra 可以把它變回大致看得懂的樣子。
 
-### 跑自動分析
+### 兩個步驟,不是一個
+
+- **`import.ps1`** = 匯入 + 跑自動分析。**貴**(每支好幾分鐘),但結果會存進專案,只要跑一次。
+- **`analyze.ps1`** = 對已經分析好的程式跑一支腳本。**便宜**(幾秒),可以一直重跑。
+
+W01 的版本把兩件事綁在一起,結果每改一行腳本就要重新分析一次。分開之後才有辦法做 W03 那種「改腳本 → 重跑 → 看結果」的迴圈。
+
+### 步驟一:匯入 + 自動分析
 
 ```powershell
 cd $env:USERPROFILE\Desktop\router
 
-.\ghidra\import.ps1 -Label 2.1.2 `
-  -Binary \\wsl$\Ubuntu-24.04\home\key\fwre-work\extracted\v2.1.2\squashfs-root\bin\boa
+$boa2015 = '\\wsl$\Ubuntu-24.04\home\key\fwre-work\extracted\v2.1.2\squashfs-root\bin\boa'
+$boa2020 = '\\wsl$\Ubuntu-24.04\home\key\fwre-work\extracted\v3.4.0\squashfs-root\bin\boa'
+$skt     = '\\wsl$\Ubuntu-24.04\home\key\fwre-work\extracted\v2.1.2\squashfs-root\bin\skt'
+
+.\ghidra\import.ps1 -Label 2.1.2     -Binary $boa2015
+.\ghidra\import.ps1 -Label 3.4.0     -Binary $boa2020
+.\ghidra\import.ps1 -Label 2.1.2-skt -Binary $skt
 ```
 
 > 📌 `\\wsl$\Ubuntu-24.04\home\key\...` 是**從 Windows 看 WSL 檔案**的路徑。
@@ -518,35 +531,66 @@ cd $env:USERPROFILE\Desktop\router
 **應該看到:**
 
 ```
- ==>  importing \\wsl$\...\bin\boa as boa-2.1.2
-
-  ok   language        MIPS:BE:32:default
-  ok   image base      00400000
-  ok   functions       809
-  ok   strings matched 360 of 3337
-  ok   wrote           ...\reports\ghidra-strings-2.1.2.json
+ ==>  importing \\wsl$\...\bin\boa
+      project : ...\ghidra-projects\totolink-n150rt/2.1.2
+      sha256  : ddda5a4f3c65b54b96d8cc485f617daf049ad70eab42ac57e87b4b005f17d97a
+  ok   analysed and stored under totolink-n150rt/2.1.2
 ```
 
-⏱ 約 1 分鐘(自動分析本身 39 秒)。
+⏱ 三支加起來約 5 分鐘。
 
-再跑 2020 版:
-
-```powershell
-.\ghidra\import.ps1 -Label 3.4.0 `
-  -Binary \\wsl$\Ubuntu-24.04\home\key\fwre-work\extracted\v3.4.0\squashfs-root\bin\boa
-```
+> ⚠️ **`-Label` 為什麼是資料夾,不只是個標籤**
+>
+> `analyzeHeadless -import <path>` 是用**檔名**幫 program 命名的。兩個版本的檔案
+> 都叫 `boa`,所以 W01 的寫法讓它們變成同一個名字,再加上 `-overwrite`,
+> **第二次匯入會把第一次的無聲蓋掉**。
+>
+> 現在每個版本進自己的 project folder(`totolink-n150rt/2.1.2` 等),而且每份
+> 報告都會帶上被分析檔案的 SHA-256。一份說不出自己分析了哪個檔案的報告,不算證據。
 
 **`MIPS:BE:32:default` 這行很重要** —— `BE` = Big Endian。Ghidra 自己從檔案標頭判斷出來的,跟我們前面用別的方法算出來的答案一致。**兩個獨立來源得到同一個答案,才敢當結論用。**
 
-### 這份 JSON 有什麼用
-
-它列出每個關鍵字串「被程式的哪個函式用到」。這把「這個 522 KB 的檔案裡有這些字」變成「**該打開哪幾個函式來看**」。
+### 步驟二:跑分析腳本
 
 ```powershell
-wsl -d Ubuntu-24.04 bash -c "cd /mnt/c/Users/Key20/Desktop/router/reports && jq -r '.matches[] | select(.value|test(\"syscmd\";\"i\")) | \"\(.address) \(.value)\"' ghidra-strings-2.1.2.json"
+# W01 的字串交叉引用
+.\ghidra\analyze.ps1 -Label 2.1.2 -Script BoaStringXrefs -Binary $boa2015
+
+# W03:把 /boafrm/ 分派表挖出來,並把所有 handler 命名寫回專案
+.\ghidra\analyze.ps1 -Label 2.1.2 -Script BoaFormTable -Binary $boa2015
+.\ghidra\analyze.ps1 -Label 3.4.0 -Script BoaFormTable -Binary $boa2020
+
+# W03:危險函式呼叫點普查(要在 BoaFormTable 之後跑,才認得出 handler)
+.\ghidra\analyze.ps1 -Label 2.1.2 -Script BoaSinks -Binary $boa2015
+.\ghidra\analyze.ps1 -Label 3.4.0 -Script BoaSinks -Binary $boa2020
 ```
 
-完整的「該看哪些函式、為什麼」整理在 [`notes/ghidra-triage.md`](notes/ghidra-triage.md)。
+**應該看到:**
+
+```
+INFO  BoaFormTable.java> BoaFormTable: 2 table(s), 100 entries, 98 functions named
+INFO  BoaSinks.java> BoaSinks: 1686 call sites across 21 sinks, 432 named functions
+```
+
+⏱ 每支 20–60 秒。
+
+### 產出在哪裡
+
+| 檔案 | 內容 |
+|---|---|
+| `reports/ghidra-strings-<版本>.json` | 關鍵字串 → 用到它的函式(W01) |
+| `reports/ghidra-formtable-<版本>.json` | `root_form[]` 全表:每個 `/boafrm/` 路由的名字、handler 位址、它讀了哪些請求參數 |
+| `reports/ghidra-sinks-<版本>.json` | `system` / `strcpy` / `sprintf` … 的每一個呼叫點,以及呼叫它的函式 |
+
+看分派表:
+
+```powershell
+wsl -d Ubuntu-24.04 bash -c "cd /mnt/c/Users/Key20/Desktop/router && jq -r '.tables[] | select(.role==\"root_form\") | .entries[] | \"\(.handler) \(.name)\"' reports/ghidra-formtable-2.1.2.json | head -20"
+```
+
+完整的「該看哪些函式、為什麼」整理在 [`notes/ghidra-triage.md`](notes/ghidra-triage.md);
+結論在 [`notes/dispatch-table.md`](notes/dispatch-table.md) 和
+[`notes/auth-flow.md`](notes/auth-flow.md)。
 
 ### 打開圖形介面自己看
 
@@ -560,7 +604,55 @@ wsl -d Ubuntu-24.04 bash -c "cd /mnt/c/Users/Key20/Desktop/router/reports && jq 
 %LOCALAPPDATA%\fwre-tools\ghidra-projects\totolink-n150rt.gpr
 ```
 
-裡面已經有 `boa-2.1.2` 和 `boa-3.4.0` 分析好了。雙擊打開,按 `G` 可以跳到指定位址。
+裡面有 `2.1.2`、`3.4.0`、`2.1.2-skt` 三個資料夾。雙擊裡面的 `boa` 打開,按 `G` 可以跳到指定位址。
+
+**跑過 `BoaFormTable` 之後**,函式列表裡會有 185 個 `form_*` 和 `aspvar_*` 開頭的名字,每個上面都有一段註解寫著它是從分派表哪一項來的。直接按 `G` 跳到 `0x0044a190`(2015 版的 `form_formWsc`)就能看到本週最重要的那幾行。
+
+---
+
+## 8.5 Part 5 — 讀出授權流程(W03)
+
+這一段是**閱讀**,不是跑指令。腳本只負責把證據搬出來,結論是人讀出來的。
+
+### 把要讀的函式匯出成 C
+
+```powershell
+.\ghidra\analyze.ps1 -Label 2.1.2 -Script BoaDecompile -Binary $boa2015 `
+  -Out "$PWD\ghidra\decomp\decomp-2.1.2.json" `
+  -ExtraArgs @('name:handleForm','name:translate_uri','name:process_requests','prefix:form_','callers:system')
+```
+
+產出在 `ghidra/decomp/`(**這個資料夾不進 git**)。
+
+> ⚠️ **為什麼反編譯結果不能 commit**
+>
+> 反編譯出來的 C 是廠商 binary 的衍生物。整包 commit 等於換個方式散布韌體,
+> 跟 README「不轉散布廠商韌體」的立場衝突。筆記裡引用片段 + 加上分析說明是另一回事,
+> 那些有 commit。
+
+### 讀不懂的時候,看組語
+
+反編譯器**會出錯,而且會先警告你**。`process_header_end` 的輸出頂上有三行
+`WARNING: Heritage AFTER dead removal`,那代表它自己知道這段處理得不好。
+
+```powershell
+.\ghidra\analyze.ps1 -Label 2.1.2 -Script BoaListing -Binary $boa2015 -ReadOnly `
+  -Out "$PWD\ghidra\decomp\listing-phe.txt" -ExtraArgs @('0040be0c','0040c600')
+```
+
+出來的是純文字組語,而且呼叫目標和字串常數都已經解出來了。找這幾行:
+
+```
+0040c234  lw t9,-0x7cbc(gp)        -> PTR_strstr_0048b2f4
+0040c238  addiu a1,a1,-0x2be0        "htm"
+0040c23c  jalr t9                  -> strstr
+0040c248  beq v0,zero,0x0040c3a0                 ; 回 NULL 就跳過整段授權檢查
+```
+
+**這四行就是本週的結論**:URI 裡沒有 `htm` 三個字,授權檢查整段被跳過。
+完整說明在 [`notes/auth-flow.md`](notes/auth-flow.md)。
+
+> 用純文字而不是截圖,是因為截圖沒辦法 diff、沒辦法 grep、Ghidra 升版之後也沒辦法重新產生。
 
 ---
 
@@ -782,8 +874,16 @@ make check-reports # 報告有沒有跟工具脫節
 make help          # 列出所有指令
 
 # ── Ghidra(回到 PowerShell)────────────────────────────
-.\ghidra\import.ps1 -Label 2.1.2 -Binary \\wsl$\Ubuntu-24.04\home\key\fwre-work\extracted\v2.1.2\squashfs-root\bin\boa
-.\ghidra\import.ps1 -Label 3.4.0 -Binary \\wsl$\Ubuntu-24.04\home\key\fwre-work\extracted\v3.4.0\squashfs-root\bin\boa
+$b='\\wsl$\Ubuntu-24.04\home\key\fwre-work\extracted\v2.1.2\squashfs-root\bin\boa'
+.\ghidra\import.ps1 -Label 2.1.2 -Binary $b          # 匯入+自動分析,每支幾分鐘,只跑一次
+
+.\ghidra\analyze.ps1 -Label 2.1.2 -Script BoaStringXrefs -Binary $b   # 字串 xref (W01)
+.\ghidra\analyze.ps1 -Label 2.1.2 -Script BoaFormTable   -Binary $b   # root_form[] + 命名 handler
+.\ghidra\analyze.ps1 -Label 2.1.2 -Script BoaSinks       -Binary $b   # 危險函式呼叫點普查
+.\ghidra\analyze.ps1 -Label 2.1.2 -Script BoaDecompile   -Binary $b `
+    -Out "$PWD\ghidra\decomp\d.json" -ExtraArgs @('prefix:form_','name:handleForm')
+.\ghidra\analyze.ps1 -Label 2.1.2 -Script BoaListing     -Binary $b -ReadOnly `
+    -Out "$PWD\ghidra\decomp\l.txt"  -ExtraArgs @('0040be0c','0040c600')   # 組語
 
 # ── 單獨用工具 ────────────────────────────────────────
 ~/fwre-work/venv/bin/python -m fwrecon image  <韌體.web>
@@ -940,6 +1040,9 @@ cd FirmAE && ./install.sh      # 30–60 分鐘
 | 2026-08-07 | W01 | 初版。涵蓋環境建置、韌體取得、解包、`fwrecon` 報告、Ghidra headless 分析,以及 W01 實際踩到的 13 個坑。 |
 | 2026-08-07 | W01 收工 | 新增 §12.5:W02 / W05 開工前要補裝的東西(usbipd、UART 3.3V 警告、qemu chroot 先於 FirmAE)。這三項 W01 刻意沒做,理由記在 `PROGRESS.md`。 |
 | 2026-08-07 | W01 收工 | 新增 [`study/QA.md`](study/QA.md) 自我檢核題庫(39 題)。之後每週的問題都往那裡累積。 |
+| 2026-08-10 | W03 | §8 改寫:`import.ps1`(匯入+分析)與 `analyze.ps1`(跑腳本)拆開,並加上 `-Label` 為什麼要當資料夾用的說明 —— W01 的寫法會讓第二次匯入無聲蓋掉第一次。 |
+| 2026-08-10 | W03 | 新增 §8.5 Part 5:用 `BoaDecompile` 匯出 C、用 `BoaListing` 讀組語,以及「反編譯器出警告時不能信它」的操作方式。 |
+| 2026-08-10 | W03 | §12 速查表補上 W03 的四支腳本。`study/QA.md` 增至 60 題。 |
 
 ---
 
@@ -954,4 +1057,9 @@ cd FirmAE && ./install.sh      # 30–60 分鐘
 | [`notes/prior-art.md`](notes/prior-art.md) | 前人研究:誰在什麼時候發現了什麼 |
 | [`notes/attack-surface.md`](notes/attack-surface.md) | 攻擊面地圖 |
 | [`notes/ghidra-triage.md`](notes/ghidra-triage.md) | Ghidra 裡該先看哪些函式 |
+| [`notes/dispatch-table.md`](notes/dispatch-table.md) | **`root_form[]` 全表** —— 兩個版本的每一個 `/boafrm/` 路由 |
+| [`notes/auth-flow.md`](notes/auth-flow.md) | **Boa 怎麼決定你可不可以進來** —— W03 最重要的一份 |
+| [`notes/sink-inventory.md`](notes/sink-inventory.md) | 危險函式呼叫點清單,依可利用性排序 |
+| [`notes/formSysCmd-analysis.md`](notes/formSysCmd-analysis.md) | 那個不存在的 CVE 端點,以及三條線索為什麼都指錯方向 |
+| [`notes/skt-analysis.md`](notes/skt-analysis.md) | 2015 後門完整拆解:port、暗號、和它存在的那一行 `iptables` |
 | [`study/QA.md`](study/QA.md) | **自我檢核題庫** —— 面試官會怎麼追殺你,答案是折疊的 |

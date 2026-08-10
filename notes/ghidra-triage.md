@@ -4,11 +4,34 @@ A headless pass, not a reversing session. The goal is to turn "these strings
 exist somewhere in a 522 KB binary" into "these specific functions are worth
 opening in W03".
 
-Reproduce:
+> ## ⚠️ Superseded in part by W03 — read this first
+>
+> This page is kept as written, because a triage note that gets quietly edited
+> to match the answer stops being a record of how the answer was reached. Three
+> of its calls turned out differently once the code was read:
+>
+> | W01 said | W03 found |
+> |---|---|
+> | `FUN_0044c610` is "the strongest candidate for the CVE-2019-19824 handler" | It is `sysCmdLog` in the **ASP page-variable** table, read by `handleScript` — the log *viewer*, not a request handler. `formSysCmd` is in neither dispatch table. [`formSysCmd-analysis.md`](formSysCmd-analysis.md) |
+> | `FUN_00440eec` (`cp /var/web/config.dat %s`) is "the highest-value single function found in W01" | It is `/boafrm/formSaveConfig`, and the `%s` is a `localtime()`-derived filename. **Not a command injection.** [`sink-inventory.md`](sink-inventory.md) §6 |
+> | "Around 40–50 functions in this binary are request handlers", from `submit-url` xrefs | Exactly **59** (V2.1.2) and **49** (V3.4.0), from the recovered `root_form[]`. The estimate was low, and in the right direction. [`dispatch-table.md`](dispatch-table.md) |
+>
+> The method note still stands, and is worth more than the individual calls: an
+> xref is a lead, and a lead is not a role. What settled all three was recovering
+> the data structure that does the dispatching.
+>
+> Also superseded: the commands below. `import.ps1` now only imports and
+> analyses, into a per-version project folder, and scripts are run separately by
+> `analyze.ps1` — see [`../RUNBOOK.md`](../RUNBOOK.md). The W01 invocation had a
+> real bug: `analyzeHeadless -import` names the program after the *file*, so both
+> firmware versions imported as a program called `boa` and `-overwrite` made the
+> second import destroy the first.
+
+Reproduce (updated for the current tooling):
 
 ```powershell
-.\ghidra\import.ps1 -Label 2.1.2 `
-  -Binary \\wsl$\Ubuntu-24.04\home\<user>\fwre-work\extracted\v2.1.2\squashfs-root\bin\boa
+.\ghidra\import.ps1  -Label 2.1.2 -Binary \\wsl$\Ubuntu-24.04\home\<user>\fwre-work\extracted\v2.1.2\squashfs-root\bin\boa
+.\ghidra\analyze.ps1 -Label 2.1.2 -Script BoaStringXrefs -Binary <same path>
 ```
 
 Output: [`reports/ghidra-strings-2.1.2.json`](../reports/ghidra-strings-2.1.2.json),

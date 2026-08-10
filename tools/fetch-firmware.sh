@@ -40,6 +40,8 @@ c_run()  { printf '\033[36m ==>  \033[0m %s\n' "$*"; }
 c_warn() { printf '\033[33m warn \033[0m %s\n' "$*"; }
 c_err()  { printf '\033[31m FAIL \033[0m %s\n' "$*" >&2; }
 
+. "$REPO/tools/lib/require-linux-workspace.sh"
+
 command -v jq >/dev/null || { c_err "jq is required (apt install jq)"; exit 2; }
 [ -f "$SOURCES" ] || { c_err "missing $SOURCES"; exit 2; }
 
