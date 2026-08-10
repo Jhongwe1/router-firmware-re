@@ -162,27 +162,67 @@ required to be exactly 12 long. The developer knew how to sanitise; the
 sanitisation is per-parameter and inconsistent. That is the signature of ad-hoc
 input handling rather than a missing library.
 
-### 3. 🟠 `execl` in six handlers
+### 3. ⚪ `execl` in six handlers — traced, and it is a negative result
 
 `formDMZ`, `formFilter`, `formIpQoS`, `formPortFw`, `formSpiFwall`, `formRadvd`
-each reach `execl`. `execl` does not spawn a shell, so these are not injection
-by construction — but the argument vectors are built from request parameters
-(`comment`, `ipStart`, `fromPort`, …) and several of those fields are free text.
-Not yet traced. **W04.**
+each reach `execl` (eight handlers in V3.4.0). The first version of this entry
+said "the argument vectors are built from request parameters (`comment`,
+`ipStart`, `fromPort`, …)". **They are not.** Every `execl` site in both builds:
 
-### 4. 🟠 Unbounded `strcpy` of the request URI on the 401 path
+| build | handler | site | argv |
+|---|---|---|---|
+| 2.1.2 | formSpiFwall | `0x0041d228` | `(path, "firewall.sh", NULL)` |
+| 2.1.2 | formDMZ | `0x0041d56c` | `(path, "firewall.sh", NULL)` |
+| 2.1.2 | formFilter | `0x0041e5c0` | `(path, "firewall.sh", NULL)` |
+| 2.1.2 | formPortFw | `0x0041cf88` | `(path, "firewall.sh", NULL)` |
+| 2.1.2 | formIpQoS | `0x0041f328` | `(path, "ip_qos.sh", NULL)` |
+| 2.1.2 | formRadvd | `0x0045e724` | `(path, "radvd.sh", NULL)` |
+| 3.4.0 | +formAlgSip, +formNtp, +formRebootSchedule | | `(path, "<script>.sh", NULL)` |
 
-`process_header_end`, immediately before `send_r_unauthorized`:
+A literal script name and a NULL. **No request parameter is passed to any
+`execl` in either build.** The parameters go into the MIB; the shell script reads
+them back afterwards. That is still a data flow worth following — a MIB value
+interpolated by `/etc/scripts/firewall.sh` is the same bug one process later —
+but it is not an `execl` argv problem and this entry was pointing at the wrong
+thing. **Reading those shell scripts is W07.**
+
+Bound on the claim: the tracer resolves the *arguments at the call*, and
+`argv[0]` is a stack buffer holding the script path. It does not follow what was
+written into that buffer earlier. So "no request parameter reaches argv" is
+established for the argument slots, not for the path.
+
+### 4. ⚪ Unbounded `strcpy` of the request URI on the 401 path — measured, downgraded
 
 ```c
 strcpy(&DAT_0048e9f8, (char *)(param_1 + 0x235));   /* the request URI */
 ```
 
-Pre-authentication by definition. `translate_uri` rejects URIs over 0x801 bytes
-with `"uri too long!"`, which probably caps this in practice — but that check is
-in a *different* function on a *different* path, so whether it always runs first
-has to be established rather than assumed. Sizing `DAT_0048e9f8` and confirming
-the ordering: **W04.**
+Both halves of the W03 open question are now answered, and they point opposite
+ways.
+
+**The ordering claim was wrong.** `translate_uri`'s `0x801` cap does *not* run
+first: the `strcpy` is at `0x0040c378` and `translate_uri` is called at
+`0x0040c3a8`, on the other branch. Nothing between the URI arriving and this copy
+bounds it here.
+
+**The impact claim was also wrong, in the other direction.** `DAT_0048e9f8` has
+no symbol — it is a file-local static that stripping removed. The next *named*
+global above it is `max_fd` at `0x0048faa0`, so there are **4,264 bytes** of
+unnamed `.bss` between the destination and anything with a name, and Boa's own
+request line is bounded well below that. A copy that cannot reach the next object
+is not an overflow.
+
+Downgraded from 🟠 to a non-finding. Kept in place because the reasoning that
+produced the original rating — "unbounded `strcpy`, pre-auth, therefore
+interesting" — is the reasoning that produced entry 1, which *is* interesting,
+and the difference between the two is a number nobody had looked up.
+
+Also measured, and mildly surprising: **`DAT_0048e9f8` is never read.** Its
+address is taken exactly once in the whole binary, at `0x0040c378` — confirmed
+both by Ghidra and by scanning the raw ELF for any load or `addiu` bearing the
+displacement `0xe9f8`. The same scan shows `DAT_0048e9e8`, the other global this
+function writes, has exactly one access and it is a store. Two write-only
+globals in the authorisation path.
 
 ### 5. 🟡 The 47 handlers containing `strcpy`
 
@@ -212,16 +252,50 @@ not a command injection.** Recorded because a candidate that dies deserves the
 same visibility as one that survives; the alternative is a project where only
 confirmations get written down.
 
-One loose end: Ghidra's inferred frame puts only 8 bytes between `auStack_148`
-and the next variable, while the format expands to ~47 characters. Either the
-frame inference is wrong or a fixed, non-attacker-controlled string overruns the
-buffer. Not resolvable from decompiler output — needs the prologue read. **W04.**
+The loose end is closed, and it was the decompiler. Ghidra's *inferred* frame put
+8 bytes between `auStack_148` and its neighbour; the storage the decompiler
+actually assigns, read out of the SSA form by
+[`BoaArgTrace`](../ghidra/scripts/BoaArgTrace.java), puts the filename buffer at
+`sp-328` in a 544-byte frame with the next used slot at `sp-228`. **100 bytes of
+room for a ~47-character format.** No overflow. Third time in this project that a
+decompiler-derived number was the thing that was wrong.
+
+## Provenance, per call site — added in W04
+
+The census above says *where*. It does not say *what arrives*, and W03 answered
+that by decompiling handlers one at a time, which does not scale past the few
+that were read.
+[`BoaArgTrace.java`](../ghidra/scripts/BoaArgTrace.java) now walks the
+decompiler's SSA form backwards from every sink call inside a handler and reports
+each argument as a literal, a stack slot with its frame offset, a global, or a
+**request parameter with its name**:
+
+| | V2.1.2 | V3.4.0 |
+|---|---|---|
+| sink call sites inside handlers | 304 | 281 |
+| handlers reached by a request parameter | 39 | 30 |
+
+Reports: [`reports/ghidra-argtrace-2.1.2.json`](../reports/ghidra-argtrace-2.1.2.json),
+[`reports/ghidra-argtrace-3.4.0.json`](../reports/ghidra-argtrace-3.4.0.json).
+
+It confirmed entries 1 and 2 independently of the hand reading — `form_formWsc`
+comes back with exactly `localPin`, `peerPin`, `targetAPSsid` in both builds —
+and it found the thing hand-reading had missed: the `submit-url` tail idiom
+repeated across 34 handlers, which is
+[`submit-url-overflow.md`](submit-url-overflow.md) and accounts for four of this
+model's 2025 CVEs at once.
+
+**Three bugs in that tracer were caught by disagreement, not by its own
+self-check.** All three are recorded at the end of `submit-url-overflow.md`; the
+short version is that a check which never fires never fails, and what caught
+every one was comparing the two builds against each other.
 
 ## What is not covered here
 
-- **`libapmib.so`** — unread. It is the `COMPCS` serialiser and the thing
-  `apmib_get`/`apmib_set` actually call, so it is on the path of every finding
-  above and has had no scrutiny at all.
+- **`libapmib.so`** — ~~unread~~ → **read in W04**, at least as far as the
+  configuration table: [`mib-and-config-dat.md`](mib-and-config-dat.md). Every
+  MIB id in this project now has a name. The `COMPCS` compressor is still
+  unidentified and the TLV stream still unparsed.
 - **The other 33 binaries** that import a command-execution function
   ([`attack-surface.md`](attack-surface.md) §2), including `wscd`, the daemon
   behind the `formWsc` bugs.

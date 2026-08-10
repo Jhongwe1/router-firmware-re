@@ -42,12 +42,28 @@ recovering the table structure replaced it with a role.
 ## What this does and does not say about CVE-2019-19824
 
 **Says:** on TOTOLINK N150RT V2.1.2 and V3.4.0, the `/boafrm/formSysCmd`
-endpoint named by the CVE does not exist. The advisory covers a family of
-Realtek-SDK devices, not this model specifically; the SDK's `root_form[]` is
-assembled per-product from build-time feature flags, and this product was built
-without the handler while keeping the log-viewer variable and the
-`sysCmdselect` page fragment. Vendors ship the parts of the SDK they configure,
-and the leftovers are evidence of the configuration, not of the feature.
+endpoint named by the CVE does not exist.
+
+**W04 correction — the dates say why, and it is not what this note first said.**
+The first version of this page explained the absence as a build-time feature
+flag: "this product was built without the handler". That is a guess, and a
+weaker one than the evidence supports. Pierre Kim's 2015 advisory
+(`2015-totolink-0x02.txt`) names **N150RT-V2** and reports it vulnerable to
+**CVE-2015-9551** — unauthenticated RCE via `/boafrm/formSysCmd` — *"until last
+firmware `TOTOLINK-N150RT-V2.1.1-B20150708.1548.web`"*. Our V2.1.2 image is
+dated **2015-08-25**, i.e. the build after the last one he reports as
+vulnerable, and in it the handler is gone from the dispatch table.
+
+So the likeliest reading is not a feature flag. It is **the fix, observed**: the
+vendor removed the handler in the release that answered the disclosure — the same
+release that commented out `#skt&` and kept the binary
+([`skt-analysis.md`](skt-analysis.md)), and that kept `onlime_r` in
+`/etc/passwd.org` ([`credentials.md`](credentials.md)). One of three things
+fixed properly.
+
+**This is falsifiable and not yet falsified.** V2.1.1-B20150708 would settle it
+in one command: recover its `root_form[]` and see whether `formSysCmd` is there.
+That image is a fetchable artefact and the check is listed as the next step.
 
 **Does not say:** that this device is not vulnerable to command execution.
 [`sink-inventory.md`](sink-inventory.md) lists 158 `system()` call sites in

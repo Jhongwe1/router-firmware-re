@@ -9,19 +9,21 @@ trace **already-publicly-disclosed** vulnerabilities down to the responsible
 function in the binary.
 
 > 🚧 **In progress since 2026-07-30. G0 ✅ · G1 ✅ · G2 ⏸ blocked on hardware
-> delivery · G3 ◐ 7 of 8, W04 closes it.**
+> delivery · G3 ✅ passed 2026-08-11.**
 > Two firmware images are unpacked and measured — **V2.1.2 (2015-08-25)** and
 > **V3.4.0 (2020-10-30)** — and they bracket both public disclosure events
 > affecting this device, which turns a teardown into a before/after comparison.
 > Board below; the evidence behind every ticked box is in
 > [`PROGRESS.md`](PROGRESS.md).
 >
-> **Latest (W03):** Boa's authorisation gate is keyed on whether the request URI
-> contains the substring `htm`. Everything else — `/config.dat`, `/ca.cer`, and
-> all 59 `/boafrm/form*` handlers — is served without an authorisation check.
-> That is the mechanism behind CVE-2019-19822, and it is much broader than the
-> advisory's "`.dat` files are not restricted". **Static result; no device has
-> been powered on yet.**
+> **Latest (W04):** the fourteen 2025 CVEs against this model reduce to **three**
+> defects — two of them a single line and a single copy-pasted idiom, both
+> **already present in the 2015 image**. The 2020 build repaired W03's
+> authorisation hole but kept the technique that caused it, so `GET /config.dat`
+> is still ungated nine months after full disclosure. And W01's
+> "there is no `/etc/passwd`" was a false negative: both images ship one, and the
+> 2015 template still contains Pierre Kim's `onlime_r` backdoor account at uid 0.
+> **Static results; no device has been powered on yet.**
 
 The point is not the device. It is being able to take an undocumented binary
 system on an unfamiliar architecture, build understanding from zero, and reason
@@ -94,8 +96,9 @@ that is not backed by a command someone else can re-run.
 > ⚠️ **Scope of these claims.** All four are **static** results, read out of
 > firmware images — no running device has been touched yet. In particular,
 > whether `/config.dat` is reachable *unauthenticated* depends on Boa's
-> request-authorisation code, which is G3's job; the symlink proves the file is
-> in the docroot and nothing more. Which build is actually on my unit is decided
+> request-authorisation code — **answered in W03/W04: no authorisation runs for
+> it, in either build**. The symlink proved the file is in the docroot and
+> nothing more; the gate is what settled it. Which build is actually on my unit is decided
 > by a flash dump, which is G2's job.
 
 - [ ] **G2 — hardware access: UART + SPI dump** (W02) ⏸ **blocked on hardware delivery**
@@ -111,38 +114,47 @@ that is not backed by a command someone else can re-run.
   > when the USB-TTL adapter arrives: install `usbipd-win` (needs elevation, so
   > it belongs in the same sitting as the rest of the hardware setup).
 
-- [ ] **G3 — point at the line in the binary** (W03–W04) ◐ **7 of 8; W04 closes it** ← [PROGRESS.md](PROGRESS.md#w03--2026-08-10)
+- [x] **G3 — point at the line in the binary** (W03–W04) ✅ **passed 2026-08-11** ← [PROGRESS.md](PROGRESS.md#w04--2026-08-11)
   - [x] the `/boafrm/` dispatch table found, with ≥ 10 handlers listed — **59 in 2015, 49 in 2020**, both `root_form[]` arrays recovered with the function that reads each
-  - [x] ≥ 1 authentication candidate function identified — `process_header_end` @ `0x0040be0c`, the *only* gate in the request path
-  - [x] **where `formSysCmd` is really registered** — **nowhere.** It is in neither dispatch table, and `handleForm` matches names exactly with no fallback
-  - [x] **whether Boa authenticates `.dat` requests** — **no**, and not because `.dat` is special: the gate only runs when the URI contains `htm`
-  - [x] `FUN_00440eec` holds `cp /var/web/config.dat %s` — traced: it is `formSaveConfig` and the `%s` is a `localtime()` filename. **Not injectable**
+  - [x] ≥ 1 authentication candidate function identified — `process_header_end`, in **both** builds: `0x0040be0c` (2015) and `0x00409fd8` (2020)
+  - [x] **where `formSysCmd` is really registered** — **nowhere.** It is in neither dispatch table; and V2.1.2 ships *after* the last build Pierre Kim reports as vulnerable to CVE-2015-9551, so this reads as the vendor's fix
+  - [x] **whether Boa authenticates `.dat` requests** — **no, in both builds**, and not because `.dat` is special: 2015 checks only URIs containing `htm`, 2020 checks only `.htm`, `.asp` or POST
+  - [x] `FUN_00440eec` holds `cp /var/web/config.dat %s` — traced: `formSaveConfig`, a `localtime()` filename. **Not injectable**, and the buffer W03 worried about has 100 bytes for a 47-character format
   - [x] [`notes/sink-inventory.md`](notes/sink-inventory.md), and ≥ 5 functions renamed in Ghidra — **185 named** from table evidence, in the project database
-  - [x] [`notes/auth-flow.md`](notes/auth-flow.md) complete for the 2015 build
-  - [ ] ≥ 1 of the CVE-2025 series root-caused — mechanism located for the `formWsc` parameters the 2025 series names (`localPin`, `targetAPSsid`), but those CVEs are assigned to sibling models; tying them to this one is W04
+  - [x] [`notes/auth-flow.md`](notes/auth-flow.md) complete for 2015 **and** [`notes/auth-flow-2020.md`](notes/auth-flow-2020.md) for 2020
+  - [x] ≥ 1 of the CVE-2025 series root-caused — **twelve of the fourteen**, and they reduce to **three** defects. The series names *this* model (`N150RT 3.4.0-B20190525`), which W01 and W03 both had wrong
+  - [x] **beyond the gate:** the backdoor account located — `onlime_r` / `12345`, uid 0, in the build the vendor shipped *after* the 2015 disclosure · every MIB id named from `libapmib.so` · two shipped private keys
 
-  > ### ★ What W03 turned up
+  > ### ★ What W04 turned up
   >
-  > - **The authorisation gate is a substring test.** `strstr(uri, "htm")` at
-  >   `0x0040c23c`; if it returns NULL the whole check is branched over. Read out
-  >   of the disassembly, not the decompiler, because the decompiler warned three
-  >   times on that function.
-  > - **`formSysCmd` does not exist here.** W01's leading candidate,
-  >   `FUN_0044c610`, is `sysCmdLog` in the *ASP page-variable* table — the log
-  >   viewer, not a request handler. The real command-execution surface is
-  >   **`formWsc`**: `localPin` and `peerPin` reach `system()` unfiltered and
-  >   unbounded; `targetAPSsid` is length-checked but interpolated inside shell
-  >   double quotes unescaped. Identical in both builds, five years apart.
-  > - **`/bin/skt` decoded end to end.** TCP 5555; `hel,xasf` runs
-  >   `iptables -I INPUT -p tcp --dport 80 -i eth1 -j ACCEPT`. Combined with the
-  >   gate above, the 2015 image contains a complete unauthenticated-remote-root
-  >   chain built from two independently shipped defects.
-  > - **A negative result kept:** W01's "highest-value single function" was a
-  >   false positive, and says so in place.
+  > - **Fourteen 2025 CVEs, three defects.** `sprintf(buf[100], "flash set
+  >   HW_WLAN0_WSC_PIN %s", localPin); system(buf)` is a single line that is both
+  >   CVE-2025-3987 (no filtering) and CVE-2025-4462 (no bound) — and it is
+  >   **identical in the 2015 image**, ten years before either id existed. Four
+  >   more are one `submit-url` idiom that appears in **34 handlers**; the four
+  >   with ids are a sample, not a set.
+  > - **`lastUrl[100]`, then `needReboot`.** The `submit-url` copy lands in a
+  >   `.bss` buffer whose size comes from the symbol table, not from a guess, and
+  >   the next two objects after it are control flags. Separately, omitting the
+  >   parameter makes the handler `strcpy` into the `""` literal in a read-only
+  >   segment — as the code reads, a one-request unauthenticated crash.
+  > - **The 2020 build fixed the 2015 hole and kept the technique.** Every POST
+  >   is now gated — that is a real repair. But authorisation is still decided by
+  >   `strstr` over the URI, and the exemption list is unanchored.
+  >   `GET /config.dat` remains outside the gate in a build dated nine months
+  >   after full disclosure.
+  > - **W01's "there is no `/etc/passwd`" was a false negative** — a dangling
+  >   symlink read as an absent file. Both images ship the template; the 2015 one
+  >   contains Pierre Kim's `onlime_r` account at uid 0, with his published hash,
+  >   and `root` is `123456` in **both** builds.
+  > - **Three bugs in the new tracer, none caught by its own self-check.** All
+  >   three were caught by the project's own rule — read the two builds across,
+  >   not down — because one codebase five years apart cannot go 86 → 0.
   >
   > ⚠️ **All of it is static.** No device has been powered on — W02 is still
-  > blocked. What would settle it is three `curl`s, listed at the end of
-  > [`notes/auth-flow.md`](notes/auth-flow.md).
+  > blocked. The 2020 substring bypass in particular is a reading of three
+  > `strstr` calls that has never been executed; it goes to TWCERT/CC if and only
+  > if W05/W06 demonstrates it.
 
 - [ ] **G4 — a PoC a stranger can follow** (W05–W06)
   - [ ] ≥ 1 CVE reproduced on the physical unit or under emulation
@@ -174,6 +186,10 @@ that is not backed by a command someone else can re-run.
 | [`notes/dispatch-table.md`](notes/dispatch-table.md) | `root_form[]` recovered: every `/boafrm/` route in both builds, and what changed between them |
 | [`notes/auth-flow.md`](notes/auth-flow.md) | **How Boa decides you are allowed in** — the substring gate, the IP-as-session model, the uninitialised credential compare |
 | [`notes/sink-inventory.md`](notes/sink-inventory.md) | Every `system`/`strcpy`/`sprintf` call site, ranked — and how the first version of the census was wrong |
+| [`notes/auth-flow-2020.md`](notes/auth-flow-2020.md) | **The 2020 rewrite** — what it fixed, what it kept, and the 401 that is never sent |
+| [`notes/submit-url-overflow.md`](notes/submit-url-overflow.md) | **Four CVEs, one idiom, 34 handlers** — `lastUrl[100]` and the parameter you must not omit |
+| [`notes/credentials.md`](notes/credentials.md) | **Where the credentials actually are** — the backdoor account W01 concluded could not exist, and two shipped private keys |
+| [`notes/mib-and-config-dat.md`](notes/mib-and-config-dat.md) | The APMIB table recovered, and what `config.dat` is made of |
 | [`notes/formSysCmd-analysis.md`](notes/formSysCmd-analysis.md) | The CVE endpoint that is not there, and why three pieces of evidence pointed the wrong way |
 | [`notes/skt-analysis.md`](notes/skt-analysis.md) | The 2015 backdoor decoded: port, magic words, and the one `iptables` line it exists to run |
 | [`reports/`](reports/) | Generated analysis: per-version reports, version diff, Ghidra string xrefs |

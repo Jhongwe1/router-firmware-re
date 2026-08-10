@@ -22,7 +22,7 @@ process_requests()            state machine, stock Boa
   └─ read_header()
        └─ process_logline() ──> process_header()      parses AUTHORIZATION, REFERER, …
        └─ process_header_end()        <-- the only authorisation gate
-            ├─ 401 send_r_unauthorized()   … or …
+            ├─ send_r_unauthorized()  -> 301 redirect to /login.htm, NOT a 401
             └─ translate_uri()        stock Boa alias.c: path translation, no auth
                  └─ init_get / init_get2 / init_cgi
                       └─ write_body() ─> handleForm()    dispatch, no auth
@@ -44,8 +44,8 @@ raised three "Heritage AFTER dead removal" warnings on this function and its
 output could not be taken at face value here.
 
 ```c
-apmib_get(0xb6, username);          /* configured admin username */
-apmib_get(0xb7, password);          /* configured admin password */
+apmib_get(0xb6, username);          /* USER_NAME     - named in W04, mib-and-config-dat.md */
+apmib_get(0xb7, password);          /* USER_PASSWORD - named in W04 */
 if (username[0] != '\0' || password[0] != '\0') {       /* is auth configured? */
 
     /* --- HTTP Basic path: see "the uninitialised compare" below --- */
@@ -150,9 +150,12 @@ Consequences, in order of how cheap they are to abuse:
 2. **The authenticated party is an IP address.** Anyone sharing the source IP
    the admin logged in from — the same NAT, the same machine, a spoofed source
    on the same L2 segment — is that admin for the next 10 minutes.
-3. **Credentials are compared in plaintext against APMIB entries `0xb6`/`0xb7`.**
-   This is the "credential check inside a binary" W01 inferred from the absence
-   of `/etc/passwd`, now located. It also completes the CVE-2019-19822 →
+3. **Credentials are compared in plaintext against APMIB entries `0xb6`/`0xb7`**
+   — `USER_NAME` and `USER_PASSWORD` ([`mib-and-config-dat.md`](mib-and-config-dat.md)).
+   This is the *web* credential check. W01 reached it by reasoning from "there is
+   no `/etc/passwd`", and **that premise was false** — both images ship one, with
+   a UID-0 backdoor account in the 2015 build
+   ([`credentials.md`](credentials.md)). Right conclusion, wrong evidence. It also completes the CVE-2019-19822 →
    CVE-2019-19823 chain: `config.dat` is the serialised APMIB store, so
    retrieving it unauthenticated yields the very entries this comparison reads.
 4. **`formLogin` itself is reachable unauthenticated** — it has to be — but so
@@ -208,7 +211,35 @@ this is probably capped at ~2 KB rather than unbounded in practice. Sizing the
 destination and confirming the cap is a W04 task; it is listed in
 [`sink-inventory.md`](sink-inventory.md).
 
-## The 2020 build rewrote this, and it has not been read yet
+## `send_r_unauthorized` does not send a 401
+
+The name survived stripping, and the first version of this note took the name as
+the answer. The body is 64 bytes and references exactly one string:
+
+```c
+/* send_r_unauthorized @0x0040ecdc, V2.1.2 */
+req->response_status = 0x191;                          /* 401, for the access log */
+if (req->simple != 2)
+    return send_redirect_perm(req, "/login.htm");      /* 301 on the wire */
+```
+
+TOTOLINK replaced stock Boa's 401 challenge with a redirect. Corroborating,
+from the string table: V2.1.2 contains **no** `401 Unauthorized`, **no**
+`WWW-Authenticate` and **no** `Basic realm` — a server that never challenges.
+The status field really is set to 401, which is what the log records; the client
+gets a 301.
+
+That matters for anything downstream that asserts on a status code — see the
+corrected confirmation table at the end of this page.
+
+## The 2020 build rewrote this — now read
+
+> **Answered in W04:** [`auth-flow-2020.md`](auth-flow-2020.md). Short version:
+> the 2020 gate covers every POST, so the 59-handlers hole below **is fixed** —
+> but it still decides by running `strstr` over the URI, and its exemption list
+> (`login`, `Login`, `forgot.asp`, `wan_status.htm`) is unanchored. The section
+> below is kept as written, because the evidence it gives is what W04 started
+> from.
 
 V3.4.0 does **not** contain the strings the 2015 gate is built from:
 
@@ -239,8 +270,8 @@ server does, and the difference has bitten this project before. The confirmation
 is one `curl` per row against a running target:
 
 ```
-GET /config.dat                    expect: 200 + APMIB blob   (if the gate is as read)
-GET /home.htm                      expect: 401
+GET /config.dat                    expect: 200 + a COMPCS blob  (if the gate is as read)
+GET /home.htm                      expect: 301 -> /login.htm    (NOT 401 - see above)
 POST /boafrm/formPasswordSetup     expect: the password changes, unauthenticated
 ```
 
