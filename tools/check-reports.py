@@ -15,7 +15,8 @@ CI cannot regenerate them — no firmware on a runner — so it checks what it c
 Several producers write into reports/, on purpose:
 
   fwrecon        `fwrecon report`      -> carries "schema_version"
-  Ghidra scripts BoaFormTable, BoaSinks, BoaDecompile
+  fwrecon        `fwrecon mib`         -> carries "producer": "fwrecon:mib"
+  Ghidra scripts BoaFormTable, BoaSinks, BoaDecompile, BoaXref, BoaArgTrace
                                        -> carry "producer": "ghidra:<Script>"
   Ghidra script  BoaStringXrefs.java   -> carries "program" and "matches"
                                           (W01, predates the "producer" field)
@@ -80,6 +81,20 @@ def main(argv: list[str]) -> int:
             for field in ("label", "generated_at_utc"):
                 if field not in doc:
                     errors.append(f"{path.name}: missing required field {field!r}")
+
+        elif str(doc.get("producer", "")) == "fwrecon:mib":
+            counts["fwrecon"] += 1
+            if not doc.get("source_sha256"):
+                errors.append(
+                    f"{path.name}: no source_sha256 - the report cannot name the "
+                    "library it describes")
+            if doc.get("verdict") != "consistent":
+                errors.append(
+                    f"{path.name}: verdict is {doc.get('verdict')!r} - a MIB table "
+                    "that failed its own anchor check must not be committed as "
+                    "evidence")
+            if not doc.get("entries"):
+                errors.append(f"{path.name}: no MIB entries recovered")
 
         elif str(doc.get("producer", "")).startswith("ghidra:") or (
             "program" in doc and "matches" in doc

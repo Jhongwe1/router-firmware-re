@@ -885,11 +885,30 @@ $b='\\wsl$\Ubuntu-24.04\home\key\fwre-work\extracted\v2.1.2\squashfs-root\bin\bo
 .\ghidra\analyze.ps1 -Label 2.1.2 -Script BoaListing     -Binary $b -ReadOnly `
     -Out "$PWD\ghidra\decomp\l.txt"  -ExtraArgs @('0040be0c','0040c600')   # 組語
 
+# ── W04 新增的兩支 ────────────────────────────────────
+# 誰呼叫我、我呼叫誰、我碰到哪些字串;refs: 用來問「這個全域是誰寫、誰讀」
+.\ghidra\analyze.ps1 -Label 2.1.2 -Script BoaXref -Binary $b `
+    -ExtraArgs @('name:process_header_end','refs:0049087c','depth:3')
+
+# 每個 sink 呼叫點的「每個參數到底是什麼」:字面字串 / 堆疊位置+框架大小 /
+# 全域 / **請求參數的名字**。accessor: 只有在 binary 被 strip 掉時才需要給。
+.\ghidra\analyze.ps1 -Label 2.1.2 -Script BoaArgTrace -Binary $b `
+    -ExtraArgs @('sink:system','sink:strcpy','sink:sprintf','in:form_',
+                 'accessor:req_get_cstream_var','depth:6')
+# 2020 版的 accessor 名字不一樣(符號被 strip 了):accessor:FUN_0040e9e0
+
 # ── 單獨用工具 ────────────────────────────────────────
 ~/fwre-work/venv/bin/python -m fwrecon image  <韌體.web>
 ~/fwre-work/venv/bin/python -m fwrecon elf    <執行檔>
 ~/fwre-work/venv/bin/python -m fwrecon rootfs <解開的目錄>
+~/fwre-work/venv/bin/python -m fwrecon mib    <libapmib.so>
 ```
+
+> ⚠️ **看報告先看 `self_check`,但不要只看 `self_check`。**
+> W04 的 `BoaArgTrace` 連續錯了三次,三次 `self_check` 都寫 `consistent`。
+> 抓到它的不是自我檢查,是**把兩版並排比**:同一份程式碼相隔五年,不可能
+> 2015 版有 86 個受污染的呼叫點、2020 版有 0 個。
+> **一個永遠不會觸發的檢查,也永遠不會失敗。**
 
 **重要路徑**
 
@@ -1043,6 +1062,8 @@ cd FirmAE && ./install.sh      # 30–60 分鐘
 | 2026-08-10 | W03 | §8 改寫:`import.ps1`(匯入+分析)與 `analyze.ps1`(跑腳本)拆開,並加上 `-Label` 為什麼要當資料夾用的說明 —— W01 的寫法會讓第二次匯入無聲蓋掉第一次。 |
 | 2026-08-10 | W03 | 新增 §8.5 Part 5:用 `BoaDecompile` 匯出 C、用 `BoaListing` 讀組語,以及「反編譯器出警告時不能信它」的操作方式。 |
 | 2026-08-10 | W03 | §12 速查表補上 W03 的四支腳本。`study/QA.md` 增至 60 題。 |
+| 2026-08-11 | W04 | §12 速查表補上 `BoaXref`、`BoaArgTrace`、`fwrecon mib`,以及「先看 `self_check`,但 `self_check` 本身也會騙人」這條。 |
+| 2026-08-11 | W04 | `study/QA.md` 新增 §8(W04):2020 版授權、`submit-url`、後門帳號、MIB 表,以及三個工具 bug 的自白。 |
 
 ---
 

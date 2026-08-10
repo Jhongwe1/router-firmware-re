@@ -1,4 +1,20 @@
-# Attack surface — v1
+# Attack surface — v2
+
+> **v2 (W04).** The ranking below is the W01 map, kept as written. What W03 and
+> W04 measured is folded in as a header on each section, because the *changes*
+> are the interesting part: this page ranked `formLogin` and the upload handlers
+> above `formWsc`, and `formWsc` is where the unfiltered `system()` calls are.
+>
+> **Per-handler answers now exist.** Which request parameters reach which sink,
+> in both builds, is generated rather than argued:
+> [`reports/ghidra-argtrace-2.1.2.json`](../reports/ghidra-argtrace-2.1.2.json),
+> [`reports/ghidra-argtrace-3.4.0.json`](../reports/ghidra-argtrace-3.4.0.json)
+> — 39 handlers in 2015 and 30 in 2020 are reached by a named request parameter.
+> Authorisation status per handler is one answer, not a column:
+> **in 2015 no `/boafrm/` handler is behind the gate at all**
+> ([`auth-flow.md`](auth-flow.md)); **in 2020 every POST is**, subject to an
+> unanchored substring exemption ([`auth-flow-2020.md`](auth-flow-2020.md)).
+
 
 Derived from [`reports/`](../reports/), which `make recon` regenerates. This is
 the **W01 map**: what exists and where to look, not what is exploitable. Nothing
@@ -152,3 +168,24 @@ Named so they are not silently forgotten:
   structure is only sketched.
 - **Wireless firmware / driver** — `/lib/modules`, untouched.
 - **The physical surface** — UART, SPI flash, JTAG. W02, blocked on hardware.
+
+### Struck off this list in W04
+
+- ~~`libapmib.so`~~ — the configuration table is recovered and every MIB id in
+  this project now has a name ([`mib-and-config-dat.md`](mib-and-config-dat.md)).
+  The `COMPCS` compressor is still unidentified.
+
+### Added to it in W04
+
+- **`/etc/scripts/*.sh`** — six handlers `execl` a shell script and pass it *no*
+  arguments ([`sink-inventory.md`](sink-inventory.md) §3). The request data
+  reaches those scripts through the MIB instead, so `firewall.sh`, `ip_qos.sh`
+  and `radvd.sh` are where a `comment` or `ipStart` field is actually
+  interpolated. Unread. **W07.**
+- **`/bin/sysconf`** — writes `/var/passwd`, `/var/group` and the dropbear host
+  key at boot, and holds a large number of `system()` format strings. It is the
+  reason `/etc/passwd` exists at runtime and W01 thought it did not.
+- **The default-settings blob** — whether `TELNET_ENABLED` / `SSH_ENABLED`
+  default on decides how much [`credentials.md`](credentials.md) is worth.
+- **`/etc/privateKey.key` and `/etc/dropbear_rsa_host_key`** — shipped private
+  keys, identical on every unit.

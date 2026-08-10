@@ -152,7 +152,8 @@ would invalidate the `/web/config.dat` finding.
 | Binaries importing `system`/`popen`/`exec*` | 33 | 17 |
 | uClibc | 0.9.30.3 | 0.9.33 |
 | `DocumentRoot` | `/web` (symlink → `/var/web`) | `/var/web` |
-| `/etc/passwd` | absent | absent |
+| `/etc/passwd` | symlink -> `/var/passwd` | symlink -> `/var/passwd` |
+| `/etc/passwd.org` / `passwd_orig` | **present** — `root:123456`, `onlime_r:12345` (uid 0) | **present** — `root:123456` |
 | setuid/setgid files | none | none |
 | `/bin/skt` | **present**, autostart commented out | removed |
 | `/web/config.dat` | absent | **symlink → `/var/config.dat`** |
@@ -162,9 +163,22 @@ therefore a root bug; there is no privilege boundary to cross afterwards.
 
 ### Exploit mitigations: none
 
-Across both images, no binary has a stack canary, RELRO, PIE or FORTIFY. Most
-have no `PT_GNU_STACK` segment at all, which means the kernel maps the stack
-executable — the toolchain predates the marker.
+Across both images, no binary has a stack canary, RELRO, PIE or FORTIFY.
+
+> ⚠️ **W04 correction.** This paragraph originally continued "Most have no
+> `PT_GNU_STACK` segment at all, which means the kernel maps the stack
+> executable — the toolchain predates the marker." That is backwards. Counted
+> over every ELF under `bin/`, `sbin/` and `lib/`:
+>
+> | | ELF files | with `PT_GNU_STACK` | of those, `RWE` | without |
+> |---|---|---|---|---|
+> | V2.1.2 | 64 | 56 | **56** | 8 |
+> | V3.4.0 | 50 | 46 | **46** | 4 |
+>
+> Most binaries **do** carry the marker, and every one that does is marked
+> `RWE`. The conclusion — an executable stack — is unchanged and is now
+> *stated* by the binaries rather than inferred from a missing header. The
+> original wording would not have survived one hostile `readelf -lW`.
 
 Practically: a stack overflow in a `form*` handler is directly exploitable with
 shellcode on the stack. No ROP chain, no info leak, no ASLR defeat. That is the
@@ -177,10 +191,21 @@ context for reading the 2025 buffer-overflow CVEs against this device line.
 1. **Which build is on my unit?** Neither of these, necessarily. The device
    label reads `N150RT`, S/N `18B500419`, H/W `V2.0`. The flash dump decides it.
 2. **Actual flash part and size** — resolves the 2 MB contradiction.
-3. **Where is `formSysCmd` registered?** The name is not a string in Boa, but
-   `sysCmdselect` and `/tmp/syscmd.log` are. Find the dispatch table.
-4. **Is `.dat` actually served without authentication?** The symlink shows the
-   file reaches the document root; only Boa's request-authorisation path shows
-   whether that matters.
-5. **Where is the credential check?** No `/etc/passwd`, so it is inside a binary
-   — most likely `libapmib.so` or `/bin/auth` (new in 3.4.0).
+3. ~~**Where is `formSysCmd` registered?**~~ → **W03: nowhere.** It is in
+   neither dispatch table. W04 adds the likely reason: V2.1.2 post-dates the last
+   build Pierre Kim reports as vulnerable to it.
+   → [`formSysCmd-analysis.md`](formSysCmd-analysis.md)
+4. ~~**Is `.dat` actually served without authentication?**~~ → **W03/W04: no
+   authorisation runs for it, in either build**, and for a broader reason than
+   `.dat`. → [`auth-flow.md`](auth-flow.md), [`auth-flow-2020.md`](auth-flow-2020.md)
+5. ~~**Where is the credential check?** No `/etc/passwd`, so it is inside a
+   binary~~ → **answered in W04, and the premise was false.** Both images ship
+   `/etc/passwd` as a symlink into `/var`, populated at boot by `/bin/sysconf`
+   from `passwd.org` / `passwd_orig`. There are **two** credential systems: the
+   shell accounts in that file, and the *web* login, which compares against
+   APMIB `USER_NAME`/`USER_PASSWORD`. → [`credentials.md`](credentials.md),
+   [`mib-and-config-dat.md`](mib-and-config-dat.md).
+
+   Also unnoticed in W01, in the same directory: a shipped 2048-bit RSA private
+   key (`/etc/privateKey.key`, V3.4.0, certificate expired 2014) and a shipped
+   dropbear host key (`/etc/dropbear_rsa_host_key`, V2.1.2).

@@ -8,7 +8,7 @@ import sys
 from pathlib import Path
 
 from . import diff as diffmod
-from . import elf, report, rootfs, rtlimage
+from . import elf, mibtable, report, rootfs, rtlimage
 
 __version__ = "0.1.0"
 
@@ -100,6 +100,18 @@ def cmd_report(args) -> int:
     return 0
 
 
+def cmd_mib(args) -> int:
+    t = mibtable.analyse(args.path)
+    if args.format == "json":
+        _write(json.dumps(t, default=lambda o: o.__dict__, indent=2), args.output)
+    else:
+        _write(mibtable.to_markdown(t), args.output)
+    # A SUSPECT recovery exits non-zero on purpose: this table is used to name
+    # ids in the notes, and a table that failed its own anchor check must not be
+    # quoted from just because it printed something.
+    return 0 if t.verdict == "consistent" else 1
+
+
 def _emit(rep, args) -> None:
     if args.format == "json":
         _write(report.to_json(rep), args.output)
@@ -149,6 +161,12 @@ def build_parser() -> argparse.ArgumentParser:
     pf.add_argument("-f", "--format", choices=("json", "md"), default="json")
     pf.add_argument("-o", "--output")
     pf.set_defaults(func=cmd_report)
+
+    pm = sub.add_parser("mib", help="recover the APMIB id/name table from libapmib.so")
+    pm.add_argument("path")
+    pm.add_argument("-f", "--format", choices=("json", "md"), default="md")
+    pm.add_argument("-o", "--output")
+    pm.set_defaults(func=cmd_mib)
 
     pd = sub.add_parser("diff", help="diff two report JSON files")
     pd.add_argument("old")

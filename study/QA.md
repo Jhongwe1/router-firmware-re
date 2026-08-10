@@ -1260,3 +1260,350 @@ jr    $25                03 20 00 08
 而且要能講清楚**驗證計畫**——有計畫的未完成,和沒想過的未完成,是完全不同的東西。
 
 </details>
+
+---
+
+## 8. W04:CVE 根因定位、2020 版授權、工具會騙人
+
+> 🔴 = 一定會被問到 · 🟠 = 有機會 · 🔵 = 送分題 · ⚪ = 你要主動講的
+
+### 8.1 🔴 你說 2020 版「修好了」又說「還是有洞」。到底是修了還是沒修?
+
+<details><summary>答案</summary>
+
+**兩件事都是真的,而且要分開講,因為它們是不同的宣稱。**
+
+W03 找到的洞是:2015 版的閘門條件是 `strstr(uri, "htm")`,而 59 個
+`/boafrm/form*` 端點的 URI 裡沒有 `htm`,所以**一個都沒被檢查**。
+
+2020 版把條件換成 `(URI 含 ".htm") || (URI 含 ".asp") || (method == POST)`。
+所有 handler 都是 POST,所以**全部進閘門了。這個洞是真的修好了。**
+
+沒變的是**判斷方式**:兩版都是拿 `strstr` 掃整條 URI。2015 是「納入條件」太窄,
+2020 把納入條件放寬了,結果換成「豁免清單」變成窄的那一端:
+
+```
+0040a2cc  move a0,s1              ; a0 = request URI
+0040a2d0  jal strstr
+0040a2d4  _addiu a1,a1,0x8a0      ; "login"
+0040a2d8  bne v0,zero,0x0040a354  ; 含 "login" -> 跳過轉址
+```
+
+`strstr` 沒有綁開頭,所以 URI 裡**任何位置**出現 `login` 都算。
+
+我的講法是:**根因沒有變,只是換了個地方冒出來。** 這比「修好了」或「沒修」
+都更接近事實,而且是可以驗證的說法。
+</details>
+
+### 8.2 🔴 `POST /login/boafrm/formWsc` —— 你實際打過嗎?
+
+<details><summary>答案</summary>
+
+**沒有。這是靜態讀出來的,機器還沒到手,W02 卡在硬體。**
+
+我能講到多細:三個 `strstr` 都不綁位置,而且**讀的是同一個欄位**(`req + 0xf8`):
+
+1. 閘門 `0x0040a2d8`:`strstr(uri, "login")` → 有就跳過轉址
+2. `translate_uri` `0x00403860`:POST 打到非 CGI 路徑,`strstr(uri, "boafrm")` 有就放行
+3. `handleForm` `0x0040ee60`:`strstr(uri, "/boafrm/")` 找到後,對後面 8 bytes 做精準比對
+
+中間 `clean_pathname` 會把 `.` 和 `..` 收掉,但這條路徑兩個都沒有。
+
+要證實只要兩個請求:`POST /boafrm/formWsc`(對照組,應該被轉址)和
+`POST /login/boafrm/formWsc`(應該進 handler)。兩個都被轉址,就是我讀錯,
+那它會以否定結果留在 `notes/auth-flow-2020.md` 裡。
+
+**而且在 W05/W06 跑出來之前,我不會回報給任何人。** 靜態讀三個 `strstr`
+不等於漏洞,拿去通報只會浪費別人的時間。
+</details>
+
+### 8.3 🔴 十四個 CVE 你說只有三個缺陷。這不是在幫廠商講話嗎?
+
+<details><summary>答案</summary>
+
+正好相反,這對廠商更難看。
+
+- CVE-2025-3987 和 CVE-2025-4462 是**同一行**:
+  `sprintf(buf[100], "flash set HW_WLAN0_WSC_PIN %s", localPin); system(buf)`。
+  一個講沒過濾,一個講沒長度檢查。同一行,兩個編號。
+- CVE-2025-3990/3991/3992/3993 是**同一段三行的尾巴**,複製在 **34 個 handler** 裡。
+  有編號的只有四個。
+
+所以真正的意思是:**編號的數量反映的是有人送了幾份 PoC,不是缺陷有幾個。**
+而且那一行在 **2015 版裡一字不差** —— 這些不是 2025 年的 bug,是 2015 年的 bug
+花了十年才被登記。
+
+我用來說明的方式:「如果我照 CVE 清單修,我會修四個 handler,剩下 29 個一樣有洞。」
+</details>
+
+### 8.4 🔴 `lastUrl` 是 100 bytes,你怎麼知道?別跟我說是反編譯器講的。
+
+<details><summary>答案</summary>
+
+不是反編譯器,是 **V2.1.2 的符號表**:
+
+```
+$ readelf -sW bin/boa | grep -E 'lastUrl|needReboot'
+   421: 0049087c   100 OBJECT  GLOBAL DEFAULT   23 lastUrl
+   241: 004908e0     4 OBJECT  GLOBAL DEFAULT   23 needReboot
+```
+
+`0x49087c + 100 = 0x4908e0`,剛好就是 `needReboot`。所以不但知道大小,
+還知道**溢出去第一個踩到的是誰**:兩個控制旗標,而且 `needReboot = 1` 就寫在
+那個 `strcpy` 的上一行。
+
+補充一句可以主動講的:這是 **`.bss` 的資料溢位,不是堆疊溢位**。
+沒有 canary 的問題,也沒有 return address 在旁邊。踩到的是相鄰的全域變數。
+把它講成「可以蓋 return address 拿 shell」就是吹牛。
+</details>
+
+### 8.5 🔴 你說少帶一個參數就能讓 web server 掛掉。憑什麼?
+
+<details><summary>答案</summary>
+
+`req_get_cstream_var` 找不到參數時,回傳的是**呼叫端傳進來的預設值**:
+
+```c
+if (-1 < (int)__n) {
+    param_3 = malloc(__n + 1);      /* 找到了:配剛好的大小 */
+    ...
+}
+return param_3;                      /* 沒找到:原封不動回傳預設值 */
+```
+
+而所有 handler 都是這樣呼叫的:`req_get_cstream_var(req, "submit-url", "")`。
+那個 `""` 是 `.rodata` 裡的字面常數(V2.1.2 在 `0x476418`)。
+
+```
+LOAD  0x000000 0x00400000 0x00400000 0x77744 0x77744 R E   <- .rodata 在這裡
+LOAD  0x078000 0x00488000 0x00488000 0x0368c 0x1ea18 RW
+```
+
+`R E`,沒有 W。然後 handler 做 `strcpy(pcVar1, "/status.htm")` —— 往唯讀分頁
+寫 12 bytes。boa 是**單一 process** 在迴圈裡處理請求,掛了就沒了。
+
+**這是靜態推論,不是觀測。** 我沒跑過。要推翻它只需要一個請求。
+但它同時解釋了一件事:這個型號所有公開 PoC 都帶 `submit-url=`。
+如果少帶會 500 或 400,大家不會這麼一致。
+</details>
+
+### 8.6 🔴 W01 寫「兩份映像檔都沒有 `/etc/passwd`」。現在你說有。哪一次是錯的?
+
+<details><summary>答案</summary>
+
+**W01 錯了,而且錯得很典型。**
+
+`/etc/passwd` 是一個指向 `/var/passwd` 的 symlink。`/var` 是開機才掛上去的
+tmpfs,在**解包出來的映像檔裡當然不存在**,所以 `stat` 回答「不存在」。
+
+W01 把「symlink 指到的東西不存在」讀成「檔案不存在」,然後從這裡推出
+「認證檢查一定在某支 binary 裡」,並且用這個理由把後門帳號的問題往後推了
+W01、W03、大半個 W04。
+
+真正的內容一直躺在旁邊:
+
+```
+$ cat etc/passwd.org            # V2.1.2
+root:zhxPr1e7Npazg:0:0:root:/:/bin/sh
+onlime_r:$1$01OyWDBw$Hrxb2t.LtmiiJD49OBsCU/:0:0:root:/:/bin/sh
+
+$ strings -a bin/sysconf | grep passwd
+cp /etc/passwd.org /var/passwd 2> /dev/null
+```
+
+教訓:**在韌體映像檔裡,懸空的 symlink 是常態不是異常。**
+`/var` 底下所有東西都是開機才寫的。正確的問題不是「這個路徑存在嗎」,
+而是「這個路徑存在嗎;如果不存在,映像檔裡有沒有東西會寫它」。
+
+順帶一提,W01 的**結論**(web 的認證檢查在 binary 裡)其實是對的 ——
+它在 MIB `USER_NAME` / `USER_PASSWORD`。對的結論,錯的證據。
+這種情況比純粹講錯更危險,因為它不會被自己發現。
+</details>
+
+### 8.7 🔴 `onlime_r` 的密碼你是怎麼知道的?你破解了廠商的東西?
+
+<details><summary>答案</summary>
+
+雜湊值在**我自己買的機器的韌體檔案裡**,用 `crypt()` 對二十個常見字串比對:
+
+| 帳號 | 雜湊 | 演算法 | 密碼 |
+|---|---|---|---|
+| `root` | `zhxPr1e7Npazg` | DES crypt | `123456` |
+| `onlime_r` | `$1$01OyWDBw$Hrxb2t.LtmiiJD49OBsCU/` | MD5-crypt | `12345` |
+
+`onlime_r` 那個根本不用破 —— **Pierre Kim 2015 年的公告上就印著同一串雜湊**。
+我做的只是確認它一字不差地出現在**廠商在他公告之後才發布的版本**裡。
+
+而 `root` 是 DES crypt:8 個有效字元、56-bit,現在的硬體幾秒鐘。
+兩版都是 `123456`,而公告上寫的是 `12345`。廠商的修法是加一位數。
+</details>
+
+### 8.8 🟠 `config.dat` 裡的密碼在第幾個 byte?
+
+<details><summary>答案</summary>
+
+**我不知道,而且我不會猜。**
+
+我知道的是格式:`libapmib.so` 寫的檔案是 `COMPCS` 魔術字 + **壓縮過的 TLV 串流**,
+內容是 MIB 表的序列化。同族還有 `COMPHS`(硬體設定)、`COMPDS`(預設設定),
+對應 `/dev/mtdblock0` 上的三塊區域。
+
+所以 CVE-2019-19823「明文儲存密碼」的意思是:`USER_PASSWORD` 就是一個普通的
+MIB 項目,一個普通的 TLV 紀錄,**中間沒有任何雜湊步驟**。這也是為什麼
+`formLogin` 可以直接 `strcmp(userpass, cfg_pass)`。
+
+但「第幾個 byte」需要一份真的 `config.dat`,而那需要 W02 的 flash dump
+或者一台跑著的機器。壓縮演算法我也還沒認出來。
+**證據支持的是「這是 MIB 表的壓縮序列化」,不是「密碼在 offset N」。**
+</details>
+
+### 8.9 🔵 `apmib_get(0xb6)` 的 `0xb6` 是什麼?
+
+<details><summary>答案</summary>
+
+`USER_NAME`。`0xb7` 是 `USER_PASSWORD`。
+
+不是猜的 —— `libapmib.so` 裡有一張 413 筆的表,每筆 60 bytes:
+big-endian `uint32` 編號,接一個 **32 bytes 內嵌的名字**。
+
+版面是量出來的,不是照網路上的 SDK header 抄的(這個專案在
+`dispatch-table.md` 已經被那樣坑過一次):
+
+```
+00c818  00 00 01 ec                                    id
+00c81c  41 55 54 48 47 5f 49 50 5f 41 44 44 52 00 ...  "AUTHG_IP_ADDR"
+00c854  00 00 01 ed                                    <- 正好 0x3c 之後
+00c858  41 55 54 48 47 5f 55 53 45 52 5f 4e 41 4d 45   "AUTHG_USER_NAME"
+```
+
+而且這三個編號正好就是 `process_header_end` 在用的 `0x1ec/0x1ed/0x1ee` ——
+**兩個獨立來源(binary 的行為 + 另一個檔案的表)對上了**,這才是可以拿去用的。
+</details>
+
+### 8.10 ⚪ 你的工具錯了三次,自我檢查三次都說沒問題。那你的結論還能信嗎?
+
+<details><summary>答案(這題要自己主動講)</summary>
+
+**這題我主動講,因為它是這週最有價值的東西。**
+
+`BoaArgTrace` 連續錯三次,三次 `self_check` 都寫 `consistent`:
+
+| 次數 | 症狀 | 原因 |
+|---|---|---|
+| 1 | 304 個呼叫點只有 1 個被標成有請求參數 | 同一套解析邏輯寫了兩份,走鐘了 |
+| 2 | 2015 版 86 個、2020 版 **0** 個 | `accessor:` 拿去跟小寫化的名字比,永遠不相等 |
+| 3 | `strcpy` 2015 版 151 個、2020 版 **0** 個 | W03 已經修過的 sstrip PLT 問題,我重寫了一份沒帶上修正 |
+
+抓到它們的**不是自我檢查**:
+
+- 第 1 次:W03 已經**用手讀**出 `formWsc` 有三個參數進 `system()`,工具一個都沒找到。兩個來源不一致。
+- 第 2、3 次:把兩版並排比。同一份程式碼相隔五年,不可能 86 → 0。
+
+結論兩句:
+
+> **一個永遠不會觸發的檢查,也永遠不會失敗。**
+> `self_check: consistent` 只代表「我想到要檢查的那幾件事沒問題」。
+
+所以我做了兩件事而不是只修 bug:把 PLT 解析抽成 `BoaPlt.java` **只留一份**
+(同一個 bug 在同一個專案出現兩次,就不是 bug 是設計問題),
+以及讓「給了選項卻沒配對到任何東西」變成錯誤而不是沉默。
+
+至於結論能不能信:**能信的部分是有第二個來源的那些。**
+`lastUrl` 是 100 bytes —— 符號表講的。閘門的分支方向 —— 組語講的。
+`onlime_r` 的雜湊 —— 檔案裡就有,而且對得上公開公告。
+沒有第二來源的,我都標成「照程式碼讀是這樣」並且寫出要怎麼推翻它。
+</details>
+
+### 8.11 🟠 `execl` 那六個 handler,你 W03 說參數是使用者控制的。現在呢?
+
+<details><summary>答案</summary>
+
+**W03 猜錯了,而且是我自己推翻的。**
+
+兩版所有 `execl` 呼叫點,argv 都是:
+
+```c
+execl(path, "firewall.sh", NULL);      /* 或 ip_qos.sh / radvd.sh / ntp.sh */
+```
+
+一個固定的腳本名字加一個 NULL。**沒有任何請求參數進到 argv。**
+
+那使用者輸入去哪了?**進 MIB**,shell 腳本之後自己讀回來。
+所以問題還在,只是搬家了 —— 真正該讀的是 `/etc/scripts/*.sh`,
+一個 MIB 值被 `firewall.sh` 內插進命令,跟直接注入是同一個 bug,只是晚一個 process。
+
+界線也要講清楚:我的工具解析的是**呼叫當下的參數**,`argv[0]` 是一個裝著路徑的
+堆疊 buffer,工具**不會回頭追誰寫進那個 buffer**。所以「沒有請求參數進 argv」
+成立的範圍是參數欄位,不包含路徑本身。
+</details>
+
+### 8.12 🔴 `formSysCmd` 不在表裡。你 W03 說是「編譯時沒開這個功能」,現在改口?
+
+<details><summary>答案</summary>
+
+**改口,而且新的說法比舊的強,因為它可以被推翻。**
+
+W03 的說法是「SDK 的 `root_form[]` 是按產品組出來的,這台編譯時沒帶這個 handler」。
+那是猜的,而且沒有任何東西支持。
+
+日期支持另一個說法。Pierre Kim 的 `2015-totolink-0x02.txt` **點名 N150RT-V2**,
+說它有 CVE-2015-9551(`/boafrm/formSysCmd` 未認證 RCE),
+而且寫明「until last firmware **`TOTOLINK-N150RT-V2.1.1-B20150708.1548.web`**」。
+
+我手上這份 V2.1.2 是 **2015-08-25** —— 他說最後一個有洞的版本之後。
+而在這份裡,handler 從分派表消失了。
+
+所以比較可能的解釋是:**這就是修補本身,被我看到了。**
+同一個版本還做了另外兩件事:把 `#skt&` 註解掉(但留著 binary),
+以及**把 `onlime_r` 留在 `passwd.org` 裡**。三件事修好一件。
+
+**而且這是可以驗的:** 去抓 V2.1.1-B20150708,挖它的 `root_form[]`。
+有 `formSysCmd` → 我說對了;沒有 → 我又錯了,W03 的說法反而比較接近。
+這個實驗寫在 `PROGRESS.md` 的 carried-forward 清單裡。
+</details>
+
+### 8.13 🟠 你說 2020 版的 401 函式沒有人呼叫。萬一是 Ghidra 沒找到呢?
+
+<details><summary>答案</summary>
+
+這正是我不敢只用一個工具的地方,所以查了兩次。
+
+Ghidra 說 `FUN_0040b850` 的 caller 數是 0。第二個來源是**直接掃原始 bytes**:
+MIPS 的 `jal` 是絕對定址,目標編碼進指令裡,跟指令自己的位址無關。
+
+```
+jal 0x0040b850  ->  0x0C000000 | (0x0040b850 >> 2)  =  0C 10 2E 14
+```
+
+在整個 ELF 裡掃這四個 byte:**0 次**。
+
+而同一支掃描程式,在同一個檔案裡找 `jal 0x0040a4f8` 找到 **1 次**、
+`jal 0x00408720` 找到 **1 次** —— 跟 Ghidra 報的數字一樣,而且位置
+(file offset `0x8910`)跟 Ghidra 報的呼叫點位址(`0x00408910`)對得上。
+**掃描器是校準過的,所以那個 0 是真的。**
+
+意義:這台機器**永遠不會回 401**。沒過認證是被 302 轉去登入頁。
+寫 PoC 的時候如果去 assert 401,會對著一台行為完全正常的機器 debug 半天。
+</details>
+
+### 8.14 🔵 這週你最不確定的是什麼?
+
+<details><summary>答案</summary>
+
+按不確定程度排:
+
+1. **`POST /login/boafrm/formWsc` 到底會不會進 handler。** 三個 `strstr`
+   都讀過、組語層級確認過分支方向,但沒跑過。
+2. **少帶 `submit-url` 會不會真的讓 boa 掛掉。** `.rodata` 在 `R E` segment
+   是量出來的,回傳預設值的路徑也是讀出來的,但「寫唯讀分頁會 SIGSEGV」
+   是作業系統行為,不是我從這份 binary 讀到的。
+3. **`0x182` 那個重複的 MIB 編號**(`CUSTOM_PASSTHRU_ENABLED` 和
+   `MLD_PROXY_DISABLED`)。我相信它是廠商表裡真的重複 —— `libapmib` 自己就帶
+   `"MIB Error: %s detect duplicate id in %s"` 這個字串、還 export 了
+   `mibtbl_check` —— 但我沒去讀查表函式確認它到底會回哪一個。
+4. **四個 handler 在 2020 版沒顯示 `submit-url` 汙染但還存在**
+   (`formDdns`、`formNewSchedule`、`formSysLog`、`formWanTcpipSetup`)。
+   是被改寫了,還是我的六跳回溯不夠深?沒查。
+
+前兩個 W05 一個 `curl` 就有答案,後兩個是純靜態、隨時可以做,只是這週沒排進去。
+</details>
