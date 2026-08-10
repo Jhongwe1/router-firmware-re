@@ -1,23 +1,35 @@
 <#
 .SYNOPSIS
-    Import a firmware binary into Ghidra headlessly, analyse it, and emit a
-    machine-readable string cross-reference report.
+    Import a firmware binary into the shared Ghidra project and run full
+    auto-analysis. Analysis only — scripts are run separately by analyze.ps1.
 
 .DESCRIPTION
-    The point of doing this headlessly is that the result is reproducible. A GUI
-    session produces knowledge that lives in one person's project database; this
-    produces a JSON file that can be committed, diffed between firmware
-    versions, and regenerated after a Ghidra upgrade.
+    Split from the W01 version on purpose. Auto-analysis of a 500 KB MIPS binary
+    costs minutes and its result is *cached in the project*; a triage script
+    costs seconds and gets rewritten a dozen times a day. Fusing the two meant
+    every script edit paid for a re-analysis.
 
-    The GUI is still the right tool for reading decompiled code (W03). This is
-    the triage pass that decides which functions are worth opening.
+    Each binary lands in its own project folder:
+
+        totolink-n150rt/<Label>/<program>
+
+    W01 did not do this, and it was a real bug rather than a cosmetic one.
+    `analyzeHeadless -import <path>` names the program after the *file*, so both
+    firmware versions imported as a program called `boa`, and `-overwrite` made
+    the second import silently destroy the first. The committed
+    reports/ghidra-strings-*.json were still correct — each was written during
+    its own import, before the next one clobbered the project — but the project
+    could not be reopened to check them, and both files record
+    `"program": "boa"` with no way to tell which binary produced them.
+    Hence -Label folders here, and a recorded source SHA-256 in analyze.ps1.
 
 .PARAMETER Binary
     Path to the ELF to import. Accepts a \\wsl$ path, which is how the extracted
     root filesystems are reached from Windows — see docs/workspace-layout.md.
 
 .PARAMETER Label
-    Short name used for the Ghidra program and the output filename, e.g. "2.1.2".
+    Firmware version this binary came from, e.g. "2.1.2". Becomes the project
+    folder, so two versions of the same filename can coexist.
 
 .EXAMPLE
     .\ghidra\import.ps1 -Label 2.1.2 `
@@ -28,8 +40,7 @@ param(
     [Parameter(Mandatory = $true)][string]$Binary,
     [Parameter(Mandatory = $true)][string]$Label,
     [string]$ProjectDir = (Join-Path $env:LOCALAPPDATA 'fwre-tools\ghidra-projects'),
-    [string]$ProjectName = 'totolink-n150rt',
-    [string]$OutDir = (Join-Path $PSScriptRoot '..\reports')
+    [string]$ProjectName = 'totolink-n150rt'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -42,36 +53,26 @@ $headless = Join-Path $ghidraHome 'support\analyzeHeadless.bat'
 if (-not (Test-Path $headless)) { throw "analyzeHeadless.bat not found under $ghidraHome" }
 if (-not (Test-Path $Binary))   { throw "binary not found: $Binary" }
 
-New-Item -ItemType Directory -Force -Path $ProjectDir, $OutDir | Out-Null
-$outJson    = Join-Path (Resolve-Path $OutDir) "ghidra-strings-$Label.json"
-$scriptPath = Join-Path $PSScriptRoot 'scripts'
-$programName = "boa-$Label"
+New-Item -ItemType Directory -Force -Path $ProjectDir | Out-Null
 
-Write-Host " ==>  importing $Binary as $programName" -ForegroundColor Cyan
-Write-Host "      project : $ProjectDir\$ProjectName" -ForegroundColor DarkGray
-Write-Host "      output  : $outJson" -ForegroundColor DarkGray
+$sha = (Get-FileHash -Algorithm SHA256 -Path $Binary).Hash.ToLower()
+Write-Host " ==>  importing $Binary" -ForegroundColor Cyan
+Write-Host "      project : $ProjectDir\$ProjectName/$Label" -ForegroundColor DarkGray
+Write-Host "      sha256  : $sha" -ForegroundColor DarkGray
 
-# Ghidra reads the ELF header itself, so the processor is not forced here: if it
-# picks something other than big-endian MIPS that is a finding about the binary,
-# not a setting to override. The language actually used is recorded in the JSON.
+# The processor is forced to big-endian MIPS to keep the import deterministic,
+# but that is a *check*, not a fix: analyze.ps1 records the language actually
+# used, and W01 established the same answer independently from the ELF header
+# (notes/anatomy-n150rt.md). Two sources, one answer.
 $ghidraArgs = @(
-    $ProjectDir, $ProjectName,
+    $ProjectDir, "$ProjectName/$Label",
     '-import', $Binary,
     '-processor', 'MIPS:BE:32:default',
-    '-overwrite',
-    '-scriptPath', $scriptPath,
-    '-postScript', 'BoaStringXrefs.java', $outJson
+    '-overwrite'
 )
 
 & $headless @ghidraArgs
 if ($LASTEXITCODE -ne 0) { throw "analyzeHeadless failed with exit code $LASTEXITCODE" }
 
-if (-not (Test-Path $outJson)) { throw "script produced no output at $outJson" }
-
-$report = Get-Content $outJson -Raw | ConvertFrom-Json
-Write-Host ""
-Write-Host "  ok   language        $($report.language)" -ForegroundColor Green
-Write-Host "  ok   image base      $($report.image_base)" -ForegroundColor Green
-Write-Host "  ok   functions       $($report.function_count)" -ForegroundColor Green
-Write-Host "  ok   strings matched $($report.strings_matched) of $($report.strings_scanned)" -ForegroundColor Green
-Write-Host "  ok   wrote           $outJson" -ForegroundColor Green
+Write-Host "  ok   analysed and stored under $ProjectName/$Label" -ForegroundColor Green
+Write-Host "       next: .\ghidra\analyze.ps1 -Label $Label -Script BoaFormTable" -ForegroundColor DarkGray

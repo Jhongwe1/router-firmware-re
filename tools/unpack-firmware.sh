@@ -28,12 +28,7 @@ c_run()  { printf '\033[36m ==>  \033[0m %s\n' "$*"; }
 c_warn() { printf '\033[33m warn \033[0m %s\n' "$*"; }
 c_err()  { printf '\033[31m FAIL \033[0m %s\n' "$*" >&2; }
 
-case "$WORK" in
-  /mnt/*) c_err "FWRE_WORK=$WORK is on a Windows drive mount."
-          c_err "SquashFS extraction there loses symlinks and mode bits."
-          c_err "Point FWRE_WORK at a Linux filesystem (default ~/fwre-work)."
-          exit 2 ;;
-esac
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/require-linux-workspace.sh"
 
 [ -x "$PY" ] || { c_err "no python at $PY — run 'make venv' first"; exit 2; }
 

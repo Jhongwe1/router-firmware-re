@@ -229,3 +229,216 @@ HTTP 請求時,`boa` 會呼叫 `libapmib.so`,而 apmib 會直接讀 `/dev/mtd*` 
 - [ ] Softpedia 的 2.1.1 / 2.1.3 / 2.1.6 有 interstitial 擋腳本下載,手動抓
 - [ ] `w6cg` 那個 web bundle 的封裝格式只看了個大概,還沒寫 parser
 - [ ] kernel(LZMA @ `cr6c+0x2808`)還沒解
+
+---
+
+## 2026-08-10 — W03:Ghidra 靜態逆向上半
+
+**背景**:W02 的硬體還沒到。計畫書寫「G2 過不了不准進 W3」,但 G2 的通過標準
+本來就允許「官方韌體主路徑 + 誠實記錄」,所以硬體不是知識上的前置條件,只是
+時間上的。先做 W03。
+
+**結果**:本週 DoD 五項全過,而且 W04 的 G3 八格裡有七格順便解掉了。
+
+---
+
+### 做了什麼
+
+- 把 `root_form[]` 分派表從兩個 build 裡挖出來(2015 版 59 個 handler、
+  2020 版 49 個),並且**用「誰讀這張表」當證據**分辨它跟 ASP 變數表
+- 把 handler 全部命名寫回 Ghidra 專案(185 個),不是手動改 5 個
+- 讀完 `process_header_end`、`translate_uri`、`handleForm`、`formLogin`、`formWsc`
+- 逆完 `/bin/skt`(10 KB,36 個函式,可以整支看懂)
+- 新增 4 支 Ghidra 腳本:`BoaFormTable`、`BoaSinks`、`BoaDecompile`、`BoaListing`
+
+---
+
+### 今天最重要的一件事:**授權檢查是拿 URI 做子字串比對**
+
+`process_header_end` @ `0x0040be0c`,整個授權區塊的進入條件是
+`strstr(uri, "htm") != NULL`:
+
+```
+0040c23c  jalr t9                  -> strstr
+0040c248  beq v0,zero,0x0040c3a0                 ; 回 NULL 就跳過整段檢查
+```
+
+所以路徑裡沒有 `htm` 三個字的東西,**完全不檢查**:`/config.dat`、`/ca.cer`、
+還有全部 59 個 `/boafrm/form*`。
+
+CVE-2019-19822 的公告寫的是現象——「`.dat` 檔沒有被限制」。這裡是原因,而且
+範圍比公告大得多:`.dat` 根本不是特例,它只是「不是 .htm」。
+
+⚠️ **這是靜態結論**。機器還沒開過。要證實只需要三個 `curl`,寫在
+`notes/auth-flow.md` 最後。在那之前,只能說「程式碼是這樣寫的」,不能說
+「機器是這樣跑的」。
+
+---
+
+### 卡住的地方(這段最值錢)
+
+#### 1. W01 的 `import.ps1` 把自己的輸出蓋掉了
+
+想重用 W01 建好的 Ghidra 專案,結果裡面**只有一個 program**,叫 `boa`。
+
+原因:`analyzeHeadless -import <path>` 是用**檔名**命名 program 的。兩個版本的
+`boa` 都叫 `boa`,加上 `-overwrite`,第二次匯入就把第一次的無聲蓋掉。
+`import.ps1` 裡明明算了 `$programName = "boa-$Label"`,但那個變數**從頭到尾沒被用到**。
+
+W01 產出的 JSON 其實是對的(各自在自己那次匯入時寫出),但兩個檔案的 `program`
+欄位都是 `"boa"`,**除了檔名以外沒有任何東西能證明哪個是哪個**。
+
+改法:每個版本一個 project folder;而且每份 Ghidra 報告都帶上被分析檔案的
+SHA-256,`check-reports.py` 現在強制要求。
+
+**教訓**:一份無法指認自己輸入的報告,不是證據。而且「變數算了沒用到」這種 bug,
+編譯器不會抓,腳本語言更不會。
+
+#### 2. sink 統計第一版是假陰性 ← 跟 W01 的 `readelf` 是同一種錯
+
+第一次跑出來:V2.1.2 有 **589** 個 `strcpy` 呼叫點,V3.4.0 有 **1** 個。
+
+我差點就寫「2020 版把不安全字串複製都拿掉了」。但 `nm -D` 明明說 V3.4.0 還在
+import `strcpy`,而且兩個 build 是同一份程式碼、大小只差 11%,`sprintf` 兩邊都是
+694 個。**一邊在說謊。**
+
+真相在 ELF 裡:
+
+| | V2.1.2 | V3.4.0 |
+|---|---|---|
+| section header | 29 個 | **沒有**(`sstrip` 過) |
+| `DT_MIPS_PLTGOT` | 沒有 | `0x472ac4`,有真的 PLT |
+| 呼叫方怎麼到 `strcpy` | Ghidra 建了叫 `strcpy` 的 thunk | `jal` 到一個**沒有名字**的 PLT stub |
+
+沒有 section header,Ghidra 找不到 `.plt` 去標它的每一項,結果只有部分 PLT 項目
+被建成函式——`system`、`sprintf` 有,`strcpy`、`strcat` 沒有。
+
+修法不用猜。MIPS 的 PLT entry 是四道指令,每個欄位都由 GOT slot 位址 `S` 決定:
+
+```
+lui   $15, %hi(S)        3C 0F hi
+lw    $25, %lo(S)($15)   8D F9 lo
+addiu $24, $15, %lo(S)   25 F8 lo
+jr    $25                03 20 00 08
+```
+
+所以我是**把 signature 算出來**再去記憶體找,而且規定「只能命中一次,命中兩次或
+零次就不採用」。修完:587 vs 577,兩個 build 對得上了。
+
+修之前先量過:`jal = 9979`、`jalr = 16`。幾乎全部都是直接跳 PLT,所以根本不需要
+去解 `gp`——**先量再修,不要先猜**。
+
+順手還修了兩件事:
+- 從**函式外面**來的 data reference 是 GOT 欄位,不是呼叫點。就是它讓 `strcpy`
+  回報「1」而不是誠實的「0,而且 0 是錯的」。
+- 報告加了 `self_check`:如果某個 symbol 明明被 import 卻找不到呼叫方,整份檔案
+  標成 `SUSPECT`。
+
+**教訓**:工具回報「0」也是一種主張,要跟其他主張一樣被質疑。這已經是這個專案
+第二次栽在同一件事上了(W01 是 `readelf` 對 sstrip 過的 ELF 印空白)。
+
+#### 3. 公開的 SDK 原始碼跟手上的 binary 不一樣
+
+網路上流傳的 rtl819x SDK 把分派表元素宣告成:
+
+```c
+typedef struct { char name[80]; void (*function)(request*, int, char**); } form_name_t;
+```
+
+名字是**內嵌**的,一項 84 bytes。我本來打算照這個寫 recovery 腳本。
+
+實際上這兩支 binary 是 `char *name`,一項 8 bytes。證據有兩個:`handleForm` 自己
+的 `ppuVar5 + 2`(在 `char**` 上就是 8 bytes),還有復原出來的表格項數
+(59 / 49)剛好等於 W01 用數字串數出來的數量。
+
+**教訓**:外流的 SDK 是「對眼前 binary 的假設」,不是「規格」。所以腳本寫成
+「測試 `[字串指標][可執行位址]` 這個形狀是否以固定間距重複」,而且**要能失敗**——
+一支不可能失敗的復原腳本,證明不了任何事。
+
+#### 4. 反編譯器在最關鍵的函式上出警告,而我差點沒看
+
+`process_header_end` 的反編譯輸出頂上掛了三行
+`WARNING: Heritage AFTER dead removal` / `Restarted to delay deadcode elimination`。
+而它反編譯出來的內容是:拿使用者送的帳密去跟**兩個從來沒被寫入過**的堆疊
+buffer(`sp+0x40`、`sp+0x60`)比較,比中了就給 `authorized = 2`(比一般帳號還高一級)。
+
+「binary 真的拿未初始化的堆疊當密碼比」和「反編譯器把填值的呼叫吃掉了」是完全
+不同的兩件事。所以我寫了 `BoaListing.java` 去讀組語,結果:整支函式裡對 `sp+0x40`
+和 `sp+0x60` 只有三次存取,兩次是拿位址當 `strcmp` 參數、一次是讀第一個 byte。
+**沒有任何寫入,位址也從來沒被傳出去過。**
+
+所以它真的在跟未初始化的堆疊比。但**能不能利用是動態問題**,靜態決定不了——
+記錄成 W05/W06 的候選,不是結論,而且在證實或否證之前不會報給任何人。
+
+**教訓**:反編譯器自己宣告它有困難的時候,任何從它輸出得到的結論都是猜的。
+
+#### 5. 我的 `string:` selector 無聲地找不到東西
+
+想在 2020 版裡找授權函式,用 `string:AUTHG_IP_ADDR`、`string:getSanvas` 去撈,
+回傳 0 個函式。差點就寫「2020 版沒有這些東西」。
+
+其中一半是真的(2020 版確實把 `AUTHG_IP_ADDR`、`countDownPageWizard.htm`、
+`notice_frame.htm`、`formLogin.htm` 全刪了,授權那段是重寫的),
+但 `getSanvas` 是我的 bug:實際字串是 `setting/getSanvas`,**reference 指向字串
+開頭**,我搜子字串命中的是中間那個位址,那裡當然沒有 xref。
+
+**教訓**:自己寫的查詢工具回傳空集合時,先問「是真的沒有,還是我問錯了」。
+這跟第 2 點是同一個病。
+
+#### 6. W01 的「最高價值函式」是假陽性
+
+W01 把 `FUN_00440eec`(裡面有 `cp /var/web/config.dat %s`)寫成「W01 找到的
+單一最高價值函式」。W03 追下去:它是 `/boafrm/formSaveConfig`,而那個 `%s` 是
+
+```c
+sprintf(buf, "/var/web/Config_%s_%04d%02d%02d%02d%02d%02d.bin", "N150RT",
+        年, 月, 日, 時, 分, 秒);
+```
+
+一個寫死的型號字串加六個 `localtime()` 欄位。**沒有任何請求資料進得去,不是
+命令注入。**
+
+有寫進 `sink-inventory.md`。死掉的候選跟活下來的候選一樣要留下來,不然這個專案
+就會變成「只記錄成功」的專案。
+
+---
+
+### 學到什麼(技術面)
+
+- **`formSysCmd` 在這台機器上不存在**。不在 2015 的 59 項裡,也不在 2020 的 49 項裡。
+  而 `handleForm` 是 `strlen` 相等 + `memcmp` 全等比對,沒有 fallback、沒有第二張表。
+  W01 提名的 `FUN_0044c610` 是 **ASP 變數表**裡的 `sysCmdLog`,由 `handleScript` 讀——
+  是「顯示 log 的那半」,會執行命令的那半根本沒編進來。
+- **真正的命令執行面是 `formWsc`**。`localPin`、`peerPin` 沒過濾也沒長度檢查就進
+  `system()`;`targetAPSsid` 有長度檢查(< 33)但被塞進 shell 的雙引號裡沒跳脫。
+  同一支函式裡十行前的 `targetAPMac` 卻是逐字元過濾成 hex 又要求剛好 12 長。
+  **會寫過濾,但每個參數各自為政**——這就是 ad-hoc 輸入處理的長相。
+  而且 2015 和 2020 兩版**一模一樣**,五年沒動。
+- **`/bin/skt` 全解了**:聽 TCP **5555**,`hel,xasf` 執行
+  `iptables -I INPUT -p tcp --dport 80 -i eth1 -j ACCEPT`,`oki,xasf` 刪掉。
+  它不給 shell、也不繞密碼,它是**可達性後門**——把本來防火牆擋住的管理介面打開。
+  配上上面那個 `htm` 授權洞,2015 那份映像裡就是一條完整的未認證遠端 root 鏈,
+  由兩個各自出貨的缺陷組成。
+
+### 學到什麼(方法面)
+
+W01 的結論是「任何結論都要有兩個獨立來源」。W03 把它變得更具體:
+
+**當兩個來源不一致的時候,不一致本身就是資料。**
+- `nm -D`(有 strcpy)vs 我的統計(1 個)→ 指向 sstrip + PLT
+- SDK 原始碼(`char[80]`)vs 反編譯(`+2` 步進)→ 指向這台是不同的 SDK 設定
+- W01 的字串計數(59)vs 復原出來的表(59)→ 一致,這才是真的可以拿去用的數字
+
+還有一個新的:**復原資料結構 > 累積交叉引用**。`formSysCmd` 那三條線索
+(字串不見了、有 log 路徑、有 `sysCmdselect` 頁面片段)全都指向同一個錯誤答案。
+把 `root_form[]` 這個結構挖出來,一次就結案了。
+
+### 明天 / 下一步(W04)
+
+1. 2020 版的授權是重寫過的,**還沒讀**。第一步:找出誰呼叫 `FUN_0040b850`
+   (吐 `WWW-Authenticate` 的那支)。我的 `callers:` selector 回傳空的,那是工具
+   結果不是答案。
+2. `libapmib.so` 完全沒讀,而它在本週每一個發現的路徑上。
+3. 六個 handler 的 `execl` argv 還沒追。
+4. `DAT_0048e9f8` 的大小(401 路徑上那個 `strcpy(全域, URI)`)。
+5. 硬體到貨後:用三個 `curl` 驗證這週所有結論。

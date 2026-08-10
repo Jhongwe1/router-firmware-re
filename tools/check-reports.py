@@ -12,14 +12,23 @@ CI cannot regenerate them — no firmware on a runner — so it checks what it c
   * every file is recognisably the output of one of the two producers;
   * fwrecon reports carry the schema version the current source emits.
 
-Two producers write into reports/, on purpose:
+Several producers write into reports/, on purpose:
 
   fwrecon        `fwrecon report`      -> carries "schema_version"
+  Ghidra scripts BoaFormTable, BoaSinks, BoaDecompile
+                                       -> carry "producer": "ghidra:<Script>"
   Ghidra script  BoaStringXrefs.java   -> carries "program" and "matches"
+                                          (W01, predates the "producer" field)
 
 An unrecognised file is an error rather than something to skip. A stray or
 half-written report in a directory that is presented as the project's results
 is exactly the thing worth failing on.
+
+Every Ghidra report is additionally required to carry a non-empty
+"source_sha256". W01 shipped two reports both saying `"program": "boa"` with
+nothing to say which firmware image each came from — they were correct, but
+only their filenames claimed so. A report that cannot name its own input is not
+evidence, so that is now a hard failure.
 
 Usage:  python tools/check-reports.py [reports-dir]
 """
@@ -72,7 +81,9 @@ def main(argv: list[str]) -> int:
                 if field not in doc:
                     errors.append(f"{path.name}: missing required field {field!r}")
 
-        elif "program" in doc and "matches" in doc:
+        elif str(doc.get("producer", "")).startswith("ghidra:") or (
+            "program" in doc and "matches" in doc
+        ):
             counts["ghidra"] += 1
             for field in ("language", "image_base", "function_count"):
                 if field not in doc:
@@ -81,6 +92,10 @@ def main(argv: list[str]) -> int:
             # or analysis did not complete; the file would look fine otherwise.
             if doc.get("function_count", 0) < 1:
                 errors.append(f"{path.name}: function_count is 0 — analysis did not run")
+            if "producer" in doc and not doc.get("source_sha256"):
+                errors.append(
+                    f"{path.name}: no source_sha256 — the report cannot name the "
+                    "binary it describes; re-run analyze.ps1 with -Binary")
 
         else:
             errors.append(
