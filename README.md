@@ -8,15 +8,22 @@ embedded device, rebuild an understanding of its firmware from nothing, and
 trace **already-publicly-disclosed** vulnerabilities down to the responsible
 function in the binary.
 
-> 🚧 **In progress since 2026-07-30. G0 ✅ · G1 ✅ · G2 ⏸ blocked on hardware
-> delivery · G3 ✅ passed 2026-08-11.**
+> 🚧 **In progress since 2026-07-30. G0 ✅ · G1 ✅ · G2 ▶ in progress, hardware
+> arrived 2026-08-14 · G3 ✅ passed 2026-08-11.**
 > Two firmware images are unpacked and measured — **V2.1.2 (2015-08-25)** and
 > **V3.4.0 (2020-10-30)** — and they bracket both public disclosure events
 > affecting this device, which turns a teardown into a before/after comparison.
 > Board below; the evidence behind every ticked box is in
 > [`PROGRESS.md`](PROGRESS.md).
 >
-> **Latest (W04):** the fourteen 2025 CVEs against this model reduce to **three**
+> **Latest (W02 Day 1, 2026-08-14):** the board is on the bench and identified.
+> The flash is an **Eon EN25QH32B — 4 MiB**, which confirms the derivation W01 made
+> from the vendor's own burn-address table three weeks earlier: the published 2 MB
+> specification was impossible. The SoC is an **RTL8196E**, not the RTL8196C the
+> plan asserted. **Still no device powered on** — every reading so far has one
+> source, the ink on the package.
+>
+> **W04:** the fourteen 2025 CVEs against this model reduce to **three**
 > defects — two of them a single line and a single copy-pasted idiom, both
 > **already present in the 2015 image**. The 2020 build repaired W03's
 > authorisation hole but kept the technique that caused it, so `GET /config.dat`
@@ -101,18 +108,38 @@ that is not backed by a command someone else can re-run.
 > nothing more; the gate is what settled it. Which build is actually on my unit is decided
 > by a flash dump, which is G2's job.
 
-- [ ] **G2 — hardware access: UART + SPI dump** (W02) ⏸ **blocked on hardware delivery**
+- [ ] **G2 — hardware access: UART + SPI dump** (W02) ▶ **in progress** — hardware arrived 2026-08-14 ← [PROGRESS.md](PROGRESS.md#w02--2026-08-14-in-progress)
   - [ ] a live bootlog, **or** a recorded fallback
   - [ ] SPI dump + hash verification, **or** the vendor-firmware main path
   - [ ] dump vs vendor image compared, **or** the reason recorded
   - [ ] annotated PCB photograph
-  - [ ] settles two open questions: the real flash part and size, and which build my unit runs
+  - [ ] settles two open questions: **the real flash part and size — ✅ answered**
+        ([`hardware-inspection.md`](notes/hardware-inspection.md)), and which build my
+        unit runs — ⏳ still open, but now carrying a **dated prediction** made before
+        the dump
 
-  > 📌 **Blocked on delivery, not on knowledge** — so G3 is being worked first.
-  > The plan's own gate text allows "vendor-firmware main path + honest record"
-  > as a pass, which means G2 cannot become an indefinite blocker. First action
-  > when the USB-TTL adapter arrives: install `usbipd-win` (needs elevation, so
-  > it belongs in the same sitting as the rest of the hardware setup).
+  > ### ★ What W02 Day 1 turned up
+  >
+  > - **The flash is 4 MiB, and W01 said so first.** Eon EN25QH32B, 32 Mbit, at
+  >   `U19`. W01 derived `≥ 4 MB` from the vendor container's own burn addresses
+  >   three weeks before the hardware arrived, against a published specification of
+  >   2 MB. This is the first falsifiable claim the project made about the physical
+  >   world, and the physical world agreed.
+  > - **The SoC is an RTL8196E**, not the RTL8196C the plan asserted — a different
+  >   CPU core, which bears directly on W01's reading of the ELF header as MIPS-I
+  >   and turns it into a testable hypothesis about the SDK's toolchain.
+  > - **The RAM is 32 MiB fitted**, not 16 MB. *Fitted* is not *usable*; the kernel
+  >   banner decides the second number and both are recorded.
+  > - **The UART header is already populated** — W02 requires no soldering at all,
+  >   which takes the week's largest irreversible-damage risk off the table.
+  > - **Every one of those readings has exactly one source: the ink on the package.**
+  >   `flashrom` agreeing that an `EN25QH32` is 4096 KiB is **not** independent — its
+  >   database is keyed on the same part name. The second-source column is empty on
+  >   purpose, and it is the Day 2–4 work list.
+  >
+  > ⚠️ **No device has been powered on.** The plan's own gate text allows
+  > "vendor-firmware main path + honest record" as a pass, so G2 still cannot become
+  > an indefinite blocker.
 
 - [x] **G3 — point at the line in the binary** (W03–W04) ✅ **passed 2026-08-11** ← [PROGRESS.md](PROGRESS.md#w04--2026-08-11)
   - [x] the `/boafrm/` dispatch table found, with ≥ 10 handlers listed — **59 in 2015, 49 in 2020**, both `root_form[]` arrays recovered with the function that reads each
@@ -180,6 +207,7 @@ that is not backed by a command someone else can re-run.
 | [`RUNBOOK.md`](RUNBOOK.md) | **Start here to reproduce this.** Step-by-step from a bare Windows machine, written for someone with no reverse-engineering background. Every command carries its real expected output. (Traditional Chinese) |
 | [`PROGRESS.md`](PROGRESS.md) | Gate status — the evidence behind every box above |
 | [`notes/anatomy-n150rt.md`](notes/anatomy-n150rt.md) | How the firmware is built: container format, flash map, binaries, mitigations |
+| [`notes/hardware-inspection.md`](notes/hardware-inspection.md) | **What the board actually is** — five ICs, the 4 MiB flash that W01 predicted, and a column of second sources that is still empty |
 | [`notes/prior-art.md`](notes/prior-art.md) | Who disclosed what, when — and which claims survive contact with these images |
 | [`notes/attack-surface.md`](notes/attack-surface.md) | Where to look, ranked |
 | [`notes/ghidra-triage.md`](notes/ghidra-triage.md) | Which functions to open first, and why — with the three W01 calls W03 overturned |

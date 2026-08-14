@@ -3,7 +3,7 @@
 | Week | Theme | Gate | Status |
 |---|---|---|---|
 | **W01** | Recon & unpacking | **G0 + G1** | ✅ **passed** — 2026-08-07 |
-| W02 | Hardware access: UART + SPI dump | G2 | ⏸ blocked on hardware delivery |
+| W02 | Hardware access: UART + SPI dump | G2 | ▶ **in progress** — hardware arrived 2026-08-14, Day 1 done |
 | **W03** | Static reversing, upper half | — (DoD) | ✅ **DoD met** — 2026-08-10 |
 | **W04** | CVE root-cause location | **G3** | ✅ **passed** — 2026-08-11 |
 | W05 | Dynamic analysis, upper half | — | ▶ next |
@@ -106,7 +106,8 @@ target's code executing.
 ### Open, carried forward
 
 1. Which firmware build is actually on my unit — only a flash dump decides (W02).
-2. Real flash part and size (W02).
+2. ~~Real flash part and size~~ → **answered in W02: Eon EN25QH32B, 32 Mbit = 4 MiB.**
+   The `≥ 4 MB` derived here was right; the published 2 MB spec was not.
 3. ~~Where `formSysCmd` is registered — read `handleForm`~~ → **answered in W03:
    it is registered nowhere.** W04 adds the likely reason: V2.1.2 post-dates the
    last build Pierre Kim reports as vulnerable to CVE-2015-9551.
@@ -325,8 +326,10 @@ throughout); and the `sstrip`'d-PLT bug again (`strcpy`: 151 sites in 2015, 0 in
 
 ### Open, carried forward
 
-1. Which firmware build is on my unit — only a flash dump decides (W02).
-2. Real flash part and size (W02).
+1. Which firmware build is on my unit — only a flash dump decides (W02). W02 Day 1
+   adds a **prediction** from the board's date codes: around 2018, i.e. neither image
+   analysed here. See [`hardware-inspection.md`](notes/hardware-inspection.md#6-date-codes--a-prediction-written-before-the-dump).
+2. ~~Real flash part and size~~ → **answered in W02: Eon EN25QH32B, 32 Mbit = 4 MiB.**
 3. Fetch **V2.1.1-B20150708** and recover its `root_form[]`. One command settles
    whether `formSysCmd`'s absence from V2.1.2 is the vendor's fix or a build flag.
 4. Do `TELNET_ENABLED` / `SSH_ENABLED` default on? That decides what
@@ -338,3 +341,90 @@ throughout); and the `sstrip`'d-PLT bug again (`strcpy`: 151 sites in 2015, 0 in
    immediately after `lastUrl`?
 7. The archive.org V2.1.2 copy declares a rootfs length 9 bytes past EOF — still
    needs a second source to compare (carried from W01).
+
+---
+
+## W02 — 2026-08-14 (in progress)
+
+Hardware arrived 2026-08-14, two days after the week the plan allotted to it closed.
+G2 is unblocked and is being worked out of order, the same way W03 was.
+
+**Day 1 only. No device has been powered on.** Nothing in this section is a
+measurement of running behaviour, and every reading below has exactly **one** source:
+the ink on the package.
+
+### Day 1 — what the board actually is
+
+| Ref | Part | Function |
+|---|---|---|
+| — | Realtek **RTL8196E** | SoC, MIPS big-endian |
+| `U19` | Eon **EN25QH32B** — 32 Mbit / **4 MiB** SPI NOR | firmware storage |
+| — | Winbond **W9825G6KH-6** — 256 Mbit / **32 MiB** SDRAM | system RAM |
+| — | Realtek **RTL8188ER** — 1T1R 802.11n | Wi-Fi radio |
+| — | LSC **LSP5526** — **not identified**; power, by inference only | regulator |
+
+The UART header is **already populated** with a 4-pin 2.54 mm header, so W02 needs
+no soldering anywhere — which removes the week's largest irreversible-damage risk
+before it can be taken.
+
+Full working, including the second source each reading is still waiting on:
+[`notes/hardware-inspection.md`](notes/hardware-inspection.md)
+
+### W01's flash derivation, confirmed by silicon
+
+W01 never saw this chip. It read the burn addresses out of the vendor's own container
+format, found the flash map extends to **3.57 MiB**, and concluded the published
+2 MB specification was impossible — predicting **≥ 4 MB** three weeks before the
+hardware existed on this desk.
+
+The part is 32 Mbit. **The prediction holds.**
+
+This is the first time in the project that a static derivation made a falsifiable
+claim about the physical world, and the physical world agreed.
+
+### Corrections to the plan's hardware spec table
+
+| Plan said | The board says |
+|---|---|
+| SoC **RTL8196C** | **RTL8196E.** Commonly documented with a different core (RLX5281, against the C's Lexra RLX4181), which bears directly on W01's "MIPS-I" reading — falsifiable test in [`hardware-inspection.md`](notes/hardware-inspection.md#2-soc--rtl8196e-and-what-that-does-to-w01s-mips-i) §2 |
+| **2 MB** SPI NOR | **4 MiB** — and W01 had already shown 2 MB impossible from the firmware alone |
+| **16 MB** RAM | **32 MiB fitted.** *Fitted* is not *usable*; the kernel banner decides the second number, and the two are recorded separately |
+| Wi-Fi **RTL8188RE** | **RTL8188ER** |
+
+### One instrument confirmed, one instrument caught being vague
+
+`flashrom` knows the part — `EN25QH32`, `4096` KiB, `PREW`. **This is not counted as
+a second source for the size.** Its chip database is keyed on the part *name*, which
+came from the same package ink as everything else; what it establishes is "*if* this
+is an EN25QH32, it is 4096 KiB and `flashrom` can read it". The independent
+measurement is the JEDEC ID the chip reports over SPI, at Day 4.
+
+Separately: `flashrom --version` prints `flashrom unknown`, while `dpkg` reports
+`1.3.0-2.1ubuntu2`. G0's stated rule is that every tool is verified **by running it**
+— and this is the one row in the G0 table whose version number did not come from
+running the tool. Functionally irrelevant (a Debian packaging artefact), but the
+table should say so rather than imply a check that did not happen.
+
+### Deliberately not done in W02 Day 1
+
+| Item | Why |
+|---|---|
+| Removing the antenna | The first physical action attempted on this board, at 450 °C, and it serves no G2 checkbox. Abandoned. The coax terminates into the RTL8188ER's output stage, and this unit is a single point of failure for G2 **and** G4 |
+| Cutting the power-switch pigtail to hard-wire "on" | Proposed and rejected. The two conductors were never identified, and a working switch is an asset across a week of repeated power cycles, not an obstacle |
+| Powering the board at all | Day 1 is identification. Powering it starts Day 2, after the pin assignment is measured |
+| `LWL`/`LWR`/`SWL`/`SWR` census in `/bin/boa` | Needs a Ghidra mnemonic histogram that does not exist yet. Recorded as a hypothesis, not claimed as a result |
+| Ticking any G2 box | Half of G2's fifth box — the real flash part and size — is settled. Half a box is not a box |
+
+### Open, carried forward
+
+1. Which firmware build is on my unit. Still open, but no longer blind: the newest
+   date code on the board is **2018 week 37**, so the board postdates V2.1.2 by three
+   years and predates V3.4.0 by two. **Prediction: the resident build is from around
+   2018 — neither image this project has analysed.** The two ways that prediction can
+   fail (a previous owner updated it; the line flashed a months-old image) are
+   recorded with it. Settled by the dump.
+2. UART pin assignment — GND / VCC / TX / RX — and the baud rate. Day 2.
+3. Is 32 MiB fitted actually 32 MiB usable? Kernel banner, Day 3.
+4. What `LSP5526` is. One multimeter reading on its output pin, Day 3.
+5. The `LWL`/`LWR`/`SWL`/`SWR` census, and with it whether the Realtek SDK toolchain
+   is still pinned to the Lexra subset in the 2020 build.
