@@ -112,12 +112,16 @@ that is not backed by a command someone else can re-run.
   - [ ] a live bootlog, **or** a recorded fallback
   - [ ] SPI dump + hash verification, **or** the vendor-firmware main path
   - [ ] dump vs vendor image compared, **or** the reason recorded
-  - [ ] annotated PCB photograph
+  - [x] **annotated PCB photograph** ← [`notes/img/`](notes/img/) — rendered from a
+        committed JSON spec, not drawn in an image editor, and the unit's MAC and
+        serial are painted out with the coordinates recorded
   - [ ] settles two open questions: **the real flash part and size — ✅ answered**
         ([`hardware-inspection.md`](notes/hardware-inspection.md)), and which build my
         unit runs — ⏳ still open, but now carrying a **dated prediction** made before
         the dump
 
+  > ![TOTOLINK N150RT PCB, annotated](notes/img/05-pcb-top-annotated.jpg)
+  >
   > ### ★ What W02 Day 1 turned up
   >
   > - **The flash is 4 MiB, and W01 said so first.** Eon EN25QH32B, 32 Mbit, at
@@ -208,6 +212,7 @@ that is not backed by a command someone else can re-run.
 | [`PROGRESS.md`](PROGRESS.md) | Gate status — the evidence behind every box above |
 | [`notes/anatomy-n150rt.md`](notes/anatomy-n150rt.md) | How the firmware is built: container format, flash map, binaries, mitigations |
 | [`notes/hardware-inspection.md`](notes/hardware-inspection.md) | **What the board actually is** — five ICs, the 4 MiB flash that W01 predicted, and a column of second sources that is still empty |
+| [`notes/img/`](notes/img/) | Board photographs, the annotation spec they are rendered from, and what had to be painted out before they could be published |
 | [`notes/prior-art.md`](notes/prior-art.md) | Who disclosed what, when — and which claims survive contact with these images |
 | [`notes/attack-surface.md`](notes/attack-surface.md) | Where to look, ranked |
 | [`notes/ghidra-triage.md`](notes/ghidra-triage.md) | Which functions to open first, and why — with the three W01 calls W03 overturned |

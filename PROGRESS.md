@@ -405,6 +405,48 @@ Separately: `flashrom --version` prints `flashrom unknown`, while `dpkg` reports
 running the tool. Functionally irrelevant (a Debian packaging artefact), but the
 table should say so rather than imply a check that did not happen.
 
+### G2 checkbox 4 met: the annotated PCB photograph
+
+Photographs are in [`notes/img/`](notes/img/), and getting them there took two new
+instruments — because the alternative was an image editor, which produces a file
+nobody can check, diff, or regenerate. That is the same objection W03 raised against
+Ghidra screenshots, and it gets the same answer.
+
+| | |
+|---|---|
+| [`tools/redact-photo.py`](tools/redact-photo.py) | Paints out the unit's MAC barcode and serial QR. Solid fill, never blur — a blur is a reversible transform on a known font. Drops EXIF, which carries GPS and a device id that survive every *visual* redaction. Verifies its own work by reading the written file back off disk |
+| [`tools/annotate-photo.py`](tools/annotate-photo.py) | Renders the callouts from [`notes/img/pcb-top-annotations.json`](notes/img/pcb-top-annotations.json), so a moved box appears in `git diff` as a changed number. The legend is drawn in a strip *below* the frame, never over it, so no annotation can hide the evidence it describes |
+
+**Both were wrong on the first run, and neither noticed.**
+
+1. **The guard suite reported 5/5 passing while every invocation was dying on
+   `import PIL`.** On a login shell, bare `python3` resolved to an unrelated
+   project's venv that happened to carry Pillow; under `bash script.sh` it did not.
+   Five tests that assert "this must fail" all passed — for the wrong reason. What
+   caught it was the one line asserting that a *valid* call must still succeed.
+   Fixed twice over: the interpreter is now named explicitly, and each guard asserts
+   on **its own** failure message rather than on the exit status.
+2. **The control case then failed, and it was the checker that was wrong, not the
+   redaction.** The post-condition demanded every pixel in the painted box be exactly
+   zero on read-back — a condition JPEG can never satisfy, because a hard black
+   rectangle re-encodes with ringing against its own edges. Rewritten as two parts:
+   a loose bound over the whole box to catch a box that landed somewhere wrong, and
+   an exact test on the box inset by two MCUs, which is the part that actually
+   guarantees the pixels were replaced.
+3. **The annotation tool silently produced an unreadable legend** — two columns
+   overprinting each other, labels running off the frame — and reported `ok`. It now
+   picks the column count and type size that fit, and **errors** if no combination
+   does. A figure that overprints itself still looks finished, which is the worst
+   thing a tool can hand you.
+
+The tool can prove a region is solid. **It cannot prove the box landed in the right
+place — that check is human, and it was done by eye on all three files.**
+
+This is the fourth, fifth and sixth instrument bug the project has recorded, and the
+first three are in [W03](#two-tooling-bugs-found-and-fixed) and
+[W04](#instrument-work). The pattern holds: none was caught by the tool's own
+self-check.
+
 ### Deliberately not done in W02 Day 1
 
 | Item | Why |
@@ -413,7 +455,8 @@ table should say so rather than imply a check that did not happen.
 | Cutting the power-switch pigtail to hard-wire "on" | Proposed and rejected. The two conductors were never identified, and a working switch is an asset across a week of repeated power cycles, not an obstacle |
 | Powering the board at all | Day 1 is identification. Powering it starts Day 2, after the pin assignment is measured |
 | `LWL`/`LWR`/`SWL`/`SWR` census in `/bin/boa` | Needs a Ghidra mnemonic histogram that does not exist yet. Recorded as a hypothesis, not claimed as a result |
-| Ticking any G2 box | Half of G2's fifth box — the real flash part and size — is settled. Half a box is not a box |
+| Ticking G2's fifth box | Half of it — the real flash part and size — is settled. The other half, which build my unit runs, is not. **Half a box is not a box** |
+| Looking up the MAC's OUI | The redaction is done on the *shape* of the string, which is the safe order to work in. Confirming whose OUI it is would mean handling the value again for no gain |
 
 ### Open, carried forward
 

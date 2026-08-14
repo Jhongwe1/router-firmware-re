@@ -803,7 +803,43 @@ USB-TTL / CH341A / 邏輯分析儀插上去之後,這張表會多出對應的列
 **一條規則,三個地方:從「我這一台」讀出來的東西一律遮掉,只發表對「這個型號」
 成立的事實。** 遮蔽要在 `git add` 之前決定 —— **推上去之後才遮的,不叫遮。**
 
-作法和檔名規則寫在 [`notes/img/README.md`](notes/img/README.md)。
+> 💡 **QR 比印出來的數字危險。** 印出來的號碼要有人去「讀」,QR 是**自動被解碼的**,
+> 而且縮圖之後照樣解得出來。所以連廣角照裡只有幾十像素寬的那個 QR 也要蓋掉。
+
+### 8.6.9 遮蔽和標註都用腳本,不用影像編輯器
+
+理由跟 W03 拒絕用 Ghidra 截圖一樣:**編輯器產出的檔案沒有人能檢查、沒辦法 diff、
+原圖重拍之後也沒辦法重新產生。**
+
+兩支工具都需要 Pillow,裝進**這個專案自己的 venv**:
+
+```bash
+~/fwre-work/venv/bin/python -m pip install Pillow
+```
+
+```bash
+PY=~/fwre-work/venv/bin/python
+
+# 遮蔽:實心塗黑(不是模糊 —— 模糊在已知字體上是可逆的),順便丟掉 EXIF
+$PY tools/redact-photo.py <原圖>.jpeg notes/img/04-pcb-bottom-redacted.jpg \
+    --expect-size 2048x1536 --box 640,710,520,200
+
+# 標註:框和文字寫在 JSON 裡,圖是算出來的
+$PY tools/annotate-photo.py notes/img/pcb-top-annotations.json \
+                            notes/img/05-pcb-top-annotated.jpg
+```
+
+**應該看到:**
+
+```
+  ok    04-pcb-bottom-redacted.jpg: 1 region(s), 104,000 px (3.31% of frame) painted out, EXIF dropped, verified on read-back
+  ok    05-pcb-top-annotated.jpg: 12 callouts, 2048x1936
+```
+
+> ⚠️ **工具能證明框裡是純黑,證明不了框在對的位置。**
+> **那一關是人工的,三張都要親眼看過。**
+
+完整座標紀錄、檔名規則、產生方式:[`notes/img/README.md`](notes/img/README.md)。
 
 ---
 
@@ -1140,6 +1176,15 @@ $b='\\wsl$\Ubuntu-24.04\home\key\fwre-work\extracted\v2.1.2\squashfs-root\bin\bo
                  'accessor:req_get_cstream_var','depth:6')
 # 2020 版的 accessor 名字不一樣(符號被 strip 了):accessor:FUN_0040e9e0
 
+# ── W02 硬體 ──────────────────────────────────────────
+flashrom -L | grep -i en25qh          # 這顆 flash 認不認得(4096 KiB = 4 MiB)
+usbipd list                            # 工具插上去有沒有被 Windows 看到
+
+PY=~/fwre-work/venv/bin/python         # 這兩支要 Pillow,裝在專案 venv 裡
+$PY tools/redact-photo.py   <原圖> <輸出> --expect-size 2048x1536 --box X,Y,W,H
+$PY tools/annotate-photo.py notes/img/pcb-top-annotations.json <輸出>
+bash tools/test-photo-tools.sh         # 這兩支的自我測試(13 項,含對照組)
+
 # ── 單獨用工具 ────────────────────────────────────────
 ~/fwre-work/venv/bin/python -m fwrecon image  <韌體.web>
 ~/fwre-work/venv/bin/python -m fwrecon elf    <執行檔>
@@ -1314,6 +1359,7 @@ cd FirmAE && ./install.sh      # 30–60 分鐘
 | 2026-08-14 | W02 Day 1 | 新增 §8.6 Part 6:硬體到貨後的第一天 —— 順序為什麼要跟著「可逆程度」走、五顆 IC 的絲印、`flashrom` 相容性(附實際輸出)、`usbipd` 確認(附實際輸出)、找到已焊好的 UART 排針,以及**照片進 repo 前的遮蔽規則**。 |
 | 2026-08-14 | W02 Day 1 | §10 新增三條真的踩到的坑:**10.14 天線焊點 450°C 化不開**(熱容量 ≠ 溫度,而且本來就不該拆)、**10.15 usbipd 裝好卻找不到**、**10.16 `flashrom --version` 說 `unknown`**(它戳破了 G0「每個工具都是跑出來的」這句話)。 |
 | 2026-08-14 | W02 Day 1 | §11 名詞表新增 JEDEC ID、日期碼、SOP-8/mil、磁性元件;§12.5 的 W02 前置作業標記完成。 |
+| 2026-08-14 | W02 Day 1 | 新增 §8.6.9:照片的遮蔽與標註全部走腳本(`tools/redact-photo.py`、`tools/annotate-photo.py`),理由跟 W03 不用 Ghidra 截圖一樣。§12 速查表補上這兩支和 `flashrom -L` / `usbipd list`。**兩支工具第一次跑都是錯的,而且都不是自己抓到的** —— 經過寫在 `LOG.md`。 |
 
 ---
 

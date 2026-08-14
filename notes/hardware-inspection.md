@@ -211,10 +211,13 @@ either outcome of guessing after the fact.
 
 ## 7. The board
 
-Four overview photographs exist — exterior, opened case, board top, board bottom —
-plus close-ups of the five packages above. They are **not yet in the repository**;
-see [§7.5](#75-what-must-be-redacted-before-these-photographs-are-committed) for why
-that is not simply a matter of copying files in.
+![PCB top, annotated](img/05-pcb-top-annotated.jpg)
+
+Rendered from [`img/03-pcb-top-redacted.jpg`](img/03-pcb-top-redacted.jpg) and
+[`img/pcb-top-annotations.json`](img/pcb-top-annotations.json) — the callouts are a
+committed text file, not strokes in an image editor, so a moved box shows up in
+`git diff` and anyone can re-render it against the source photograph. Full set and
+handling: [`img/README.md`](img/README.md).
 
 ### 7.1 Layout
 
@@ -273,15 +276,25 @@ It matters because the alternative — a ground-referenced GPIO with a pull-up �
 behaves differently when shorted, and shorting an unidentified pair was proposed and
 rejected during disassembly. See [`LOG.md`](../LOG.md).
 
-### 7.5 What must be redacted before these photographs are committed
+### 7.5 What was redacted, and why
 
-**The board carries two unit-identifying labels, and one of them is on the
-photograph that G2 asks for.**
+**The board carries two unit-identifying labels, and one of them is on the very
+photograph G2 asks for.**
 
-| Where | What | Action |
+| Where | What | Done |
 |---|---|---|
-| PCB bottom, barcode label | a 12-hex-digit string — **almost certainly this unit's MAC address**. Confirmed by looking up the leading three bytes as an OUI, which has not been done | **redact before committing** |
-| PCB top, QR + numeric label | unit serial | **redact before committing** |
+| PCB bottom, barcode label | a 12-hex-digit string — **almost certainly this unit's MAC address**. Confirming that by looking the leading three bytes up as an OUI has *not* been done | painted out |
+| PCB top, QR + numeric label | unit serial | painted out, in both the close shot and the wide one |
+
+The QR is the more dangerous of the two, and it is the one that is easy to wave
+through: a printed number has to be *read*, a QR code is **decoded automatically**
+and survives heavy downscaling. It is covered wherever it appears, including in the
+wide shot where it is only a few dozen pixels across.
+
+Solid fill, never blur — a blur is a reversible transform on a known font. Exact
+coordinates and the commands that produced each file are in
+[`img/README.md`](img/README.md), so a reader can confirm what was covered rather
+than take it on trust.
 
 This is not hypothetical tidiness. The same identifiers will appear again, from two
 more directions, later in W02:
