@@ -1,0 +1,246 @@
+{
+  "path": "/home/key/fwre-work/dumps/flash-n150rt-console-1.bin",
+  "size": 4194304,
+  "sha256": "a800059a9b8c414df026a22b8423a5939d0f9bb793109d0f7ce086f6810f37ea",
+  "producer": "fwrecon:flashdump",
+  "checks": [
+    {
+      "name": "flash size",
+      "offset": 0,
+      "expected": "4194304",
+      "observed": "4194304",
+      "ok": true,
+      "kind": "hard",
+      "source": "EN25QH32B is 32 Mbit; W01 derived >= 4 MB from the container map against a published 2 MB specification"
+    },
+    {
+      "name": "upper half is not an alias of the lower",
+      "offset": 2097152,
+      "expected": "differ",
+      "observed": "differ",
+      "ok": true,
+      "kind": "hard",
+      "source": "the published 2 MB specification, tested rather than cited"
+    },
+    {
+      "name": "boot code at 0x000000",
+      "offset": 0,
+      "expected": "0b f0 00 04",
+      "observed": "0b f0 00 04",
+      "ok": true,
+      "kind": "hard",
+      "source": "2026-08-15 console session, FLR+DB windows (notes/flash-layout.md)"
+    },
+    {
+      "name": "w6cg signature",
+      "offset": 65536,
+      "expected": "77 36 63 67",
+      "observed": "77 36 63 67",
+      "ok": true,
+      "kind": "hard",
+      "source": "W01: burnAddr parsed from the vendor .web containers (notes/anatomy-n150rt.md)"
+    },
+    {
+      "name": "w6cg burnAddr",
+      "offset": 65536,
+      "expected": "0x10000",
+      "observed": "0x10000",
+      "ok": true,
+      "kind": "hard",
+      "source": "W01: burnAddr parsed from the vendor .web containers (notes/anatomy-n150rt.md)"
+    },
+    {
+      "name": "w6cg length",
+      "offset": 65536,
+      "expected": "277012",
+      "observed": "277012",
+      "ok": true,
+      "kind": "hard",
+      "source": "2026-08-15 console session, FLR+DB windows (notes/flash-layout.md)"
+    },
+    {
+      "name": "w6cg payload magic",
+      "offset": 65552,
+      "expected": "42 5a 68 39",
+      "observed": "42 5a 68 39",
+      "ok": true,
+      "kind": "hard",
+      "source": "2026-08-15 console session, FLR+DB windows (notes/flash-layout.md)"
+    },
+    {
+      "name": "cr6c signature",
+      "offset": 393216,
+      "expected": "63 72 36 63",
+      "observed": "63 72 36 63",
+      "ok": true,
+      "kind": "hard",
+      "source": "W01: burnAddr parsed from the vendor .web containers (notes/anatomy-n150rt.md)"
+    },
+    {
+      "name": "cr6c burnAddr",
+      "offset": 393216,
+      "expected": "0x60000",
+      "observed": "0x60000",
+      "ok": true,
+      "kind": "hard",
+      "source": "W01: burnAddr parsed from the vendor .web containers (notes/anatomy-n150rt.md)"
+    },
+    {
+      "name": "cr6c length",
+      "offset": 393216,
+      "expected": "987138",
+      "observed": "987138",
+      "ok": true,
+      "kind": "hard",
+      "source": "2026-08-15 console session, FLR+DB windows (notes/flash-layout.md)"
+    },
+    {
+      "name": "cr6c startAddr",
+      "offset": 393216,
+      "expected": "0x80500000",
+      "observed": "0x80500000",
+      "ok": true,
+      "kind": "hard",
+      "source": "the boot log's 'Jump to image start=0x80500000'"
+    },
+    {
+      "name": "SquashFS magic",
+      "offset": 1572864,
+      "expected": "68 73 71 73",
+      "observed": "68 73 71 73",
+      "ok": true,
+      "kind": "hard",
+      "source": "W01: burnAddr parsed from the vendor .web containers (notes/anatomy-n150rt.md)"
+    },
+    {
+      "name": "SquashFS version",
+      "offset": 1572864,
+      "expected": "4.0",
+      "observed": "4.0",
+      "ok": true,
+      "kind": "hard",
+      "source": "2026-08-15 console session, FLR+DB windows (notes/flash-layout.md)"
+    },
+    {
+      "name": "SquashFS compression",
+      "offset": 1572864,
+      "expected": "lzma",
+      "observed": "lzma",
+      "ok": true,
+      "kind": "hard",
+      "source": "2026-08-15 console session, FLR+DB windows (notes/flash-layout.md) - LZMA like the 2015 family, not XZ like 2020"
+    },
+    {
+      "name": "SquashFS inodes",
+      "offset": 1572864,
+      "expected": "567",
+      "observed": "567",
+      "ok": true,
+      "kind": "hard",
+      "source": "2026-08-15 console session, FLR+DB windows (notes/flash-layout.md)"
+    },
+    {
+      "name": "SquashFS bytes_used",
+      "offset": 1572864,
+      "expected": "1876033",
+      "observed": "1876033",
+      "ok": true,
+      "kind": "hard",
+      "source": "2026-08-15 console session, FLR+DB windows (notes/flash-layout.md)"
+    },
+    {
+      "name": "SquashFS mkfs_time raw",
+      "offset": 1572864,
+      "expected": "0x80ad1c00",
+      "observed": "0x80ad1c00",
+      "ok": true,
+      "kind": "hard",
+      "source": "2026-08-15 console session, FLR+DB windows (notes/flash-layout.md) - a byte-swapped size, not a timestamp; three builds now carry it"
+    },
+    {
+      "name": "tail from 0x350000 is erased",
+      "offset": 3473408,
+      "expected": "all 0xFF",
+      "observed": "all 0xFF",
+      "ok": true,
+      "kind": "hard",
+      "source": "W02 read 0x350000 and 0x3F0000 as FF; this tests the whole tail"
+    },
+    {
+      "name": "H601 present at 0x006000",
+      "offset": 24576,
+      "expected": "48 36 30 31",
+      "observed": "48 36 30 31",
+      "ok": true,
+      "kind": "soft",
+      "source": "2026-08-15 console session, FLR+DB windows (notes/flash-layout.md)"
+    },
+    {
+      "name": "COMPDS present at 0x008000",
+      "offset": 32768,
+      "expected": "43 4f 4d 50 44 53",
+      "observed": "43 4f 4d 50 44 53",
+      "ok": true,
+      "kind": "soft",
+      "source": "2026-08-15 console session, FLR+DB windows (notes/flash-layout.md)"
+    },
+    {
+      "name": "COMPCS present at 0x00c000",
+      "offset": 49152,
+      "expected": "43 4f 4d 50 43 53",
+      "observed": "43 4f 4d 50 43 53",
+      "ok": true,
+      "kind": "soft",
+      "source": "2026-08-15 console session, FLR+DB windows (notes/flash-layout.md)"
+    }
+  ],
+  "squashfs": {
+    "offset": 1572864,
+    "version": "4.0",
+    "compression": "lzma",
+    "inodes": 567,
+    "block_size": 131072,
+    "fragments": 20,
+    "bytes_used": 1876033,
+    "mkfs_time_raw": 2158828544,
+    "mkfs_time_utc": "2038-05-30T10:35:44+00:00",
+    "anomalies": [
+      "mkfs_time is implausible (2038-05-30T10:35:44+00:00); raw=0x80ad1c00. Byte-reversed it reads 0x001cad80, which is suspiciously close to the filesystem size - possibly a vendor build-script bug writing a size into this field."
+    ]
+  },
+  "image_end": 3448897,
+  "secret_regions": [
+    {
+      "from": 24576,
+      "to": 65536,
+      "bytes": 40960,
+      "sha256": "483bd9142ccb62d581a05045953737ec32d1bd93065fcd5b8ac4e284a4d34832",
+      "contains": "MAC addresses, radio calibration, COMPDS factory defaults, COMPCS live configuration",
+      "printed": false
+    }
+  ],
+  "gaps": [
+    {
+      "from": 342564,
+      "to": 393216,
+      "bytes": 50652,
+      "what": "after w6cg",
+      "ff_bytes": 0,
+      "zero_bytes": 50652,
+      "all_one_value": true,
+      "sha256": "f01e00e462c1f53cb3e45deb155fab2f732b9ce2aa0ce7334bdbe75374c93254"
+    },
+    {
+      "from": 1380370,
+      "to": 1572864,
+      "bytes": 192494,
+      "what": "after cr6c",
+      "ff_bytes": 0,
+      "zero_bytes": 192494,
+      "all_one_value": true,
+      "sha256": "b22e3bf83070f6488fde4a3d11883e8000f421e8108cec62827a1d63ba016a8e"
+    }
+  ],
+  "anomalies": [],
+  "self_check": "OK"
+}

@@ -44,6 +44,21 @@ Redact **before** `git add`. A redaction applied after a push is not a redaction
 | `ic-sdram-w9825g6kh.jpg` | SDRAM | — |
 | `ic-wifi-rtl8188er.jpg` | Wi-Fi radio | — |
 | `ic-power-lsp5526.jpg` | the unidentified regulator | — |
+| `06-usb-ttl-cp2102.jpg` | the CP2102 adapter, its pin silkscreen legible | — |
+| `07-uart-wired-to-board.jpg` | the three wires on the 4-pin header, VCC deliberately unconnected | — |
+| `08-logic-analyser.jpg` | the analyser, and its `0V–5V` input rating | — |
+| `09-logic-analyser-on-uart-redacted.jpg` | the analyser probing the live console | **serial + MAC barcodes on the case underside** |
+| `10-pulse-width-26us-52us.png` | **the baud measurement** — 26 µs narrowest pulse, and a 52 µs pulse in the same capture | — |
+| `11-async-serial-decode.png` | **the independent decode** — the same wire read a second time by the analyser's Async Serial decoder | — |
+| `12-async-serial-decode-screen.jpg` | the same decode photographed off the screen, mid-session | — |
+| `13-ch341a-clip-and-adapters.jpg` | the CH341A, SOIC-8 clip and both socket adapters — **the programmer that was measured and not used** | — |
+| `14-bench-during-dump-redacted.jpg` | the bench during the 105-minute console dump | **two barcode strips on the case** |
+| `15-bench-overview.jpg` | the bench, wider | — |
+
+`10` and `11` are the evidence behind two claims that would otherwise be assertions:
+[`uart-pinout.md` §2](../uart-pinout.md#2-baud-measured-not-guessed) says the baud was
+*measured*, and the README says the boot log was *decoded a second time off the same
+wire*. Both are now visible rather than stated.
 
 Unredacted originals are in `$FWRE_WORK/photos`, outside the repository, alongside
 the firmware images and the flash dumps.
@@ -79,7 +94,23 @@ $PY tools/redact-photo.py notes/img/<orig-pcb-top>.jpeg \
 $PY tools/redact-photo.py notes/img/<orig-case-open>.jpeg \
     notes/img/02-case-opened-redacted.jpg \
     --expect-size 2048x1536 --box 495,1005,100,120     # serial QR, wide shot
+
+# W02 Day 2-4 process photographs. Both caught the case underside in frame, with
+# the printed serial and a second barcode readable enough to scan.
+$PY tools/redact-photo.py $FWRE_WORK/photos/orig-09-logic-analyser-on-uart.jpeg \
+    notes/img/09-logic-analyser-on-uart-redacted.jpg \
+    --expect-size 2048x1536 --box 1450,1080,598,456    # whole label strip
+
+$PY tools/redact-photo.py $FWRE_WORK/photos/orig-14-bench-during-dump.jpeg \
+    notes/img/14-bench-during-dump-redacted.jpg \
+    --expect-size 2048x1536 --box 1580,1020,130,110 \
+                            --box 1730,1120,140,120    # two barcode strips
 ```
+
+> Those two were caught by **looking at every new photograph before `git add`**, not
+> by the tool. The barcodes in `14` are far too blurred for a person to read — which
+> is exactly why they still had to go: **a barcode is decoded by machine, and blur is
+> not redaction.** The scanned strips were 0.99 % of that frame.
 
 The tool verifies its own work by reading the written file back off disk. It cannot
 prove the box landed in the *right place* — **that check is human, and it was done

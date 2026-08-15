@@ -61,6 +61,17 @@ unpack_one() {
   fi
   c_ok "rootfs at file offset $offset ($length bytes, $compression-compressed)"
 
+  carve_and_extract "$img" "$out" "$offset" "$length"
+}
+
+# Shared by the vendor-container path and the raw-flash path. They differ only
+# in how the offset is discovered; everything after the carve is identical, and
+# keeping it identical is the point - a rootfs read off the device must be
+# extracted by exactly the same steps as one carved from a vendor image, or the
+# two cannot be compared.
+carve_and_extract() {
+  local img="$1" out="$2" offset="$3" length="$4"
+
   local sqfs="$out/rootfs.squashfs"
   # bs/skip in blocks would be faster but the offset is not block-aligned;
   # iflag=skip_bytes keeps it exact without a byte-at-a-time copy.
@@ -104,11 +115,78 @@ unpack_one() {
   fi
 }
 
-rc=0
-for entry in "${IMAGES[@]}"; do
-  unpack_one ${entry} || rc=1
-done
+# ---------------------------------------------------------------------------
+# Raw flash dump read off the device (W02 Day 4).
+#
+# A flash image is not a vendor container: there is no r6cr header in front of
+# the root filesystem, because the boot loader mounts it as an MTD partition and
+# a squashfs has to begin exactly on the partition boundary. So the offset comes
+# from `fwrecon flashdump` instead, which knows it from the console session that
+# read the device on 2026-08-15.
+#
+# The refusal below is the point of routing this through the checker at all: a
+# dump whose hard checks failed must not become a filesystem that later analysis
+# quotes as if it were the device.
+# ---------------------------------------------------------------------------
+unpack_flash() {
+  local img="$1" label="${2:-unit-2018}"
+  local out="$EX/$label"
 
-echo
-[ "$rc" -eq 0 ] && c_ok "all images unpacked into $EX" || c_err "some images failed"
-exit "$rc"
+  echo
+  echo "--- $label (raw flash: $(basename "$img")) ------------------------"
+  [ -f "$img" ] || { c_err "missing $img"; return 1; }
+  mkdir -p "$out"
+
+  local meta verdict offset length compression
+  if ! meta="$("$PY" -m fwrecon flashdump "$img" --format json)"; then
+    c_err "fwrecon flashdump reported hard-check failures for $img"
+    c_err "refusing to extract: see the checker's output above"
+    return 1
+  fi
+  verdict="$(jq -r '.self_check' <<<"$meta")"
+  [ "$verdict" = "OK" ] || { c_err "self_check=$verdict — not extracting"; return 1; }
+
+  offset="$(jq -r '.squashfs.offset' <<<"$meta")"
+  length="$(jq -r '.squashfs.bytes_used' <<<"$meta")"
+  compression="$(jq -r '.squashfs.compression' <<<"$meta")"
+  [ "$offset" != "null" ] || { c_err "no SquashFS located in $img"; return 1; }
+  c_ok "rootfs at flash offset $offset ($length bytes, $compression-compressed)"
+
+  carve_and_extract "$img" "$out" "$offset" "$length"
+}
+
+usage() {
+  cat <<'EOF'
+usage:
+  unpack-firmware.sh                       # both vendor images
+  unpack-firmware.sh --flash <image.bin> [--label NAME]
+                                           # a raw SPI flash dump off the device
+EOF
+}
+
+main() {
+  local flash="" label="unit-2018"
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --flash) flash="$2"; shift 2 ;;
+      --label) label="$2"; shift 2 ;;
+      -h|--help) usage; exit 0 ;;
+      *) c_err "unknown option: $1"; usage; exit 2 ;;
+    esac
+  done
+
+  local rc=0
+  if [ -n "$flash" ]; then
+    unpack_flash "$flash" "$label" || rc=1
+  else
+    for entry in "${IMAGES[@]}"; do
+      unpack_one ${entry} || rc=1
+    done
+  fi
+
+  echo
+  [ "$rc" -eq 0 ] && c_ok "unpacked into $EX" || c_err "some images failed"
+  return "$rc"
+}
+
+main "$@"

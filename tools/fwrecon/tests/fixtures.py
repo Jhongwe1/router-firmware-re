@@ -138,3 +138,49 @@ def build_realtek_image(sections: list[tuple[bytes, int, int, bytes]],
         out += payload
     out += trailer
     return bytes(out)
+
+
+def build_flash_dump(*, size: int = 4 * 1024 * 1024,
+                     boot: bytes = bytes((0x0B, 0xF0, 0x00, 0x04)),
+                     w6cg_len: int = 0x043A14,
+                     cr6c_len: int = 0x0F1002,
+                     inodes: int = 567,
+                     bytes_used: int = 0x1CA041,
+                     mkfs_time: int = 0x80AD1C00,
+                     secret_marker: bytes = b"") -> bytearray:
+    """A whole 4 MiB SPI flash laid out the way this unit's actually is.
+
+    Built to the offsets a console session read on 2026-08-15, so the checker's
+    control case exercises the real arrangement rather than a convenient one.
+    Returned as a ``bytearray`` because every failure case in the suite is this
+    image with exactly one thing broken.
+    """
+    img = bytearray(b"\xff" * size)
+
+    img[0:len(boot)] = boot
+    # Low-order filler so the two halves cannot be equal by accident, and so the
+    # "erased tail" check has something to distinguish erased from written.
+    for off, n in ((0x000100, 0x5F00),):
+        img[off:off + n] = bytes((i * 7 + 3) & 0xFF for i in range(n))
+
+    img[0x006000:0x006004] = b"H601"
+    img[0x008000:0x008006] = b"COMPDS"
+    img[0x00C000:0x00C006] = b"COMPCS"
+    if secret_marker:
+        img[0x006100:0x006100 + len(secret_marker)] = secret_marker
+
+    img[0x010000:0x010010] = b"w6cg" + struct.pack(">3I", 0x80000000, 0x010000, w6cg_len)
+    img[0x010010:0x010014] = b"BZh9"
+    img[0x010014:0x010014 + 0x100] = bytes((i * 11) & 0xFF for i in range(0x100))
+
+    img[0x060000:0x060010] = b"cr6c" + struct.pack(">3I", 0x80500000, 0x060000, cr6c_len)
+    img[0x060010:0x060110] = bytes((i * 13 + 5) & 0xFF for i in range(0x100))
+
+    sb = build_squashfs_superblock(compression=2, inodes=inodes,
+                                   mkfs_time=mkfs_time, bytes_used=bytes_used)
+    img[0x180000:0x180000 + len(sb)] = sb
+    body = 0x180000 + len(sb)
+    end = 0x180000 + bytes_used
+    img[body:end] = bytes((i * 17 + 9) & 0xFF for i in range(end - body))
+
+    return img
