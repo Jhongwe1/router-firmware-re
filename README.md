@@ -8,20 +8,26 @@ embedded device, rebuild an understanding of its firmware from nothing, and
 trace **already-publicly-disclosed** vulnerabilities down to the responsible
 function in the binary.
 
-> 🚧 **In progress since 2026-07-30. G0 ✅ · G1 ✅ · G2 ▶ in progress, hardware
-> arrived 2026-08-14 · G3 ✅ passed 2026-08-11.**
+> 🚧 **In progress since 2026-07-30. G0 ✅ · G1 ✅ · G2 ▶ live bootlog captured
+> 2026-08-15, SPI dump outstanding · G3 ✅ passed 2026-08-11.**
 > Two firmware images are unpacked and measured — **V2.1.2 (2015-08-25)** and
 > **V3.4.0 (2020-10-30)** — and they bracket both public disclosure events
 > affecting this device, which turns a teardown into a before/after comparison.
 > Board below; the evidence behind every ticked box is in
 > [`PROGRESS.md`](PROGRESS.md).
 >
-> **Latest (W02 Day 1, 2026-08-14):** the board is on the bench and identified.
-> The flash is an **Eon EN25QH32B — 4 MiB**, which confirms the derivation W01 made
-> from the vendor's own burn-address table three weeks earlier: the published 2 MB
-> specification was impossible. The SoC is an **RTL8196E**, not the RTL8196C the
-> plan asserted. **Still no device powered on** — every reading so far has one
-> source, the ink on the package.
+> **Latest (W02, 2026-08-15): the device has been powered on, and it is running a
+> firmware nobody had.** A serial console at 38400 — pin-out measured, baud measured
+> from pulse width rather than guessed — puts the resident build at **2018-01-10**:
+> not V2.1.2, not V3.4.0, a third one. That includes `/bin/boa`, **the binary this
+> project has been reverse engineering since W03**, so W03/W04's findings describe
+> two images this device has never run.
+>
+> The boot loader console also yields `FLR` + `DB` — **a full flash read path with
+> no chip clip** — and with it, W01's container work is confirmed against silicon:
+> the three burn addresses it derived from the vendor `.web` files are exactly where
+> a third, unseen build sits. The config blob W04 needed is at flash `0x00C000`, and
+> the barcode on the PCB is confirmed to be the unit's MAC.
 >
 > **W04:** the fourteen 2025 CVEs against this model reduce to **three**
 > defects — two of them a single line and a single copy-pasted idiom, both
@@ -30,7 +36,9 @@ function in the binary.
 > is still ungated nine months after full disclosure. And W01's
 > "there is no `/etc/passwd`" was a false negative: both images ship one, and the
 > 2015 template still contains Pierre Kim's `onlime_r` backdoor account at uid 0.
-> **Static results; no device has been powered on yet.**
+> **Those W04 results are static, read out of firmware images. The device itself
+> was first powered on in W02 on 2026-08-15, and it turns out to run neither of
+> them.**
 
 The point is not the device. It is being able to take an undocumented binary
 system on an unfamiliar architecture, build understanding from zero, and reason
@@ -109,16 +117,19 @@ that is not backed by a command someone else can re-run.
 > by a flash dump, which is G2's job.
 
 - [ ] **G2 — hardware access: UART + SPI dump** (W02) ▶ **in progress** — hardware arrived 2026-08-14 ← [PROGRESS.md](PROGRESS.md#w02--2026-08-14-in-progress)
-  - [ ] a live bootlog, **or** a recorded fallback
+  - [x] **a live bootlog** ← [`notes/uart-findings.md`](notes/uart-findings.md) —
+        captured at 38400 over a measured pin-out, and independently decoded a
+        second time off the same wire by a logic analyser; the two transcripts are
+        byte-identical
   - [ ] SPI dump + hash verification, **or** the vendor-firmware main path
   - [ ] dump vs vendor image compared, **or** the reason recorded
   - [x] **annotated PCB photograph** ← [`notes/img/`](notes/img/) — rendered from a
         committed JSON spec, not drawn in an image editor, and the unit's MAC and
         serial are painted out with the coordinates recorded
-  - [ ] settles two open questions: **the real flash part and size — ✅ answered**
-        ([`hardware-inspection.md`](notes/hardware-inspection.md)), and which build my
-        unit runs — ⏳ still open, but now carrying a **dated prediction** made before
-        the dump
+  - [x] **settles two open questions, both carried since W01** — the real flash part
+        and size (**Eon EN25QH32B, 4 MiB**, against a published 2 MB), and which build
+        this unit runs (**2018-01-10 — neither analysed image**, which the Day 1
+        date-code prediction called before anything was powered on)
 
   > ![TOTOLINK N150RT PCB, annotated](notes/img/05-pcb-top-annotated.jpg)
   >
@@ -141,9 +152,32 @@ that is not backed by a command someone else can re-run.
   >   database is keyed on the same part name. The second-source column is empty on
   >   purpose, and it is the Day 2–4 work list.
   >
-  > ⚠️ **No device has been powered on.** The plan's own gate text allows
-  > "vendor-firmware main path + honest record" as a pass, so G2 still cannot become
-  > an indefinite blocker.
+  > ### ★ What W02 Day 2–3 turned up
+  >
+  > - **The unit runs a third firmware — built 2018-01-10 — including its own
+  >   `/bin/boa`.** So the binary this project has read since W03 is not the one
+  >   this device runs. W03/W04's findings still stand for the images they name;
+  >   they simply do not cover this hardware, and W05/W06 against it will be testing
+  >   a third binary.
+  > - **W01's flash map, confirmed on silicon.** The three burn addresses it derived
+  >   from the vendor containers — `w6cg` at `0x010000`, `cr6c` at `0x060000`, rootfs
+  >   at `0x180000` — are exactly where this unseen build sits. Three for three, and
+  >   the image needs 3.29 MiB against a published 2 MB.
+  > - **`FLR` + `DB` in the boot loader is a full flash read path with no chip clip.**
+  >   The plan listed that only as a bonus for the case where everything else already
+  >   worked.
+  > - **A W01 hedge comes off.** Its "*possibly* a build-script bug writing a size
+  >   into `mkfs_time`" now holds on a third independent build.
+  > - **The config blob W04 was blocked on is at `0x00C000`**, with its factory-default
+  >   twin at `0x008000` — a differential pair into an undocumented format.
+  > - **RTL8196E is now three sources deep**, including the boot code comparing a
+  >   chip-ID register against `0x8196E000`. The Linux driver's dissenting
+  >   `chip name: 8196C` loses because two lines earlier it announces it is probing an
+  >   RTL8186.
+  >
+  > ⚠️ **Still no full flash dump, and no JEDEC ID.** The plan's gate text allows
+  > "vendor-firmware main path + honest record" as a pass, so G2 was never able to
+  > become an indefinite blocker — but the dump is what W05/W06 actually needs.
 
 - [x] **G3 — point at the line in the binary** (W03–W04) ✅ **passed 2026-08-11** ← [PROGRESS.md](PROGRESS.md#w04--2026-08-11)
   - [x] the `/boafrm/` dispatch table found, with ≥ 10 handlers listed — **59 in 2015, 49 in 2020**, both `root_form[]` arrays recovered with the function that reads each
@@ -182,8 +216,10 @@ that is not backed by a command someone else can re-run.
   >   three were caught by the project's own rule — read the two builds across,
   >   not down — because one codebase five years apart cannot go 86 → 0.
   >
-  > ⚠️ **All of it is static.** No device has been powered on — W02 is still
-  > blocked. The 2020 substring bypass in particular is a reading of three
+  > ⚠️ **All of it is static**, read out of the two vendor images. W02 has since
+  > powered the device on and found it runs **neither of them**, so none of this is
+  > yet known to describe the hardware on the bench. The 2020 substring bypass in
+  > particular is a reading of three
   > `strstr` calls that has never been executed; it goes to TWCERT/CC if and only
   > if W05/W06 demonstrates it.
 
@@ -213,6 +249,9 @@ that is not backed by a command someone else can re-run.
 | [`notes/anatomy-n150rt.md`](notes/anatomy-n150rt.md) | How the firmware is built: container format, flash map, binaries, mitigations |
 | [`notes/hardware-inspection.md`](notes/hardware-inspection.md) | **What the board actually is** — five ICs, the 4 MiB flash that W01 predicted, and a column of second sources that is still empty |
 | [`notes/img/`](notes/img/) | Board photographs, the annotation spec they are rendered from, and what had to be painted out before they could be published |
+| [`notes/uart-pinout.md`](notes/uart-pinout.md) | **The serial console** — pin-out with two sources per pin, baud measured from pulse width, why the console gives no shell, and the boot loader's command set |
+| [`notes/uart-findings.md`](notes/uart-findings.md) | **The build nobody had** — a 2018 firmware that is neither analysed image, and what that costs the W03/W04 findings |
+| [`notes/flash-layout.md`](notes/flash-layout.md) | **The flash map, read off the device** — W01's three predicted burn addresses, all three hit, plus where the config actually lives |
 | [`notes/prior-art.md`](notes/prior-art.md) | Who disclosed what, when — and which claims survive contact with these images |
 | [`notes/attack-surface.md`](notes/attack-surface.md) | Where to look, ranked |
 | [`notes/ghidra-triage.md`](notes/ghidra-triage.md) | Which functions to open first, and why — with the three W01 calls W03 overturned |

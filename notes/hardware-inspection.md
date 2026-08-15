@@ -11,22 +11,30 @@ It deliberately does **not** answer the third — *which firmware build is on my
 (W01 open #1) — but it does write down a dated prediction that the flash dump will
 confirm or destroy. See [§6](#6-date-codes--a-prediction-written-before-the-dump).
 
-> ⚠️ **Every row below has exactly one source: the ink on the package.**
-> No independent measurement has been taken. **No device has been powered on.**
-> The "Second source" column is not decoration — it is the W02 Day 2–4 work list,
-> and until it is filled in, everything here is *what the parts claim to be*.
+> **Status after the console came up (2026-08-15):** three of the five rows now
+> have a genuine second source, and one has three. The remaining two are marked
+> below. What each was confirmed *by* matters more than that it was confirmed —
+> see [`uart-findings.md`](uart-findings.md) and [`flash-layout.md`](flash-layout.md).
 
 ---
 
 ## The five ICs
 
-| Ref | Marking on the package | Reading | Function | Second source (pending) |
+| Ref | Marking on the package | Reading | Function | Second source |
 |---|---|---|---|---|
-| — | `RTL8196E` · `I510VG1` · `GF23 TAIWAN` | Realtek **RTL8196E** | SoC — MIPS, big-endian | boot-loader banner; `/proc/cpuinfo` |
-| `U19` | `cFeon` · `QH32B-104HIP` · `X703811` · `1750HKB` | Eon **EN25QH32B** — 32 Mbit (4 MiB) SPI NOR | firmware storage | JEDEC ID read over SPI by `flashrom` |
-| — | `Winbond` · `W9825G6KH-6` · `1837H` · `6824506000` | Winbond **W9825G6KH** — 256 Mbit SDRAM, 16M × 16 = **32 MiB** | system RAM | kernel memory line; `/proc/meminfo` |
-| — | `RTL8188ER` · `I210QP1` · `GF08` | Realtek **RTL8188ER** — 1T1R 802.11n | Wi-Fi radio | driver banner in the boot log |
-| — | `LSC` · `LSP5526` · `181525` | **not identified** | power — step-down regulator, *inferred from context only* | multimeter on its output pin |
+| — | `RTL8196E` · `I510VG1` · `GF23 TAIWAN` | Realtek **RTL8196E** | SoC — MIPS, big-endian | ✅ **×2** — boot banner, **and the boot code's own compare against `0x8196E000`** |
+| `U19` | `cFeon` · `QH32B-104HIP` · `X703811` · `1750HKB` | Eon **EN25QH32B** — 32 Mbit (4 MiB) SPI NOR | firmware storage | ⏳ partial — see below. JEDEC ID still not read |
+| — | `Winbond` · `W9825G6KH-6` · `1837H` · `6824506000` | Winbond **W9825G6KH** — 256 Mbit SDRAM, 16M × 16 = **32 MiB** | system RAM | ✅ boot loader prints `ramSize: 32M` |
+| — | `RTL8188ER` · `I210QP1` · `GF08` | Realtek **RTL8188ER** — 1T1R 802.11n | Wi-Fi radio | ❌ still one source — the driver banner prints a version, **not a part number** |
+| — | `LSC` · `LSP5526` · `181525` | **not identified** | power — step-down regulator, *inferred from context only* | ❌ still one source; its output pin was never measured |
+
+**On the flash size.** The JEDEC ID has not been read, so the clean second source
+is still outstanding. But reading the part through the boot loader produced
+supporting evidence: **`0x350000` reads all `FF`.** On a 2 MB part with the usual
+address wrap that offset would alias to `0x150000`, which is 4 KB before the end
+of the kernel section and therefore full of compressed data — not `FF`. So the
+device is not behaving like a 2 MB part. Suggestive, not conclusive: a part can
+also return `FF` for out-of-range rather than wrapping.
 
 Photographs: see [§7](#7-photographs).
 
@@ -283,8 +291,17 @@ photograph G2 asks for.**
 
 | Where | What | Done |
 |---|---|---|
-| PCB bottom, barcode label | a 12-hex-digit string — **almost certainly this unit's MAC address**. Confirming that by looking the leading three bytes up as an OUI has *not* been done | painted out |
+| PCB bottom, barcode label | a 12-hex-digit string — **confirmed to be this unit's MAC address**, see below | painted out |
 | PCB top, QR + numeric label | unit serial | painted out, in both the close shot and the wide one |
+
+> ✅ **Confirmed, from the flash itself.** The `H601` hardware-settings block at
+> flash offset `0x006000` opens with a run of MAC addresses, and the first is
+> byte-for-byte the string printed on that bottom-side label. What this note
+> called "almost certainly" is now measured, from a source with no connection to
+> the printer that made the sticker — [`flash-layout.md`](flash-layout.md#the-pcb-barcode-is-confirmed-to-be-the-mac).
+>
+> The redaction was applied while it was still an inference. That was the right
+> order to work in: **redact on the shape of the thing, confirm afterwards.**
 
 The QR is the more dangerous of the two, and it is the one that is easy to wave
 through: a printed number has to be *read*, a QR code is **decoded automatically**
@@ -318,16 +335,21 @@ Handling: see [`notes/img/README.md`](img/README.md).
 Everything, strictly speaking. Listed explicitly so no later reader mistakes this
 note for measurement:
 
-- [ ] SoC identity and core (`/proc/cpuinfo`)
-- [ ] Flash identity and size (JEDEC ID over SPI)
-- [ ] RAM usable size (kernel banner)
-- [ ] Radio identity (driver banner)
-- [ ] Regulator function (multimeter)
-- [x] UART header **located** — populated 4-pin, silkscreened `UART` (§7.2)
-- [ ] UART pin assignment — which of the four is GND / VCC / TX / RX
-- [ ] Baud rate
+- [x] **SoC identity** — boot banner **and** the boot code's own `0x8196E000` compare
+- [ ] SoC *core* — RLX4181 vs RLX5281. `/proc/cpuinfo` would settle it, and there
+      is no shell on the console to run it from
+- [ ] **Flash identity — JEDEC ID over SPI.** The one measurement that was on the
+      Day 4 plan and did not happen; see the size note above for what stands in
+- [x] **RAM usable size** — `ramSize: 32M`; fitted and usable agree
+- [ ] **Radio identity** — the driver prints a version, not a part number
+- [ ] **Regulator function** — never measured
+- [x] UART header located — populated 4-pin, silkscreened `UART` (§7.2)
+- [x] **UART pin assignment** — `VCC · TX · RX · GND` from pin 1, two sources each
+      except RX ([`uart-pinout.md`](uart-pinout.md))
+- [x] **Baud rate — 38400**, measured from pulse width, not tried
 - [ ] Whether `J2` is a series power switch or a ground-referenced GPIO (§7.4)
-- [ ] Which firmware build is resident
+- [x] **Which firmware build is resident — a 2018-01-10 build, neither analysed
+      image** ([`uart-findings.md`](uart-findings.md))
 - [ ] `LWL`/`LWR`/`SWL`/`SWR` census in `/bin/boa` (§2)
 
 ---

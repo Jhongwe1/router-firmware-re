@@ -1,0 +1,45 @@
+{
+  "schema": "1.0",
+  "device": "TOTOLINK N150RT V2.0",
+  "note": "Hashes and provenance for reads taken from my own unit. The raw files stay in $FWRE_WORK/dumps and are never committed - see README.md in this directory for the two independent reasons.",
+  "reads": [
+    {
+      "file": "uart-boot.log",
+      "kind": "uart-console",
+      "taken": "2026-08-15",
+      "bytes": 1903,
+      "sha256": "2d427ccba0e807b4bab7b533c5f26396d9e2bbf376c648f34cfcabaa696a8172",
+      "interface": "CP2102 USB-TTL on the 4-pin UART header",
+      "settings": "38400 8N1, no flow control, VCC not connected",
+      "capture": "stty raw + timeout 90 cat /dev/ttyUSB0",
+      "corroborated_by": "an independent decode of the same line by a logic analyser (Async Serial @ 38400); the two transcripts are byte-identical",
+      "contains_unit_identifiers": false,
+      "notes": "No MAC address and no WPS PIN appear in this particular log, which was not the expectation going in. Substantive content is quoted in notes/uart-findings.md."
+    },
+    {
+      "file": "uart-bootloader.log",
+      "kind": "uart-console",
+      "taken": "2026-08-15",
+      "bytes": 596,
+      "sha256": "3fed59915d6089f3a40645eb5e842384df88cbe61ac711b2bb62390cc027d8d8",
+      "interface": "same",
+      "capture": "ESC streamed across power-on to interrupt the boot loader",
+      "contains_unit_identifiers": false,
+      "notes": "The <RealTek> prompt and the command set returned by '?'. See notes/uart-pinout.md section 4."
+    }
+  ],
+  "not_yet_taken": [
+    {
+      "file": "flash-n150rt-1.bin",
+      "kind": "spi-flash-full",
+      "expected_bytes": 4194304,
+      "blocked_on": "W02 Day 4 - CH341A + SOIC-8 clip, or roughly 80 minutes of FLR+DB over the 38400 console",
+      "why_it_matters": "It is the only way to get this unit's 2018 /bin/boa into Ghidra, and the only source for the COMPCS config blob at flash 0x00C000.",
+      "must_never_be_committed": [
+        "vendor firmware, which this project does not redistribute",
+        "flash 0x006000-0x008000 holds this unit's MAC addresses and radio calibration",
+        "the COMPCS block at 0x00C000 is the live configuration: admin credentials, PSK, WPS PIN"
+      ]
+    }
+  ]
+}

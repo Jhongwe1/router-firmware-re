@@ -26,6 +26,7 @@
 | [8](#8-part-4--ghidra-靜態分析) | **Part 4** — Ghidra 靜態分析 | 10 分鐘 |
 | [8.5](#85-part-5--讀出授權流程w03) | **Part 5** — 讀出授權流程(W03) | 讀 20 分鐘 |
 | [8.6](#86-part-6--硬體開工料件辨識w02-day-1) | **Part 6** — 硬體開工:料件辨識(W02 Day 1) | 2–3 小時 |
+| [8.7](#87-part-7--序列-console-與-flash-讀取w02-day-23) | **Part 7** — 序列 console 與 flash 讀取(W02 Day 2–3) | 3–4 小時 |
 | [9](#9-驗收) | 驗收:G0 與 G1 | 10 分鐘 |
 | [10](#10-疑難排解) | 疑難排解 | 出事再看 |
 | [11](#11-名詞表) | 名詞表 | 查閱 |
@@ -843,6 +844,192 @@ $PY tools/annotate-photo.py notes/img/pcb-top-annotations.json \
 
 ---
 
+## 8.7 Part 7 — 序列 console 與 flash 讀取(W02 Day 2–3)
+
+> 2026-08-15 實際跑過的流程。**這一節從頭到尾板子是通電的。**
+
+### 8.7.1 量腳位:先驗表,再量板
+
+**順序不能顛倒。**
+
+```
+1. 電池 → V⎓ 20V 檔 → 讀到 1.5 / 9        ← 驗證表本身,不碰板子
+2. 通電 → 板子的 LED 有沒有亮              ← 驗證板子有電,不用表
+3. 斷電 → Ω 檔,黑筆夾 DC 座外環,紅筆掃四支腳
+4. 通電 → V⎓ 20V 檔,同樣掃四支腳
+```
+
+第 1 步不能省。這一天最久的一次卡關,就是**用 200mV 檔去量 3.3V** ——
+差 16 倍,而它回給我的不是「超量程」,是一個會漂的 `0.x`,看起來跟真讀數一樣。
+見 [§10.17](#1017-電壓量到-0x-在跳-而且怎麼量都不對)。
+
+實測結果(pin 1 = 板上三角形那端):
+
+| 腳 | 斷電 Ω 對地 | 通電 V 對地 | 判定 |
+|---|---|---|---|
+| 1 | 181 Ω | 3.3 V | **VCC** —— 不接 |
+| 2 | 18 kΩ | 0–3.3V 在跳 | **TX** |
+| 3 | 15 kΩ | 0 V | RX(推論) |
+| 4 | **0.2 Ω** | **0 V** | **GND** |
+
+> 💡 **3.3V 軌對地是幾百歐姆,不是開路。** 這是最容易被當成地的一個讀數。
+> 三個量級清楚分開(`0.2` / `181` / `15–18k`)才是可以下判斷的資料。
+
+### 8.7.2 量 baud,不要試 baud
+
+邏輯分析儀接 TX + **GND(一定要接)**,8 MS/s,抓 3–5 秒,先按 Run 再開電源。
+
+量**最窄**的脈衝:**26 µs** → `1/26µs` = 38.46 kHz → **38400**。
+
+> **自洽檢查才是重點:** 同一段裡有一個脈衝正好是 **52 µs = 2 × 26**。
+> 如果 26 µs 是兩個位元,就必須存在 13 µs 的脈衝 —— 而不可能有半個位元。
+>
+> **最接近的錯誤答案是 19200,它的位元時間正好 52.08 µs。**
+> 挑錯脈衝就會設成 19200,然後整晚看亂碼。
+
+### 8.7.3 把 CP2102 交給 WSL
+
+接線:`GND→pin4`、轉接板 `RXD→pin2`、轉接板 `TXD→pin3`、**`VCC` 不接**。
+**先接 GND 再接訊號線。**
+
+```powershell
+usbipd list
+```
+```
+1-1    10c4:ea60  Silicon Labs CP210x USB to UART Bridge (COM3)   Not shared
+```
+```powershell
+usbipd bind --busid 1-1          # 需要系統管理員,只做一次
+```
+
+> ⚠️ **`attach` 之前 WSL 必須正在跑**,否則會說
+> `There is no WSL 2 distribution running`。見 [§10.19](#1019-usbipd-attach-說沒有-wsl-2-發行版在跑)。
+
+```powershell
+Start-Process -WindowStyle Hidden wsl -ArgumentList "-d","Ubuntu-24.04","--","sleep","7200"
+usbipd attach --wsl --busid 1-1
+```
+
+**應該看到:**
+
+```
+crw-rw---- 1 root dialout 188, 0 /dev/ttyUSB0
+[   31.521095] cp210x 1-1:1.0: cp210x converter detected
+[   31.523173] usb 1-1: cp210x converter now attached to ttyUSB0
+```
+
+WSL 的使用者預設**不在 `dialout` 群組**,所以要:
+
+```bash
+sudo usermod -aG dialout $USER    # 之後永久有效
+sudo chmod 666 /dev/ttyUSB0       # 這次立即生效
+```
+
+### 8.7.4 抓 bootlog
+
+```bash
+stty -F /dev/ttyUSB0 38400 cs8 -cstopb -parenb raw -echo
+timeout 90 cat /dev/ttyUSB0 > ~/fwre-work/dumps/uart-boot.log
+```
+
+**先讓它跑起來,然後才開板子電源。** 開機訊息只跑一次。
+
+實測 1903 bytes / 69 行,`Booting` 出現 **1 次**(所以不是 boot loop)。
+內容分析在 [`notes/uart-findings.md`](notes/uart-findings.md)。
+
+### 8.7.5 這台的 console 沒有 shell
+
+開完機送 `\r`,回來的是**完整的回顯,但指令不執行、也沒有提示符**:
+
+```
+送  : \r \r \r\n  echo MARKER_1234\r
+回  : CR LF ×4,然後 "echo MARKER_1234" CR LF
+```
+
+**那是 Linux tty 行規程在回顯,不管有沒有行程在讀。**
+沒有 getty、沒有 shell,bootlog 裡也沒有 BusyBox 那句
+`Please press Enter to activate this console`。
+
+> **「console 有回應」感覺很像成功,但它不是。** 要分清楚回顯來自 tty 層,
+> 還是真的有東西在讀。
+
+### 8.7.6 搶 bootloader:ESC 要在上電之前就開始送
+
+中斷視窗只有一秒多,而且開機瞬間就開始 —— **看到輸出才按已經來不及了。**
+
+```bash
+timeout 45 cat /dev/ttyUSB0 > ~/fwre-work/dumps/uart-bootloader.log &
+END=$((SECONDS+20)); while [ $SECONDS -lt $END ]; do printf '\033' > /dev/ttyUSB0; sleep 0.03; done
+# ↑ 開始送之後才打開板子電源
+```
+
+**成功的樣子(注意它沒有去載核心,改去初始化網路):**
+
+```
+---RealTek(RTL8196E)at 2014.04.22-16:22+0800 v1.3 [16bit](400MHz)
+P0phymode=01, embedded phy
+---Ethernet init Okay!
+<RealTek>
+```
+
+### 8.7.7 bootloader 指令:`?` 不是 `HELP`
+
+```
+<RealTek>?
+----------------- COMMAND MODE HELP ------------------
+HELP (?)   : Print this help message
+DB <Address> <Len>        DW <Address> <Len>
+EB <Address> <Value>...   EW <Address> <Value>...
+CMP <dst><src><length>    IPCONFIG:<TargetAddress>
+AUTOBURN: 0/1             LOADADDR: <Load Address>
+J: Jump to <TargetAddress>
+FLR: FLR <dst><src><length>
+FLW <dst_ROM_offset><src_RAM_addr><length_Byte> <SPI cnt#>
+MDIOR / MDIOW / PHYR / PHYW / PORT1
+```
+
+說明自己寫 `HELP (?)`,但 `HELP` 回 `Unknown command !`。**只有 `?` 能用。**
+
+> ⚠️ **`FLW`、`EB`、`EW`、`AUTOBURN` 會寫入。打錯參數就是磚。**
+> 讀 flash 只需要 **`FLR`** 和 **`DB`**,一個寫入指令都不要送。
+
+### 8.7.8 讀 flash:`FLR` + `DB`
+
+**這是一條完整的 flash 讀取路徑,不用夾 SOIC-8 夾子。**
+
+```
+FLR <RAM位址> <flash位移> <長度>     ← 三個都是十六進位
+Y                                     ← 一定要,見下
+DB <RAM位址> <長度>                   ← 位址十六進位,長度十進位
+```
+
+**實測:**
+
+```
+<RealTek>FLR 80520000 180000 40
+Flash read from 00180000 to 80520000 with 00000040 bytes ?
+(Y)es , (N)o ? --> Y
+Flash Read Successed!
+<RealTek>DB 80520000 64
+80520000: 68 73 71 73 37 02 00 00 00 1c ad 80 00 00 02 00     hsqs............
+```
+
+> ### ⚠️ 兩個會安靜害死你的坑
+>
+> **1. `FLR` 會問 `(Y)es , (N)o ?`,而且把下一行整個吃掉當答案。**
+> 腳本裡如果直接送下一個指令,會得到 `Abort!` —— 然後那個 `DB` 印出來的是
+> **RAM 裡上一次留下的舊資料**,而你會以為那是 flash 的內容。
+>
+> **2. `FLR` 的長度是十六進位,`DB` 的長度是十進位。**
+> `DB <addr> 100` 回你 100 bytes,不是 0x100。**沒有任何警告,你會拿到一份
+> 格式完全正常、長度錯誤的 dump。**
+>
+> **對策:每次 `FLR` 之前先 `DB` 同一塊 RAM 當對照組。** 內容沒變就是 FLR 沒生效。
+
+實際讀出來的 flash 版面在 [`notes/flash-layout.md`](notes/flash-layout.md)。
+
+---
+
 ## 9. 驗收
 
 ### G0 — 工具鏈全綠
@@ -1095,6 +1282,94 @@ G0 的宣稱是「**每個工具都用『跑跑看』來驗證,不是檢查檔�
 但 `PROGRESS.md` 的 G0 表應該說清楚那個 `1.3.0` 是哪裡來的,
 而不是讓人以為做了一個其實沒做的檢查。
 
+### 10.17 電壓量到 `0.x` 在跳,而且怎麼量都不對
+
+**症狀:** 量 UART 腳位對地電壓,四支腳全部讀到 `0.多` 而且一直跳。
+
+**原因:檔位。** 手動檔電表上,轉盤的數字是那一檔**能顯示的最大值**:
+
+| 檔位 | 最大 | 量 3.3V |
+|---|---|---|
+| `200m` | **0.2 V** | ❌ 差 16 倍 |
+| `2000m` / `2` | 2 V | ❌ |
+| **`20`** | **20 V** | ✅ |
+
+**這一條最危險的地方不是差 16 倍,是它不會報錯。** 停在 200mV 檔量 3.3V,
+回給你的是一個會漂的 `0.x` —— 那個形狀跟一個真實的、有雜訊的低電壓讀數
+一模一樣,你會去懷疑板子、懷疑探針、懷疑自己。
+
+**解法:先量一顆已知的電池。**
+
+```
+V⎓ 20V 檔 → AA 電池 → 應該讀 1.5 左右
+```
+
+讀到了 → 表和檔位都好 → 問題一定在板子那側。
+讀不到 → 先修表,板子的事全部往後排。
+
+> **用已知量驗證儀器,再拿它去量未知量。**
+> 這跟 §12 那條「先看 `self_check`,但 `self_check` 本身也會騙人」是同一件事。
+
+### 10.18 電阻讀到孤零零一個 `1`
+
+**那是「超出量程」,不是 1 歐姆。** 畫面左邊一個 `1`、後面沒有小數點和其他位數。
+
+換高一檔(200 → 2k → 20k → 200k → 2M),看它在哪一檔進入量程。
+**在哪一檔進入量程本身就是資訊** —— 訊號腳通常在 20k 檔顯示出 4.7k / 10k / 15k
+之類的上拉電阻值。
+
+順便一個免費的檢查:**這個讀數在物理上合不合理?**
+訊號腳對地 1Ω 等於短路,那塊板不會動 —— 光憑這點就知道 `1` 不是 1Ω。
+
+### 10.19 `usbipd attach` 說「沒有 WSL 2 發行版在跑」
+
+**症狀:**
+
+```
+usbipd: error: There is no WSL 2 distribution running;
+keep a command prompt to a WSL 2 distribution open to leave it running.
+```
+
+**原因:** `wsl -d Ubuntu-24.04 -- <指令>` 這種呼叫是跑完就結束的,
+而 `attach` 需要發行版**持續開著**。
+
+**解法:** 先把它釘住,再 attach。
+
+```powershell
+Start-Process -WindowStyle Hidden wsl -ArgumentList "-d","Ubuntu-24.04","--","sleep","7200"
+usbipd attach --wsl --busid 1-1
+```
+
+或者直接開一個 WSL 視窗放著不要關。
+
+另外:`bind` 需要**系統管理員**,`attach` 不用。
+
+### 10.20 PulseView 打不開 fx2lafw 分析儀
+
+**症狀:** 掃描找得到裝置,按 OK 之後 `Failed to open device / generic/unspecified error`。
+
+**先排除三個最常見的**(這次三個都不是):
+
+```powershell
+# 1. 驅動綁了沒?應該是 WinUSB
+Get-PnpDevice -PresentOnly | Where-Object { $_.InstanceId -like "USB\VID_0925*" }
+# 2. 韌體檔在不在?
+Get-ChildItem "C:\Program Files\sigrok" -Recurse -Filter "*.fw" | Select Name
+# 3. 有沒有程式佔用?
+Get-Process | Where-Object { $_.ProcessName -match "pulseview|Logic" }
+```
+
+**剩下最可能的原因:FX2 上傳韌體之後會用新的 VID/PID 重新列舉,而那個新 ID
+沒有驅動。** Zadig 要做**兩次** —— 一次給上傳前的 ID,一次給上傳後的。
+
+> ⚠️ **這一條在本專案裡沒有被證實。** 我改用 Saleae Logic 2 就通了
+> (clone 的 VID/PID 就是 `0925:3881`,原廠軟體認得),所以上面那個原因是推論。
+> **要證實的方法:讓 PulseView 跳錯之後不要拔線、不要關程式,那時去列舉 USB,
+> 看有沒有冒出一個沒有驅動的新裝置。**
+
+**而且分析儀不在關鍵路徑上** —— baud 在 console 上試四個值兩分鐘就有答案,
+判準一樣硬(可讀 vs 亂碼)。不要為了工具卡住主線。
+
 ---
 
 ## 11. 名詞表
@@ -1184,6 +1459,22 @@ PY=~/fwre-work/venv/bin/python         # 這兩支要 Pillow,裝在專案 venv �
 $PY tools/redact-photo.py   <原圖> <輸出> --expect-size 2048x1536 --box X,Y,W,H
 $PY tools/annotate-photo.py notes/img/pcb-top-annotations.json <輸出>
 bash tools/test-photo-tools.sh         # 這兩支的自我測試(13 項,含對照組)
+
+# ── W02 序列 console ──────────────────────────────────
+# PowerShell:bind 要管理員,attach 之前 WSL 必須在跑
+Start-Process -WindowStyle Hidden wsl -ArgumentList "-d","Ubuntu-24.04","--","sleep","7200"
+usbipd bind --busid 1-1 ; usbipd attach --wsl --busid 1-1
+
+sudo usermod -aG dialout $USER; sudo chmod 666 /dev/ttyUSB0
+stty -F /dev/ttyUSB0 38400 cs8 -cstopb -parenb raw -echo
+timeout 90 cat /dev/ttyUSB0 > ~/fwre-work/dumps/uart-boot.log   # 先跑,再開電源
+
+# 搶 bootloader:ESC 要在上電之前就開始送
+END=$((SECONDS+20)); while [ $SECONDS -lt $END ]; do printf '\033' > /dev/ttyUSB0; sleep 0.03; done
+
+# bootloader 讀 flash(? 才是 help,HELP 不是)
+#   FLR <RAM> <flash> <len>   三個都十六進位,然後一定要送 Y
+#   DB  <RAM> <len>           位址十六進位,長度十進位 ← 兩種進位,會害人
 
 # ── 單獨用工具 ────────────────────────────────────────
 ~/fwre-work/venv/bin/python -m fwrecon image  <韌體.web>
@@ -1360,6 +1651,9 @@ cd FirmAE && ./install.sh      # 30–60 分鐘
 | 2026-08-14 | W02 Day 1 | §10 新增三條真的踩到的坑:**10.14 天線焊點 450°C 化不開**(熱容量 ≠ 溫度,而且本來就不該拆)、**10.15 usbipd 裝好卻找不到**、**10.16 `flashrom --version` 說 `unknown`**(它戳破了 G0「每個工具都是跑出來的」這句話)。 |
 | 2026-08-14 | W02 Day 1 | §11 名詞表新增 JEDEC ID、日期碼、SOP-8/mil、磁性元件;§12.5 的 W02 前置作業標記完成。 |
 | 2026-08-14 | W02 Day 1 | 新增 §8.6.9:照片的遮蔽與標註全部走腳本(`tools/redact-photo.py`、`tools/annotate-photo.py`),理由跟 W03 不用 Ghidra 截圖一樣。§12 速查表補上這兩支和 `flashrom -L` / `usbipd list`。**兩支工具第一次跑都是錯的,而且都不是自己抓到的** —— 經過寫在 `LOG.md`。 |
+| 2026-08-15 | W02 Day 2–3 | 新增 §8.7 Part 7:量腳位(**先驗表再量板**)、量 baud(26µs,以及 52µs=2×26 的自洽檢查)、`usbipd` + `/dev/ttyUSB0`、抓 bootlog、確認 console **沒有 shell**、用 ESC 搶 bootloader、以及 **`FLR`+`DB` 這條不用夾具的 flash 讀取路徑**。全部附實際輸出。 |
+| 2026-08-15 | W02 Day 2–3 | §10 新增四條:**10.17 200mV 檔量 3.3V 不會報錯,只會給你一個看起來像真的數字**(解法是先量電池)、10.18 孤零零一個 `1` 是超量程、10.19 `usbipd attach` 需要 WSL 正在跑、10.20 PulseView 打不開 fx2lafw(**這條沒有被證實,如實標註**)。 |
+| 2026-08-15 | W02 Day 2–3 | §12 速查表新增序列 console 全流程,含 **`FLR` 十六進位 / `DB` 十進位**這個會安靜產生錯誤資料的坑。`study/QA.md` 新增 §10。 |
 
 ---
 
