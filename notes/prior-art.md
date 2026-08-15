@@ -13,7 +13,7 @@ apart**, and confusing them leads to looking for the wrong code.
 | **Disclosure** | 2015-07-16 | reported 2019-12-17, full disclosure 2020-01-23 |
 
 > The project's original plan attributed CVE-2019-19822/23/24/25 to Pierre Kim.
-> That is wrong; they are Adamczyk's. Corrected here because an interviewer who
+> That is wrong; they are Adamczyk's. Corrected here because anyone who
 > knows the field will notice, and because the two disclosures point at
 > different binaries.
 

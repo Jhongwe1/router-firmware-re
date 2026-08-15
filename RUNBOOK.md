@@ -1806,4 +1806,4 @@ cd FirmAE && ./install.sh      # 30–60 分鐘
 | [`notes/sink-inventory.md`](notes/sink-inventory.md) | 危險函式呼叫點清單,依可利用性排序 |
 | [`notes/formSysCmd-analysis.md`](notes/formSysCmd-analysis.md) | 那個不存在的 CVE 端點,以及三條線索為什麼都指錯方向 |
 | [`notes/skt-analysis.md`](notes/skt-analysis.md) | 2015 後門完整拆解:port、暗號、和它存在的那一行 `iptables` |
-| [`study/QA.md`](study/QA.md) | **自我檢核題庫** —— 面試官會怎麼追殺你,答案是折疊的 |
+| [`study/QA.md`](study/QA.md) | **自我檢核題庫** —— 每一條主張配一個「想推翻它的人會怎麼問」,答案是折疊的 |

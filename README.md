@@ -309,7 +309,7 @@ that is not backed by a command someone else can re-run.
 | [`tools/fwrecon/`](tools/fwrecon/) | The analysis tool written for this project |
 | [`plan/`](plan/) | The ten week plans the gates above come from (Traditional Chinese) |
 | [`LOG.md`](LOG.md) | Running log, including every wrong turn (Traditional Chinese) |
-| [`study/QA.md`](study/QA.md) | Self-examination bank — the questions a hostile interviewer would ask about this work, with collapsible answers (Traditional Chinese) |
+| [`study/QA.md`](study/QA.md) | Self-examination bank — for every claim in this repository, the question a reviewer trying to break it would ask, with collapsible answers (Traditional Chinese) |
 | [`study/weekly-results.md`](study/weekly-results.md) | What each week actually produced, in the form it would be said out loud — every claim with its evidence, **and what that week did not prove** (Traditional Chinese) |
 
 ## Reproducing
