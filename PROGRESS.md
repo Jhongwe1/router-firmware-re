@@ -761,6 +761,8 @@ this one** — but it is now extracted, hashed, and available to be read.
 | `LWL`/`LWR`/`SWL`/`SWR` census in `/bin/boa` | Needs a Ghidra mnemonic histogram that does not exist yet. Recorded as a hypothesis, not claimed as a result |
 | Looking up the MAC's OUI | Moot: the flash's `H601` block confirmed the barcode is the MAC directly, without anyone having to handle the value against a public database |
 | Running the device on a network | Nothing has been connected to any port. W05's problem |
+| **`notes/hardware-chapter.md`** — the plan's Day 5 deliverable | It would be a fifth copy of material that already exists in [`hardware-inspection.md`](notes/hardware-inspection.md), [`uart-pinout.md`](notes/uart-pinout.md), [`uart-findings.md`](notes/uart-findings.md), [`flash-layout.md`](notes/flash-layout.md) and [`dump-vs-official.md`](notes/dump-vs-official.md) — and a summary written now goes stale the moment W05 touches the hardware again. **A writeup chapter is W08's job**, and it should be written from the notes rather than alongside them. Recorded as a decision so a later session finds one instead of an oversight |
+| Extracting and decoding the config region | The plan's Day 5 asked for `strings` over a config partition it expected at `0x1F0000` on a 2 MB part. The real one is `COMPCS` at `0x00C000`, it is compressed, and it is now in hand — but decoding it is W04's deferred item, not a G2 box |
 
 ### Open, carried forward
 

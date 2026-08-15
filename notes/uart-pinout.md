@@ -76,6 +76,13 @@ decoder to it, and spend the evening looking at garbage.
 Confirmed a third time by the decoder itself: at 38400 the capture decodes to
 readable ASCII. Wrong parameters give noise, and there is no middle ground.
 
+Both steps are photographed rather than asserted:
+[`img/10-pulse-width-26us-52us.png`](img/10-pulse-width-26us-52us.png) is the capture
+with both pulses measured, and
+[`img/11-async-serial-decode.png`](img/11-async-serial-decode.png) is the same wire
+decoded by the analyser's own Async Serial decoder — the second, independent read of
+the boot log.
+
 ---
 
 ## 3. The console does not give you a shell
