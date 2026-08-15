@@ -3,7 +3,7 @@
 | Week | Theme | Gate | Status |
 |---|---|---|---|
 | **W01** | Recon & unpacking | **G0 + G1** | ✅ **passed** — 2026-08-07 |
-| W02 | Hardware access: UART + SPI dump | G2 | ▶ **in progress** — live bootlog + boot-loader console; SPI dump outstanding |
+| W02 | Hardware access: UART + SPI dump | G2 | ▶ **in progress** — live bootlog, boot-loader console, **full 4 MiB dump taken and structurally validated**; a second read is running to satisfy the gate's two-hashes wording |
 | **W03** | Static reversing, upper half | — (DoD) | ✅ **DoD met** — 2026-08-10 |
 | **W04** | CVE root-cause location | **G3** | ✅ **passed** — 2026-08-11 |
 | W05 | Dynamic analysis, upper half | — | ▶ next |
@@ -670,14 +670,73 @@ That is nine instrument bugs recorded across the project, and **not one was
 caught by the tool's own self-check.** Every one was caught by comparing two
 things that should have agreed.
 
+### Day 4 — the dump, and a five-year remediation timeline
+
+**4,194,304 bytes off the device in 105 minutes, `sha256 a800059a…`, with zero
+chunk retries.** No clip, no programmer, no risk to the board.
+
+Four things stand behind it, and none is "the tool said it worked": a **positive
+control** with an answer recorded by an unrelated session (`0b f0 00 04` at flash
+`0x000000`); **per-chunk validation** that would have produced no file at all had
+any chunk failed repeatedly; a **sampled second pass** re-reading 12 of 256
+chunks over the wire, all identical; and **21 hard structural checks** against
+expectations written down before the image existed — W01's burn addresses,
+derived from the vendor containers three weeks before the hardware arrived, and
+every offset the 2026-08-15 console session read.
+
+**The strongest check is not in that list: the SquashFS at `0x180000`
+decompresses.** 1.8 MiB of LZMA does not decompress by accident. 161 files,
+20 directories, 88 symlinks.
+
+Two things `flash-layout.md` had recorded as assumptions are now measurements:
+the gaps at `0x053A24` and `0x151012` are each a single repeated value, and the
+erased tail is the whole tail rather than two 64-byte windows.
+
+#### The finding — and it needed the middle build to be visible
+
+| | V2.1.2 (2015) | **this unit (2018)** | V3.4.0 (2020) |
+|---|---|---|---|
+| `/bin/skt`, the socket `system()` backdoor | **shipped, executable** | **deleted** | absent |
+| `#skt&` in `rcS` | commented out | **still there, line 110** | removed |
+| `onlime_r`, uid 0 | **present** | **present** | **removed** |
+| password template | `/etc/passwd.org` | **byte-identical**, `sha256 e769c562…` | `/etc/passwd_orig` (renamed) |
+| `root` hash `zhxPr1e7Npazg` | present | present | **present** |
+
+**The vendor's response to Pierre Kim's July 2015 disclosure took three steps
+across five years.** Five weeks after disclosure: comment out one line. **By
+January 2018: delete the binary — and leave the uid 0 account untouched, byte for
+byte, along with the dead `#skt&` line.** By October 2020: finally remove the
+account. CVE-2015-9550 and 9551 were disclosed together; **two and a half years
+later the vendor had fixed one of them.** `root` is unchanged in all three.
+
+**That middle step is on no vendor download page.** Without this device the
+timeline has a beginning and an end and nothing in between.
+
+`/bin/boa` on this unit: 485,012 bytes, `sha256 19fe29d7…`, and its own string
+says `boa: server built Jan 10 2018 at 14:57:54`. V2.1.2's is 522,556 and
+V3.4.0's is 404,904. **The most-analysed binary in this repository is still not
+this one** — but it is now extracted, hashed, and available to be read.
+
+→ [`dump-vs-official.md`](notes/dump-vs-official.md) ·
+[`reports/flashdump-unit-2018.json`](reports/flashdump-unit-2018.json) ·
+[`reports/n150rt-unit-2018.md`](reports/n150rt-unit-2018.md)
+
+> ⚠️ **A second independent instrument still has not read this chip.** The
+> 2026-08-15 windows used the same `FLR`+`DB` path, so agreeing with them is
+> cross-session repeatability, not corroboration by another route. A second full
+> read is in flight to satisfy G2's literal wording — but it runs through the
+> same boot loader, so it tests the transport and the SPI read, **not whether
+> `FLR` is systematically wrong.** That column stays empty until the programmer
+> works.
+
 ### Deliberately not done in W02
 
 | Item | Why |
 |---|---|
 | Removing the antenna | The first physical action attempted on this board, at 450 °C, and it serves no G2 checkbox. Abandoned. The coax terminates into the RTL8188ER's output stage, and this unit is a single point of failure for G2 **and** G4 |
 | Cutting the power-switch pigtail to hard-wire "on" | Proposed and rejected. The two conductors were never identified, and a working switch is an asset across a week of repeated power cycles, not an obstacle |
-| **The JEDEC ID** | The one Day 4 measurement that did not happen, and the only clean second source for the flash part. `0x350000` reading `FF` is supporting evidence — a 2 MB part with address wrap would alias it into the kernel — but it is not the same thing |
-| **A full 4 MiB dump** | Everything read so far is 64-byte windows at chosen offsets. The full image is what W05/W06 needs and the only way to get this unit's 2018 `boa` into Ghidra. Two routes exist: CH341A, or ~80 minutes of `FLR`+`DB` over the console |
+| **The JEDEC ID** | Still not read, and now blocked on the programmer rather than on time: the CH341A is a 5 V board and the mod did not take. It remains the only clean second source for the flash part. The full dump adds evidence without settling it — **the whole tail from `0x350000` is erased**, which a 2 MB part with address wrap could not produce, but a part that returns `FF` out of range still could |
+| ~~**A full 4 MiB dump**~~ | **Taken 2026-08-16** — see Day 4 above. `0x350000` onwards being erased across the *whole* tail, rather than at two sampled windows, is a by-product |
 | Decoding `COMPCS` | Located at `0x00C000` with its factory-default twin at `0x008000`. Reading it is W04/W07 work, not a W02 gate item |
 | `LWL`/`LWR`/`SWL`/`SWR` census in `/bin/boa` | Needs a Ghidra mnemonic histogram that does not exist yet. Recorded as a hypothesis, not claimed as a result |
 | Looking up the MAC's OUI | Moot: the flash's `H601` block confirmed the barcode is the MAC directly, without anyone having to handle the value against a public database |
@@ -691,9 +750,17 @@ things that should have agreed.
    image eight months older than the board.
 2. ~~UART pin assignment and baud rate~~ → **answered.** `VCC·TX·RX·GND`, 38400 8N1.
 3. ~~Is 32 MiB fitted actually 32 MiB usable?~~ → **answered: yes.** `ramSize: 32M`.
-4. **`/bin/boa` on this unit has never been read.** The most-analysed binary in this
-   repository is one this device has never run. Only the full dump fixes that, and it
-   is the highest-value item left in W02.
+4. **`/bin/boa` on this unit has never been read** — half answered. The dump has it
+   out: 485,012 bytes, `sha256 19fe29d7…`, built 2018-01-10. **Extracted and hashed
+   is not read**, and until it goes through Ghidra every `boa` finding in this
+   repository still describes two binaries this device has never run.
+11. **No second instrument has read this flash.** Everything so far — the 2026-08-15
+    windows and both full reads — goes through the boot loader's `FLR`. A
+    systematically wrong `FLR` would be invisible to all of it. Only a working 3.3 V
+    programmer closes this, and the CH341A on the desk is modified and unverified.
+12. **Why the 2018 build deleted `/bin/skt` and kept `onlime_r`.** The dates are
+    known now; the reasoning is not. It is the difference between a vendor tracking
+    a CVE list and a vendor reading the disclosure.
 5. What `LSP5526` is. Still one multimeter reading, still not taken.
 6. The SoC *core* — RLX4181 vs RLX5281. `/proc/cpuinfo` would settle it and there is
    no shell to run it from; the flash dump's kernel would also carry the string.

@@ -8,20 +8,29 @@ embedded device, rebuild an understanding of its firmware from nothing, and
 trace **already-publicly-disclosed** vulnerabilities down to the responsible
 function in the binary.
 
-> 🚧 **In progress since 2026-07-30. G0 ✅ · G1 ✅ · G2 ▶ live bootlog captured
-> 2026-08-15, SPI dump outstanding · G3 ✅ passed 2026-08-11.**
+> 🚧 **In progress since 2026-07-30. G0 ✅ · G1 ✅ · G2 ▶ live bootlog and a full
+> 4 MiB flash dump, both off my own unit · G3 ✅ passed 2026-08-11.**
 > Two firmware images are unpacked and measured — **V2.1.2 (2015-08-25)** and
 > **V3.4.0 (2020-10-30)** — and they bracket both public disclosure events
 > affecting this device, which turns a teardown into a before/after comparison.
 > Board below; the evidence behind every ticked box is in
 > [`PROGRESS.md`](PROGRESS.md).
 >
-> **Latest (W02, 2026-08-15): the device has been powered on, and it is running a
-> firmware nobody had.** A serial console at 38400 — pin-out measured, baud measured
-> from pulse width rather than guessed — puts the resident build at **2018-01-10**:
-> not V2.1.2, not V3.4.0, a third one. That includes `/bin/boa`, **the binary this
-> project has been reverse engineering since W03**, so W03/W04's findings describe
-> two images this device has never run.
+> **Latest (W02, 2026-08-16): the whole flash is off the device, and the build on it
+> catches the vendor mid-fix.** 4 MiB read through the boot loader's own `FLR`+`DB` —
+> no clip, no programmer, zero chunk retries — because the CH341A measured as an
+> un-modded 5 V board and this unit is the only one there is. Reading the resident
+> **2018-01-10** build against the two published images shows the response to Pierre
+> Kim's 2015 disclosure happening in **three steps across five years**: comment out
+> the line (2015) → **delete the backdoor binary and keep the uid 0 account** (2018)
+> → remove the account (2020). **The middle step is on no download page.**
+>
+> **The device has been powered on since 2026-08-15, and it runs a firmware nobody
+> had.** A serial console at 38400 — pin-out measured, baud measured from pulse width
+> rather than guessed — puts the resident build at **2018-01-10**: not V2.1.2, not
+> V3.4.0, a third one. That includes `/bin/boa`, **the binary this project has been
+> reverse engineering since W03**, so W03/W04's findings describe two images this
+> device has never run.
 >
 > The boot loader console also yields `FLR` + `DB` — **a full flash read path with
 > no chip clip** — and with it, W01's container work is confirmed against silicon:
@@ -121,8 +130,12 @@ that is not backed by a command someone else can re-run.
         captured at 38400 over a measured pin-out, and independently decoded a
         second time off the same wire by a logic analyser; the two transcripts are
         byte-identical
-  - [ ] SPI dump + hash verification, **or** the vendor-firmware main path
-  - [ ] dump vs vendor image compared, **or** the reason recorded
+  - [ ] SPI dump + hash verification — **the 4 MiB image is taken** (`sha256 a800059a…`,
+        105 min through the boot loader, zero chunk retries, 21 structural checks passed);
+        a **second full read is running** so the box is ticked on two hashes rather than one
+  - [x] **dump vs vendor image compared** ← [`notes/dump-vs-official.md`](notes/dump-vs-official.md) —
+        and the unit's build turns out to sit in the middle of a **five-year, three-step
+        vendor remediation** that neither published image shows
   - [x] **annotated PCB photograph** ← [`notes/img/`](notes/img/) — rendered from a
         committed JSON spec, not drawn in an image editor, and the unit's MAC and
         serial are painted out with the coordinates recorded
@@ -175,9 +188,33 @@ that is not backed by a command someone else can re-run.
   >   `chip name: 8196C` loses because two lines earlier it announces it is probing an
   >   RTL8186.
   >
-  > ⚠️ **Still no full flash dump, and no JEDEC ID.** The plan's gate text allows
-  > "vendor-firmware main path + honest record" as a pass, so G2 was never able to
-  > become an indefinite blocker — but the dump is what W05/W06 actually needs.
+  > ### ★ What W02 Day 4 turned up
+  >
+  > - **The vendor's fix for the 2015 backdoor took three steps across five years,
+  >   and the middle one exists on no download page.** 2015: comment out `#skt&`.
+  >   **2018 (this unit): delete `/bin/skt` — and leave the `onlime_r` uid 0 account
+  >   untouched, byte for byte, next to the dead `#skt&` line.** 2020: finally remove
+  >   the account. CVE-2015-9550 and 9551 were disclosed together; two and a half
+  >   years later the vendor had fixed one of them. `root:zhxPr1e7Npazg` is identical
+  >   in all three.
+  > - **The full 4 MiB was read through the boot loader, not a programmer.** The
+  >   CH341A on the desk measured as an un-modded 5 V board — every pin it drives at
+  >   5 V into a 3.3 V part — so the risk was left on a $3 board instead of on the
+  >   only unit that gates G2 and G4. `FLR`+`DB`, 105 minutes, **zero chunk retries**.
+  > - **The dump is checked against expectations written before it existed:** W01's
+  >   burn addresses, derived from the vendor containers three weeks before the
+  >   hardware arrived, and every offset the 2026-08-15 console session read. 21 hard
+  >   checks, all passed — and the strongest check is not on that list, because
+  >   **1.8 MiB of LZMA does not decompress by accident.**
+  > - **Four more instrument bugs, none caught by a tool's own self-check** — including
+  >   a parser written from a *summary* of the device's output when the verbatim
+  >   transcript was in the runbook all along, and its guard suite passing 10/10
+  >   against a format the device does not emit.
+  >
+  > ⚠️ **No second instrument has read this chip, and no JEDEC ID.** Both full reads
+  > and the 2026-08-15 windows all go through the boot loader's `FLR`, so a
+  > systematically wrong `FLR` would be invisible to every one of them. That column
+  > stays empty on purpose.
 
 - [x] **G3 — point at the line in the binary** (W03–W04) ✅ **passed 2026-08-11** ← [PROGRESS.md](PROGRESS.md#w04--2026-08-11)
   - [x] the `/boafrm/` dispatch table found, with ≥ 10 handlers listed — **59 in 2015, 49 in 2020**, both `root_form[]` arrays recovered with the function that reads each
@@ -252,6 +289,7 @@ that is not backed by a command someone else can re-run.
 | [`notes/uart-pinout.md`](notes/uart-pinout.md) | **The serial console** — pin-out with two sources per pin, baud measured from pulse width, why the console gives no shell, and the boot loader's command set |
 | [`notes/uart-findings.md`](notes/uart-findings.md) | **The build nobody had** — a 2018 firmware that is neither analysed image, and what that costs the W03/W04 findings |
 | [`notes/flash-layout.md`](notes/flash-layout.md) | **The flash map, read off the device** — W01's three predicted burn addresses, all three hit, plus where the config actually lives |
+| [`notes/dump-vs-official.md`](notes/dump-vs-official.md) | **The 4 MiB dump against the two published images** — a five-year vendor remediation caught mid-step, and what four layers of verification do and do not prove |
 | [`notes/prior-art.md`](notes/prior-art.md) | Who disclosed what, when — and which claims survive contact with these images |
 | [`notes/attack-surface.md`](notes/attack-surface.md) | Where to look, ranked |
 | [`notes/ghidra-triage.md`](notes/ghidra-triage.md) | Which functions to open first, and why — with the three W01 calls W03 overturned |

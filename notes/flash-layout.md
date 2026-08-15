@@ -182,13 +182,19 @@ that photograph was, in hindsight, not optional.
 
 ## 7. What is not settled
 
-- **No full dump exists yet.** Everything above is 64-byte windows at chosen
-  offsets. A full 4 MiB image — by CH341A, or by `FLR`+`DB` over the console at
-  roughly 80 minutes — is what W05/W06 needs, and it is the only way to get this
-  unit's `boa` into Ghidra. See [`uart-findings.md`](uart-findings.md#why-this-is-the-most-consequential-line-in-the-log).
-- Whether `chipName: UNKNOWN` in the boot log refers to this flash part.
-- The gaps at `0x053A24–0x05FFFF` and `0x151012–0x17FFFF` are assumed to be
-  padding to the next 64 KB boundary. Not read.
+- ~~**No full dump exists yet.**~~ → **taken 2026-08-16.** 4,194,304 bytes,
+  `sha256 a800059a…`, through `FLR`+`DB` in 105 minutes with zero chunk retries.
+  Every offset in the table above was re-read as part of it and every one agreed.
+  What it found is in [`dump-vs-official.md`](dump-vs-official.md); the
+  verification it did and did not survive is in that note's §1.
+- ~~**The gaps at `0x053A24–0x05FFFF` and `0x151012–0x17FFFF` are assumed to be
+  padding.**~~ → **measured.** 50,652 and 192,494 bytes, each a single repeated
+  value. The assumption was right; it is now a reading. And the erased tail is
+  no longer two 64-byte windows either — `0x350000` to the end of the part is
+  `FF` in its entirety.
+- Whether `chipName: UNKNOWN` in the boot log refers to this flash part. Still
+  open, and the full dump does not answer it: it is a statement the 2014 boot ROM
+  makes about its own flash-ID table, not about the part.
 
 ---
 

@@ -16,8 +16,13 @@ V2_LABEL  := N150RT V3.4.0-B20201030
 V1_IMG    := $(FW)/TOTOLINK-N150RT-V2.1.2-B20150825.1601.web
 V2_IMG    := $(FW)/TOTOLINK-N150RT-V3.4.0-B20201030.1142.web
 
+# The build that is actually on my unit, read out of its flash on 2026-08-16.
+# It is on no vendor download page, so unlike the two above it cannot be fetched.
+UNIT_LABEL := N150RT unit, 2018-01-10 build (read from flash)
+UNIT_DUMP  := $(FWRE_WORK)/dumps/flash-n150rt-console-1.bin
+
 .DEFAULT_GOAL := help
-.PHONY: help setup verify fetch unpack venv test lint recon diff check-reports shellcheck ci clean-work
+.PHONY: help setup verify fetch unpack venv test lint recon recon-unit diff check-reports shellcheck ci clean-work
 
 help: ## Show this help
 	@grep -hE '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) \
@@ -58,6 +63,20 @@ recon: venv ## Regenerate every report under reports/
 	$(PY) -m fwrecon report --image "$(V2_IMG)" --rootfs "$(EX)/v3.4.0/squashfs-root" \
 		--label "$(V2_LABEL)" -f md   -o $(REPORTS)/n150rt-3.4.0.md
 	$(MAKE) diff
+
+# Deliberately NOT part of `recon`. Every other report regenerates from an image
+# `make fetch` can download; this one needs a flash dump read off my own unit,
+# which nobody else can obtain. Committing it is still right - it is the
+# evidence - but a reader has to know that "re-run make recon" does not
+# reproduce it. Provenance is in dumps/MANIFEST.json.
+recon-unit: venv ## Reports for the build read off my own unit (needs the flash dump)
+	@test -d "$(EX)/unit-2018/squashfs-root" || \
+	  { echo "no $(EX)/unit-2018/squashfs-root - run tools/unpack-firmware.sh --flash <dump>"; exit 2; }
+	$(PY) -m fwrecon report --rootfs "$(EX)/unit-2018/squashfs-root" \
+		--label "$(UNIT_LABEL)" -f json -o $(REPORTS)/n150rt-unit-2018.json
+	$(PY) -m fwrecon report --rootfs "$(EX)/unit-2018/squashfs-root" \
+		--label "$(UNIT_LABEL)" -f md   -o $(REPORTS)/n150rt-unit-2018.md
+	$(PY) -m fwrecon flashdump "$(UNIT_DUMP)" -f json -o $(REPORTS)/flashdump-unit-2018.json
 
 check-reports: ## Verify the committed reports still match the tooling
 	python3 tools/check-reports.py

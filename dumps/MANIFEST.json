@@ -28,18 +28,39 @@
       "notes": "The <RealTek> prompt and the command set returned by '?'. See notes/uart-pinout.md section 4."
     }
   ],
-  "not_yet_taken": [
+  "flash_reads": [
     {
-      "file": "flash-n150rt-1.bin",
+      "file": "flash-n150rt-console-1.bin",
       "kind": "spi-flash-full",
-      "expected_bytes": 4194304,
-      "blocked_on": "W02 Day 4 - CH341A + SOIC-8 clip, or roughly 80 minutes of FLR+DB over the 38400 console",
-      "why_it_matters": "It is the only way to get this unit's 2018 /bin/boa into Ghidra, and the only source for the COMPCS config blob at flash 0x00C000.",
+      "taken": "2026-08-16",
+      "bytes": 4194304,
+      "sha256": "a800059a9b8c414df026a22b8423a5939d0f9bb793109d0f7ce086f6810f37ea",
+      "interface": "boot loader FLR+DB over the 38400 console - no SOIC-8 clip, no programmer",
+      "capture": "tools/console-dump.py dump --flash 0x0 --length 0x400000 --ram 0x81000000 --chunk 16384",
+      "duration_minutes": 105,
+      "chunks": 256,
+      "chunks_needing_retry": 0,
+      "positive_control": "flash 0x000000 read first; first four bytes had to be 0b f0 00 04, the value an unrelated console session recorded on 2026-08-15",
+      "sampled_reverify": "12 of 256 chunks re-read over the wire afterwards; all identical",
+      "structural_check": "fwrecon flashdump - 21 hard checks against W01's derived burn addresses and the 2026-08-15 console windows, all passed. reports/flashdump-unit-2018.json",
+      "strongest_check": "the SquashFS at 0x180000 decompresses: 161 files, 20 dirs, 88 symlinks out of 1.8 MiB of LZMA",
+      "not_corroborated_by": "a second, independent instrument. The 2026-08-15 windows used this same FLR+DB path, so agreement with them is cross-session repeatability rather than a second route. Only a 3.3 V programmer settles it.",
+      "contains_unit_identifiers": true,
       "must_never_be_committed": [
         "vendor firmware, which this project does not redistribute",
         "flash 0x006000-0x008000 holds this unit's MAC addresses and radio calibration",
         "the COMPCS block at 0x00C000 is the live configuration: admin credentials, PSK, WPS PIN"
-      ]
+      ],
+      "derived_findings": "notes/dump-vs-official.md"
+    }
+  ],
+  "in_flight": [
+    {
+      "file": "flash-n150rt-console-2.bin",
+      "kind": "spi-flash-full",
+      "started": "2026-08-16",
+      "why": "G2's literal wording is two reads with matching hashes. Deliberately staged through a different RAM address (0x81800000 rather than 0x81000000) so a faulty RAM region would show up as a disagreement rather than as two identical wrong answers.",
+      "note": "Same boot loader and the same FLR path, so it tests the transport and the SPI read - not whether FLR is systematically wrong."
     }
   ]
 }
