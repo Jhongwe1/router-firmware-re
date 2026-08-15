@@ -8,8 +8,8 @@ embedded device, rebuild an understanding of its firmware from nothing, and
 trace **already-publicly-disclosed** vulnerabilities down to the responsible
 function in the binary.
 
-> 🚧 **In progress since 2026-07-30. G0 ✅ · G1 ✅ · G2 ▶ live bootlog and a full
-> 4 MiB flash dump, both off my own unit · G3 ✅ passed 2026-08-11.**
+> 🚧 **In progress since 2026-07-30. G0 ✅ · G1 ✅ · G2 ✅ passed 2026-08-16 ·
+> G3 ✅ passed 2026-08-11.**
 > Two firmware images are unpacked and measured — **V2.1.2 (2015-08-25)** and
 > **V3.4.0 (2020-10-30)** — and they bracket both public disclosure events
 > affecting this device, which turns a teardown into a before/after comparison.
@@ -125,14 +125,17 @@ that is not backed by a command someone else can re-run.
 > nothing more; the gate is what settled it. Which build is actually on my unit is decided
 > by a flash dump, which is G2's job.
 
-- [ ] **G2 — hardware access: UART + SPI dump** (W02) ▶ **in progress** — hardware arrived 2026-08-14 ← [PROGRESS.md](PROGRESS.md#w02--2026-08-14-in-progress)
+- [x] **G2 — hardware access: UART + SPI dump** (W02) ✅ **passed 2026-08-16** ← [PROGRESS.md](PROGRESS.md#w02--2026-08-14--16)
   - [x] **a live bootlog** ← [`notes/uart-findings.md`](notes/uart-findings.md) —
         captured at 38400 over a measured pin-out, and independently decoded a
         second time off the same wire by a logic analyser; the two transcripts are
         byte-identical
-  - [ ] SPI dump + hash verification — **the 4 MiB image is taken** (`sha256 a800059a…`,
-        105 min through the boot loader, zero chunk retries, 21 structural checks passed);
-        a **second full read is running** so the box is ticked on two hashes rather than one
+  - [x] **SPI dump + hash verification** — **two** full 4 MiB reads, 105 minutes each,
+        zero chunk retries, staged through **different RAM addresses** so a bad RAM
+        region could not produce two identical wrong answers. `sha256 a800059a…` both
+        times, recomputed independently of the tool that wrote them, and `cmp` finds
+        zero differing bytes. 21 structural checks against expectations recorded
+        before the image existed
   - [x] **dump vs vendor image compared** ← [`notes/dump-vs-official.md`](notes/dump-vs-official.md) —
         and the unit's build turns out to sit in the middle of a **five-year, three-step
         vendor remediation** that neither published image shows

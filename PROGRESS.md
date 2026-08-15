@@ -3,7 +3,7 @@
 | Week | Theme | Gate | Status |
 |---|---|---|---|
 | **W01** | Recon & unpacking | **G0 + G1** | ✅ **passed** — 2026-08-07 |
-| W02 | Hardware access: UART + SPI dump | G2 | ▶ **in progress** — live bootlog, boot-loader console, **full 4 MiB dump taken and structurally validated**; a second read is running to satisfy the gate's two-hashes wording |
+| **W02** | Hardware access: UART + SPI dump | **G2** | ✅ **passed** — 2026-08-16 |
 | **W03** | Static reversing, upper half | — (DoD) | ✅ **DoD met** — 2026-08-10 |
 | **W04** | CVE root-cause location | **G3** | ✅ **passed** — 2026-08-11 |
 | W05 | Dynamic analysis, upper half | — | ▶ next |
@@ -344,10 +344,30 @@ throughout); and the `sstrip`'d-PLT bug again (`strcpy`: 151 sites in 2015, 0 in
 
 ---
 
-## W02 — 2026-08-14 / 15 (in progress)
+## W02 — 2026-08-14 / 16
 
-Hardware arrived 2026-08-14, two days after the week the plan allotted to it closed.
-G2 is unblocked and is being worked out of order, the same way W03 was.
+**G2 passed.** Hardware arrived 2026-08-14, two days after the week the plan allotted
+to it closed. G2 was worked out of order, the same way W03 was.
+
+### G2 — hardware access
+
+| # | Required | Result |
+|---|---|---|
+| 1 | a live bootlog, **or** a recorded fallback | ✅ captured at 38400 over a **measured** pin-out, and decoded a second time off the same wire by a logic analyser — the two transcripts byte-identical |
+| 2 | SPI dump + hash verification, **or** the vendor-firmware main path | ✅ **two** full 4 MiB reads, 105 min each, **zero chunk retries**, staged through **different RAM addresses**. `sha256 a800059a…` both times, recomputed independently of the tool that wrote them; `cmp` finds zero differing bytes |
+| 3 | dump vs vendor image compared, **or** the reason recorded | ✅ [`dump-vs-official.md`](notes/dump-vs-official.md) — and the comparison turned up a **five-year, three-step vendor remediation** that neither published image can show |
+| 4 | PCB photograph, annotated | ✅ [`notes/img/`](notes/img/) — rendered from a committed JSON spec, MAC and serial painted out with coordinates recorded |
+
+Achieved in the strong form of every clause, not the fallback form — and it took the
+programmer being measured and set aside, not used.
+
+> ⚠️ **What G2 does not establish.** Both full reads and the 2026-08-15 windows go
+> through the boot loader's `FLR`. **A systematically wrong `FLR` would be invisible
+> to all of them.** Two hashes agreeing proves the transport and the SPI read are
+> stable; it does not prove the read is right. The independent checks that do not
+> route through `FLR` are W01's burn-address predictions landing, and the SquashFS
+> decompressing — and neither is the same thing as a second instrument. The JEDEC ID
+> is still unread for the same reason.
 
 **Day 1 was identification with the board unpowered.** On Day 2–3 the device was
 powered on and a console brought up, so from that section onward the readings are
