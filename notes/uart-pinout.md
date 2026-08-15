@@ -18,7 +18,7 @@ Answers the first half of G2: the serial console is located, measured and read.
 |---|---|---|---|---|
 | 1 | **VCC 3.3 V** | 181 Ω | **3.3 V** steady | two sources |
 | 2 | **TX** (board → you) | 18 kΩ | 0–3.3 V, moving | two sources |
-| 3 | RX (you → board) | 15 kΩ | 0 V | **inferred** — see below |
+| 3 | **RX** (you → board) | 15 kΩ | 0 V | **two sources** — driven 2026-08-16 |
 | 4 | **GND** | **0.2 Ω** | **0.000 V** | two sources |
 
 **38400 8N1.** Header is a populated 4-pin 2.54 mm strip at the board's bottom
@@ -146,14 +146,58 @@ that sends the next command instead of `Y` gets `Abort!` and then a spurious
 > is copying bytes from one place to another. Nothing warns you — you get a
 > plausible dump of the wrong size.
 
+### 4.1 What `DB` actually prints
+
+Captured from the device on 2026-08-16, in full, because the shortened version
+of this transcript caused a bug — see below:
+
+```
+DB 80500000 64
+ [Addr]   .0 .1 .2 .3 .4 .5 .6 .7 .8 .9 .A .B .C .D .E .F
+80500000: 00 00 00 00 00 00 80 21 40 90 60 00 00 00 00 00     .......!@.`.....
+80500010: 00 00 00 00 00 00 00 00 3c 10 80 5f 26 10 10 00     ........<.._&...
+<RealTek>
+```
+
+A column header, then `AAAAAAAA:` followed by 16 space-separated bytes, **then
+at least two spaces and a 16-character ASCII column**. 81 characters carry 16
+bytes of payload — a **5.06× expansion**, which is what sets the read rate:
+38400 8N1 delivers 3840 B/s, so the payload ceiling is ~759 B/s and a 4 MiB read
+takes about 95 minutes. Measured rate: **723 B/s**. The line is saturated; the
+host is not the bottleneck and no amount of tuning on this side will help.
+(`DW` prints 4-byte words and would cost ~19 % fewer characters. Not used here —
+it needs its own parser and its own guard cases, and correctness came first.)
+
+> ### The interrupt technique poisons the next command
+>
+> Catching the boot loader means **streaming** ESC across power-on, because the
+> window is about a second wide. The loader consumes one ESC to break out of the
+> boot — **and the rest stay queued in its input buffer.** The first command you
+> send afterwards therefore arrives with a pile of ESCs in front of it and comes
+> back `Unknown command !`.
+>
+> This was found on 2026-08-16 the confusing way round: `?` returned
+> `Unknown command !`, contradicting the 2026-08-15 session where `?` printed
+> the whole command set. Two sessions disagreeing about one device is the
+> instrument talking. **Send a bare `\r` and read to the prompt before issuing
+> anything real** — [`tools/console-dump.py`](../tools/console-dump.py) does this
+> in `settle()`.
+>
+> It matters more than it looks: the first command of an automated dump is the
+> positive control, and a control that silently does not run is worse than no
+> control at all.
+
 ---
 
 ## 5. What is still not established
 
-- **pin 3 = RX is inferred, not measured.** Pins 1, 2 and 4 are identified, it is
-  a 4-pin header labelled `UART`, and nothing else is left for pin 3 to be. It
-  reads 15 kΩ to ground and 0 V when powered, which is consistent with an input
-  behind a pull-down. It has never been driven and confirmed.
+- ~~**pin 3 = RX is inferred, not measured.**~~ → **answered 2026-08-16.** It was
+  identified by elimination — pins 1, 2 and 4 were settled, it is a 4-pin header
+  silkscreened `UART`, and nothing else was left for pin 3 to be. That is an
+  argument, not a measurement. It became a measurement when ESC streamed into
+  pin 3 interrupted the boot and `FLR`/`DB` commands sent into it were executed:
+  **the pin accepted input and the board acted on it.** Elimination said what it
+  could not be; the flash dump is what proves what it is.
 - Whether the absent console shell is a build option or an `inittab` choice.
   Answering it needs the rootfs off the flash.
 
@@ -184,3 +228,29 @@ returned was not an over-range indication but a plausible-looking `0.x` that
 drifted, which is exactly the shape of a real reading. **The fix was not a better
 probe technique; it was measuring a battery first** — a known quantity, to prove
 the instrument before trusting it on an unknown one.
+
+**And one this note caused elsewhere, added 2026-08-16.** Section 4 listed the
+command set but never recorded what `DB` *prints*, and the transcripts quoted in
+[`flash-layout.md`](flash-layout.md) had their ASCII column trimmed to fit the
+page. An automated dumper was then written from those quotes, its line parser
+had no ASCII column in it, and it rejected **every** line the device produced —
+dying on its own positive control with "no data lines at all".
+
+**The uncomfortable part: the raw format was already in this repository.**
+`RUNBOOK.md` §8.7.8 carries a verbatim `DB` transcript, ASCII column and all,
+written the day the console first came up. Nothing was lost — the wrong document
+was read. The notes are analysis, and their quotes are edited for a human
+reader; the RUNBOOK is the operational record, and its transcripts are verbatim.
+**Confusing the two is how a summary gets used as a specification.** §4.1 above
+now carries the format here too, so the operational fact lives in both places.
+
+The same rule this project already applies to decompiler output and to
+`flashrom`'s chip database applies to its own notes: *second-hand is not a
+source.*
+
+Worse, the guard suite for that parser was written from the same quotes. It
+passed 10/10 against a format the device does not emit. **A test that shares an
+assumption with the code it tests is not a second source; it is the same source
+twice** — which is the identical failure the sink census hit in W03 and the
+argument tracer hit in W04, arriving this time through documentation rather
+than through code.

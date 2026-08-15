@@ -574,6 +574,102 @@ redact on the shape of the thing, confirm afterwards.**
   `FLR` turned out to be byte-identical to the `cr6c` payload later read from
   flash. Two unrelated paths, same bytes.
 
+### Day 4 — the programmer measured, and not used
+
+**The CH341A is an un-modded 5 V board, and the measurement says so on its own.**
+
+| pin | signal | measured | driven by |
+|---|---|---|---|
+| 8 | VCC | 3.3 V | the board's LDO |
+| 3 / 7 | WP# / HOLD# | 3.3 V | pulled to the VCC rail |
+| **1 / 6 / 5** | **CS# / CLK / DI** | **5 V** | **the CH341A itself** |
+| **2** | **DO** | **5 V** | pulled to 5 V |
+
+The reading is not "is there 5 V"; it is the *distribution*. The two pins the
+board ties to VCC follow 3.3 V; **every pin the chip drives is at 5 V**, so the
+chip runs at 5 V and so does everything it puts on the bus. **`VCC` reading
+3.3 V is the trap itself** — it makes the board look safe. The worst pin is
+`DO`: that is the flash's *output*, held 1.7 V above its own supply, which is
+inside the datasheet's Absolute Maximum Ratings, the table whose heading says
+permanent damage.
+
+**A 3.3 V mod was attempted and the pins still read 5 V. The cause was not
+isolated** — three candidates (the trace not actually cut, a lifted pin still
+touching its pad, or the theory being incomplete because `DO`'s pull-up is
+independent of the chip's supply), and **one measurement separates them: the
+voltage on the CH341A's own pin 28.** That measurement was not taken, so the log
+records "cause not isolated", not "the soldering failed". The board is now in a
+**modified, unverified** state and must be re-measured before it is used.
+
+**The decision was to read through the boot loader instead, and the reason is
+ordering, not caution.** What is irreplaceable is the 4 MiB, not a $3
+programmer: `FLR`+`DB` is already proven *on this unit*, a second mod attempt
+might fail again, and even a perfect 3.3 V programmer still has to back-power
+the whole board through the clip. The console path avoids both problems at once.
+The programmer is not cancelled — it is **demoted to the second source and the
+last-resort unbrick tool**.
+
+**And the plan was checked rather than assumed: W05–W10 contain no flashing step
+at all.** W05/W06 are entirely `curl` and telnet over the network. The only
+mention of a programmer in the later plans is a CV line in W10 that already
+carries two errors (`2MB`, `RTL8196C`).
+
+> But "nothing writes to flash" is a false premise, and it is why the dump is
+> urgent rather than optional: **W06's PoC writes to flash by definition** —
+> the line W04 root-caused is `sprintf(buf, "flash set HW_WLAN0_WSC_PIN %s", …);
+> system(buf)`, and `flash set` writes the config region. W07's fuzzing more so.
+> The `H601` block at `0x006000` — this unit's MACs and radio calibration —
+> exists nowhere else in the world; the vendor image does not contain it and a
+> factory reset does not restore it. **Today's read is not a dump, it is the
+> only backup.**
+
+#### pin 3 = RX, finally measured
+
+`uart-pinout.md` §5 had carried "pin 3 is inferred, not measured" since Day 2:
+the other three pins were settled, it is a 4-pin header silkscreened `UART`, and
+nothing else was left for it to be. **That is an argument, not a measurement.**
+ESC streamed into pin 3 interrupted the boot, and `FLR`/`DB` sent into it were
+executed. The pin accepts input and the board acts on it.
+
+#### Instrument work — and three more bugs, numbers 7, 8 and 9
+
+| | |
+|---|---|
+| [`tools/console-dump.py`](tools/console-dump.py) | `FLR`+`DB` driven over the console with a positive control, per-chunk validation, automatic re-read, sampled second-pass verification, and **no output file unless every chunk validated**. Serial on stdlib `termios` only |
+| [`tools/flash-read.sh`](tools/flash-read.sh) | the CH341A path for when the programmer works: read-only by construction, JEDEC id checked against a written-down prediction, screening for the ways a clip lies |
+| [`fwrecon flashdump`](tools/fwrecon/src/fwrecon/flashdump.py) | checks a raw image against expectations recorded **before it existed** — W01's derived burn addresses and the 2026-08-15 console windows. Per-unit secret regions are reported by digest and never printed. 11 tests |
+| [`tools/test-console-dump.sh`](tools/test-console-dump.sh) · [`tools/test-flash-tools.sh`](tools/test-flash-tools.sh) | guard suites that need no hardware |
+
+**7. The interrupt technique poisons its own next command.** Catching the boot
+loader means *streaming* ESC, because the window is a second wide. The loader
+eats one and **the rest stay queued in its input buffer**, so the first real
+command comes back `Unknown command !`. It surfaced as `?` failing — while the
+2026-08-15 session had used `?` to print the whole command set. Two sessions
+disagreeing about one device is the instrument talking. It matters because **the
+first command of an automated run is the positive control**, and a control that
+silently does not run is worse than none.
+
+**8. The parser rejected every line the device produced.** `DB` prints an ASCII
+column; the regex had none, so the first run died on its own control with "no
+data lines at all". The root cause is not the regex — it is that the format was
+copied from the transcript quoted in `flash-layout.md`, which had trimmed the
+column to fit the page. **The verbatim format was in the repository the whole
+time**, in `RUNBOOK.md` §8.7.8, written the day the console came up. Nothing was
+lost; the wrong document was read. Notes are analysis and their quotes are
+edited; the runbook is the operational record and its transcripts are verbatim.
+
+**9. The guard suite for that parser passed 10/10 against a format the device
+does not emit** — because its fixtures were written from the same trimmed quote.
+**A test that shares an assumption with the code it tests is not a second
+source; it is the same source twice.** Same shape as W03's sink census and W04's
+argument tracer, arriving this time through documentation rather than code. The
+fixtures now come from a real capture, plus an adversarial case whose ASCII
+column reads like more hex bytes.
+
+That is nine instrument bugs recorded across the project, and **not one was
+caught by the tool's own self-check.** Every one was caught by comparing two
+things that should have agreed.
+
 ### Deliberately not done in W02
 
 | Item | Why |

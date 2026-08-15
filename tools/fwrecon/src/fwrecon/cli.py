@@ -8,7 +8,7 @@ import sys
 from pathlib import Path
 
 from . import diff as diffmod
-from . import elf, mibtable, report, rootfs, rtlimage
+from . import elf, flashdump, mibtable, report, rootfs, rtlimage
 
 __version__ = "0.1.0"
 
@@ -112,6 +112,19 @@ def cmd_mib(args) -> int:
     return 0 if t.verdict == "consistent" else 1
 
 
+def cmd_flashdump(args) -> int:
+    rep = flashdump.check_file(args.image)
+    if args.format == "json":
+        _write(json.dumps(rep, default=lambda o: o.__dict__, indent=2), args.output)
+    else:
+        _write(flashdump.render_text(rep) + "\n", args.output)
+    # A dump whose hard checks failed exits non-zero, for the same reason `mib`
+    # does: this image is about to be the source for every W05/W06 claim about
+    # this unit, and one that disagrees with what the device said yesterday must
+    # not be quoted from just because it produced a file.
+    return 0 if rep.self_check == "OK" else 1
+
+
 def _emit(rep, args) -> None:
     if args.format == "json":
         _write(report.to_json(rep), args.output)
@@ -167,6 +180,14 @@ def build_parser() -> argparse.ArgumentParser:
     pm.add_argument("-f", "--format", choices=("json", "md"), default="md")
     pm.add_argument("-o", "--output")
     pm.set_defaults(func=cmd_mib)
+
+    px = sub.add_parser(
+        "flashdump",
+        help="check a raw SPI flash image against what was known before it existed")
+    px.add_argument("image")
+    px.add_argument("-f", "--format", choices=("json", "text"), default="text")
+    px.add_argument("-o", "--output")
+    px.set_defaults(func=cmd_flashdump)
 
     pd = sub.add_parser("diff", help="diff two report JSON files")
     pd.add_argument("old")

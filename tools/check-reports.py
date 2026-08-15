@@ -96,6 +96,24 @@ def main(argv: list[str]) -> int:
             if not doc.get("entries"):
                 errors.append(f"{path.name}: no MIB entries recovered")
 
+        elif str(doc.get("producer", "")) == "fwrecon:flashdump":
+            counts["fwrecon"] += 1
+            if not doc.get("sha256"):
+                errors.append(
+                    f"{path.name}: no sha256 - the report cannot name the image "
+                    "it describes")
+            # Same rule as the MIB table above, for the same reason: this report
+            # is the evidence that a flash dump read off the device agrees with
+            # what was known before it existed. One that failed its own hard
+            # checks must not sit in reports/ looking like a result.
+            if doc.get("self_check") != "OK":
+                errors.append(
+                    f"{path.name}: self_check is {doc.get('self_check')!r} - a "
+                    "dump that failed its own structural checks must not be "
+                    "committed as evidence")
+            if not doc.get("checks"):
+                errors.append(f"{path.name}: no checks were run")
+
         elif str(doc.get("producer", "")).startswith("ghidra:") or (
             "program" in doc and "matches" in doc
         ):

@@ -1030,6 +1030,81 @@ Flash Read Successed!
 
 ---
 
+### 8.7.9 完整 4 MiB dump:`tools/console-dump.py`(W02 Day 4)
+
+上面那套是手動讀 64 byte 窗口。**要把整顆 4 MiB 讀下來,手是不行的** —— 那是
+26 萬行十六進位、大約 95 分鐘,而 38400 沒有流量控制,**掉字元不是可能性,是排程**。
+
+掉一個字元不會有人通知你。你會得到一份短一點、但看起來完全正常的 hex dump,
+貼進轉換器之後得到一個**中間有洞、洞之後每個位移全部位移掉**的映像檔,
+然後所有下游結論都會很有自信地錯。
+
+```bash
+# 1. 釘住 WSL(usbipd 的 attachment 綁在這個 VM 上,VM 一停裝置就退回 Windows)
+#    另開一個視窗放著不要關:
+wsl -d Ubuntu-24.04 -- sleep 7200
+
+# 2. Windows(不需要管理員,如果之前 bind 過)
+usbipd list                          # 找 10c4:ea60 的 BUSID
+usbipd attach --wsl --busid <id>
+
+# 3. WSL:抓 bootloader。ESC 會連續送滿整個 window,所以時間點很寬鬆
+python3 -u tools/console-dump.py catch --port /dev/ttyUSB0 --window 300
+#    ↑ 看到這行之後才去上電:>>> POWER THE ROUTER ON NOW <<<
+
+# 4. 先試跑 64 KiB,不要直接衝 4 MiB
+python3 -u tools/console-dump.py dump --at-prompt \
+        --flash 0x060000 --length 0x10000 --ram 0x81000000 \
+        -o ~/fwre-work/dumps/pilot.bin
+
+# 5. 完整 dump。~95 分鐘,期間不需要碰板子,不需要重開機
+setsid nohup python3 -u tools/console-dump.py dump --at-prompt \
+        --flash 0x0 --length 0x400000 --ram 0x81000000 --chunk 16384 \
+        --flr-timeout 300 --verify-sample 0.05 \
+        -o ~/fwre-work/dumps/flash-n150rt-console-1.bin \
+        > ~/fwre-work/dumps/console-dump.log 2>&1 < /dev/null &
+
+tail -f ~/fwre-work/dumps/console-dump.log     # 看進度
+```
+
+**這支工具做了四件手做不到的事:**
+
+| | |
+|---|---|
+| **陽性對照** | 先 `FLR` flash `0x000000`,前四個 byte 必須是 `0b f0 00 04` —— 那是 8/15 另一場 session 記下的已知答案。對不上就不往下走 |
+| **逐塊驗證** | 每一塊檢查位址連續、每行剛好 16 byte、總長相符。**掉一行就整塊重讀** |
+| **抽驗重讀** | 全部讀完後隨機抽 5% 的塊**再讀一次**比對。解析器看不到「格式正確但內容錯」的位元翻轉,重讀看得到 |
+| **拼不完整就不吐檔案** | 只留 `.partial`。**一份看起來完整的殘缺映像,比沒有映像更糟** |
+
+> ### ⚠️ 兩個 8/16 踩到的坑
+>
+> **1. ESC 會塞住 bootloader 的輸入緩衝區。** 搶 bootloader 是「連續送」ESC,
+> 它只吃掉一個用來中斷開機,**其餘全部排在輸入緩衝區裡** —— 所以搶到之後
+> **第一條指令必定失敗**,回你 `Unknown command !`。
+> 對策:先送一個裸 `\r` 讀到 prompt 再送真正的指令(工具的 `settle()`)。
+> 這一坑害我以為 `?` 不是 help —— 而 §8.7.7 明明記過 `?` 就是 help。
+>
+> **2. 不要照 `notes/` 裡引用的 transcript 寫解析器。** `notes/` 是分析文件,
+> 引用會為了排版修剪;**§8.7.8 這裡的 transcript 才是逐字的**。
+> 第一版解析器沒有 ASCII 欄,把裝置吐的**每一行**都判成不合法。
+
+**速率是物理上限,不要調程式:** 每 16 個 data byte 要送 81 個字元
+(位址 8 + `: ` 2 + hex 48 + 空白 5 + ASCII 16 + CRLF 2),**5.06 倍膨脹**。
+38400 8N1 = 3840 B/s ÷ 5.06 = **759 B/s 理論上限**,實測 723 B/s。
+線已經吃滿了。
+
+**dump 落地之後,它還不是證據:**
+
+```bash
+python -m fwrecon flashdump ~/fwre-work/dumps/flash-n150rt-console-1.bin
+```
+
+這會拿映像去對 **8/15 console 讀到的每一個 offset** 和 **W01 從廠商容器推導的
+燒錄位址** —— 兩份都寫在它存在之前。硬檢查沒過就 exit 1。
+per-unit 秘密區(`0x006000`–`0x010000`)只報 SHA-256,**永遠不印內容**。
+
+---
+
 ## 9. 驗收
 
 ### G0 — 工具鏈全綠
@@ -1516,6 +1591,21 @@ END=$((SECONDS+20)); while [ $SECONDS -lt $END ]; do printf '\033' > /dev/ttyUSB
 #   FLR <RAM> <flash> <len>   三個都十六進位,然後一定要送 Y
 #   DB  <RAM> <len>           位址十六進位,長度十進位 ← 兩種進位,會害人
 
+# ── W02 Day 4:自動化 dump(§8.7.9)──────────────────
+python3 -u tools/console-dump.py catch --port /dev/ttyUSB0 --window 300
+#   ↑ 看到 POWER THE ROUTER ON NOW 之後才上電;ESC 整段時間都在送,不用趕
+python3 -u tools/console-dump.py dump --at-prompt --flash 0x060000 \
+        --length 0x10000 -o ~/fwre-work/dumps/pilot.bin        # 先試跑
+setsid nohup python3 -u tools/console-dump.py dump --at-prompt \
+        --flash 0x0 --length 0x400000 --chunk 16384 --verify-sample 0.05 \
+        -o ~/fwre-work/dumps/flash-n150rt-console-1.bin \
+        > ~/fwre-work/dumps/console-dump.log 2>&1 < /dev/null & # ~95 分鐘
+python -m fwrecon flashdump ~/fwre-work/dumps/flash-n150rt-console-1.bin
+bash tools/test-console-dump.sh        # 解析器的守衛套件(不需要硬體)
+bash tools/test-flash-tools.sh         # flash-read.sh 的篩檢守衛(不需要硬體)
+#   搶到 bootloader 之後第一條指令一定失敗:ESC 塞在它的輸入緩衝區裡
+#   速率 723 B/s 是線的物理上限(5.06 倍膨脹),調程式沒有用
+
 # ── 單獨用工具 ────────────────────────────────────────
 ~/fwre-work/venv/bin/python -m fwrecon image  <韌體.web>
 ~/fwre-work/venv/bin/python -m fwrecon elf    <執行檔>
@@ -1695,6 +1785,8 @@ cd FirmAE && ./install.sh      # 30–60 分鐘
 | 2026-08-15 | W02 Day 2–3 | §10 新增四條:**10.17 200mV 檔量 3.3V 不會報錯,只會給你一個看起來像真的數字**(解法是先量電池)、10.18 孤零零一個 `1` 是超量程、10.19 `usbipd attach` 需要 WSL 正在跑、10.20 PulseView 打不開 fx2lafw(**這條沒有被證實,如實標註**)。 |
 | 2026-08-15 | W02 Day 2–3 | §12 速查表新增序列 console 全流程,含 **`FLR` 十六進位 / `DB` 十進位**這個會安靜產生錯誤資料的坑。`study/QA.md` 新增 §10。 |
 | 2026-08-15 | 收工後 | 新增 **`make ci`**(§9、§12)和 §10.21。起因是本機跑了 `make lint test check-reports` 全綠就 push,CI 還是紅的 —— **CI 有四個 job,靠記憶挑目標跑不是檢查,是遲早會忘的習慣。** |
+| 2026-08-16 | W02 Day 4 | 新增 §8.7.9:完整 4 MiB dump 走 `tools/console-dump.py`(陽性對照、逐塊驗證、抽驗重讀、拼不完整就不吐檔案)。附兩個當天踩到的坑:**ESC 會塞住 bootloader 的輸入緩衝區,搶到之後第一條指令必定失敗**;以及**不要照 `notes/` 的引用寫解析器 —— §8.7.8 這裡的 transcript 才是逐字的**。 |
+| 2026-08-16 | W02 Day 4 | §12 速查表新增 W02 Day 4 全流程與兩支不需要硬體的守衛套件。CH341A 量出來是未改的 5V 板(CS/CLK/DI 全 5V,只有座上 VCC 是 3.3V),3.3V 魔改後仍是 5V、**原因未隔離**,決定改走零風險的 console 路 —— 經過寫在 `LOG.md`。 |
 
 ---
 
