@@ -58,6 +58,11 @@ tool. Be blunt — agreeable understatement costs an interview later.
 - `RUNBOOK.md`, `PROGRESS.md` and the README board move in the **same commit**
   as the work; a ticked box carries its evidence link. Hostile questions go to
   `study/QA.md`. Week branches, never `main`.
+- **Every week closes with a `study/weekly-results.md` entry** — the one-line
+  version, three defensible claims each with its evidence and what it
+  demonstrates, and **what that week did not prove**. The last of those three is
+  the one that matters; a week whose "did not prove" section is empty has not
+  been examined hard enough.
 - `plan/` gates are authoritative; its dates and per-day schedules are not —
   W03 ran early and out of order, W02 is blocked. When plan and image disagree
   the image wins, recorded in `PROGRESS.md § Corrections`.
