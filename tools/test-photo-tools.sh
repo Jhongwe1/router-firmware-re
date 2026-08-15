@@ -12,7 +12,12 @@
 #   bash tools/test-photo-tools.sh
 
 set -uo pipefail
-cd "$(dirname "$0")/.."
+
+# Not a formality. Every case below invokes tools/ by relative path, so a silent
+# cd failure would turn every "this must be rejected" case into a pass — the tool
+# would simply not be found. That is the exact failure this suite exists to catch,
+# so it must not be reachable from the suite's own first line.
+cd "$(dirname "$0")/.." || { echo "  FAIL  cannot cd to the repository root"; exit 1; }
 
 PY="${FWRE_PY:-$HOME/fwre-work/venv/bin/python}"
 TMP="$(mktemp -d)"

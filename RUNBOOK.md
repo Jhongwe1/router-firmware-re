@@ -1069,15 +1069,19 @@ powershell -ExecutionPolicy Bypass -File tools\setup\setup-windows.ps1 verify   
 ### 全部重跑一次(確認沒壞)
 
 ```bash
-make verify test lint check-reports
+make verify      # G0:工具鏈
+make ci          # CI 會檢查的全部(容器建置除外)
 ```
 
 ```
   ok   G0 GREEN — all tools functional
-58 passed in 0.43s
 All checks passed!
-reports OK — 2 fwrecon (schema 1.0), 2 Ghidra
+70 passed in 0.40s
+reports OK — 4 fwrecon (schema 1.0), 11 Ghidra
+  ok   local CI equivalents passed (container build not included)
 ```
+
+> ⚠️ **push 之前跑 `make ci`,不要自己挑幾個目標跑。** 見 [§10.21](#1021-本機全綠但-ci-還是紅的)。
 
 ---
 
@@ -1370,6 +1374,40 @@ Get-Process | Where-Object { $_.ProcessName -match "pulseview|Logic" }
 **而且分析儀不在關鍵路徑上** —— baud 在 console 上試四個值兩分鐘就有答案,
 判準一樣硬(可讀 vs 亂碼)。不要為了工具卡住主線。
 
+### 10.21 本機全綠,但 CI 還是紅的
+
+**症狀:** push 之前跑過 `make lint test check-reports` 全過,GitHub Actions 還是失敗。
+
+**原因:CI 有四個 job,你手動挑的那幾個目標蓋不到全部。**
+
+| CI job | 本機等價 |
+|---|---|
+| `fwrecon (lint + tests)` | `make lint test` |
+| **`shell scripts`** | **`shellcheck --severity=warning tools/*.sh tools/setup/*.sh`** |
+| `toolchain image builds` | `docker build -f docker/Dockerfile .`(要幾分鐘) |
+| `committed reports match the tooling` | `make check-reports` |
+
+**解法:**
+
+```bash
+make ci        # 上面除了容器建置之外的全部
+```
+
+改到 `docker/` 底下的東西時再另外跑一次容器建置。
+
+> **這一條真正的教訓不是「記得跑 shellcheck」。**
+>
+> 是**「知道該跑哪幾個」本身就不是一種檢查,那是一個遲早會忘的習慣**。
+> 我 2026-08-15 那次就是靠記憶挑了兩個目標跑、以為綠了才 push。
+>
+> 修法不是下次更小心,是**讓「全部」變成一個指令** —— 所以有了 `make ci`。
+> 這跟 W04 那條「一個永遠不會觸發的檢查也永遠不會失敗」是同一個形狀:
+> **一個要靠人記得去跑的檢查,遲早不會被跑。**
+
+實際踩到的那個警告是 `SC2164`(`cd` 沒有 `|| exit`),而它剛好是
+`tools/test-photo-tools.sh` 存在的理由那一類 bug:**如果 `cd` 無聲失敗,
+每個「這個一定要失敗」的測試都會因為「找不到檔案」而通過。**
+
 ---
 
 ## 11. 名詞表
@@ -1422,8 +1460,10 @@ make unpack        # 解出根檔案系統        (~10 秒)
 make recon         # 產生所有報告          (~10 秒)
 
 # ── 檢查 ──────────────────────────────────────────────
-make test          # 58 個測試
+make ci            # ★ push 之前跑這個 —— CI 的四個 job(容器建置除外)
+make test          # 70 個測試
 make lint          # 程式碼風格
+make shellcheck    # shell 腳本
 make check-reports # 報告有沒有跟工具脫節
 make help          # 列出所有指令
 
@@ -1654,6 +1694,7 @@ cd FirmAE && ./install.sh      # 30–60 分鐘
 | 2026-08-15 | W02 Day 2–3 | 新增 §8.7 Part 7:量腳位(**先驗表再量板**)、量 baud(26µs,以及 52µs=2×26 的自洽檢查)、`usbipd` + `/dev/ttyUSB0`、抓 bootlog、確認 console **沒有 shell**、用 ESC 搶 bootloader、以及 **`FLR`+`DB` 這條不用夾具的 flash 讀取路徑**。全部附實際輸出。 |
 | 2026-08-15 | W02 Day 2–3 | §10 新增四條:**10.17 200mV 檔量 3.3V 不會報錯,只會給你一個看起來像真的數字**(解法是先量電池)、10.18 孤零零一個 `1` 是超量程、10.19 `usbipd attach` 需要 WSL 正在跑、10.20 PulseView 打不開 fx2lafw(**這條沒有被證實,如實標註**)。 |
 | 2026-08-15 | W02 Day 2–3 | §12 速查表新增序列 console 全流程,含 **`FLR` 十六進位 / `DB` 十進位**這個會安靜產生錯誤資料的坑。`study/QA.md` 新增 §10。 |
+| 2026-08-15 | 收工後 | 新增 **`make ci`**(§9、§12)和 §10.21。起因是本機跑了 `make lint test check-reports` 全綠就 push,CI 還是紅的 —— **CI 有四個 job,靠記憶挑目標跑不是檢查,是遲早會忘的習慣。** |
 
 ---
 
