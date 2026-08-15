@@ -3,7 +3,7 @@
 | Week | Theme | Gate | Status |
 |---|---|---|---|
 | **W01** | Recon & unpacking | **G0 + G1** | ✅ **passed** — 2026-08-07 |
-| W02 | Hardware access: UART + SPI dump | G2 | ⏸ blocked on hardware delivery |
+| W02 | Hardware access: UART + SPI dump | G2 | ▶ **in progress** — live bootlog + boot-loader console; SPI dump outstanding |
 | **W03** | Static reversing, upper half | — (DoD) | ✅ **DoD met** — 2026-08-10 |
 | **W04** | CVE root-cause location | **G3** | ✅ **passed** — 2026-08-11 |
 | W05 | Dynamic analysis, upper half | — | ▶ next |
@@ -106,7 +106,8 @@ target's code executing.
 ### Open, carried forward
 
 1. Which firmware build is actually on my unit — only a flash dump decides (W02).
-2. Real flash part and size (W02).
+2. ~~Real flash part and size~~ → **answered in W02: Eon EN25QH32B, 32 Mbit = 4 MiB.**
+   The `≥ 4 MB` derived here was right; the published 2 MB spec was not.
 3. ~~Where `formSysCmd` is registered — read `handleForm`~~ → **answered in W03:
    it is registered nowhere.** W04 adds the likely reason: V2.1.2 post-dates the
    last build Pierre Kim reports as vulnerable to CVE-2015-9551.
@@ -325,8 +326,10 @@ throughout); and the `sstrip`'d-PLT bug again (`strcpy`: 151 sites in 2015, 0 in
 
 ### Open, carried forward
 
-1. Which firmware build is on my unit — only a flash dump decides (W02).
-2. Real flash part and size (W02).
+1. Which firmware build is on my unit — only a flash dump decides (W02). W02 Day 1
+   adds a **prediction** from the board's date codes: around 2018, i.e. neither image
+   analysed here. See [`hardware-inspection.md`](notes/hardware-inspection.md#6-date-codes--a-prediction-written-before-the-dump).
+2. ~~Real flash part and size~~ → **answered in W02: Eon EN25QH32B, 32 Mbit = 4 MiB.**
 3. Fetch **V2.1.1-B20150708** and recover its `root_form[]`. One command settles
    whether `formSysCmd`'s absence from V2.1.2 is the vendor's fix or a build flag.
 4. Do `TELNET_ENABLED` / `SSH_ENABLED` default on? That decides what
@@ -338,3 +341,272 @@ throughout); and the `sstrip`'d-PLT bug again (`strcpy`: 151 sites in 2015, 0 in
    immediately after `lastUrl`?
 7. The archive.org V2.1.2 copy declares a rootfs length 9 bytes past EOF — still
    needs a second source to compare (carried from W01).
+
+---
+
+## W02 — 2026-08-14 / 15 (in progress)
+
+Hardware arrived 2026-08-14, two days after the week the plan allotted to it closed.
+G2 is unblocked and is being worked out of order, the same way W03 was.
+
+**Day 1 was identification with the board unpowered.** On Day 2–3 the device was
+powered on and a console brought up, so from that section onward the readings are
+measurements of running hardware rather than of package markings.
+
+### Day 1 — what the board actually is
+
+| Ref | Part | Function |
+|---|---|---|
+| — | Realtek **RTL8196E** | SoC, MIPS big-endian |
+| `U19` | Eon **EN25QH32B** — 32 Mbit / **4 MiB** SPI NOR | firmware storage |
+| — | Winbond **W9825G6KH-6** — 256 Mbit / **32 MiB** SDRAM | system RAM |
+| — | Realtek **RTL8188ER** — 1T1R 802.11n | Wi-Fi radio |
+| — | LSC **LSP5526** — **not identified**; power, by inference only | regulator |
+
+The UART header is **already populated** with a 4-pin 2.54 mm header, so W02 needs
+no soldering anywhere — which removes the week's largest irreversible-damage risk
+before it can be taken.
+
+Full working, including the second source each reading is still waiting on:
+[`notes/hardware-inspection.md`](notes/hardware-inspection.md)
+
+### W01's flash derivation, confirmed by silicon
+
+W01 never saw this chip. It read the burn addresses out of the vendor's own container
+format, found the flash map extends to **3.57 MiB**, and concluded the published
+2 MB specification was impossible — predicting **≥ 4 MB** three weeks before the
+hardware existed on this desk.
+
+The part is 32 Mbit. **The prediction holds.**
+
+This is the first time in the project that a static derivation made a falsifiable
+claim about the physical world, and the physical world agreed.
+
+### Corrections to the plan's hardware spec table
+
+| Plan said | The board says |
+|---|---|
+| SoC **RTL8196C** | **RTL8196E.** Commonly documented with a different core (RLX5281, against the C's Lexra RLX4181), which bears directly on W01's "MIPS-I" reading — falsifiable test in [`hardware-inspection.md`](notes/hardware-inspection.md#2-soc--rtl8196e-and-what-that-does-to-w01s-mips-i) §2 |
+| **2 MB** SPI NOR | **4 MiB** — and W01 had already shown 2 MB impossible from the firmware alone |
+| **16 MB** RAM | **32 MiB fitted.** *Fitted* is not *usable*; the kernel banner decides the second number, and the two are recorded separately |
+| Wi-Fi **RTL8188RE** | **RTL8188ER** |
+
+### One instrument confirmed, one instrument caught being vague
+
+`flashrom` knows the part — `EN25QH32`, `4096` KiB, `PREW`. **This is not counted as
+a second source for the size.** Its chip database is keyed on the part *name*, which
+came from the same package ink as everything else; what it establishes is "*if* this
+is an EN25QH32, it is 4096 KiB and `flashrom` can read it". The independent
+measurement is the JEDEC ID the chip reports over SPI, at Day 4.
+
+Separately: `flashrom --version` prints `flashrom unknown`, while `dpkg` reports
+`1.3.0-2.1ubuntu2`. G0's stated rule is that every tool is verified **by running it**
+— and this is the one row in the G0 table whose version number did not come from
+running the tool. Functionally irrelevant (a Debian packaging artefact), but the
+table should say so rather than imply a check that did not happen.
+
+### G2 checkbox 4 met: the annotated PCB photograph
+
+Photographs are in [`notes/img/`](notes/img/), and getting them there took two new
+instruments — because the alternative was an image editor, which produces a file
+nobody can check, diff, or regenerate. That is the same objection W03 raised against
+Ghidra screenshots, and it gets the same answer.
+
+| | |
+|---|---|
+| [`tools/redact-photo.py`](tools/redact-photo.py) | Paints out the unit's MAC barcode and serial QR. Solid fill, never blur — a blur is a reversible transform on a known font. Drops EXIF, which carries GPS and a device id that survive every *visual* redaction. Verifies its own work by reading the written file back off disk |
+| [`tools/annotate-photo.py`](tools/annotate-photo.py) | Renders the callouts from [`notes/img/pcb-top-annotations.json`](notes/img/pcb-top-annotations.json), so a moved box appears in `git diff` as a changed number. The legend is drawn in a strip *below* the frame, never over it, so no annotation can hide the evidence it describes |
+
+**Both were wrong on the first run, and neither noticed.**
+
+1. **The guard suite reported 5/5 passing while every invocation was dying on
+   `import PIL`.** On a login shell, bare `python3` resolved to an unrelated
+   project's venv that happened to carry Pillow; under `bash script.sh` it did not.
+   Five tests that assert "this must fail" all passed — for the wrong reason. What
+   caught it was the one line asserting that a *valid* call must still succeed.
+   Fixed twice over: the interpreter is now named explicitly, and each guard asserts
+   on **its own** failure message rather than on the exit status.
+2. **The control case then failed, and it was the checker that was wrong, not the
+   redaction.** The post-condition demanded every pixel in the painted box be exactly
+   zero on read-back — a condition JPEG can never satisfy, because a hard black
+   rectangle re-encodes with ringing against its own edges. Rewritten as two parts:
+   a loose bound over the whole box to catch a box that landed somewhere wrong, and
+   an exact test on the box inset by two MCUs, which is the part that actually
+   guarantees the pixels were replaced.
+3. **The annotation tool silently produced an unreadable legend** — two columns
+   overprinting each other, labels running off the frame — and reported `ok`. It now
+   picks the column count and type size that fit, and **errors** if no combination
+   does. A figure that overprints itself still looks finished, which is the worst
+   thing a tool can hand you.
+
+The tool can prove a region is solid. **It cannot prove the box landed in the right
+place — that check is human, and it was done by eye on all three files.**
+
+This is the fourth, fifth and sixth instrument bug the project has recorded, and the
+first three are in [W03](#two-tooling-bugs-found-and-fixed) and
+[W04](#instrument-work). The pattern holds: none was caught by the tool's own
+self-check.
+
+### Day 2–3 — the console, and a firmware nobody had
+
+**The device has been powered on.** Everything below is measured on running
+hardware, which is the first time that sentence has been true in this project.
+
+#### The console
+
+`VCC · TX · RX · GND` from pin 1 (the end with the triangle on the silkscreen),
+**38400 8N1**. Each pin carries two sources — resistance to ground with the board
+dead, voltage with it live — except RX, which is inferred by elimination and has
+never been driven. **The baud was measured, not tried:** narrowest pulse 26 µs,
+and a second pulse at exactly 52 µs proves 26 is one bit and not two. The nearest
+wrong answer, 19200, has a 52.08 µs bit time.
+→ [`uart-pinout.md`](notes/uart-pinout.md)
+
+**There is no shell on the console.** Sending `\r` gets perfect echo and nothing
+else — that is the tty line discipline, which echoes whether or not a process is
+listening. No getty, no prompt, and no BusyBox `Please press Enter…` anywhere in
+the boot log.
+
+**The boot loader console is interactive.** ESC streamed across power-on lands on
+`<RealTek>`, whose command set (from `?`, not `HELP`) includes
+**`FLR <dst_ram> <src_flash> <len>`** and `DB`. That is **a complete flash read
+path requiring no SOIC-8 clip** — which the plan listed only as a Day 6 bonus for
+the case where everything else had already worked.
+
+#### The unit runs a third firmware
+
+| | BusyBox built | `boa` built |
+|---|---|---|
+| V2.1.2 | 2015-08-11 | — |
+| **this unit** | **2018-01-10** | **2018-01-10 14:57:54** |
+| V3.4.0 | 2020-10-30 | — |
+
+Four binaries on the unit — BusyBox, `wscd`, MiniIGD and **`boa`** — all stamp
+2018-01-10. The obvious objection was tested first: V3.4.0's BusyBox is stamped
+the same day as its release and V2.1.2's 14 days before its own, so **this vendor
+rebuilds userland at release and the timestamp tracks the build date.**
+
+**W01 open #1 is answered, and the answer is "neither".**
+
+**This has to be said plainly: `/bin/boa` on this unit is not a binary this
+project has read.** Every W03/W04 finding about `boa` — the `strstr(uri, "htm")`
+gate, the 59-entry `root_form[]`, `lastUrl[100]`, the `submit-url` idiom, the 2020
+rewrite's three unanchored `strstr` calls — is a claim about V2.1.2 and V3.4.0.
+Those claims are not wrong; the repository has always named its images. **They do
+not cover this device**, and anything demonstrated against this hardware in
+W05/W06 tests a third binary. That makes the flash dump worth more than a
+checkbox.
+→ [`uart-findings.md`](notes/uart-findings.md)
+
+#### RTL8196E: a third source, and the dissenter disqualified
+
+The first 64 bytes of flash disassemble to a read of the chip-ID register at
+`0xB8000000` compared against the constant **`0x8196E000`**. **The `RTL8196E` in
+the banner is not a compile-time string — it is the silicon identifying itself.**
+
+Against that, the Linux Ethernet driver prints `chip name: 8196C`. It loses, and
+not on a majority vote: **two lines earlier the same driver announces it is
+probing an RTL8186** — a generation older than either candidate. That driver
+prints its own code lineage, not the part it runs on.
+
+`ramSize: 32M` also confirms the SDRAM marking, and closes the *fitted vs usable*
+distinction this project deliberately kept open: here they agree.
+
+#### The flash map: three predictions, three hits
+
+W01 parsed the two vendor containers, read `burnAddr` out of each 16-byte section
+header, and produced a map. Read back off the device:
+
+| W01 predicted | Found |
+|---|---|
+| `w6cg` at `0x010000` | ✅ |
+| `cr6c` at `0x060000` | ✅ |
+| rootfs at `0x180000` | ✅ SquashFS `hsqs` |
+
+**The container format W01 reverse engineered from two files, with no
+documentation, correctly describes where a third, unseen build sits in flash.**
+The image ends at **3.29 MiB** — over the published 2 MB again.
+
+This unit uses the **2015 layout** (it has `w6cg`; the 2020 image dropped it), with
+a **third, distinct filesystem**: 567 inodes against 582 and 827, LZMA like 2015
+rather than XZ like 2020, and smaller than either.
+
+**And a W01 hedge comes off.** W01 flagged V3.4.0's SquashFS `mkfs_time` as
+"*possibly* a vendor build-script bug writing a size into this field". This unit's
+reads `0x80AD1C00`; byte-reversed that is 1,879,424 against a `bytes_used` of
+1,876,033 — the same relationship, on a build made by someone else on another day.
+**Three builds carry it.**
+→ [`flash-layout.md`](notes/flash-layout.md)
+
+#### The config region located — this unblocks W04
+
+Not at the tail of the part (`0x3F0000` and `0x350000` both read `FF` — my guess,
+wrong, recorded). The Realtek SDK puts it **below `0x010000`**:
+
+| Offset | | |
+|---|---|---|
+| `0x006000` | `H601` | HW setting — MACs and radio calibration |
+| `0x008000` | `COMPDS` | factory defaults, 7,481 bytes |
+| **`0x00C000`** | **`COMPCS`** | **live configuration, 7,478 bytes — this is `config.dat`** |
+
+W04's first *Deliberately not done* was "decoding the `COMPCS` compressor and
+parsing a real `config.dat` — needs a real `config.dat`, which needs W02's flash
+dump." **It is at `0x00C000`.** Better still, `COMPDS` and `COMPCS` are the same
+table as-shipped and as-running, 3 bytes apart in length and differing by a single
+byte in their first 58 — a differential pair, which is a far better way into an
+undocumented format than one blob cold.
+
+**And the photograph redaction is retroactively confirmed.** `hardware-inspection.md`
+called the bottom-side barcode "almost certainly this unit's MAC". The `H601`
+block opens with MAC addresses and the first is byte-for-byte that string. The
+redaction was applied while it was still an inference — **which is the right order:
+redact on the shape of the thing, confirm afterwards.**
+
+#### Instrument notes
+
+- **`FLR` takes hex for address and length; `DB` takes a hex address and a
+  *decimal* length.** Two radices, adjacent commands, in a tool whose only job is
+  moving bytes. Nothing warns you; you get a well-formed dump of the wrong size.
+- **`FLR` prompts `(Y)es , (N)o ?` and consumes the next line as the answer.** A
+  script that sends the next command instead of `Y` gets `Abort!` and a spurious
+  `Unknown command !` — and, if you were not reading carefully, a `DB` of stale RAM.
+- The flash read validated itself: a control dump of RAM taken **before** the first
+  `FLR` turned out to be byte-identical to the `cr6c` payload later read from
+  flash. Two unrelated paths, same bytes.
+
+### Deliberately not done in W02
+
+| Item | Why |
+|---|---|
+| Removing the antenna | The first physical action attempted on this board, at 450 °C, and it serves no G2 checkbox. Abandoned. The coax terminates into the RTL8188ER's output stage, and this unit is a single point of failure for G2 **and** G4 |
+| Cutting the power-switch pigtail to hard-wire "on" | Proposed and rejected. The two conductors were never identified, and a working switch is an asset across a week of repeated power cycles, not an obstacle |
+| **The JEDEC ID** | The one Day 4 measurement that did not happen, and the only clean second source for the flash part. `0x350000` reading `FF` is supporting evidence — a 2 MB part with address wrap would alias it into the kernel — but it is not the same thing |
+| **A full 4 MiB dump** | Everything read so far is 64-byte windows at chosen offsets. The full image is what W05/W06 needs and the only way to get this unit's 2018 `boa` into Ghidra. Two routes exist: CH341A, or ~80 minutes of `FLR`+`DB` over the console |
+| Decoding `COMPCS` | Located at `0x00C000` with its factory-default twin at `0x008000`. Reading it is W04/W07 work, not a W02 gate item |
+| `LWL`/`LWR`/`SWL`/`SWR` census in `/bin/boa` | Needs a Ghidra mnemonic histogram that does not exist yet. Recorded as a hypothesis, not claimed as a result |
+| Looking up the MAC's OUI | Moot: the flash's `H601` block confirmed the barcode is the MAC directly, without anyone having to handle the value against a public database |
+| Running the device on a network | Nothing has been connected to any port. W05's problem |
+
+### Open, carried forward
+
+1. ~~Which firmware build is on my unit~~ → **answered: a 2018-01-10 build, neither
+   analysed image.** The Day 1 prediction from the board's date codes holds, and it
+   failed in exactly the way that was written down alongside it — the line flashed an
+   image eight months older than the board.
+2. ~~UART pin assignment and baud rate~~ → **answered.** `VCC·TX·RX·GND`, 38400 8N1.
+3. ~~Is 32 MiB fitted actually 32 MiB usable?~~ → **answered: yes.** `ramSize: 32M`.
+4. **`/bin/boa` on this unit has never been read.** The most-analysed binary in this
+   repository is one this device has never run. Only the full dump fixes that, and it
+   is the highest-value item left in W02.
+5. What `LSP5526` is. Still one multimeter reading, still not taken.
+6. The SoC *core* — RLX4181 vs RLX5281. `/proc/cpuinfo` would settle it and there is
+   no shell to run it from; the flash dump's kernel would also carry the string.
+7. Whether `chipName: UNKNOWN` in the boot log refers to this flash part — and if so,
+   whether a stale flash-ID table in the 2014 boot ROM is where the published "2 MB"
+   figure came from.
+8. What the `COMPCS` blob at `0x00C000` decodes to, against its factory twin at
+   `0x008000`.
+9. The `LWL`/`LWR`/`SWL`/`SWR` census, and with it whether the Realtek SDK toolchain
+   is still pinned to the Lexra subset in the 2020 build.
+10. `MiniIGD` (UPnP) and `wan_disconnect: StartDnsSpoof` both run on this unit and
+    neither has been looked at anywhere in this project.

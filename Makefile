@@ -17,7 +17,7 @@ V1_IMG    := $(FW)/TOTOLINK-N150RT-V2.1.2-B20150825.1601.web
 V2_IMG    := $(FW)/TOTOLINK-N150RT-V3.4.0-B20201030.1142.web
 
 .DEFAULT_GOAL := help
-.PHONY: help setup verify fetch unpack venv test lint recon diff check-reports clean-work
+.PHONY: help setup verify fetch unpack venv test lint recon diff check-reports shellcheck ci clean-work
 
 help: ## Show this help
 	@grep -hE '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) \
@@ -59,8 +59,20 @@ recon: venv ## Regenerate every report under reports/
 		--label "$(V2_LABEL)" -f md   -o $(REPORTS)/n150rt-3.4.0.md
 	$(MAKE) diff
 
-check-reports: ## Verify the committed reports still match the tooling (what CI runs)
+check-reports: ## Verify the committed reports still match the tooling
 	python3 tools/check-reports.py
+
+shellcheck: ## Lint the shell scripts, exactly as CI does
+	shellcheck --severity=warning tools/*.sh tools/setup/*.sh
+
+# Exists because on 2026-08-15 a push went out green on `make lint test
+# check-reports` and CI failed anyway: there are four jobs and that covers two of
+# them. Knowing which subset to run by heart is not a check, it is a habit that
+# eventually forgets. `make ci` is the whole set minus the container build, which
+# is left out only because it costs minutes rather than seconds - run
+# `docker build -f docker/Dockerfile .` before touching anything under docker/.
+ci: lint test shellcheck check-reports ## Everything CI checks, except the container build
+	@echo "  ok   local CI equivalents passed (container build not included)"
 
 diff: venv ## Diff the two builds
 	$(PY) -m fwrecon diff $(REPORTS)/n150rt-2.1.2.json $(REPORTS)/n150rt-3.4.0.json \

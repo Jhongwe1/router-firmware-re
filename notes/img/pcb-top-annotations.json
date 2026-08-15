@@ -1,0 +1,56 @@
+{
+  "source": "03-pcb-top-redacted.jpg",
+  "expect_size": "2048x1536",
+  "title": "TOTOLINK N150RT V2.0 — PCB top, annotated",
+  "subtitle": "W02 Day 1, 2026-08-14. Every reading below has one source: the marking on the package. No device has been powered on.",
+  "boxes": [
+    {
+      "x": 195, "y": 40, "w": 170, "h": 265,
+      "label": "DC barrel jack"
+    },
+    {
+      "x": 405, "y": 120, "w": 120, "h": 150,
+      "label": "push button — RST / WPS, not yet identified"
+    },
+    {
+      "x": 275, "y": 335, "w": 110, "h": 105,
+      "label": "J2 — 2-pin header; the case power switch plugs in here"
+    },
+    {
+      "x": 595, "y": 30, "w": 1200, "h": 270,
+      "label": "RJ45: 4 x LAN (orange) + 1 x WAN (yellow)"
+    },
+    {
+      "x": 750, "y": 310, "w": 850, "h": 170,
+      "label": "magnetics x3 — UTH20T02M x2 + UTH16T01M = five ports"
+    },
+    {
+      "x": 560, "y": 610, "w": 210, "h": 370,
+      "label": "Winbond W9825G6KH-6 — 256 Mbit SDRAM, 32 MiB fitted (plan said 16 MB)"
+    },
+    {
+      "x": 960, "y": 615, "w": 290, "h": 295,
+      "label": "Realtek RTL8196E — SoC, MIPS big-endian (plan said RTL8196C)"
+    },
+    {
+      "x": 1375, "y": 650, "w": 115, "h": 110,
+      "label": "U19 — cFeon EN25QH32B, 32 Mbit = 4 MiB SPI NOR (plan said 2 MB)"
+    },
+    {
+      "x": 1585, "y": 785, "w": 130, "h": 130,
+      "label": "Realtek RTL8188ER — 1T1R 802.11n; the antenna feed ends here"
+    },
+    {
+      "x": 1500, "y": 1085, "w": 150, "h": 95,
+      "label": "UART — 4-pin, POPULATED, silkscreened. Pin order not yet measured"
+    },
+    {
+      "x": 1880, "y": 690, "w": 150, "h": 120,
+      "label": "antenna feed solder point — leave it attached"
+    },
+    {
+      "x": 190, "y": 855, "w": 155, "h": 195,
+      "label": "redacted: this unit's serial label"
+    }
+  ]
+}
