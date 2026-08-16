@@ -67,6 +67,9 @@ recon: venv ## Regenerate every report under reports/
 		--label "$(V2_LABEL)" -f json -o $(REPORTS)/n150rt-3.4.0.json
 	$(PY) -m fwrecon report --image "$(V2_IMG)" --rootfs "$(EX)/v3.4.0/squashfs-root" \
 		--label "$(V2_LABEL)" -f md   -o $(REPORTS)/n150rt-3.4.0.md
+	# Only 2015-family images carry a w6cg bundle; V3.4.0 has none, which is
+	# why there is no 3.4.0 line here rather than a failing one.
+	$(PY) -m fwrecon web "$(V1_IMG)" --json -o $(REPORTS)/webbundle-2.1.2.json
 	$(MAKE) diff
 
 # Deliberately NOT part of `recon`. Every other report regenerates from an image
@@ -82,6 +85,21 @@ recon-unit: venv ## Reports for the build read off my own unit (needs the flash 
 	$(PY) -m fwrecon report --rootfs "$(EX)/unit-2018/squashfs-root" \
 		--label "$(UNIT_LABEL)" -f md   -o $(REPORTS)/n150rt-unit-2018.md
 	$(PY) -m fwrecon flashdump "$(UNIT_DUMP)" -f json -o $(REPORTS)/flashdump-unit-2018.json
+	$(PY) -m fwrecon web "$(UNIT_DUMP)" --at 0x010000 --json \
+		-o $(REPORTS)/webbundle-unit-2018.json
+
+# Also deliberately NOT part of `recon`, for the mirror-image reason to
+# recon-unit: this one needs an image `make fetch` cannot download. Softpedia
+# serves V2.1.6 to a browser and 403s every script, and the copy obtained that
+# way is 40% complete. Its w6cg section is nonetheless byte-complete, which is
+# the only reason a report is possible at all - see RUNBOOK 8.8.4. Errors
+# rather than skipping, because a silently absent report reads as "not
+# interesting" instead of "not obtainable".
+recon-partial: venv ## Report for the partially-downloaded published V2.1.6 (see PROGRESS open #0)
+	@test -f "$(FW)/v2.1.6-partial.web" || \
+	  { echo "no $(FW)/v2.1.6-partial.web - recover it with tools/zipprefix.py --allow-partial"; exit 2; }
+	$(PY) -m fwrecon web "$(FW)/v2.1.6-partial.web" --json \
+		-o $(REPORTS)/webbundle-2.1.6-b20160516.json
 
 check-reports: ## Verify the committed reports still match the tooling
 	python3 tools/check-reports.py

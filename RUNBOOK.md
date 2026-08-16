@@ -1290,6 +1290,53 @@ $FWRE_WORK/venv/bin/python -m fwrecon image $FWRE_WORK/firmware/v2.1.6-partial.w
 截斷的是第三段 `r6cr`,也就是 rootfs —— 所以缺的是 `/etc/version` 和 `boa`,
 **不是「只有 section 長度」**。第一次寫成後者,低估了手上的東西一整段。
 
+### 8.8.5 打開 `w6cg`:廠商實際出貨的網頁,以及一個會騙人的 grep
+
+W01 把 `w6cg` 的封裝格式列為「解開了但沒 parse」,一直沒動。`fwrecon web`
+把它做完了 —— 格式是 **64 bytes 的 header + 內容**,長度欄在 `+0x3c` 而且是
+**big-endian**(header 裡其他欄位是 little-endian,只有這一個不是)。
+
+```bash
+# .web 容器
+$FWRE_WORK/venv/bin/python -m fwrecon web <韌體.web> --grep formSysCmd
+# 直接讀 flash dump,要自己給 w6cg 的位置
+$FWRE_WORK/venv/bin/python -m fwrecon web ~/fwre-work/dumps/flash-n150rt-console-1.bin \
+        --at 0x010000 --grep formSysCmd
+```
+
+```
+firmware/TOTOLINK-N150RT-V2.1.2-B20150825.1601.web  144 entries, self_check: exact
+searching entry contents for 'formSysCmd'
+  syscmd.htm                                   3,835 bytes  11 hit(s)
+
+firmware/v2.1.6-partial.web  144 entries, self_check: exact
+  syscmd.htm                                   3,835 bytes  11 hit(s)
+
+dumps/flash-n150rt-console-1.bin  143 entries, self_check: exact
+searching entry contents for 'formSysCmd'
+  no entry contains it
+```
+
+> ⚠️ **`self_check: exact` 是這個工具唯一的保證,不是裝飾。**
+> 這個格式**沒有校驗碼、沒有檔案數、沒有結束標記** —— 所以「我 parse 對了」
+> 這件事只能從結構本身證明:每一步都是 `64 + length`,所以走完整條鏈要嘛
+> **剛好停在最後一個 byte**,要嘛歪掉。長度欄位猜錯一個 offset,一兩筆之內就
+> 會歪,而且回不來。**看到 `derailed` 就不要用它吐出來的任何數字。**
+>
+> ⚠️ **`--grep` 是逐筆搜「內容」,不是搜整塊解壓後的資料 —— 這個差別會害人。**
+> 2018 那份 bundle 裡直接用 `grep` 找 `syscmd.htm` **找得到**,而正確答案是
+> 那個檔案不存在:命中的是 `language_vn/sc/sp.js` 裡的一行註解
+> `/**** syscmd.htm ****/`。**檔名出現在某個檔案裡,不等於那個檔案存在** ——
+> 我第一次就是這樣差點推翻 `notes/auth-flow-2018.md` 一句正確的結論。
+
+其他用法:
+
+```bash
+python -m fwrecon web <image>                     # 列出全部 entry(名稱/長度/sha256)
+python -m fwrecon web <image> --extract syscmd.htm -o /tmp/syscmd.htm
+python -m fwrecon web <image> --json -o reports/...
+```
+
 ---
 
 ## 8.9 ⚠️ G3.5 最後一格:`FLW` 回復路徑演練(**還沒做,而且要你親手做**)
@@ -1875,6 +1922,9 @@ bash tools/test-flash-tools.sh         # flash-read.sh 的篩檢守衛(不需要
 ~/fwre-work/venv/bin/python -m fwrecon elf    <執行檔>
 ~/fwre-work/venv/bin/python -m fwrecon rootfs <解開的目錄>
 ~/fwre-work/venv/bin/python -m fwrecon mib    <libapmib.so>
+~/fwre-work/venv/bin/python -m fwrecon web    <韌體.web> [--at 0x010000] [--grep 字串]
+#   ↑ 出貨的網頁本體。self_check 不是 exact 就不要用它的數字
+#     --grep 是逐筆搜「內容」;用整塊 grep 會找到不存在的檔名(§8.8.5)
 
 # ── 廠商 zip:驗 CRC,必要時取殘檔(§8.8.4)────────────
 cat "<檔名>.zip:Zone.Identifier"                 # 下載來源,OS 寫的,不是回憶
@@ -2061,6 +2111,7 @@ cd FirmAE && ./install.sh      # 30–60 分鐘
 | 2026-08-16 | W04-2 | 新增 §8.8:把這台自己的 `boa` 讀進 Ghidra 跑五種量測、解碼 `COMPCS`/`COMPDS`、以及 `BoaGate` 為什麼一定要帶 `control:`。 |
 | 2026-08-16 | W04-2 | 新增 §8.9:G3.5 最後一格 `FLW` 回復路徑演練的逐字步驟,含三條保護措施。**這一格還沒做。** |
 | 2026-08-16 | W04-2 補課 | 新增 §8.8.4:廠商映像重抓、從 `Zone.Identifier` 讀 provenance、`tools/zipprefix.py`,以及一份 40% 殘檔**撐得到哪裡**(兩個 section 完整,截斷的是 rootfs)。§12 速查表補上 `zipprefix`。 |
+| 2026-08-16 | W04-2 補課 | 新增 §8.8.5:`fwrecon web` —— 把 W01 留下的 `w6cg` 格式做完(64B header,長度欄在 `+0x3c` 且是 big-endian)。§12 速查表補上。兩個坑寫在該節:**`self_check` 不是 `exact` 就不要用它的數字**;以及 **`--grep` 逐筆搜內容,不是搜整塊** —— 用整塊 grep 會在 2018 那份裡「找到」一個不存在的 `syscmd.htm`。 |
 | 2026-08-16 | W04-2 補課 | `make lint` 與 CI 補掃 `tools/*.py`。**那幾支獨立腳本一直不在任何 lint 範圍內** —— 它們不在 `fwrecon` 套件裡,ruff 往上找設定檔永遠找不到 `tools/fwrecon/pyproject.toml`,所以是用預設規則掃的,等於幾乎沒掃。改成用 `--config` 指同一份設定(不另開一份會漂移的),掃出 `console-dump.py` 一個 `B007`,已修。 |
 
 > **上面三列裡的前兩列是補登的,而漏登的方式值得記一筆。** §8.8 和 §8.9 是

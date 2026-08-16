@@ -65,6 +65,23 @@ fixed properly.
 in one command: recover its `root_form[]` and see whether `formSysCmd` is there.
 That image is a fetchable artefact and the check is listed as the next step.
 
+**W04-2 addition — the fix was half a fix, and the other half shipped.** This
+note only ever looked at the binary. The `w6cg` web bundle in the *same* V2.1.2
+image contains `syscmd.htm`, 3,835 bytes, carrying
+`<form action=/boafrm/formSysCmd method=POST name="formSysCmd">` — so the vendor
+removed the route and **shipped the page that posts to it**, which as the code
+reads means the button returns 404. The published V2.1.6-B20160516 carries the
+same file **byte-identical** eighteen months later. This unit's 2018 build has
+neither the page nor a route to 404 — it has the *handler*, registered at
+`0x004838a8`. Measured with `fwrecon web`, three builds, in
+[`w6cg-web-ui.md`](w6cg-web-ui.md).
+
+That does not overturn the reading above; it sharpens it. Removing the
+dispatch entry and leaving the UI is the same partial-removal signature as
+`#skt&` commented out while `/bin/skt` still shipped, and `onlime_r` left at
+uid 0. **"One of three things fixed properly" was generous: the one that was
+fixed still had its front end in the image.**
+
 **Does not say:** that this device is not vulnerable to command execution.
 [`sink-inventory.md`](sink-inventory.md) lists 158 `system()` call sites in
 V2.1.2 with nine of them inside request handlers, and at least two request

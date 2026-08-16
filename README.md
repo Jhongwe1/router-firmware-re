@@ -375,6 +375,7 @@ that is not backed by a command someone else can re-run.
 | [`notes/credentials.md`](notes/credentials.md) | **Where the credentials actually are** — the backdoor account W01 concluded could not exist, and two shipped private keys |
 | [`notes/mib-and-config-dat.md`](notes/mib-and-config-dat.md) | The APMIB table recovered, and what `config.dat` is made of |
 | [`notes/formSysCmd-analysis.md`](notes/formSysCmd-analysis.md) | The CVE endpoint that is not there, and why three pieces of evidence pointed the wrong way |
+| [`notes/w6cg-web-ui.md`](notes/w6cg-web-ui.md) | **The web UI the vendor actually shipped** — the page and the route are anti-correlated across three builds, and the 2015 fix was half a fix |
 | [`notes/skt-analysis.md`](notes/skt-analysis.md) | The 2015 backdoor decoded: port, magic words, and the one `iptables` line it exists to run |
 | [`reports/`](reports/) | Generated analysis: per-version reports, version diff, Ghidra string xrefs |
 | [`tools/fwrecon/`](tools/fwrecon/) | The analysis tool written for this project |

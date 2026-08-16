@@ -96,6 +96,28 @@ def main(argv: list[str]) -> int:
             if not doc.get("entries"):
                 errors.append(f"{path.name}: no MIB entries recovered")
 
+        elif str(doc.get("producer", "")) == "fwrecon:webbundle":
+            counts["fwrecon"] += 1
+            if not doc.get("source_sha256"):
+                errors.append(
+                    f"{path.name}: no source_sha256 - the report cannot name the "
+                    "image it describes")
+            # The w6cg format carries no checksum, no entry count and no
+            # terminator, so "the strides consumed the archive exactly" is the
+            # only evidence the layout was read correctly. A derailed walk still
+            # produces a plausible-looking entry list, which is precisely why it
+            # must never be committed as evidence.
+            if doc.get("self_check") != "exact":
+                errors.append(
+                    f"{path.name}: self_check is {doc.get('self_check')!r} - the "
+                    "entry walk did not consume the archive exactly, so the "
+                    "recovered layout does not hold")
+            if doc.get("bytes_unconsumed"):
+                errors.append(
+                    f"{path.name}: {doc['bytes_unconsumed']} bytes unconsumed")
+            if not doc.get("entries"):
+                errors.append(f"{path.name}: no bundle entries recovered")
+
         elif str(doc.get("producer", "")) == "fwrecon:compcs":
             counts["fwrecon"] += 1
             if not doc.get("source_sha256"):

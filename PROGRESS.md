@@ -993,6 +993,8 @@ from — the finding above supplies one.
 | [`BoaMnemonics.java`](ghidra/scripts/BoaMnemonics.java) | mnemonic histogram, coprocessor-2/3 census, undecoded-byte count. Ships the *reading* alongside the number because the number points the wrong way half the time |
 | [`BoaGate.java`](ghidra/scripts/BoaGate.java) | three rules as a build gate, with a positive control that fails the run if a build known to be defective produces fewer than N findings |
 | [`fwrecon compcs`](tools/fwrecon/src/fwrecon/compcs.py) | the config decoder W04 deferred. 18 tests, most of them about making it fail |
+| [`fwrecon web`](tools/fwrecon/src/fwrecon/webbundle.py) | the `w6cg` bundle parser W01 left open. No checksum and no entry count exist in the format, so the check is structural: every stride is `64 + length`, and the walk either lands on the last byte or it does not. `exact` on all three builds; a test moves the length field to a plausible wrong offset and asserts it derails |
+| [`tools/zipprefix.py`](tools/zipprefix.py) | truncated-archive recovery that refuses to write an unverified payload, and does not launder the exit code when `--allow-partial` permits the write |
 
 **10. `BoaArgTrace` counted its unmeasured rows without naming them.** The report
 said "3 rows are unmeasured" and gave no way to find them, so in practice the
@@ -1118,6 +1120,12 @@ repair is one commit and the habit is not.
    gets a third point. If it does not, the `CX` line diverges from the published
    one and that is a different and more interesting story.
 
+   **Narrowed 2026-08-16: the UI half no longer needs the download.** `w6cg` is
+   byte-complete in the prefix, and the 2016 bundle ships `syscmd.htm` carrying
+   `<form action=/boafrm/formSysCmd …>` **byte-identical to 2015's**. What the
+   other 60% is still needed for is exactly one thing: whether B20160516's `boa`
+   has the route. See open #11.
+
 2. **CVE-2024-51228 was missed for two weeks by a survey that had the build
    string in hand.** The literature review is now fixed
    ([`prior-art.md`](notes/prior-art.md#2024--cve-2024-51228-and-the-gap-that-let-it-be-missed)),
@@ -1150,3 +1158,18 @@ repair is one commit and the habit is not.
 10. Carried from W02, unchanged: **no second instrument has read this flash**, the
    JEDEC ID is unread, `LSP5526` is unidentified, and the SoC core question is
    open — though #4 above now supplies the means to run `/proc/cpuinfo`.
+11. **The shipped UI and the route are anti-correlated, and only one build is
+   explained.** `syscmd.htm` ships in 2015 and 2016 (byte-identical) while
+   `formSysCmd` is absent from `root_form[]`; in 2018 the page is gone and the
+   route is registered at `0x004838a8`
+   ([`w6cg-web-ui.md`](notes/w6cg-web-ui.md), entry lists in
+   [`webbundle-2.1.2.json`](reports/webbundle-2.1.2.json),
+   [`webbundle-2.1.6-b20160516.json`](reports/webbundle-2.1.6-b20160516.json),
+   [`webbundle-unit-2018.json`](reports/webbundle-unit-2018.json)).
+   The 2015 state is explained — a
+   partial fix answering Pierre Kim's disclosure, of a piece with `#skt&` and
+   `onlime_r`. **The 2018 state is not: something put the route back three years
+   later, and nothing here says what.** And the removal was not surgical —
+   2015→2018 drops 27 bundle entries and adds 26, so `syscmd.htm` sits inside a
+   rebuild rather than standing out as a deletion. Reading intent into it would
+   be reading intent into a rebuild.

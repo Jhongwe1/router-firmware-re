@@ -9,7 +9,7 @@ from pathlib import Path
 
 from . import compcs as compcsmod
 from . import diff as diffmod
-from . import elf, flashdump, mibtable, report, rootfs, rtlimage
+from . import elf, flashdump, mibtable, report, rootfs, rtlimage, webbundle
 
 __version__ = "0.1.0"
 
@@ -161,6 +161,57 @@ def cmd_diff(args) -> int:
     return 0
 
 
+def cmd_web(args) -> int:
+    at = int(args.at, 0) if args.at else None
+    rep = webbundle.parse(args.image, at)
+
+    if args.grep:
+        needle = args.grep.encode()
+        hits = webbundle.grep(args.image, needle, at)
+        if args.json:
+            _write(json.dumps({
+                "path": rep.path, "self_check": rep.self_check,
+                "entries": len(rep.entries), "needle": args.grep,
+                "hits": [{"name": e.name, "length": e.length, "count": n} for e, n in hits],
+            }, indent=2), args.output)
+            return 0
+        print(f"{rep.path}  {len(rep.entries)} entries, self_check: {rep.self_check}")
+        print(f"searching entry contents for {args.grep!r}")
+        for e, n in hits:
+            print(f"  {e.name:<40} {e.length:>9,} bytes  {n} hit(s)")
+        if not hits:
+            print("  no entry contains it")
+        return 0 if rep.self_check == "exact" else 1
+
+    if args.extract:
+        e = rep.find(args.extract)
+        if e is None:
+            print(f"no entry named {args.extract!r}", file=sys.stderr)
+            return 1
+        blob = webbundle.contents(args.image, e, at)
+        if args.output:
+            Path(args.output).write_bytes(blob)
+            print(f"wrote {args.output} ({len(blob):,} bytes, sha256 {e.sha256})",
+                  file=sys.stderr)
+        else:
+            sys.stdout.buffer.write(blob)
+        return 0
+
+    if args.json:
+        _write(json.dumps(rep, default=lambda o: o.__dict__, indent=2), args.output)
+        return 0
+
+    print(f"{rep.path}  w6cg header at 0x{rep.section_offset:x}")
+    print(f"  {rep.compressed_bytes:,} bytes bzip2 -> {rep.decompressed_bytes:,} bytes")
+    print(f"  {len(rep.entries)} entries, {rep.bytes_unconsumed} unconsumed, "
+          f"self_check: {rep.self_check}")
+    for e in rep.entries:
+        print(f"  {e.index:>4}  {e.name:<44} {e.length:>9,}  {e.sha256[:16]}")
+    for a in rep.anomalies:
+        print(f"  ! {a}")
+    return 0 if rep.self_check == "exact" else 1
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="fwrecon",
@@ -173,6 +224,18 @@ def build_parser() -> argparse.ArgumentParser:
     pi.add_argument("--json", action="store_true")
     pi.add_argument("-o", "--output")
     pi.set_defaults(func=cmd_image)
+
+    pw = sub.add_parser(
+        "web",
+        help="list, search or extract the w6cg web-resource bundle (2015-family images)")
+    pw.add_argument("image", help=".web container, or a raw flash dump with --at")
+    pw.add_argument("--at", help="flash offset of the w6cg header, e.g. 0x010000")
+    pw.add_argument("--grep", metavar="STRING",
+                    help="report which entries' CONTENT contains this string")
+    pw.add_argument("--extract", metavar="NAME", help="write one entry's bytes out")
+    pw.add_argument("--json", action="store_true")
+    pw.add_argument("-o", "--output")
+    pw.set_defaults(func=cmd_web)
 
     pe = sub.add_parser("elf", help="inspect one ELF32 binary")
     pe.add_argument("path")

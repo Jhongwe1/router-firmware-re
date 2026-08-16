@@ -164,8 +164,12 @@ Named so they are not silently forgotten:
 - **The kernel** — carved but not unpacked. LZMA at `+0x2808` inside `cr6c`.
 - **The bootloader** — absent from both images; only a flash dump has it (W02).
 - **`libapmib.so`** — the `COMPCS` serialiser. Central to 19822/19823 and unread.
-- **The `w6cg` web bundle format** (2015) — decompressed but its archive
-  structure is only sketched.
+- ~~**The `w6cg` web bundle format** (2015) — decompressed but its archive
+  structure is only sketched.~~ **Closed 2026-08-16:** 64-byte header, big-endian
+  length at `+0x3c`, walked to zero bytes remaining on all three builds by
+  `fwrecon web`. The finding it produced is not about the format —
+  `syscmd.htm` ships in 2015 and 2016 with the handler absent, and is gone in
+  2018 with the handler present ([`w6cg-web-ui.md`](w6cg-web-ui.md)).
 - **Wireless firmware / driver** — `/lib/modules`, untouched.
 - **The physical surface** — UART, SPI flash, JTAG. W02, blocked on hardware.
 
