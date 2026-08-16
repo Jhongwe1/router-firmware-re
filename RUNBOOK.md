@@ -1105,6 +1105,158 @@ per-unit 秘密區(`0x006000`–`0x010000`)只報 SHA-256,**永遠不印內容**
 
 ---
 
+## 8.8 W04-2 新增的操作(2026-08-16)
+
+### 8.8.1 把這台自己的 `boa` 讀進 Ghidra,並跑五種量測
+
+匯入一次幾分鐘,之後每次跑腳本只要幾秒。
+
+```powershell
+$boa = "\\wsl$\Ubuntu-24.04\home\key\fwre-work\extracted\unit-2018\squashfs-root\bin\boa"
+.\ghidra\import.ps1  -Label unit-2018 -Binary $boa
+.\ghidra\analyze.ps1 -Label unit-2018 -Script BoaFormTable -Binary $boa
+.\ghidra\analyze.ps1 -Label unit-2018 -Script BoaSinks     -Binary $boa
+.\ghidra\analyze.ps1 -Label unit-2018 -Script BoaMnemonics -Binary $boa -ReadOnly
+.\ghidra\analyze.ps1 -Label unit-2018 -Script BoaArgTrace  -Binary $boa `
+    -ExtraArgs @('sink:system','sink:strcpy','sink:sprintf','sink:snprintf','depth:6')
+```
+
+> ### ⚠️ 三個會安靜給你錯答案的坑
+>
+> **1. Ghidra 專案是整個上鎖的。** 前一個 `analyze.ps1` 還在跑的時候再開一個,
+> 會拿到 `LockException: Unable to lock project!`。**要排隊,不能平行。**
+>
+> **2. `BoaArgTrace` 對 `sstrip` 過的 build 一定要給 `accessor:`。**
+> V3.4.0 沒有符號,不給 `accessor:FUN_0040e9e0` 的話,它**一個 request 參數都
+> 認不出來**,污染點數字直接從 49 掉到 0 —— 而 `self_check` 會寫 `consistent`,
+> 因為那個檢查只在「你給了 override 但沒對上」時才會叫。
+> 現在多了一個 `no_accessor_identified`,零匹配就報 SUSPECT。
+>
+> **3. 三個 build 要用同一組 spec 才能比。** 報告現在會把 `spec` 欄寫進去,
+> 沒有那一欄的舊報告不能拿來跟新的並排 —— W04 的 304 和 W04-2 的 1508
+> 看起來像個發現,其實是在回答不同的問題。
+
+### 8.8.2 解碼設定區(`COMPCS` / `COMPDS`)
+
+```bash
+fwrecon compcs $FWRE_WORK/dumps/flash-n150rt-console-1.bin --offset 0x00C000 \
+  --mib $FWRE_WORK/extracted/unit-2018/squashfs-root/lib/libapmib.so \
+  -f json -o reports/compcs-unit-2018.json
+```
+
+`--offset 0x008000` 是出廠預設。**`0x006000` 會失敗,而且應該失敗** —— 那塊是
+`H601`,沒有壓縮,不是 `COMPHS`:
+
+```
+fwrecon compcs: no APMIB config magic at 0x6000: found b'H601\x04\x8e',
+expected one of ['COMPCS', 'COMPDS', 'COMPHS']
+```
+
+**退出碼有意義:** `0` 乾淨,`1` 解出來了但自己標了 anomaly,`2` 根本不接受這塊
+資料。`1` 和 `2` 都不可以拿來當證據。
+
+`--disclosure protect` 會把 per-unit 識別碼換成 sha256。今天的決定是 `open`,
+但**機制留著,而且有一個會失敗的測試守著它** —— 改的是政策,不是能力,下一台
+機器不一定是你的。
+
+### 8.8.3 CI 閘門:`BoaGate`,以及**為什麼一定要給 `control:`**
+
+```powershell
+# 對照組一定要帶 control:,否則這個閘門不能證明自己是活的
+.\ghidra\analyze.ps1 -Label 2.1.2 -Script BoaGate -Binary $boa212 `
+    -ExtraArgs @('control:30','depth:8')
+```
+
+> **這一格是整個工具的賣點,不是一個選項。**
+>
+> 第一次跑,它在 V2.1.2 上回報 **0 findings** —— 而那個 build 是 W03/W04
+> 一行一行讀出 34 個有問題的 handler 的那一個。原因有兩個,而且是分開的兩次:
+> 先是用「名字」比對 sink,但這些 binary 呼叫 libc 是走 `sstrip` 過的 PLT,
+> Ghidra 把它叫成 `FUN_xxxxxxxx`;修掉之後又發現字面值解析只檢查 `isConstant()`,
+> 而 MIPS 的字串位址是 lui/addiu 湊出來的,所以**一個參數名字都沒讀到**。
+>
+> 兩次都會以「這個 build 很乾淨」的形式出貨。**`control:30` 兩次都當場擋下來。**
+> 一個沒有在已知壞掉的 build 上驗證過的 SAST 規則,不是檢查,是裝飾。
+
+---
+
+## 8.9 ⚠️ G3.5 最後一格:`FLW` 回復路徑演練(**還沒做,而且要你親手做**)
+
+**W05 不准在這一格完成之前開始。** 理由不是儀式:W06 的 PoC 必然寫 flash
+(`flash set` 寫的就是 `COMPCS`),而這台機器的回復路徑**從來沒有被執行過**。
+`0x006000` 的 `H601` 是這台的 MAC 和射頻校準值,**全世界只有這一份**,
+原廠映像沒有,回復原廠設定也不會還原。
+
+### 開始之前,三件事缺一不可
+
+```bash
+# 1. 兩份 dump 都在,而且雜湊沒變 —— 這是唯一的還原鏡像
+cd $FWRE_WORK/dumps && sha256sum -c <<'EOF'
+a800059a9b8c414df026a22b8423a5939d0f9bb793109d0f7ce086f6810f37ea  flash-n150rt-console-1.bin
+a800059a9b8c414df026a22b8423a5939d0f9bb793109d0f7ce086f6810f37ea  flash-n150rt-console-2.bin
+EOF
+```
+
+2. **每一行 `FLW` 先寫在檔案裡,念一遍,再貼進終端機。不准現打。**
+   `FLR` 已經教過這台的教訓:兩個相鄰指令用兩種進位制。**`FLW` 參數順序打錯
+   = 把測試樣式寫進 kernel。**
+3. **只碰 `0x3F0000`。** 不要「順便試試看 `0x350000`」。
+
+### 為什麼 `0x3F0000` 是安全的
+
+W02 Day 4 的完整 dump 證明 **`0x350000` 到 part 結尾整段都是 `FF`(已抹除)**。
+沒有任何東西讀它。這是演練寫入的完美標的。
+
+### 步驟 —— 每一步看到預期輸出才准下一步
+
+```
+# 前置條件,不是儀式:先確認那裡真的是空的
+FLR 80520000 3F0000 100
+Y
+DB 80520000 256
+    → 必須整片 FF。不是的話,停,那裡有東西。
+
+# 在 RAM 裡放一段認得出來的樣式,並且確認它真的進去了
+EB 80530000 DE AD BE EF DE AD BE EF
+DB 80530000 16
+    → 必須看到 de ad be ef de ad be ef
+
+# 寫進去
+FLW 3F0000 80530000 8
+Y
+    → Flash Write Successed!(或等價字樣)
+
+# 讀回來 —— 注意讀到「另一個」RAM 位址,不要讀原來那塊
+FLR 80540000 3F0000 8
+Y
+DB 80540000 8
+    → 必須逐 byte 等於 de ad be ef de ad be ef
+    → 讀回原位址就只是把你剛剛放的東西再看一次,證明不了任何事
+
+# 抹回去
+FLW 3F0000 <一塊全 FF 的 RAM> 8      ← 或用 bootloader 的抹除指令(先 ? 查)
+Y
+FLR 80550000 3F0000 8
+Y
+DB 80550000 8
+    → 必須回到 ff ff ff ff ff ff ff ff
+```
+
+### 這一次演練同時證明三件事
+
+| | |
+|---|---|
+| **回復路徑存在,而且我執行過** | 不再是「文件上列著 `FLW`」。W06 可以排寫 flash 的實驗了 |
+| **`FLW` 的參數順序和單位我確認過** | 順序打錯的代價是把樣式寫進 kernel |
+| **這是一次寫入 → 讀回的往返** | 系統性錯的 `FLR` 仍然躲得掉(位址偏移會互相抵銷),但**資料層的錯誤躲不掉** |
+
+**做完之後,把逐字 transcript 貼回這一節,並在 `notes/uart-pinout.md` 的
+bootloader 指令表補上「`FLW` 已實測,日期」。** 這份文件是操作紀錄,它的
+transcript 是逐字的 —— W02 Day 4 的第 8 號 bug 就是因為有人去讀了 `notes/`
+裡被排版修剪過的引用,而不是讀這裡。
+
+---
+
 ## 9. 驗收
 
 ### G0 — 工具鏈全綠
@@ -1806,4 +1958,4 @@ cd FirmAE && ./install.sh      # 30–60 分鐘
 | [`notes/sink-inventory.md`](notes/sink-inventory.md) | 危險函式呼叫點清單,依可利用性排序 |
 | [`notes/formSysCmd-analysis.md`](notes/formSysCmd-analysis.md) | 那個不存在的 CVE 端點,以及三條線索為什麼都指錯方向 |
 | [`notes/skt-analysis.md`](notes/skt-analysis.md) | 2015 後門完整拆解:port、暗號、和它存在的那一行 `iptables` |
-| [`study/QA.md`](study/QA.md) | **自我檢核題庫** —— 面試官會怎麼追殺你,答案是折疊的 |
+| [`study/QA.md`](study/QA.md) | **自我檢核題庫** —— 每一條主張配一個「想推翻它的人會怎麼問」,答案是折疊的 |

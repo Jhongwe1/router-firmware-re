@@ -7,6 +7,7 @@ import json
 import sys
 from pathlib import Path
 
+from . import compcs as compcsmod
 from . import diff as diffmod
 from . import elf, flashdump, mibtable, report, rootfs, rtlimage
 
@@ -125,6 +126,25 @@ def cmd_flashdump(args) -> int:
     return 0 if rep.self_check == "OK" else 1
 
 
+def cmd_compcs(args) -> int:
+    mib = mibtable.analyse(args.mib) if args.mib else None
+    try:
+        cfg = compcsmod.decode_file(
+            args.image, int(args.offset, 0), mib=mib, disclosure=args.disclosure)
+    except compcsmod.CompcsError as exc:
+        # Printed, not raised as a traceback, and non-zero. A config decoder that
+        # returns something plausible when it is wrong is the single worst tool
+        # this project could own: every downstream claim would be about a table
+        # that does not exist.
+        print(f"fwrecon compcs: {exc}", file=sys.stderr)
+        return 2
+    if args.format == "json":
+        _write(json.dumps(cfg, default=lambda o: o.__dict__, indent=2), args.output)
+    else:
+        _write(compcsmod.to_markdown(cfg), args.output)
+    return 0 if cfg.verdict == "consistent" else 1
+
+
 def _emit(rep, args) -> None:
     if args.format == "json":
         _write(report.to_json(rep), args.output)
@@ -188,6 +208,19 @@ def build_parser() -> argparse.ArgumentParser:
     px.add_argument("-f", "--format", choices=("json", "text"), default="text")
     px.add_argument("-o", "--output")
     px.set_defaults(func=cmd_flashdump)
+
+    pc = sub.add_parser(
+        "compcs",
+        help="decode an APMIB config region (COMPCS/COMPDS/COMPHS) out of a flash image")
+    pc.add_argument("image")
+    pc.add_argument("--offset", required=True,
+                    help="region offset, e.g. 0x00C000 for the live configuration")
+    pc.add_argument("--mib", help="mib-table JSON or libapmib.so, to name the ids")
+    pc.add_argument("--disclosure", choices=("open", "protect"), default="open",
+                    help="protect replaces per-unit identifiers with a digest")
+    pc.add_argument("-f", "--format", choices=("json", "md"), default="md")
+    pc.add_argument("-o", "--output")
+    pc.set_defaults(func=cmd_compcs)
 
     pd = sub.add_parser("diff", help="diff two report JSON files")
     pd.add_argument("old")

@@ -9,7 +9,32 @@ trace **already-publicly-disclosed** vulnerabilities down to the responsible
 function in the binary.
 
 > 🚧 **In progress since 2026-07-30. G0 ✅ · G1 ✅ · G2 ✅ passed 2026-08-16 ·
-> G3 ✅ passed 2026-08-11.**
+> G3 ✅ passed 2026-08-11 · G3.5 ⚠️ 4 of 5, 2026-08-16.**
+>
+> **Latest (W04-2, 2026-08-16): the build this device actually runs has been
+> read, and it has a command-execution handler that neither downloadable image
+> has.** `formSysCmd` is entry `0x004838a8` of this unit's dispatch table —
+> `grep` on the three raw binaries gives **0 / 1 / 0** for 2015 / 2018 / 2020.
+> Its `sysCmd` parameter reaches `system()` unfiltered, and this build's
+> authorisation gate only runs on URIs containing `.htm` or `.asp`, which
+> `/boafrm/formSysCmd` does not. W04 had recorded the handler's absence from the
+> published images as the vendor's fix; a fix does not reappear two and a half
+> years later, and that reading is withdrawn.
+>
+> **That endpoint turns out to have its own CVE, which this project did not know
+> while reading it.** CVE-2024-51228 names `/boafrm/formSysCmd` and lists
+> `TOTOLINK-CX-N150RT V2.1.6-B20171121.1002` — byte-for-byte this unit's
+> `/etc/version`. So the reachability result is an **independent derivation from
+> the binary of a claim disclosed in 2024**, and
+> [`prior-art.md`](notes/prior-art.md#2024--cve-2024-51228-and-the-gap-that-let-it-be-missed)
+> records why a survey organised around known disclosure events missed it.
+> **What is this project's own is narrower and checkable:** NVD scores it `PR:H`
+> (privileges required, high) for 6.8 MEDIUM, while the original researcher
+> writes "without credentials" and the instruction-level read agrees with the
+> researcher. If they are right the vector is `PR:N` and the score 8.8 HIGH.
+>
+> Nothing has been sent to the device. That is G4's job, and **G3.5 is not
+> passed** — the flash recovery path has still never been executed.
 > Two firmware images are unpacked and measured — **V2.1.2 (2015-08-25)** and
 > **V3.4.0 (2020-10-30)** — and they bracket both public disclosure events
 > affecting this device, which turns a teardown into a before/after comparison.
@@ -263,6 +288,44 @@ that is not backed by a command someone else can re-run.
   > `strstr` calls that has never been executed; it goes to TWCERT/CC if and only
   > if W05/W06 demonstrates it.
 
+- [ ] **G3.5 — every `boa` claim names the binary it was measured on** (W04-2) ⚠️ **4 of 5, 2026-08-16** ← [PROGRESS.md](PROGRESS.md#w04-2--2026-08-16)
+  - [x] `root_form[]` + sink census for all three builds, each carrying its input's SHA-256
+  - [x] [`notes/auth-flow-2018.md`](notes/auth-flow-2018.md) — the gate on the resident build, key branch read at **instruction level** because the decompiler raised three warnings on it
+  - [x] [`notes/compcs-decode.md`](notes/compcs-decode.md) — the config region decoded; `TELNET_ENABLED = 0` with a second source
+  - [x] G4's target chosen from evidence: `POST /boafrm/formSysCmd`
+  - [ ] **the `FLW` recovery path rehearsed** — not done, needs the hardware. **W05 does not start until it is**
+
+  > ### ★ What W04-2 turned up
+  >
+  > - **`formSysCmd` is in this unit's dispatch table and in neither published
+  >   image.** `grep -aoc` on the three raw binaries: **0 / 1 / 0**. Absent →
+  >   present → absent is a build-time option, not a vendor fix, and **W04's
+  >   G3 box 1 is overturned.** CVE-2019-19824 lists "N150RT through 3.4.0" as
+  >   affected; both images anyone can download happen to be ones without it, so
+  >   reproducing that CVE from published firmware gives the wrong answer about
+  >   this hardware.
+  > - **The gate is a third answer.** 2015 checks `strstr(uri,"htm")`; 2020 adds
+  >   POST; **2018 checks `.htm` or `.asp` and nothing else** — 2015's outcome by
+  >   2020's mechanism, decided by 13 unanchored `strstr` calls on one string.
+  > - **The config region is decoded.** LZSS over a TLV table, confirmed twice —
+  >   inferred from the data, then read out of `libapmib.so`'s `Decode`, which
+  >   also supplied a checksum invisible in the data that both regions pass.
+  >   `USER_PASSWORD` is `admin` in plaintext, which is CVE-2019-19823 located
+  >   rather than cited, and `SSH_PASSWORD` is a factory-default `xa.zioncom` —
+  >   a **third** credential system where W04 found two.
+  > - **`TELNET_ENABLED = 0`, confirmed by the code that reads it.** So
+  >   `root:123456` is *not* an entry point on this unit — it is the second stage
+  >   of a chain, and calling it an entry point overstates it by a step.
+  > - **A build gate with a positive control** — [`BoaGate.java`](ghidra/scripts/BoaGate.java).
+  >   None of the three builds would pass it, and while R1 and R3 nearly halve by
+  >   2020, **R2 — a request parameter reaching a shell — goes 5 → 6 → 8.**
+  >   The control earned its keep immediately: the gate returned **0 findings on
+  >   a build known to be defective**, twice, for two unrelated reasons. Both
+  >   would have shipped as "clean".
+  >
+  > ⚠️ **Still entirely static.** Nothing has been sent to the device, no port
+  > has been touched, and the phrase used throughout is *the code reads as*.
+
 - [ ] **G4 — a PoC a stranger can follow** (W05–W06)
   - [ ] ≥ 1 CVE reproduced on the physical unit or under emulation
   - [ ] `poc/` with preconditions, copy-pasteable `curl`, expected result, evidence
@@ -300,6 +363,9 @@ that is not backed by a command someone else can re-run.
 | [`notes/auth-flow.md`](notes/auth-flow.md) | **How Boa decides you are allowed in** — the substring gate, the IP-as-session model, the uninitialised credential compare |
 | [`notes/sink-inventory.md`](notes/sink-inventory.md) | Every `system`/`strcpy`/`sprintf` call site, ranked — and how the first version of the census was wrong |
 | [`notes/auth-flow-2020.md`](notes/auth-flow-2020.md) | **The 2020 rewrite** — what it fixed, what it kept, and the 401 that is never sent |
+| [`notes/auth-flow-2018.md`](notes/auth-flow-2018.md) | **The gate on the build this unit runs** — a third answer, and the command handler that is only in this build |
+| [`notes/three-way-read.md`](notes/three-way-read.md) | **2015, 2018, 2020 read across** — with the predictions committed before the tools ran, and the three that failed |
+| [`notes/compcs-decode.md`](notes/compcs-decode.md) | **The configuration region decoded** — the format, `TELNET_ENABLED`, and a per-field disclosure table |
 | [`notes/submit-url-overflow.md`](notes/submit-url-overflow.md) | **Four CVEs, one idiom, 34 handlers** — `lastUrl[100]` and the parameter you must not omit |
 | [`notes/credentials.md`](notes/credentials.md) | **Where the credentials actually are** — the backdoor account W01 concluded could not exist, and two shipped private keys |
 | [`notes/mib-and-config-dat.md`](notes/mib-and-config-dat.md) | The APMIB table recovered, and what `config.dat` is made of |
@@ -309,7 +375,7 @@ that is not backed by a command someone else can re-run.
 | [`tools/fwrecon/`](tools/fwrecon/) | The analysis tool written for this project |
 | [`plan/`](plan/) | The ten week plans the gates above come from (Traditional Chinese) |
 | [`LOG.md`](LOG.md) | Running log, including every wrong turn (Traditional Chinese) |
-| [`study/QA.md`](study/QA.md) | Self-examination bank — the questions a hostile interviewer would ask about this work, with collapsible answers (Traditional Chinese) |
+| [`study/QA.md`](study/QA.md) | Self-examination bank — for every claim in this repository, the question a reviewer trying to break it would ask, with collapsible answers (Traditional Chinese) |
 | [`study/weekly-results.md`](study/weekly-results.md) | What each week actually produced, in the form it would be said out loud — every claim with its evidence, **and what that week did not prove** (Traditional Chinese) |
 
 ## Reproducing

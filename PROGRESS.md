@@ -6,7 +6,8 @@
 | **W02** | Hardware access: UART + SPI dump | **G2** | ✅ **passed** — 2026-08-16 |
 | **W03** | Static reversing, upper half | — (DoD) | ✅ **DoD met** — 2026-08-10 |
 | **W04** | CVE root-cause location | **G3** | ✅ **passed** — 2026-08-11 |
-| W05 | Dynamic analysis, upper half | — | ▶ next |
+| **W04-2** | Catch-up: move the findings onto the build this unit runs | **G3.5** | ⚠️ **4 of 5** — 2026-08-16 |
+| W05 | Dynamic analysis, upper half | — | ▶ next, **after G3.5 #5** |
 | W06 | PoC reproduction | G4 | |
 | W07 | Systematic bug hunt | — | |
 | W08 | Write-up draft | — | |
@@ -795,3 +796,315 @@ this one** — but it is now extracted, hashed, and available to be read.
    is still pinned to the Lexra subset in the 2020 build.
 10. `MiniIGD` (UPnP) and `wan_disconnect: StartDnsSpoof` both run on this unit and
     neither has been looked at anywhere in this project.
+
+---
+
+## W04-2 — 2026-08-16
+
+**G3.5: four of five.** The fifth is hardware and is not done. Added after the
+fact, because W02 found the unit runs a third build and every `boa` finding in
+this repository described two images this device has never executed.
+
+### G3.5 — every `boa` claim names the binary it was measured on
+
+| # | Required | Result |
+|---|---|---|
+| 1 | `root_form[]` + sink census for every build, each carrying its input's SHA-256 | ✅ three builds, `tools/check-reports.py` green |
+| 2 | `notes/auth-flow-2018.md`, key branch confirmed at instruction level | ✅ [`auth-flow-2018.md`](notes/auth-flow-2018.md) — the decompiler raised three warnings, so every branch was read from `BoaListing` output first |
+| 3 | `COMPDS` decoded, `TELNET_ENABLED`/`SSH_ENABLED` answered with a second source | ✅ [`compcs-decode.md`](notes/compcs-decode.md) — `TELNET_ENABLED = 0`, confirmed by the code that reads it |
+| 4 | G4's target chosen **from evidence** | ✅ `POST /boafrm/formSysCmd`, `sysCmd` → `system()`, and the gate does not run on that URI |
+| 5 | Recovery path rehearsed — `FLW` write → read-back → erase | ❌ **not done.** Hardware. See *Deliberately not done* |
+
+> ⚠️ **G3.5 is not passed, and W05 does not start until #5 is.** The gate's own
+> wording is that W06 writes to flash by definition, and this unit's recovery
+> path has never been executed. Not a formality: the `H601` block at `0x006000`
+> is this unit's MACs and radio calibration, it exists nowhere else, and a
+> factory reset does not restore it.
+
+### The finding
+
+**`formSysCmd` is in this unit's dispatch table, and in neither published
+image.**
+
+| | V2.1.2 (2015) | **this unit (2018)** | V3.4.0 (2020) |
+|---|---|---|---|
+| `grep -aoc formSysCmd` on the raw binary | **0** | **1** | **0** |
+| in `root_form[]` | no | **entry `0x004838a8` → `0x0044ee2c`** | no |
+
+Two instruments sharing no code. Absent → **present** → absent.
+
+**This overturns G3 box 1.** W04 recorded the handler's absence from V2.1.2 as
+"the vendor's fix", reasoning from dates. A fix does not reappear two and a half
+years later; the evidence now supports the reading W04 explicitly dismissed — a
+**build-time option**. The advisory for CVE-2019-19824 lists "N150RT through
+3.4.0" as affected, and **both downloadable images happen to be ones without
+it**, so anyone reproducing that CVE from published firmware would conclude "not
+affected" and be wrong about this hardware.
+
+The handler is what the CVE says it is:
+
+```c
+cmd = req_get_cstream_var(req, "sysCmd", "");
+if (*cmd != '\0') {
+  snprintf(buf, 100, "%s 2>&1 > %s", cmd, "/tmp/syscmd.log");
+  system(buf);                       /* no filter, no escaping; boa runs as root */
+}
+```
+
+> 🔴 **This endpoint has its own CVE and W04-2 did not know it while working.**
+> **CVE-2024-51228** (NVD, 2024-11-27) names `/boafrm/formSysCmd` and lists
+> **`TOTOLINK-CX-N150RT V2.1.6-B20171121.1002`** — byte-for-byte this unit's
+> `/etc/version`. So the reachability result below is an **independent
+> derivation from the binary of a claim disclosed in 2024**, not a discovery.
+> `notes/prior-art.md` had no 2024 entries at all; that gap, and the change that
+> follows from it, are recorded in
+> [`prior-art.md`](notes/prior-art.md#2024--cve-2024-51228-and-the-gap-that-let-it-be-missed).
+>
+> **What survives as this project's own contribution is narrower and checkable:**
+> NVD scores it `AV:A/AC:L/**PR:H**/UI:N/S:U/C:H/I:H/A:H` = 6.8 MEDIUM, while
+> the original researcher writes "without credentials" and the instruction-level
+> read below finds no authorisation on the path. Two of three sources agree
+> against the vector; if they are right it is `PR:N` and 8.8 HIGH.
+>
+> And this remains new relative to the published images: **the handler is in
+> neither of them**, which is why W04 read its absence as a fix.
+
+**And the gate does not run on that URI.** This build's
+`process_header_end` (`0x0040bb1c`) checks authorisation only when the URI
+contains `.htm` or `.asp`:
+
+```
+0040be90  jalr t9 -> strstr            ; strstr(uri, ".htm")
+0040beb8  beq v0,zero,0x0040c0a0       ; neither -> jump past send_r_unauthorized
+0040c088  jalr t9 -> send_r_unauthorized
+0040c0a0  jalr t9 -> translate_uri     ; normal processing resumes here
+```
+
+`/boafrm/formSysCmd` contains neither, and `handleForm` authorises nothing. **As
+the code reads, that is unauthenticated OS command execution — where the
+advisory itself only claims an authenticated attacker.** The advisory's own
+qualifier, *"even if the GUI (`syscmd.htm`) is not available"*, is literally this
+device: the `w6cg` web archive holds 143 files and `syscmd.htm` is not one.
+
+> ⚠️ **Nothing has been sent to the device.** This is a static reading of a
+> binary extracted from flash. No request has been served and no port has been
+> touched in this project. One POST and a look at `/tmp/syscmd.log` settles it,
+> and that is G4's job.
+
+### The gate is a third answer, not 2015's and not 2020's
+
+| | 2015 | **2018** | 2020 |
+|---|---|---|---|
+| what makes the gate run | `strstr(uri,"htm")` | **`.htm` or `.asp`** | `.htm` / `.asp` / **POST** |
+| `/boafrm/` POST gated | no | **no** | yes |
+| `GET /config.dat` gated | no | **no** | no |
+| session model | `AUTHG_IP_ADDR` | **neither — a global at `0x004899d8`** | 5-slot table |
+
+2015's outcome by 2020's mechanism. The gate decides with **13 unanchored
+`strstr` calls** on one string; W04 counted three in the 2020 build and called
+that the technique the vendor kept while fixing the symptom.
+
+### The configuration region, decoded
+
+`COMPCS` at `0x00C000` is LZSS over a TLV dump of the APMIB table. Confirmed
+twice: inferred from the data, then read out of `libapmib.so`'s `Decode` at
+`0x00012e98` — which also supplied an 8-bit payload checksum that is invisible in
+the data and that both regions pass.
+
+| | |
+|---|---|
+| `TELNET_ENABLED` | **0** — and `/bin/sysconf` starts `telnetd` iff that flag is 1 |
+| `SSH_ENABLED` / `SSH_PORT` | 1 / 22 — **with no SSH daemon anywhere in the rootfs** |
+| `SSH_PASSWORD` | **`xa.zioncom`** — factory default, identical in `COMPDS`; a model fact |
+| `USER_NAME` / `USER_PASSWORD` | **`admin` / `admin`, plaintext** — CVE-2019-19823 located |
+| entries differing from factory | **4 of 344** |
+
+**W04 open #4 is closed, and the answer is the narrow one.** `root:123456` and
+`onlime_r:12345` are **not** an entry point on this unit; they are the second
+stage of a chain, because something must turn telnet on first. Two independent
+sources agree: the decoded flag, and `FUN_00403400 → apmib_get(0xbbb)` guarding
+`system("telnetd &")`.
+
+**Prediction, recorded before any network test:** W05's `nmap -p 22,23` finds
+both closed — 23 because the flag is 0, 22 because the flag is 1 and there is no
+daemon to start.
+
+### A build gate, and the control that caught it being broken
+
+[`BoaGate.java`](ghidra/scripts/BoaGate.java) — R1 unbounded write from a request
+parameter, R2 request parameter reaching `system()`/`popen()`, R3 request
+parameter into a fixed-size global.
+
+| | 2.1.2 | **unit-2018** | 3.4.0 |
+|---|---|---|---|
+| R1 | 96 | 92 | 54 |
+| **R2** | **5** | **6** | **8** |
+| R3 | 38 | 36 | 22 |
+| total | 139 | 134 | 84 |
+| **would pass CI** | **no** | **no** | **no** |
+
+R1 and R3 nearly halve by 2020 and **R2 rises**. The vendor repaired the
+authorisation hole that was published and the property that produces command
+injection got worse. R2 finds `formSysCmd`/`sysCmd` in the 2018 build by a route
+entirely independent of the dispatch-table work — and `form_formRoute`/`subnet`
+in **all three** builds, which appears in none of W04's findings.
+
+### The `lwl` census, and why "none" would have proved nothing
+
+[`BoaMnemonics.java`](ghidra/scripts/BoaMnemonics.java) emits three numbers, not
+one.
+
+| | 2.1.2 | unit-2018 | 3.4.0 | 2018 busybox |
+|---|---|---|---|---|
+| `lwl`+`lwr`+`swl`+`swr` | 174 | **142** | 0 | 0 |
+| **coprocessor 2/3 encodings** | **0** | **0** | **0** | **0** |
+| bytes never decoded | 1.01% | 2.10% | 2.94% | 2.48% |
+
+**The coprocessor column is the one that was worth writing the script for.**
+Lexra's added instructions occupy opcode space that standard MIPS gives to
+coprocessors 2 and 3, which Ghidra's stock MIPS module *will* decode into
+something plausible — a silent failure mode sitting under every static result
+since W03 that had never been named. There are none. The risk was real and did
+not materialise, and testing it is the point.
+
+On `lwl` itself the evidence is asymmetric and the note says so: **present is
+evidence, absent is only compatibility.** 142 sites in the resident binary is not
+yet proof the silicon implements them, because nothing shows one *executes*.
+W02 open #6 wants `/proc/cpuinfo` and records that there is no shell to run it
+from — the finding above supplies one.
+
+### W01/W03/W04 claims that W04-2 overturned
+
+| Said | Actually |
+|---|---|
+| **W04:** `formSysCmd`'s absence "reads as the vendor's fix" | It is present in the 2018 build. Absent → present → absent is a build option, not a fix |
+| **W02:** "this vendor rebuilds userland at release and the timestamp tracks the build date" | `/etc/version` says `V2.1.6-B20171121.1002` while every binary is stamped 2018-01-10 — seven weeks apart |
+| **W02:** the resident build is "on no download page" | `/etc/version` names it **V2.1.6**, and a firmware download page for that version appears in a search index. **The page itself returns 403 to every fetch tried**, so "listed" rests on the index entry and not on reading it — see open #1 for what that is and is not worth |
+| **W03:** the uninitialised-stack credential compare is a V2.1.2 curiosity | The same shape is in the 2018 build at `sp+0x18`/`sp+0x38`, read and never written, with both instruments agreeing |
+| **This session:** "the 2018 build dropped HTTP Basic auth" | A case-sensitive `grep`. All three parse `AUTHORIZATION`; what 2015 additionally carries is a hardcoded `Authorization: Basic YWRtaW46YWRtaW4=` — base64 `admin:admin` — twice |
+| **This session:** "the 2018 build kept its symbol table" | No build here has a static symbol table. It keeps a 422-entry *dynamic* one while being `sstrip`'d |
+
+### Instrument work — bugs 10, 11 and 12, and the first one caught before it shipped
+
+| | |
+|---|---|
+| [`BoaMnemonics.java`](ghidra/scripts/BoaMnemonics.java) | mnemonic histogram, coprocessor-2/3 census, undecoded-byte count. Ships the *reading* alongside the number because the number points the wrong way half the time |
+| [`BoaGate.java`](ghidra/scripts/BoaGate.java) | three rules as a build gate, with a positive control that fails the run if a build known to be defective produces fewer than N findings |
+| [`fwrecon compcs`](tools/fwrecon/src/fwrecon/compcs.py) | the config decoder W04 deferred. 18 tests, most of them about making it fail |
+
+**10. `BoaArgTrace` counted its unmeasured rows without naming them.** The report
+said "3 rows are unmeasured" and gave no way to find them, so in practice the
+warning was noise. It now emits the site, function and accessor for each.
+
+**11. And it did not record the spec that defined its own scope.** W04 ran it
+with one set of sinks and W04-2 with another; 304 against 1,508 reads as a
+finding about the firmware until you notice the two answer different questions.
+The spec is now in the report, and all three builds were re-run under one.
+
+**12. Unifying that spec broke it, in this project's signature way.** Dropping
+V3.4.0's `accessor:` override — needed because the build is `sstrip`'d — took its
+tainted-site count from 49 to **0**, with `self_check: consistent`. The existing
+check only fired when an override *was* passed and never matched; passing none at
+all was invisible. Same 86 → 0 shape as W04, arriving through **how the tool was
+called** rather than through what it does. There is now a
+`no_accessor_identified` check: zero accessor matches anywhere in scope is
+SUSPECT, because every empty result is then a false negative by construction.
+
+**And one that did not ship, which is the difference.** `BoaGate` returned **0
+findings on V2.1.2** — a build W03 and W04 read by hand and found defective in 34
+handlers — twice, for two unrelated reasons: it matched sinks by *name* when
+libc is reached through an `sstrip`'d PLT (the third appearance of that bug
+here), and then its literal resolver tested only `isConstant()`, which never
+holds for a MIPS lui/addiu string address, so no parameter name was ever read.
+Either would have shipped as "this build is clean". **The positive control caught
+both on the first run, before a number left the script.** `constAddr` is now
+shared from `BoaArgTrace` rather than re-implemented — the same conclusion W04
+reached about the PLT, arrived at from the other end.
+
+That is twelve instrument bugs recorded. Eleven were caught by comparing two
+things that should have agreed. The twelfth was caught by a check written to
+fail.
+
+### Deliberately not done in W04-2
+
+| Item | Why |
+|---|---|
+| **G3.5 #5 — the `FLW` recovery drill** | Requires the device, a serial console and a person. Written up as a paste-able procedure in [`RUNBOOK.md`](RUNBOOK.md#89--g35-最後一格flw-回復路徑演練還沒做而且要你親手做) with each step's expected output. **Decided 2026-08-16: it runs as W05's first hardware session, not separately** — the console is already needed then, and one seating is fewer chances to mistype an `FLW`. **W05 still does not proceed past it** |
+| **Day 6 in its entirety** — CH341A pin 28, CH347T verification, JEDEC ID, TFTP→`DB` | Same reason. The JEDEC ID and the second-instrument column in G2 stay empty |
+| Fetching V2.1.1 / 2.1.3 / **2.1.6** | Softpedia returns 403 to scripted fetch and archive.org has only V2.1.2. `SOURCES.json` already recorded this as blocked. **V2.1.6 now matters much more than it did** — see open #1 |
+| The `Encode` side of `libapmib` | Only `Decode` was needed. W06 writes to this region, so `mib_compress_write` and `save_cs_to_file` are located but unread |
+| W01 open #6 — the 9-byte rootfs overrun | Needed a third container to compare against, and no third container could be fetched |
+| The three unread binaries — `/bin/auth`, `MiniIGD`, `dnsspoof` | The plan's own first-to-cut item. Cut, and moved to W07 |
+| Reporting anything to TWCERT/CC | Unchanged and reinforced. Everything here is static. It goes nowhere until W05/W06 demonstrates it on the hardware |
+
+### Open, carried forward
+
+0. **Re-download the published V2.1.6, and verify the zip's own CRC-32 first.**
+   Obtained in a browser on 2026-08-16 and **the download is 40.3% complete** —
+   1,390,332 bytes of a declared 3,447,222, no central directory, `unzip`
+   rejects it. Deflate being a stream, the prefix still decompresses and
+   `fwrecon image` reads two section headers from it, which is enough to answer
+   the version question below but **not** enough for a rootfs comparison. Details
+   and provenance in [`firmware/SOURCES.json`](firmware/SOURCES.json).
+
+1. ~~**Is the published V2.1.6 this build?**~~ → **answered: no.** The published
+   image is `TOTOLINK-N150RT-V2.1.6-**B20160516**.1233.web`; this unit runs
+   `V2.1.6-**B20171121**.1002`. **Same product version, two builds eighteen
+   months apart**, and the unit's carries a `CX` the published name does not.
+   W02's "the resident build is on no download page" survives with better
+   precision: *the version* is published, *this build* is not.
+
+   The 40% prefix also supports the mirror: section lengths land exactly on the
+   curve between the 2015 and 2018 builds — `w6cg` 308,866 → **296,804** →
+   277,012, and `cr6c` 985,090 → **986,114** → 987,138, which is 1,024 bytes
+   apart at each step. A tampered file does not land on that line in both
+   sections. That is the continuity argument, and it can now be made.
+
+   What is still established only weakly:
+
+   | | |
+   |---|---|
+   | **measured** | `/etc/version` in this unit's rootfs reads `TOTOLINK-CX-N150RT-V2.1.6-B20171121.1002` (41 bytes, `cat`) |
+   | **measured** | four binaries in that same rootfs are stamped `2018-01-10` (W02) — so the label and the build date differ by seven weeks |
+   | **measured** | the published V2.1.6 is `B20160516.1233`, from the zip's own local file header |
+   | **not measured** | anything below the second container section of the published image. No rootfs, no `/etc/version`, no `boa`. That needs the other 60% |
+   | **not measured, and not to be quoted** | a search summary gives a 2.1.6 release date of 2017-05-08. The page could not be read, it disagrees with the build string in the file itself, and a search snippet is not a source |
+
+   **What a complete download would settle:** whether the published B20160516
+   already contains `formSysCmd`. If it does, the handler was present in 2016 and
+   in 2018 and gone by 2020, and the "build option" reading gets a third point.
+   If it does not, the `CX` line diverges from the published one and that is a
+   different and more interesting story.
+
+2. **CVE-2024-51228 was missed for two weeks by a survey that had the build
+   string in hand.** The literature review is now fixed
+   ([`prior-art.md`](notes/prior-art.md#2024--cve-2024-51228-and-the-gap-that-let-it-be-missed)),
+   but the open item is the CVSS discrepancy: NVD scores `PR:H`, the original
+   researcher says "without credentials", and the binary agrees with the
+   researcher. **Settling it is a G4 deliverable**, and it is worth nothing until
+   then. If it holds, it is a reportable correction to a published record — and
+   the *only* thing here that would be, since the vulnerability itself has been
+   public since 2024-11-27.
+
+3. **Are the other five products in CVE-2024-51228 the same binary?** A3002RU,
+   N300RT (three builds) and N302RE are all `-CX-` builds of the same Realtek
+   Boa. This project has one of the six. Nothing here claims anything about the
+   other five, and the `CX` marker is unexplained.
+4. **Why the binaries are stamped seven weeks after the version label.**
+   `B20171121` against a uniform 2018-01-10 build date across four binaries.
+5. **`system()` call sites go 158 → 194 → 129.** The resident build has more
+   than either published image, in fewer functions. `formSysCmd` accounts for
+   one or two; the other ~34 are unexplained.
+6. **`form_formRoute` / `subnet` reaches `system()` in all three builds.** Found
+   by `BoaGate`, in none of W04's findings, and still present in 2020. W07.
+7. **The hardcoded `Authorization: Basic YWRtaW46YWRtaW4=` in V2.1.2**, twice.
+   Which function holds it, and whether `boa` ever sends it, is unknown.
+8. **Does `POST /boafrm/formSaveConfig` create a servable `/web/config.dat`?**
+   This rootfs has no `/web` at all — the docroot is a ramfs whose 143 files do
+   not include it. The gate is open; whether there is a file behind it is the
+   other half of the CVE-2019-19822 chain.
+9. **Who reads the global at `0x004899d8`**, which the 2018 gate sets to 1 or 2
+   after a credential match. Per-request state plus one global is not a session.
+10. Carried from W02, unchanged: **no second instrument has read this flash**, the
+   JEDEC ID is unread, `LSP5526` is unidentified, and the SoC core question is
+   open — though #4 above now supplies the means to run `/proc/cpuinfo`.

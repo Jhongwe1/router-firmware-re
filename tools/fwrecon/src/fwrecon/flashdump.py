@@ -32,13 +32,20 @@ Two classes of check
           the device rewrites it whenever anything is saved, so a difference
           there is information, not corruption.
 
-What is never printed
----------------------
+What this module does not print
+-------------------------------
 ``0x006000``-``0x010000`` holds this unit's MAC addresses, radio calibration and
 live configuration. This module reports that those blocks are present, their
 length, and their SHA-256 - never a byte of their content. A digest is enough to
 answer "did the configuration change between two reads" without putting the
-answer in a terminal log. See ``dumps/README.md``.
+answer in a terminal log.
+
+That behaviour is deliberately **unchanged** by the 2026-08-16 disclosure
+decision, which publishes this particular unit's values. The decision was about
+one device; this is a structural check that will be pointed at others. Reading
+the configuration is what ``fwrecon compcs`` is for, and it takes an explicit
+``--disclosure`` mode so that publishing is always something the caller asked
+for rather than a default. See ``dumps/README.md`` and ``notes/compcs-decode.md``.
 """
 
 from __future__ import annotations

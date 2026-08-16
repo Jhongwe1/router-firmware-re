@@ -1,0 +1,1744 @@
+{
+  "producer": "fwrecon:mib",
+  "path": "/home/key/fwre-work/extracted/unit-2018/squashfs-root/lib/libapmib.so",
+  "source_sha256": "efbb7c3df065b5248b870134e263ded4cb6608a70dc9576b6a1c0445e3ac0c2e",
+  "entries": [
+    {
+      "id": 495,
+      "name": "AUTHG_PHONE",
+      "offset": 54904
+    },
+    {
+      "id": 496,
+      "name": "AUTHG_LOGIN",
+      "offset": 54964
+    },
+    {
+      "id": 318,
+      "name": "DFS_ENABLED",
+      "offset": 55024
+    },
+    {
+      "id": 319,
+      "name": "ASIA_ENABLED",
+      "offset": 55084
+    },
+    {
+      "id": 170,
+      "name": "IP_ADDR",
+      "offset": 55144
+    },
+    {
+      "id": 171,
+      "name": "SUBNET_MASK",
+      "offset": 55204
+    },
+    {
+      "id": 256,
+      "name": "IP_ADDRS",
+      "offset": 55264
+    },
+    {
+      "id": 257,
+      "name": "SUBNET_MASKS",
+      "offset": 55324
+    },
+    {
+      "id": 172,
+      "name": "DEFAULT_GATEWAY",
+      "offset": 55384
+    },
+    {
+      "id": 173,
+      "name": "DHCP",
+      "offset": 55444
+    },
+    {
+      "id": 469,
+      "name": "LAN_DNS_MODE",
+      "offset": 55504
+    },
+    {
+      "id": 169,
+      "name": "DHCPS",
+      "offset": 55564
+    },
+    {
+      "id": 174,
+      "name": "DHCP_CLIENT_START",
+      "offset": 55624
+    },
+    {
+      "id": 175,
+      "name": "DHCP_CLIENT_END",
+      "offset": 55684
+    },
+    {
+      "id": 945,
+      "name": "DHCP_LEASE_TIME",
+      "offset": 55744
+    },
+    {
+      "id": 23,
+      "name": "ELAN_MAC_ADDR",
+      "offset": 55804
+    },
+    {
+      "id": 241,
+      "name": "WPS_FIRST",
+      "offset": 55864
+    },
+    {
+      "id": 176,
+      "name": "DNS1",
+      "offset": 55924
+    },
+    {
+      "id": 177,
+      "name": "DNS2",
+      "offset": 55984
+    },
+    {
+      "id": 178,
+      "name": "DNS3",
+      "offset": 56044
+    },
+    {
+      "id": 1004,
+      "name": "DNS4",
+      "offset": 56104
+    },
+    {
+      "id": 1005,
+      "name": "DNS5",
+      "offset": 56164
+    },
+    {
+      "id": 1006,
+      "name": "DNS6",
+      "offset": 56224
+    },
+    {
+      "id": 1008,
+      "name": "LAN_DNS1",
+      "offset": 56284
+    },
+    {
+      "id": 1009,
+      "name": "LAN_DNS2",
+      "offset": 56344
+    },
+    {
+      "id": 179,
+      "name": "STP_ENABLED",
+      "offset": 56404
+    },
+    {
+      "id": 186,
+      "name": "DEVICE_NAME",
+      "offset": 56464
+    },
+    {
+      "id": 184,
+      "name": "SCRLOG_ENABLED",
+      "offset": 56524
+    },
+    {
+      "id": 185,
+      "name": "AUTO_DISCOVERY_ENABLED",
+      "offset": 56584
+    },
+    {
+      "id": 198,
+      "name": "DOMAIN_NAME",
+      "offset": 56644
+    },
+    {
+      "id": 1096,
+      "name": "DOMAINS_NAME",
+      "offset": 56704
+    },
+    {
+      "id": 182,
+      "name": "USER_NAME",
+      "offset": 56764
+    },
+    {
+      "id": 183,
+      "name": "USER_PASSWORD",
+      "offset": 56824
+    },
+    {
+      "id": 1098,
+      "name": "REBOOT_SCHEDULE_HOUR",
+      "offset": 56884
+    },
+    {
+      "id": 1099,
+      "name": "REBOOT_SCHEDULE_MIN",
+      "offset": 56944
+    },
+    {
+      "id": 629,
+      "name": "WLAN_SSIDS",
+      "offset": 57004
+    },
+    {
+      "id": 100,
+      "name": "WAN_MAC_ADDR",
+      "offset": 57064
+    },
+    {
+      "id": 104,
+      "name": "WAN_DHCP",
+      "offset": 57124
+    },
+    {
+      "id": 101,
+      "name": "WAN_IP_ADDR",
+      "offset": 57184
+    },
+    {
+      "id": 102,
+      "name": "WAN_SUBNET_MASK",
+      "offset": 57244
+    },
+    {
+      "id": 103,
+      "name": "WAN_DEFAULT_GATEWAY",
+      "offset": 57304
+    },
+    {
+      "id": 106,
+      "name": "PPP_USER_NAME",
+      "offset": 57364
+    },
+    {
+      "id": 107,
+      "name": "PPP_PASSWORD",
+      "offset": 57424
+    },
+    {
+      "id": 348,
+      "name": "PPPOE_WAN_IP_DYNAMIC",
+      "offset": 57484
+    },
+    {
+      "id": 347,
+      "name": "PPPOE_DEFAULT_GW",
+      "offset": 57544
+    },
+    {
+      "id": 345,
+      "name": "PPPOE_IP_ADDR",
+      "offset": 57604
+    },
+    {
+      "id": 346,
+      "name": "PPPOE_SUBNET_MASK",
+      "offset": 57664
+    },
+    {
+      "id": 1499,
+      "name": "PPP_CONNECT_COUNT",
+      "offset": 57724
+    },
+    {
+      "id": 1500,
+      "name": "PPP_USER_NAME2",
+      "offset": 57784
+    },
+    {
+      "id": 1501,
+      "name": "PPP_PASSWORD2",
+      "offset": 57844
+    },
+    {
+      "id": 1502,
+      "name": "PPP_USER_NAME3",
+      "offset": 57904
+    },
+    {
+      "id": 1503,
+      "name": "PPP_PASSWORD3",
+      "offset": 57964
+    },
+    {
+      "id": 1504,
+      "name": "PPP_USER_NAME4",
+      "offset": 58024
+    },
+    {
+      "id": 1505,
+      "name": "PPP_PASSWORD4",
+      "offset": 58084
+    },
+    {
+      "id": 1528,
+      "name": "SUBNET1_COUNT",
+      "offset": 58144
+    },
+    {
+      "id": 1529,
+      "name": "SUBNET1_F1_START",
+      "offset": 58204
+    },
+    {
+      "id": 1530,
+      "name": "SUBNET1_F1_END",
+      "offset": 58264
+    },
+    {
+      "id": 1531,
+      "name": "SUBNET1_F2_START",
+      "offset": 58324
+    },
+    {
+      "id": 1532,
+      "name": "SUBNET1_F2_END",
+      "offset": 58384
+    },
+    {
+      "id": 1533,
+      "name": "SUBNET1_F3_START",
+      "offset": 58444
+    },
+    {
+      "id": 1534,
+      "name": "SUBNET1_F3_END",
+      "offset": 58504
+    },
+    {
+      "id": 1535,
+      "name": "SUBNET2_COUNT",
+      "offset": 58564
+    },
+    {
+      "id": 1536,
+      "name": "SUBNET2_F1_START",
+      "offset": 58624
+    },
+    {
+      "id": 1537,
+      "name": "SUBNET2_F1_END",
+      "offset": 58684
+    },
+    {
+      "id": 1538,
+      "name": "SUBNET2_F2_START",
+      "offset": 58744
+    },
+    {
+      "id": 1539,
+      "name": "SUBNET2_F2_END",
+      "offset": 58804
+    },
+    {
+      "id": 1540,
+      "name": "SUBNET2_F3_START",
+      "offset": 58864
+    },
+    {
+      "id": 1541,
+      "name": "SUBNET2_F3_END",
+      "offset": 58924
+    },
+    {
+      "id": 1542,
+      "name": "SUBNET3_COUNT",
+      "offset": 58984
+    },
+    {
+      "id": 1543,
+      "name": "SUBNET3_F1_START",
+      "offset": 59044
+    },
+    {
+      "id": 1544,
+      "name": "SUBNET3_F1_END",
+      "offset": 59104
+    },
+    {
+      "id": 1545,
+      "name": "SUBNET3_F2_START",
+      "offset": 59164
+    },
+    {
+      "id": 1546,
+      "name": "SUBNET3_F2_END",
+      "offset": 59224
+    },
+    {
+      "id": 1547,
+      "name": "SUBNET3_F3_START",
+      "offset": 59284
+    },
+    {
+      "id": 1548,
+      "name": "SUBNET3_F3_END",
+      "offset": 59344
+    },
+    {
+      "id": 1549,
+      "name": "SUBNET4_COUNT",
+      "offset": 59404
+    },
+    {
+      "id": 1550,
+      "name": "SUBNET4_F1_START",
+      "offset": 59464
+    },
+    {
+      "id": 1551,
+      "name": "SUBNET4_F1_END",
+      "offset": 59524
+    },
+    {
+      "id": 1552,
+      "name": "SUBNET4_F2_START",
+      "offset": 59584
+    },
+    {
+      "id": 1553,
+      "name": "SUBNET4_F2_END",
+      "offset": 59644
+    },
+    {
+      "id": 1554,
+      "name": "SUBNET4_F3_START",
+      "offset": 59704
+    },
+    {
+      "id": 1555,
+      "name": "SUBNET4_F3_END",
+      "offset": 59764
+    },
+    {
+      "id": 1509,
+      "name": "PPP_IDLE_TIME2",
+      "offset": 59824
+    },
+    {
+      "id": 1510,
+      "name": "PPP_CONNECT_TYPE2",
+      "offset": 59884
+    },
+    {
+      "id": 1511,
+      "name": "PPP_IDLE_TIME3",
+      "offset": 59944
+    },
+    {
+      "id": 1512,
+      "name": "PPP_CONNECT_TYPE3",
+      "offset": 60004
+    },
+    {
+      "id": 1513,
+      "name": "PPP_IDLE_TIME4",
+      "offset": 60064
+    },
+    {
+      "id": 1514,
+      "name": "PPP_CONNECT_TYPE4",
+      "offset": 60124
+    },
+    {
+      "id": 1515,
+      "name": "PPP_MTU_SIZE2",
+      "offset": 60184
+    },
+    {
+      "id": 1516,
+      "name": "PPP_MTU_SIZE3",
+      "offset": 60244
+    },
+    {
+      "id": 1517,
+      "name": "PPP_MTU_SIZE4",
+      "offset": 60304
+    },
+    {
+      "id": 1506,
+      "name": "PPP_SERVICE_NAME2",
+      "offset": 60364
+    },
+    {
+      "id": 1507,
+      "name": "PPP_SERVICE_NAME3",
+      "offset": 60424
+    },
+    {
+      "id": 1508,
+      "name": "PPP_SERVICE_NAME4",
+      "offset": 60484
+    },
+    {
+      "id": 1556,
+      "name": "PPP_SUBNET1",
+      "offset": 60544
+    },
+    {
+      "id": 1557,
+      "name": "PPP_SUBNET2",
+      "offset": 60604
+    },
+    {
+      "id": 1558,
+      "name": "PPP_SUBNET3",
+      "offset": 60664
+    },
+    {
+      "id": 1559,
+      "name": "PPP_SUBNET4",
+      "offset": 60724
+    },
+    {
+      "id": 1522,
+      "name": "PPP_SESSION_NUM2",
+      "offset": 60784
+    },
+    {
+      "id": 1523,
+      "name": "PPP_SERVER_MAC2",
+      "offset": 60844
+    },
+    {
+      "id": 1524,
+      "name": "PPP_SESSION_NUM3",
+      "offset": 60904
+    },
+    {
+      "id": 1525,
+      "name": "PPP_SERVER_MAC3",
+      "offset": 60964
+    },
+    {
+      "id": 1526,
+      "name": "PPP_SESSION_NUM4",
+      "offset": 61024
+    },
+    {
+      "id": 1527,
+      "name": "PPP_SERVER_MAC4",
+      "offset": 61084
+    },
+    {
+      "id": 105,
+      "name": "DNS_MODE",
+      "offset": 61144
+    },
+    {
+      "id": 108,
+      "name": "PPP_IDLE_TIME",
+      "offset": 61204
+    },
+    {
+      "id": 109,
+      "name": "PPP_CONNECT_TYPE",
+      "offset": 61264
+    },
+    {
+      "id": 140,
+      "name": "DMZ_ENABLED",
+      "offset": 61324
+    },
+    {
+      "id": 141,
+      "name": "DMZ_HOST",
+      "offset": 61384
+    },
+    {
+      "id": 142,
+      "name": "UPNP_ENABLED",
+      "offset": 61444
+    },
+    {
+      "id": 1185,
+      "name": "INC_TTL",
+      "offset": 61504
+    },
+    {
+      "id": 144,
+      "name": "PPP_MTU_SIZE",
+      "offset": 61564
+    },
+    {
+      "id": 145,
+      "name": "PPTP_IP_ADDR",
+      "offset": 61624
+    },
+    {
+      "id": 146,
+      "name": "PPTP_SUBNET_MASK",
+      "offset": 61684
+    },
+    {
+      "id": 147,
+      "name": "PPTP_SERVER_IP_ADDR",
+      "offset": 61744
+    },
+    {
+      "id": 148,
+      "name": "PPTP_USER_NAME",
+      "offset": 61804
+    },
+    {
+      "id": 149,
+      "name": "PPTP_PASSWORD",
+      "offset": 61864
+    },
+    {
+      "id": 150,
+      "name": "PPTP_MTU_SIZE",
+      "offset": 61924
+    },
+    {
+      "id": 331,
+      "name": "L2TP_IP_ADDR",
+      "offset": 61984
+    },
+    {
+      "id": 332,
+      "name": "L2TP_SUBNET_MASK",
+      "offset": 62044
+    },
+    {
+      "id": 333,
+      "name": "L2TP_SERVER_IP_ADDR",
+      "offset": 62104
+    },
+    {
+      "id": 502,
+      "name": "L2TP_GATEWAY",
+      "offset": 62164
+    },
+    {
+      "id": 334,
+      "name": "L2TP_USER_NAME",
+      "offset": 62224
+    },
+    {
+      "id": 335,
+      "name": "L2TP_PASSWORD",
+      "offset": 62284
+    },
+    {
+      "id": 336,
+      "name": "L2TP_MTU_SIZE",
+      "offset": 62344
+    },
+    {
+      "id": 338,
+      "name": "L2TP_IDLE_TIME",
+      "offset": 62404
+    },
+    {
+      "id": 337,
+      "name": "L2TP_CONNECTION_TYPE",
+      "offset": 62464
+    },
+    {
+      "id": 501,
+      "name": "L2TP_WAN_IP_DYNAMIC",
+      "offset": 62524
+    },
+    {
+      "id": 339,
+      "name": "L2TP_DEFAULT_GW",
+      "offset": 62584
+    },
+    {
+      "id": 340,
+      "name": "PPTP_DEFAULT_GW",
+      "offset": 62644
+    },
+    {
+      "id": 341,
+      "name": "PPTP_WAN_IP_DYNAMIC",
+      "offset": 62704
+    },
+    {
+      "id": 343,
+      "name": "PPTP_GET_SERV_BY_DOMAIN",
+      "offset": 62764
+    },
+    {
+      "id": 342,
+      "name": "PPTP_SERVER_DOMAIN",
+      "offset": 62824
+    },
+    {
+      "id": 499,
+      "name": "L2TP_GET_SERV_BY_DOMAIN",
+      "offset": 62884
+    },
+    {
+      "id": 500,
+      "name": "L2TP_SERVER_DOMAIN",
+      "offset": 62944
+    },
+    {
+      "id": 1400,
+      "name": "USB3G_USER",
+      "offset": 63004
+    },
+    {
+      "id": 1401,
+      "name": "USB3G_PASS",
+      "offset": 63064
+    },
+    {
+      "id": 1402,
+      "name": "USB3G_PIN",
+      "offset": 63124
+    },
+    {
+      "id": 1403,
+      "name": "USB3G_APN",
+      "offset": 63184
+    },
+    {
+      "id": 1404,
+      "name": "USB3G_DIALNUM",
+      "offset": 63244
+    },
+    {
+      "id": 1405,
+      "name": "USB3G_CONN_TYPE",
+      "offset": 63304
+    },
+    {
+      "id": 1406,
+      "name": "USB3G_IDLE_TIME",
+      "offset": 63364
+    },
+    {
+      "id": 1407,
+      "name": "USB3G_MTU_SIZE",
+      "offset": 63424
+    },
+    {
+      "id": 1073,
+      "name": "REBOOT_SCHEDULE_ENABLED",
+      "offset": 63484
+    },
+    {
+      "id": 3106,
+      "name": "EVE_SCHEDULE_ENABLED",
+      "offset": 63544
+    },
+    {
+      "id": 1074,
+      "name": "SUN_SCHEDULE_ENABLED",
+      "offset": 63604
+    },
+    {
+      "id": 1075,
+      "name": "MON_SCHEDULE_ENABLED",
+      "offset": 63664
+    },
+    {
+      "id": 1076,
+      "name": "TUE_SCHEDULE_ENABLED",
+      "offset": 63724
+    },
+    {
+      "id": 1077,
+      "name": "WED_SCHEDULE_ENABLED",
+      "offset": 63784
+    },
+    {
+      "id": 1078,
+      "name": "THU_SCHEDULE_ENABLED",
+      "offset": 63844
+    },
+    {
+      "id": 1079,
+      "name": "FRI_SCHEDULE_ENABLED",
+      "offset": 63904
+    },
+    {
+      "id": 1080,
+      "name": "SAT_SCHEDULE_ENABLED",
+      "offset": 63964
+    },
+    {
+      "id": 3006,
+      "name": "SPI_ENABLED",
+      "offset": 64024
+    },
+    {
+      "id": 3107,
+      "name": "ALG_SIP_ENABLED",
+      "offset": 64084
+    },
+    {
+      "id": 151,
+      "name": "NTP_ENABLED",
+      "offset": 64144
+    },
+    {
+      "id": 282,
+      "name": "DAYLIGHT_SAVE",
+      "offset": 64204
+    },
+    {
+      "id": 152,
+      "name": "NTP_SERVER_ID",
+      "offset": 64264
+    },
+    {
+      "id": 153,
+      "name": "NTP_TIMEZONE",
+      "offset": 64324
+    },
+    {
+      "id": 154,
+      "name": "NTP_SERVER_IP1",
+      "offset": 64384
+    },
+    {
+      "id": 155,
+      "name": "NTP_SERVER_IP2",
+      "offset": 64444
+    },
+    {
+      "id": 658,
+      "name": "NTP_SERVER_IP3",
+      "offset": 64504
+    },
+    {
+      "id": 187,
+      "name": "DDNS_ENABLED",
+      "offset": 64564
+    },
+    {
+      "id": 188,
+      "name": "DDNS_TYPE",
+      "offset": 64624
+    },
+    {
+      "id": 189,
+      "name": "DDNS_DOMAIN_NAME",
+      "offset": 64684
+    },
+    {
+      "id": 190,
+      "name": "DDNS_USER",
+      "offset": 64744
+    },
+    {
+      "id": 191,
+      "name": "DDNS_PASSWORD",
+      "offset": 64804
+    },
+    {
+      "id": 157,
+      "name": "FIXED_IP_MTU_SIZE",
+      "offset": 64864
+    },
+    {
+      "id": 158,
+      "name": "DHCP_MTU_SIZE",
+      "offset": 64924
+    },
+    {
+      "id": 344,
+      "name": "NOTICE_ENABLED",
+      "offset": 64984
+    },
+    {
+      "id": 357,
+      "name": "NOTICE_LASTURL",
+      "offset": 65044
+    },
+    {
+      "id": 358,
+      "name": "NOTICE_REDIRECT_URL",
+      "offset": 65104
+    },
+    {
+      "id": 364,
+      "name": "NOTICE_BTN_VAL",
+      "offset": 65164
+    },
+    {
+      "id": 359,
+      "name": "NOTICE_WHITELIST_URL_ENABLED",
+      "offset": 65224
+    },
+    {
+      "id": 360,
+      "name": "NOTICE_WHITELIST_URL",
+      "offset": 65284
+    },
+    {
+      "id": 361,
+      "name": "NOTICE_WHITELIST_SIP_ENABLED",
+      "offset": 65344
+    },
+    {
+      "id": 362,
+      "name": "NOTICE_WHITELIST_SIP_START",
+      "offset": 65404
+    },
+    {
+      "id": 363,
+      "name": "NOTICE_WHITELIST_SIP_END",
+      "offset": 65464
+    },
+    {
+      "id": 365,
+      "name": "NOTICE_IP",
+      "offset": 65524
+    },
+    {
+      "id": 366,
+      "name": "NOTICE_TIMEOUT",
+      "offset": 65584
+    },
+    {
+      "id": 465,
+      "name": "DDNS_UPDATE_TIME",
+      "offset": 65644
+    },
+    {
+      "id": 3005,
+      "name": "SYSCMD_SELECT",
+      "offset": 65704
+    },
+    {
+      "id": 490,
+      "name": "BUFFERMEMORY_ENABLED",
+      "offset": 65764
+    },
+    {
+      "id": 491,
+      "name": "BUFFERMEMORY_UPDATE_TIME",
+      "offset": 65824
+    },
+    {
+      "id": 486,
+      "name": "IEEE21X_AUTH_MODE",
+      "offset": 65884
+    },
+    {
+      "id": 487,
+      "name": "IEEE21X_AUTH_USER",
+      "offset": 65944
+    },
+    {
+      "id": 489,
+      "name": "IEEE21X_AUTH_PASS",
+      "offset": 66004
+    },
+    {
+      "id": 192,
+      "name": "OP_MODE",
+      "offset": 66064
+    },
+    {
+      "id": 564,
+      "name": "OP_MODES",
+      "offset": 66124
+    },
+    {
+      "id": 193,
+      "name": "WISP_WAN_ID",
+      "offset": 66184
+    },
+    {
+      "id": 194,
+      "name": "WEB_WAN_ACCESS_ENABLED",
+      "offset": 66244
+    },
+    {
+      "id": 195,
+      "name": "PING_WAN_ACCESS_ENABLED",
+      "offset": 66304
+    },
+    {
+      "id": 197,
+      "name": "HOST_NAME",
+      "offset": 66364
+    },
+    {
+      "id": 227,
+      "name": "REMOTELOG_ENABLED",
+      "offset": 66424
+    },
+    {
+      "id": 228,
+      "name": "REMOTELOG_SERVER",
+      "offset": 66484
+    },
+    {
+      "id": 250,
+      "name": "REPEATER_ENABLED1",
+      "offset": 66544
+    },
+    {
+      "id": 251,
+      "name": "REPEATER_SSID1",
+      "offset": 66604
+    },
+    {
+      "id": 252,
+      "name": "REPEATER_ENABLED2",
+      "offset": 66664
+    },
+    {
+      "id": 253,
+      "name": "REPEATER_SSID2",
+      "offset": 66724
+    },
+    {
+      "id": 260,
+      "name": "WIFI_SPECIFIC",
+      "offset": 66784
+    },
+    {
+      "id": 261,
+      "name": "PPP_SERVICE_NAME",
+      "offset": 66844
+    },
+    {
+      "id": 258,
+      "name": "PPP_AC_NAME",
+      "offset": 66904
+    },
+    {
+      "id": 229,
+      "name": "DOS_ENABLED",
+      "offset": 66964
+    },
+    {
+      "id": 230,
+      "name": "DOS_SYSSYN_FLOOD",
+      "offset": 67024
+    },
+    {
+      "id": 231,
+      "name": "DOS_SYSFIN_FLOOD",
+      "offset": 67084
+    },
+    {
+      "id": 232,
+      "name": "DOS_SYSUDP_FLOOD",
+      "offset": 67144
+    },
+    {
+      "id": 233,
+      "name": "DOS_SYSICMP_FLOOD",
+      "offset": 67204
+    },
+    {
+      "id": 234,
+      "name": "DOS_PIPSYN_FLOOD",
+      "offset": 67264
+    },
+    {
+      "id": 235,
+      "name": "DOS_PIPFIN_FLOOD",
+      "offset": 67324
+    },
+    {
+      "id": 236,
+      "name": "DOS_PIPUDP_FLOOD",
+      "offset": 67384
+    },
+    {
+      "id": 237,
+      "name": "DOS_PIPICMP_FLOOD",
+      "offset": 67444
+    },
+    {
+      "id": 238,
+      "name": "DOS_BLOCK_TIME",
+      "offset": 67504
+    },
+    {
+      "id": 245,
+      "name": "VPN_PASSTHRU_IPSEC_ENABLED",
+      "offset": 67564
+    },
+    {
+      "id": 246,
+      "name": "VPN_PASSTHRU_PPTP_ENABLED",
+      "offset": 67624
+    },
+    {
+      "id": 247,
+      "name": "VPN_PASSTHRU_L2TP_ENABLED",
+      "offset": 67684
+    },
+    {
+      "id": 386,
+      "name": "CUSTOM_PASSTHRU_ENABLED",
+      "offset": 67744
+    },
+    {
+      "id": 156,
+      "name": "PPTP_SECURITY_ENABLED",
+      "offset": 67804
+    },
+    {
+      "id": 283,
+      "name": "IGMP_PROXY_DISABLED",
+      "offset": 67864
+    },
+    {
+      "id": 1097,
+      "name": "IGMP_SNOOPING_DISABLED",
+      "offset": 67924
+    },
+    {
+      "id": 466,
+      "name": "DHCP_ROUTE1",
+      "offset": 67984
+    },
+    {
+      "id": 467,
+      "name": "DHCP_ROUTE2",
+      "offset": 68044
+    },
+    {
+      "id": 468,
+      "name": "DHCP_ROUTE3",
+      "offset": 68104
+    },
+    {
+      "id": 159,
+      "name": "PPTP_MPPC_ENABLED",
+      "offset": 68164
+    },
+    {
+      "id": 510,
+      "name": "PPTP_IDLE_TIME",
+      "offset": 68224
+    },
+    {
+      "id": 509,
+      "name": "PPTP_CONNECTION_TYPE",
+      "offset": 68284
+    },
+    {
+      "id": 655,
+      "name": "MIB_VER",
+      "offset": 68344
+    },
+    {
+      "id": 317,
+      "name": "START_MP",
+      "offset": 68404
+    },
+    {
+      "id": 370,
+      "name": "IPV6_RADVD_PARAM",
+      "offset": 68464
+    },
+    {
+      "id": 371,
+      "name": "IPV6_DNSV6_PARAM",
+      "offset": 68524
+    },
+    {
+      "id": 372,
+      "name": "IPV6_DHCPV6S_PARAM",
+      "offset": 68584
+    },
+    {
+      "id": 375,
+      "name": "IPV6_DHCPV6C_PARAM",
+      "offset": 68644
+    },
+    {
+      "id": 373,
+      "name": "IPV6_ADDR_PARAM",
+      "offset": 68704
+    },
+    {
+      "id": 376,
+      "name": "IPV6_ADDR6_PARAM",
+      "offset": 68764
+    },
+    {
+      "id": 377,
+      "name": "IPV6_ADDR_LAN_PARAM",
+      "offset": 68824
+    },
+    {
+      "id": 378,
+      "name": "IPV6_ADDR_WAN_PARAM",
+      "offset": 68884
+    },
+    {
+      "id": 379,
+      "name": "IPV6_ADDR_GW_PARAM",
+      "offset": 68944
+    },
+    {
+      "id": 380,
+      "name": "IPV6_ADDR_PFEFIX_PARAM",
+      "offset": 69004
+    },
+    {
+      "id": 381,
+      "name": "IPV6_ADDR_DNS_PARAM",
+      "offset": 69064
+    },
+    {
+      "id": 369,
+      "name": "IPV6_ADDR_DNS_SECONDARY",
+      "offset": 69124
+    },
+    {
+      "id": 374,
+      "name": "IPV6_TUNNEL_PARAM",
+      "offset": 69184
+    },
+    {
+      "id": 383,
+      "name": "IPV6_LINK_TYPE",
+      "offset": 69244
+    },
+    {
+      "id": 382,
+      "name": "IPV6_ORIGIN_TYPE",
+      "offset": 69304
+    },
+    {
+      "id": 3104,
+      "name": "DHCPC_SINGLE",
+      "offset": 69364
+    },
+    {
+      "id": 384,
+      "name": "IPV6_WAN_ENABLE",
+      "offset": 69424
+    },
+    {
+      "id": 385,
+      "name": "IPV6_DNS_AUTO",
+      "offset": 69484
+    },
+    {
+      "id": 386,
+      "name": "MLD_PROXY_DISABLED",
+      "offset": 69544
+    },
+    {
+      "id": 387,
+      "name": "IPV6_DHCP_MODE",
+      "offset": 69604
+    },
+    {
+      "id": 388,
+      "name": "IPV6_DHCP_PD_ENABLE",
+      "offset": 69664
+    },
+    {
+      "id": 389,
+      "name": "IPV6_DHCP_RAPID_COMMIT_ENABLE",
+      "offset": 69724
+    },
+    {
+      "id": 350,
+      "name": "IPV6_ULA_ENABLE",
+      "offset": 69784
+    },
+    {
+      "id": 351,
+      "name": "IPV6_ULA_MODE",
+      "offset": 69844
+    },
+    {
+      "id": 352,
+      "name": "IPV6_ADDR_ULA_PARAM",
+      "offset": 69904
+    },
+    {
+      "id": 321,
+      "name": "SYSTIME_YEAR",
+      "offset": 69964
+    },
+    {
+      "id": 322,
+      "name": "SYSTIME_MON",
+      "offset": 70024
+    },
+    {
+      "id": 323,
+      "name": "SYSTIME_DAY",
+      "offset": 70084
+    },
+    {
+      "id": 324,
+      "name": "SYSTIME_HOUR",
+      "offset": 70144
+    },
+    {
+      "id": 325,
+      "name": "SYSTIME_MIN",
+      "offset": 70204
+    },
+    {
+      "id": 326,
+      "name": "SYSTIME_SEC",
+      "offset": 70264
+    },
+    {
+      "id": 660,
+      "name": "WLAN_11N_ONOFF_TKIP",
+      "offset": 70324
+    },
+    {
+      "id": 1069,
+      "name": "CHECK_SSID_OK",
+      "offset": 70384
+    },
+    {
+      "id": 1070,
+      "name": "CHECK_MAC_OK",
+      "offset": 70444
+    },
+    {
+      "id": 292,
+      "name": "DHCPRSVDIP_ENABLED",
+      "offset": 70504
+    },
+    {
+      "id": 293,
+      "name": "DHCPRSVDIP_TBL_NUM",
+      "offset": 70564
+    },
+    {
+      "id": 33062,
+      "name": "DHCPRSVDIP_TBL",
+      "offset": 70624
+    },
+    {
+      "id": 2100,
+      "name": "PROFILE_ENABLED1",
+      "offset": 70684
+    },
+    {
+      "id": 2101,
+      "name": "PROFILE_NUM1",
+      "offset": 70744
+    },
+    {
+      "id": 34870,
+      "name": "PROFILE_TBL1",
+      "offset": 70804
+    },
+    {
+      "id": 2116,
+      "name": "PROFILE_ENABLED2",
+      "offset": 70864
+    },
+    {
+      "id": 2119,
+      "name": "PROFILE_NUM2",
+      "offset": 70924
+    },
+    {
+      "id": 34888,
+      "name": "PROFILE_TBL2",
+      "offset": 70984
+    },
+    {
+      "id": 616,
+      "name": "VLANCONFIG_ENABLED",
+      "offset": 71044
+    },
+    {
+      "id": 617,
+      "name": "VLANCONFIG_TBL_NUM",
+      "offset": 71104
+    },
+    {
+      "id": 33386,
+      "name": "VLANCONFIG_TBL",
+      "offset": 71164
+    },
+    {
+      "id": 1090,
+      "name": "VLAN_TRIP_TBL_STR",
+      "offset": 71224
+    },
+    {
+      "id": 480,
+      "name": "STA_NUMS0",
+      "offset": 71284
+    },
+    {
+      "id": 481,
+      "name": "STA_NUMS1",
+      "offset": 71344
+    },
+    {
+      "id": 482,
+      "name": "STA_NUMS2",
+      "offset": 71404
+    },
+    {
+      "id": 483,
+      "name": "STA_NUMS3",
+      "offset": 71464
+    },
+    {
+      "id": 484,
+      "name": "STA_NUMS4",
+      "offset": 71524
+    },
+    {
+      "id": 3007,
+      "name": "STA_NUMS5",
+      "offset": 71584
+    },
+    {
+      "id": 3008,
+      "name": "STA_NUMS6",
+      "offset": 71644
+    },
+    {
+      "id": 3009,
+      "name": "STA_NUMS7",
+      "offset": 71704
+    },
+    {
+      "id": 3010,
+      "name": "STA_NUMS8",
+      "offset": 71764
+    },
+    {
+      "id": 3011,
+      "name": "STA_NUMS9",
+      "offset": 71824
+    },
+    {
+      "id": 110,
+      "name": "PORTFW_ENABLED",
+      "offset": 71884
+    },
+    {
+      "id": 111,
+      "name": "PORTFW_TBL_NUM",
+      "offset": 71944
+    },
+    {
+      "id": 32880,
+      "name": "PORTFW_TBL",
+      "offset": 72004
+    },
+    {
+      "id": 116,
+      "name": "IPFILTER_ENABLED",
+      "offset": 72064
+    },
+    {
+      "id": 117,
+      "name": "IPFILTER_TBL_NUM",
+      "offset": 72124
+    },
+    {
+      "id": 32886,
+      "name": "IPFILTER_TBL",
+      "offset": 72184
+    },
+    {
+      "id": 128,
+      "name": "PORTFILTER_ENABLED",
+      "offset": 72244
+    },
+    {
+      "id": 129,
+      "name": "PORTFILTER_TBL_NUM",
+      "offset": 72304
+    },
+    {
+      "id": 32898,
+      "name": "PORTFILTER_TBL",
+      "offset": 72364
+    },
+    {
+      "id": 122,
+      "name": "MACFILTER_ENABLED",
+      "offset": 72424
+    },
+    {
+      "id": 123,
+      "name": "MACFILTER_TBL_NUM",
+      "offset": 72484
+    },
+    {
+      "id": 32892,
+      "name": "MACFILTER_TBL",
+      "offset": 72544
+    },
+    {
+      "id": 134,
+      "name": "TRIGGERPORT_ENABLED",
+      "offset": 72604
+    },
+    {
+      "id": 135,
+      "name": "TRIGGERPORT_TBL_NUM",
+      "offset": 72664
+    },
+    {
+      "id": 32904,
+      "name": "TRIGGERPORT_TBL",
+      "offset": 72724
+    },
+    {
+      "id": 239,
+      "name": "URLFILTER_ENABLED",
+      "offset": 72784
+    },
+    {
+      "id": 255,
+      "name": "URLFILTER_MODE",
+      "offset": 72844
+    },
+    {
+      "id": 240,
+      "name": "URLFILTER_TBL_NUM",
+      "offset": 72904
+    },
+    {
+      "id": 33009,
+      "name": "URLFILTER_TBL",
+      "offset": 72964
+    },
+    {
+      "id": 216,
+      "name": "STATICROUTE_ENABLED",
+      "offset": 73024
+    },
+    {
+      "id": 217,
+      "name": "STATICROUTE_TBL_NUM",
+      "offset": 73084
+    },
+    {
+      "id": 32986,
+      "name": "STATICROUTE_TBL",
+      "offset": 73144
+    },
+    {
+      "id": 222,
+      "name": "RIP_ENABLED",
+      "offset": 73204
+    },
+    {
+      "id": 223,
+      "name": "RIP_LAN_TX",
+      "offset": 73264
+    },
+    {
+      "id": 224,
+      "name": "RIP_LAN_RX",
+      "offset": 73324
+    },
+    {
+      "id": 225,
+      "name": "RIP_WAN_TX",
+      "offset": 73384
+    },
+    {
+      "id": 226,
+      "name": "RIP_WAN_RX",
+      "offset": 73444
+    },
+    {
+      "id": 645,
+      "name": "NAT_ENABLED",
+      "offset": 73504
+    },
+    {
+      "id": 650,
+      "name": "SAMBA_ENABLED",
+      "offset": 73564
+    },
+    {
+      "id": 940,
+      "name": "PPP_SESSION_NUM",
+      "offset": 73624
+    },
+    {
+      "id": 941,
+      "name": "PPP_SERVER_MAC",
+      "offset": 73684
+    },
+    {
+      "id": 942,
+      "name": "L2TP_PAYLOAD",
+      "offset": 73744
+    },
+    {
+      "id": 943,
+      "name": "L2TP_PAYLOAD_LENGTH",
+      "offset": 73804
+    },
+    {
+      "id": 944,
+      "name": "L2TP_NS",
+      "offset": 73864
+    },
+    {
+      "id": 307,
+      "name": "QOS_ENABLED",
+      "offset": 73924
+    },
+    {
+      "id": 308,
+      "name": "QOS_AUTO_UPLINK_SPEED",
+      "offset": 73984
+    },
+    {
+      "id": 309,
+      "name": "QOS_MANUAL_UPLINK_SPEED",
+      "offset": 74044
+    },
+    {
+      "id": 651,
+      "name": "QOS_AUTO_DOWNLINK_SPEED",
+      "offset": 74104
+    },
+    {
+      "id": 652,
+      "name": "QOS_MANUAL_DOWNLINK_SPEED",
+      "offset": 74164
+    },
+    {
+      "id": 310,
+      "name": "QOS_RULE_TBL_NUM",
+      "offset": 74224
+    },
+    {
+      "id": 33079,
+      "name": "QOS_RULE_TBL",
+      "offset": 74284
+    },
+    {
+      "id": 248,
+      "name": "SNMP_RO_COMMUNITY",
+      "offset": 74344
+    },
+    {
+      "id": 249,
+      "name": "SNMP_RW_COMMUNITY",
+      "offset": 74404
+    },
+    {
+      "id": 32869,
+      "name": "WLAN_ROOT",
+      "offset": 74464
+    },
+    {
+      "id": 1300,
+      "name": "DUALBANK_ENABLED",
+      "offset": 74524
+    },
+    {
+      "id": 1303,
+      "name": "WLAN_BAND2G5G_SELECT",
+      "offset": 74584
+    },
+    {
+      "id": 3003,
+      "name": "TELNET_ENABLED",
+      "offset": 74644
+    },
+    {
+      "id": 3001,
+      "name": "SSH_ENABLED",
+      "offset": 74704
+    },
+    {
+      "id": 3000,
+      "name": "SSH_PORT",
+      "offset": 74764
+    },
+    {
+      "id": 2999,
+      "name": "WEBS_PORT",
+      "offset": 74824
+    },
+    {
+      "id": 3002,
+      "name": "SSH_PASSWORD",
+      "offset": 74884
+    },
+    {
+      "id": 3100,
+      "name": "WEB_LANG",
+      "offset": 74944
+    },
+    {
+      "id": 3101,
+      "name": "REBOOT_SCHEDULE_ENABLEDS",
+      "offset": 75004
+    },
+    {
+      "id": 3102,
+      "name": "REBOOT_SCHEDULE_HOURS",
+      "offset": 75064
+    },
+    {
+      "id": 3103,
+      "name": "REBOOT_SCHEDULE_MINS",
+      "offset": 75124
+    },
+    {
+      "id": 3200,
+      "name": "EMAIL_ENABLED",
+      "offset": 75184
+    },
+    {
+      "id": 3201,
+      "name": "EMAIL_ADDRESS",
+      "offset": 75244
+    },
+    {
+      "id": 3202,
+      "name": "EMAIL_RETURN_ADDRESS",
+      "offset": 75304
+    },
+    {
+      "id": 3203,
+      "name": "EMAIL_PASSWORD",
+      "offset": 75364
+    },
+    {
+      "id": 3204,
+      "name": "EMAIL_TIME",
+      "offset": 75424
+    },
+    {
+      "id": 1749,
+      "name": "LAN_DHCP_CONFIGURABLE",
+      "offset": 75484
+    }
+  ],
+  "table_offset": 54904,
+  "record_size": 60,
+  "segments": 63,
+  "runner_up": 133,
+  "anchors_matched": 2,
+  "anchors_checked": {
+    "0xb6": "USER_NAME",
+    "0xb7": "USER_PASSWORD",
+    "0x1ec": "<absent from this build>",
+    "0x1ed": "<absent from this build>",
+    "0x1ee": "<absent from this build>"
+  },
+  "duplicate_ids": [
+    "0x182: CUSTOM_PASSTHRU_ENABLED and MLD_PROXY_DISABLED (record at 0x10fa8)"
+  ],
+  "anomalies": [],
+  "verdict": "consistent"
+}

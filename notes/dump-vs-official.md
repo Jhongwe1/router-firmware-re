@@ -130,11 +130,22 @@ hardware will be testing it, not them.
   so they are blocked on the same decode. That question decides what
   `root` / `123456` is actually worth on this unit.
 
-> ⚠️ **`0x006000`–`0x010000` is never published.** It holds this unit's MAC
-> addresses, radio calibration and live configuration. `fwrecon flashdump`
-> reports those regions by SHA-256 and refuses to print their contents; there is
-> a test that fails if a byte of them reaches the output. Same rule as the
-> photographs and the boot log — see [`img/README.md`](img/README.md).
+> 📌 **Superseded 2026-08-16 (W04-2).** This note previously read
+> "`0x006000`–`0x010000` is never published". The policy is now decided **per
+> field**, and for this unit those fields are published — it is self-purchased,
+> end-of-life, never deployed, and a MAC is an identifier rather than a
+> credential. The decoded configuration is in
+> [`compcs-decode.md`](compcs-decode.md) and
+> [`reports/compcs-unit-2018.json`](../reports/compcs-unit-2018.json).
+>
+> The *mechanism* is unchanged, because what changed was a policy and not a
+> capability: `fwrecon flashdump` still reports those regions by digest, and
+> `fwrecon compcs --disclosure protect` still withholds per-unit identifiers,
+> each with a test that fails if a byte escapes. The next device may not be mine.
+>
+> **The raw image is still not committed**, for the one reason that did not
+> expire: this project does not redistribute vendor firmware. See
+> [`dumps/README.md`](../dumps/README.md).
 
 ---
 

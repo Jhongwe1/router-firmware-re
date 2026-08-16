@@ -15,6 +15,16 @@ plan/
 *.trx
 *.squashfs
 *.rom
+# Vendors ship firmware inside archives, and the extension of the *container*
+# is what a browser saves. W04-2 nearly redistributed one: a browser-downloaded
+# N150RT-V2.1.6-*.zip landed in study/, which no rule here matched, and it was
+# one `git add -A` from being committed. The rules above all named the payload;
+# none named the wrapper.
+*.zip
+*.rar
+*.7z
+*.tar.gz
+*.tgz
 firmware/*
 !firmware/.gitkeep
 !firmware/SOURCES.json
@@ -26,6 +36,14 @@ dumps/*
 !dumps/.gitkeep
 !dumps/MANIFEST.json
 !dumps/README.md
+# W04-2: the console transcripts are published. MANIFEST records
+# contains_unit_identifiers:false for both, and that was re-checked against the
+# files rather than taken from the manifest before they were added.
+!dumps/*.log
+# and the raw images are still blocked, by a rule that is deliberately NOT
+# relaxed alongside the one above. See dumps/README.md: the two reasons for
+# keeping them out were written as independent, and only one of them expired.
+dumps/*.bin
 
 # Unpacked filesystems — large, and reconstructible from the manifest + tooling.
 extracted/

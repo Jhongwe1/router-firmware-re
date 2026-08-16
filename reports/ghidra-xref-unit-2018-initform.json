@@ -1,0 +1,16 @@
+{
+  "producer": "ghidra:BoaXref",
+  "program": "boa",
+  "source_sha256": "19fe29d71aa1cc1e893627f17a0f14b03ca75f6936318df4062df4fb153909f7",
+  "language": "MIPS:BE:32:default",
+  "image_base": "00400000",
+  "function_count": 764,
+  "reverse_depth": 2,
+  "self_check": {"unresolved_selectors": [], "verdict": "consistent"},
+  "data_xrefs": [
+
+  ],
+  "functions": [
+    {"function":"init_form","entry":"00408c0c","size":112,"selector":"name:init_form","caller_count":1,"callers":[{"site":"0040ab30","caller":"write_body","caller_entry":"0040aaa0","ref":"COMPUTED_JUMP"}],"callee_count":2,"callees":[{"site":"00408c30","target":"complete_env","target_entry":"00405fa0"},{"site":"00408c60","target":"handleForm","target_entry":"004127f4"}],"strings":[],"reachability":{"depth":2,"ancestors":2,"handlers":[],"indirect_or_dead_roots":[],"truncated":true,"note":"frontier hit the depth limit; absence of a handler here is not proof of one"}}
+  ]
+}
