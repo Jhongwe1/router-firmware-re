@@ -1,11 +1,16 @@
 # CLAUDE.md
 
 TOTOLINK N150RT firmware RE — big-endian MIPS, Realtek SDK, Boa 0.94.14rc21.
-**Three builds, not two:** V2.1.2 (2015), V3.4.0 (2020), and the **2018-01-10
-build read off this unit's own flash** — on no download page, and the only one
-the device actually runs. Repo tour: `README.md`. Current state: `PROGRESS.md`
-— read the newest "Open, carried forward" and "Deliberately not done" first.
-Nothing volatile is recorded here.
+**Three builds, not two:** V2.1.2 (2015), V3.4.0 (2020), and
+**`TOTOLINK-CX-N150RT-V2.1.6-B20171121.1002`** — read off this unit's own flash
+and the only build the device actually runs. Its *version* is published; **this
+build is not** (the published V2.1.6 is `B20160516`, eighteen months earlier and
+without the `CX`). The repo labels it `unit-2018` after its binary timestamps,
+which run seven weeks later than the version string — **always search the
+version string, never the label**: that is how CVE-2024-51228, which names this
+build, went unfound for two weeks. Repo tour: `README.md`. Current state:
+`PROGRESS.md` — read the newest "Open, carried forward" and "Deliberately not
+done" first. Nothing volatile is recorded here.
 
 ## The rule that outranks the others
 

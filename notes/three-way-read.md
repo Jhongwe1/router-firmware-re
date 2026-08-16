@@ -20,6 +20,13 @@ The binary under test: `/bin/boa` from this unit's flash,
 `sha256 19fe29d71aa1cc1e893627f17a0f14b03ca75f6936318df4062df4fb153909f7`,
 485,012 bytes, self-identifying as `boa: server built Jan 10 2018 at 14:57:54`.
 
+**The build it belongs to is `TOTOLINK-CX-N150RT-V2.1.6-B20171121.1002`**
+(`/etc/version`, same rootfs), and this note's `unit-2018` label is named after
+the binary timestamps rather than that string — the two are seven weeks apart
+and why is `PROGRESS.md` open #4. The label is the convenient identifier; **the
+version string is the searchable one**, and reading past it cost this project
+CVE-2024-51228 for two weeks ([`prior-art.md`](prior-art.md)).
+
 | Measurement | 2.1.2 (known) | **unit-2018 (predicted)** | 3.4.0 (known) |
 |---|---|---|---|
 | `root_form[]` entries | 59 | **55–59** | 49 |

@@ -51,11 +51,16 @@ function in the binary.
 > → remove the account (2020). **The middle step is on no download page.**
 >
 > **The device has been powered on since 2026-08-15, and it runs a firmware nobody
-> had.** A serial console at 38400 — pin-out measured, baud measured from pulse width
-> rather than guessed — puts the resident build at **2018-01-10**: not V2.1.2, not
-> V3.4.0, a third one. That includes `/bin/boa`, **the binary this project has been
+> had:** `TOTOLINK-CX-N150RT-V2.1.6-B20171121.1002`, read from `/etc/version` in
+> its own flash. A serial console at 38400 — pin-out measured, baud measured from
+> pulse width rather than guessed — got the image off it. Not V2.1.2, not V3.4.0,
+> a third build, and that includes `/bin/boa`, **the binary this project has been
 > reverse engineering since W03**, so W03/W04's findings describe two images this
-> device has never run.
+> device has never run. **Its *version* is published; this *build* is not** — the
+> downloadable V2.1.6 is `B20160516`, eighteen months earlier and without the `CX`.
+> The binaries are stamped 2018-01-10, seven weeks after the version label, and
+> why is unresolved — but the label is the searchable identifier and the timestamp
+> is not, which is how CVE-2024-51228 sat unfound for two weeks.
 >
 > The boot loader console also yields `FLR` + `DB` — **a full flash read path with
 > no chip clip** — and with it, W01's container work is confirmed against silicon:
@@ -370,6 +375,7 @@ that is not backed by a command someone else can re-run.
 | [`notes/credentials.md`](notes/credentials.md) | **Where the credentials actually are** — the backdoor account W01 concluded could not exist, and two shipped private keys |
 | [`notes/mib-and-config-dat.md`](notes/mib-and-config-dat.md) | The APMIB table recovered, and what `config.dat` is made of |
 | [`notes/formSysCmd-analysis.md`](notes/formSysCmd-analysis.md) | The CVE endpoint that is not there, and why three pieces of evidence pointed the wrong way |
+| [`notes/w6cg-web-ui.md`](notes/w6cg-web-ui.md) | **The web UI the vendor actually shipped** — the page and the route are anti-correlated across three builds, and the 2015 fix was half a fix |
 | [`notes/skt-analysis.md`](notes/skt-analysis.md) | The 2015 backdoor decoded: port, magic words, and the one `iptables` line it exists to run |
 | [`reports/`](reports/) | Generated analysis: per-version reports, version diff, Ghidra string xrefs |
 | [`tools/fwrecon/`](tools/fwrecon/) | The analysis tool written for this project |

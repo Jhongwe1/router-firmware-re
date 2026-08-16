@@ -3,11 +3,32 @@
 Answers G2's third checkbox — *dump vs vendor image compared* — and the question
 W01 opened and could not close: **which build is on my unit.**
 
-**It is neither of them.** A 4 MiB image read out of the device on 2026-08-16
-carries a `/bin/boa` built **2018-01-10 14:57:54**, 485,012 bytes,
-`sha256 19fe29d7…`. V2.1.2's is 522,556 bytes and V3.4.0's is 404,904. This
-binary has never appeared in this repository, and it is not on any vendor
-download page.
+**It is neither of them, and it has a name:
+`TOTOLINK-CX-N150RT-V2.1.6-B20171121.1002`** — 41 bytes, `cat`, from
+`/etc/version` in the rootfs carved out of this unit's own flash. A second file
+in the same tree agrees without sharing a failure mode: `/bin/boa` carries the
+compiled-in string `Model No. N150RT (Firmware V2.1.6)`, and a text file can be
+edited where a string linked into an executable cannot.
+
+That image, read out of the device on 2026-08-16, carries a `/bin/boa` built
+**2018-01-10 14:57:54**, 485,012 bytes, `sha256 19fe29d7…`. V2.1.2's is 522,556
+bytes and V3.4.0's is 404,904. This binary has never appeared in this
+repository.
+
+**Two identifiers, seven weeks apart, and the difference is not cosmetic.** The
+vendor's own label says `B20171121` (2017-11-21); every binary in the tree is
+stamped 2018-01-10. This repository labels the build `unit-2018`, i.e. after the
+timestamp — **and the timestamp is the identifier nobody can search.** The
+version string is the one that turns up CVE-2024-51228, which names this exact
+build and which this project read past for two weeks
+([`prior-art.md`](prior-art.md)). Why the label precedes the binaries by seven
+weeks is `PROGRESS.md` open #4, and it is unanswered.
+
+**Is it on a download page?** The *version* is; **this build is not.** The
+published V2.1.6 is `TOTOLINK-N150RT-V2.1.6-B20160516.1233.web` — same product
+version, a build eighteen months earlier, and without the `CX`. W02's original
+"the resident build is on no download page" survives with that precision, and
+the measurement behind it is §2.1 below.
 
 The comparison that follows is only possible because of that middle point:
 
@@ -107,6 +128,74 @@ assumption was right, and it is no longer an assumption.
 The tail is erased from `0x350000` to the end of the part — **the whole tail,
 not the two 64-byte windows W02 Day 2–3 could reach.**
 
+## 2.1 A fourth image: the published V2.1.6, obtained 40% complete
+
+Softpedia serves the V2.1.6 the unit's version string names, but not the unit's
+build. Every scripted fetch gets 403 (PowerShell `HEAD`, `curl` under three
+user-agents, `WebFetch`); a browser session succeeds, and the one obtained on
+2026-08-16 stopped at **1,390,332 of a declared 3,447,222 compressed bytes**.
+There is no central directory, so `unzip` rejects the file outright — which
+reads as *corrupt* and means *truncated*, two different things. Deflate is a
+stream, so the prefix still decompresses:
+[`tools/zipprefix.py`](../tools/zipprefix.py), procedure in
+[`RUNBOOK.md` §8.8.4](../RUNBOOK.md).
+
+**What the prefix actually contains is more than "section lengths".** Two of the
+three sections are byte-complete; only the rootfs is cut:
+
+| section | declared | present | |
+|---|---|---|---|
+| `w6cg` (web UI, bzip2) | 296,804 | 296,804 | **complete** |
+| `cr6c` (kernel) | 986,114 | 986,114 | **complete** — inner LZMA decompresses to 3,374,608 bytes, `eof=True` |
+| `r6cr` (rootfs) | — | — | truncated: no `/etc/version`, no `boa` |
+
+So the four-way section comparison can be made, and the rootfs one cannot:
+
+| | V2.1.2 (2015-08) | **V2.1.6-B20160516** | this unit (2018-01) | V3.4.0 (2020-10) |
+|---|---|---|---|---|
+| `w6cg` | 308,866 | **296,804** | 277,012 | absent |
+| `cr6c` | 985,090 | **986,114** | 987,138 | 1,234,946 |
+
+### The continuity argument, and why its first form was wrong
+
+The reason to line those numbers up is the question a mirror always raises:
+*how do you know the file was not tampered with?* The first version of this
+argument said the kernel lengths run 985,090 → 986,114 → 987,138, **exactly
+1,024 bytes apart at each step**, and that a tampered file would not land on
+that line. **That is not evidence, and adding the fourth build shows why:**
+
+```
+2.1.2 (2015-08)    985090 =  962*1024 + 2
+2.1.6-B20160516    986114 =  963*1024 + 2
+unit-2018          987138 =  964*1024 + 2
+3.4.0 (2020-10)   1234946 = 1206*1024 + 2
+```
+
+All four are ≡ 2 (mod 1024). The section is padded to a 1 KiB grid, so "1,024
+apart" is three consecutive grid points, not a coincidence — and **between the
+2015 and 2018 values there is exactly one grid point**, so any correctly built
+kernel of roughly that size lands on 986,114 by construction. A tampered one
+would too. The regularity that made the argument persuasive is the thing that
+empties it.
+
+`w6cg` is not on a grid (remainders 642 / 868 / 532) and does fall between its
+neighbours, which is real but weak: an ordering test across a ~32 KiB window.
+
+### What does carry weight
+
+| source | value | why it is not the same source as the filename |
+|---|---|---|
+| ZIP local file header, DOS timestamp | `2016-05-16 12:34:30` | the filename's `B20160516` is text a mirror can type; this is a separate binary field the packer writes |
+| inside the compressed kernel | `Linux version 2.6.30.9 (acer1@localhost.localdomain) … #1338 Thu May 12 21:05` | renaming a file cannot reach it; 2016-05-12 was a Thursday, four days before packaging |
+| the same kernel's cmdline | `console=ttyS0,38400 root=/dev/mtdblock1` | agrees with the 26 µs bit time measured on **this hardware** in W02 |
+
+**The ceiling is unchanged and it is low.** TOTOLINK publishes no signature, so
+none of this shows the bytes came from the vendor — it raises the cost of a
+forgery from renaming a file to rebuilding a kernel, and no further.
+[`firmware/SOURCES.json`](../firmware/SOURCES.json) states that limit and
+records the download's provenance from the file's own `Zone.Identifier` stream,
+which the operating system wrote at fetch time.
+
 ## 3. What this costs the W03/W04 findings
 
 Nothing, and the repository has always named its images — but it has to be said
@@ -183,3 +272,22 @@ backdoors from that one disclosure.** CVE-2015-9551 is the RCE binary and
 CVE-2015-9550 is the account; the 2018 build fixed the first and left the second
 untouched, byte for byte. **Finding one of a pair repaired says nothing about the
 other, and the pleasure of finding a fix is precisely when you stop looking.**
+
+**Third: this note answered "which build is on my unit" without ever writing
+down what the vendor calls it.** It identified the build by a timestamp
+(2018-01-10) and a hash, both correct, and the version string sat unread in
+`/etc/version` in the same tree. That is not a cosmetic omission — a timestamp
+cannot be searched and a build string can. The version string is what returns
+CVE-2024-51228, disclosed 2024-11-27 against this exact build, and this project
+read past it for two weeks. **The identifier you record determines the
+literature you find**, and the note picked the one that finds nothing.
+
+**Fourth, and it is the same error in a different costume: §2.1's first
+continuity argument treated a quantisation grid as a coincidence.** Three kernel
+lengths 1,024 bytes apart looked like a fingerprint; a fourth build showed all
+of them sitting on a 1 KiB boundary, which makes the spacing a property of the
+format rather than of these files. Three points looked like a trend and four
+points showed a grid. The general form is worth keeping: *before calling a
+pattern improbable, check whether it is simply what the format always does.*
+Every previous instance of this failure in this repository was an instrument
+lying; this one was an argument, and no instrument was going to catch it.

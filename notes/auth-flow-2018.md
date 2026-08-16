@@ -139,6 +139,17 @@ advisory's own wording — *"even if the GUI (`syscmd.htm`) is not available"* �
 literally this device's situation: the `w6cg` web-resource section contains 143
 files and **`syscmd.htm` is not one of them**, while the handler is registered.
 
+**That clause has a before, and it inverts.** The 143-entry count above was
+obtained by hand here; `fwrecon web` now walks the same archive to zero bytes
+remaining and reproduces it, and applied to the two published images it finds
+**144** entries each — the extra one being `syscmd.htm`, 3,835 bytes, carrying
+`<form action=/boafrm/formSysCmd …>`, and **byte-identical between 2015 and
+2016**. So across the three builds the page and the route are anti-correlated:
+2015 and 2016 ship the page with no route to reach, 2018 ships the route with no
+page pointing at it ([`w6cg-web-ui.md`](w6cg-web-ui.md)). The 2018 bundle still
+carries the page's translated strings in `language_vn/sc/sp.js`, which is the
+same kind of leftover as the dead `#skt&` line.
+
 > 📌 **This endpoint has its own, later CVE, and this project did not know that
 > while reading it.** **CVE-2024-51228** (NVD, 2024-11-27) names
 > `/boafrm/formSysCmd` and lists **`TOTOLINK-CX-N150RT V2.1.6-B20171121.1002`** —

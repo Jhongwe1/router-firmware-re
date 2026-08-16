@@ -125,17 +125,31 @@
         "zip_sha256": "f18a29ef5798c3f166aad6d08d8ce9a868a70fbda7de49fffbf97164b799311a",
         "zip_declared_compressed_size": 3447222,
         "zip_declared_uncompressed_size": 3453871,
-        "completeness": "40.3% of the compressed stream; there is no central directory, so unzip rejects the file outright",
+        "zip_stored_crc32": "0xd20c0622",
+        "zip_dos_mtime": "2016-05-16 12:34:30",
+        "completeness": "40.3% of the compressed stream; there is no central directory, so unzip rejects the file outright - which reads as corrupt and means truncated",
         "recovered_prefix_bytes": 1394888,
-        "recovery": "deflate is a stream, so the prefix still decompresses; fwrecon image parses the recovered prefix and reads two whole section headers"
+        "recovered_prefix_sha256": "7ec3fe6d18bd9de86ff1f67fd22be5504c0cf73e1cd95ca667507a4eeb548eae",
+        "recovered_crc32": "0xb051aa45 - MISMATCH against the stored value, as it must be while the file is short. Recorded so the number is not mistaken for a passing check.",
+        "recovery": "tools/zipprefix.py; deflate is a stream, so the prefix decompresses. Three independent derivations agree byte-for-byte on the same sha256."
       },
       "partial_evidence": {
-        "note": "Reported because it is what the incomplete file can support, and no more. Section lengths only; no rootfs, no /etc/version, no boa.",
-        "w6cg": "flash 0x010000, 296,804 bytes, bzip2",
-        "cr6c": "flash 0x060000, ram 0x80500000, 986,114 bytes, lzma inner",
-        "continuity": "w6cg 308,866 (2.1.2) -> 296,804 (this) -> 277,012 (unit-2018); cr6c 985,090 -> 986,114 -> 987,138, which is exactly 1,024 bytes apart at each step. A tampered file is unlikely to land on that line in both sections."
+        "note": "Two of the three sections are BYTE-COMPLETE, not merely headed. An earlier version of this entry said 'section lengths only', which understated the artefact by a whole section. What is missing is the rootfs, and therefore /etc/version, boa and root_form[].",
+        "w6cg": "flash 0x010000, 296,804 declared and 296,804 present - COMPLETE, bzip2",
+        "cr6c": "flash 0x060000, ram 0x80500000, 986,114 declared and 986,114 present - COMPLETE; inner lzma-alone at +0x2808 decompresses to 3,374,608 bytes reaching end-of-stream",
+        "r6cr": "truncated - this is the only part that needs the other 60%",
+        "kernel_self_identification": "Linux version 2.6.30.9 (acer1@localhost.localdomain) (gcc 4.4.5) #1338 Thu May 12 21:05, cmdline 'console=ttyS0,38400 root=/dev/mtdblock1'"
       },
-      "next": "Re-download in a browser and verify the zip's own CRC-32 before drawing any conclusion from it. Only then compare /etc/version, root_form[] and the sink census against unit-2018."
+      "provenance_strength": {
+        "withdrawn": "An earlier version argued that the kernel section lengths 985,090 -> 986,114 -> 987,138 are 'exactly 1,024 bytes apart at each step, and a tampered file does not land on that line'. That is wrong. Adding the 2020 build shows all four are 962/963/964/1206 times 1024, PLUS 2 - the section is padded to a 1 KiB grid, so the spacing is the container format and not a property of these files. Exactly one grid point lies between the 2015 and 2018 values, so a correctly built kernel of that size lands on it by construction.",
+        "weak_but_real": "w6cg is NOT on the grid (remainders 642 / 868 / 532) and does fall between its neighbours: 308,866 -> 296,804 -> 277,012. An ordering test across a ~32 KiB window.",
+        "stronger": [
+          "The DOS timestamp in the local file header (2016-05-16 12:34:30) is a different field from the filename's B20160516 text. A mirror can type a filename; the timestamp is written by the packer.",
+          "Inside the COMPRESSED kernel, where renaming cannot reach: a build banner dated Thu May 12, four days before the archive timestamp, and a console baud rate that matches the 26us bit time measured on this hardware in W02."
+        ],
+        "ceiling": "Unchanged and low. TOTOLINK publishes no signature, so none of the above shows these bytes came from the vendor. It raises the cost of a forgery from renaming a file to rebuilding a kernel, and no further."
+      },
+      "next": "Re-download in a browser. The success criterion is fixed in advance: tools/zipprefix.py must report CRC-32 == 0xd20c0622 and exit zero. Only then compare /etc/version, root_form[] and the sink census against unit-2018."
     }
   ]
 }

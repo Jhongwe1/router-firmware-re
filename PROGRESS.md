@@ -983,6 +983,8 @@ from — the finding above supplies one.
 | **W03:** the uninitialised-stack credential compare is a V2.1.2 curiosity | The same shape is in the 2018 build at `sp+0x18`/`sp+0x38`, read and never written, with both instruments agreeing |
 | **This session:** "the 2018 build dropped HTTP Basic auth" | A case-sensitive `grep`. All three parse `AUTHORIZATION`; what 2015 additionally carries is a hardcoded `Authorization: Basic YWRtaW46YWRtaW4=` — base64 `admin:admin` — twice |
 | **This session:** "the 2018 build kept its symbol table" | No build here has a static symbol table. It keeps a 422-entry *dynamic* one while being `sstrip`'d |
+| **This session:** the mirrored V2.1.6's kernel lengths are "1,024 bytes apart at each step, and a tampered file does not land on that line" | A 1 KiB padding grid. All four builds 2015–2020 are ≡ 2 (mod 1024), and exactly one grid point lies between the neighbours, so a correct kernel of that size lands there *by construction*. Three points looked like a trend; the fourth showed a grid |
+| **This session:** the 40% prefix yields "section lengths only" | Two of the three sections are **byte-complete** — `w6cg` and `cr6c`, the latter's LZMA reaching `eof`. Only the rootfs is cut |
 
 ### Instrument work — bugs 10, 11 and 12, and the first one caught before it shipped
 
@@ -991,6 +993,8 @@ from — the finding above supplies one.
 | [`BoaMnemonics.java`](ghidra/scripts/BoaMnemonics.java) | mnemonic histogram, coprocessor-2/3 census, undecoded-byte count. Ships the *reading* alongside the number because the number points the wrong way half the time |
 | [`BoaGate.java`](ghidra/scripts/BoaGate.java) | three rules as a build gate, with a positive control that fails the run if a build known to be defective produces fewer than N findings |
 | [`fwrecon compcs`](tools/fwrecon/src/fwrecon/compcs.py) | the config decoder W04 deferred. 18 tests, most of them about making it fail |
+| [`fwrecon web`](tools/fwrecon/src/fwrecon/webbundle.py) | the `w6cg` bundle parser W01 left open. No checksum and no entry count exist in the format, so the check is structural: every stride is `64 + length`, and the walk either lands on the last byte or it does not. `exact` on all three builds; a test moves the length field to a plausible wrong offset and asserts it derails |
+| [`tools/zipprefix.py`](tools/zipprefix.py) | truncated-archive recovery that refuses to write an unverified payload, and does not launder the exit code when `--allow-partial` permits the write |
 
 **10. `BoaArgTrace` counted its unmeasured rows without naming them.** The report
 said "3 rows are unmeasured" and gave no way to find them, so in practice the
@@ -1037,15 +1041,37 @@ fail.
 | The three unread binaries — `/bin/auth`, `MiniIGD`, `dnsspoof` | The plan's own first-to-cut item. Cut, and moved to W07 |
 | Reporting anything to TWCERT/CC | Unchanged and reinforced. Everything here is static. It goes nowhere until W05/W06 demonstrates it on the hardware |
 
+### A process failure worth more than most of the findings
+
+**The commit titled "document sync" ran before the week's last two commits, and
+nothing re-synced after them.** `PROGRESS.md` recorded open #1 as `answered:
+no`; `LOG.md` still ended on *"if the two images match… if they do not…"* — the
+same question, presented as open, three files away. **A reader going through the
+repository in order hits that contradiction before anyone defending it does.**
+`RUNBOOK.md` was worse off: it gained §8.8 and §8.9 in that commit and its own
+§14 change log was never given a row for them, so the document's self-check
+("§14 變更紀錄補了嗎?") was skipped in the very commit that made it necessary.
+
+The cause is not forgetting. It is **treating "document sync" as a checkpoint
+passed once a week rather than a state that has to hold after every commit** —
+the exact failure the rule in `CLAUDE.md` exists to prevent, failing in the same
+week that rule was rewritten. Recorded rather than quietly repaired, because the
+repair is one commit and the habit is not.
+
 ### Open, carried forward
 
-0. **Re-download the published V2.1.6, and verify the zip's own CRC-32 first.**
-   Obtained in a browser on 2026-08-16 and **the download is 40.3% complete** —
-   1,390,332 bytes of a declared 3,447,222, no central directory, `unzip`
-   rejects it. Deflate being a stream, the prefix still decompresses and
-   `fwrecon image` reads two section headers from it, which is enough to answer
-   the version question below but **not** enough for a rootfs comparison. Details
-   and provenance in [`firmware/SOURCES.json`](firmware/SOURCES.json).
+0. **Re-download the published V2.1.6. The success criterion is written down in
+   advance: `CRC-32 == 0xd20c0622`**, read out of the archive's own local file
+   header, and [`tools/zipprefix.py`](tools/zipprefix.py) fails non-zero until it
+   matches. Obtained in a browser on 2026-08-16 and **the download is 40.3%
+   complete** — 1,390,332 bytes of a declared 3,447,222, no central directory,
+   `unzip` rejects it outright, which reads as *corrupt* and means *truncated*.
+   Deflate being a stream, the prefix still decompresses, and **two of the three
+   sections come out byte-complete** — `w6cg` 296,804/296,804 and `cr6c`
+   986,114/986,114, the latter's inner LZMA reaching `eof` at 3,374,608 bytes.
+   Only the rootfs is cut, so what is missing is `/etc/version` and `boa` and
+   nothing else. Procedure in [`RUNBOOK.md` §8.8.4](RUNBOOK.md), provenance in
+   [`firmware/SOURCES.json`](firmware/SOURCES.json).
 
 1. ~~**Is the published V2.1.6 this build?**~~ → **answered: no.** The published
    image is `TOTOLINK-N150RT-V2.1.6-**B20160516**.1233.web`; this unit runs
@@ -1054,11 +1080,28 @@ fail.
    W02's "the resident build is on no download page" survives with better
    precision: *the version* is published, *this build* is not.
 
-   The 40% prefix also supports the mirror: section lengths land exactly on the
-   curve between the 2015 and 2018 builds — `w6cg` 308,866 → **296,804** →
-   277,012, and `cr6c` 985,090 → **986,114** → 987,138, which is 1,024 bytes
-   apart at each step. A tampered file does not land on that line in both
-   sections. That is the continuity argument, and it can now be made.
+   **The continuity argument first written here was wrong, and the correction is
+   the more useful result.** It said the kernel lengths run 985,090 → **986,114**
+   → 987,138, *exactly 1,024 bytes apart at each step*, and that a tampered file
+   would not land on that line. Adding the fourth build empties it: 2015, 2016,
+   2018 and 2020 are `962`, `963`, `964` and `1206` times 1,024, **plus 2 in
+   every case**. The section is padded to a 1 KiB grid, so the spacing is the
+   format, not a coincidence — and there is exactly one grid point between the
+   2015 and 2018 values, so any correctly built kernel of that size lands on it
+   by construction. `w6cg` (308,866 → **296,804** → 277,012) is unaligned and
+   does fall between its neighbours, which is genuine but weak: an ordering test
+   over a ~32 KiB window.
+
+   What replaces it is better sourced. The archive's **DOS timestamp**
+   (`2016-05-16 12:34:30`) is a separate header field from the filename's
+   `B20160516` text, and inside the *compressed* kernel — where renaming a file
+   cannot reach — sits `Linux version 2.6.30.9 (acer1@localhost.localdomain) …
+   #1338 Thu May 12 21:05`, four days before packaging, with a cmdline
+   (`console=ttyS0,38400`) that agrees with the bit time measured on this
+   hardware in W02. **The ceiling is unchanged: TOTOLINK signs nothing**, so this
+   raises the cost of a forgery from renaming a file to rebuilding a kernel, and
+   no further. Full working in
+   [`dump-vs-official.md` §2.1](notes/dump-vs-official.md).
 
    What is still established only weakly:
 
@@ -1066,15 +1109,22 @@ fail.
    |---|---|
    | **measured** | `/etc/version` in this unit's rootfs reads `TOTOLINK-CX-N150RT-V2.1.6-B20171121.1002` (41 bytes, `cat`) |
    | **measured** | four binaries in that same rootfs are stamped `2018-01-10` (W02) — so the label and the build date differ by seven weeks |
-   | **measured** | the published V2.1.6 is `B20160516.1233`, from the zip's own local file header |
-   | **not measured** | anything below the second container section of the published image. No rootfs, no `/etc/version`, no `boa`. That needs the other 60% |
+   | **measured** | the published V2.1.6 is `B20160516.1233`, from the zip's own local file header — and its DOS timestamp field, a second and independent header field, says `2016-05-16 12:34:30` |
+   | **measured** | the published image's `w6cg` and `cr6c` sections are byte-complete in the 40% prefix; its kernel is Linux 2.6.30.9 built `Thu May 12` |
+   | **not measured** | the published image's **rootfs**. No `/etc/version`, no `boa`, no `root_form[]`. That is the only thing needing the other 60% |
    | **not measured, and not to be quoted** | a search summary gives a 2.1.6 release date of 2017-05-08. The page could not be read, it disagrees with the build string in the file itself, and a search snippet is not a source |
 
-   **What a complete download would settle:** whether the published B20160516
-   already contains `formSysCmd`. If it does, the handler was present in 2016 and
-   in 2018 and gone by 2020, and the "build option" reading gets a third point.
-   If it does not, the `CX` line diverges from the published one and that is a
-   different and more interesting story.
+   **What a complete download would settle:** whether the published B20160516's
+   `boa` carries `formSysCmd` in its dispatch table. If it does, the handler was
+   present in 2016 and in 2018 and gone by 2020, and the "build option" reading
+   gets a third point. If it does not, the `CX` line diverges from the published
+   one and that is a different and more interesting story.
+
+   **Narrowed 2026-08-16: the UI half no longer needs the download.** `w6cg` is
+   byte-complete in the prefix, and the 2016 bundle ships `syscmd.htm` carrying
+   `<form action=/boafrm/formSysCmd …>` **byte-identical to 2015's**. What the
+   other 60% is still needed for is exactly one thing: whether B20160516's `boa`
+   has the route. See open #11.
 
 2. **CVE-2024-51228 was missed for two weeks by a survey that had the build
    string in hand.** The literature review is now fixed
@@ -1108,3 +1158,18 @@ fail.
 10. Carried from W02, unchanged: **no second instrument has read this flash**, the
    JEDEC ID is unread, `LSP5526` is unidentified, and the SoC core question is
    open — though #4 above now supplies the means to run `/proc/cpuinfo`.
+11. **The shipped UI and the route are anti-correlated, and only one build is
+   explained.** `syscmd.htm` ships in 2015 and 2016 (byte-identical) while
+   `formSysCmd` is absent from `root_form[]`; in 2018 the page is gone and the
+   route is registered at `0x004838a8`
+   ([`w6cg-web-ui.md`](notes/w6cg-web-ui.md), entry lists in
+   [`webbundle-2.1.2.json`](reports/webbundle-2.1.2.json),
+   [`webbundle-2.1.6-b20160516.json`](reports/webbundle-2.1.6-b20160516.json),
+   [`webbundle-unit-2018.json`](reports/webbundle-unit-2018.json)).
+   The 2015 state is explained — a
+   partial fix answering Pierre Kim's disclosure, of a piece with `#skt&` and
+   `onlime_r`. **The 2018 state is not: something put the route back three years
+   later, and nothing here says what.** And the removal was not surgical —
+   2015→2018 drops 27 bundle entries and adds 26, so `syscmd.htm` sits inside a
+   rebuild rather than standing out as a deletion. Reading intent into it would
+   be reading intent into a rebuild.
