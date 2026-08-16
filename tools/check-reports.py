@@ -96,6 +96,34 @@ def main(argv: list[str]) -> int:
             if not doc.get("entries"):
                 errors.append(f"{path.name}: no MIB entries recovered")
 
+        elif str(doc.get("producer", "")) == "fwrecon:compcs":
+            counts["fwrecon"] += 1
+            if not doc.get("source_sha256"):
+                errors.append(
+                    f"{path.name}: no source_sha256 - the report cannot name the "
+                    "flash image it describes")
+            # The two checks that come from libapmib itself rather than from this
+            # decoder's own opinion of its work. A committed config table that
+            # fails the vendor's own checksum is not evidence of anything, and a
+            # ring-fill disagreement means the decode depended on window bytes no
+            # literal ever wrote.
+            if not doc.get("checksum_ok"):
+                errors.append(
+                    f"{path.name}: checksum_ok is false - libapmib's own 8-bit "
+                    "payload checksum does not pass, so the device would reject "
+                    "this blob and so should the repository")
+            if not doc.get("ring_fill_agrees"):
+                errors.append(
+                    f"{path.name}: ring_fill_agrees is false - decoding with two "
+                    "different LZSS window fills disagrees")
+            if doc.get("verdict") != "consistent":
+                errors.append(
+                    f"{path.name}: verdict is {doc.get('verdict')!r} - a config "
+                    "decode that flagged its own anomalies must not be committed "
+                    "as evidence")
+            if not doc.get("entries"):
+                errors.append(f"{path.name}: no config entries recovered")
+
         elif str(doc.get("producer", "")) == "fwrecon:flashdump":
             counts["fwrecon"] += 1
             if not doc.get("sha256"):

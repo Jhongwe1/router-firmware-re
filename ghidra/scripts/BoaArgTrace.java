@@ -94,6 +94,20 @@ public class BoaArgTrace extends GhidraScript {
     /** Accessor calls whose parameter name the resolver could not read. */
     private int accessorUnresolved = 0;
 
+    /**
+     * *Which* rows those are. Counting them was not enough: a report that says
+     * "3 rows are unmeasured" without naming them cannot be acted on, so in
+     * practice it gets read as a rounding error and skipped. W04-2 hit exactly
+     * that on the 2018 build — verdict SUSPECT, three anonymous rows, nothing
+     * to go and look at. The failure mode this project keeps meeting is not the
+     * absent check, it is the check whose output nobody can use.
+     */
+    private final List<String> accessorUnresolvedSites = new ArrayList<>();
+
+    /** Call site currently being described, so describe() can name its own failures. */
+    private String currentSite = "";
+    private String currentFunction = "";
+
     @Override
     public void run() throws Exception {
         String[] args = getScriptArgs();
@@ -107,8 +121,10 @@ public class BoaArgTrace extends GhidraScript {
         List<String> sinkNames = new ArrayList<>();
         List<String> scopes = new ArrayList<>();
         List<String> paramFilter = new ArrayList<>();
+        List<String> specArgs = new ArrayList<>();
         for (int i = 2; i < args.length; i++) {
             String s = args[i];
+            specArgs.add(s);
             if (s.startsWith("sink:"))       { sinkNames.add(s.substring(5)); }
             else if (s.startsWith("in:"))    { scopes.add(s.substring(3)); }
             else if (s.startsWith("param:")) { paramFilter.add(s.substring(6)); }
@@ -190,6 +206,8 @@ public class BoaArgTrace extends GhidraScript {
                     }
                     List<String> argRows = new ArrayList<>();
                     Set<String> mentions = new LinkedHashSet<>();
+                    currentSite = at.toString();
+                    currentFunction = fn.getName();
                     for (int i = 1; i < call.getNumInputs(); i++) {
                         String d = describe(call.getInput(i), frameSize, walkDepth, mentions);
                         argRows.add(String.format("{\"n\":%d,%s}", i - 1, d));
@@ -229,6 +247,13 @@ public class BoaArgTrace extends GhidraScript {
             out.printf("  \"function_count\": %d,%n",
                        currentProgram.getFunctionManager().getFunctionCount());
             out.printf("  \"walk_depth\": %d,%n", walkDepth);
+            // The specs that produced this report. Without them `call_sites_in_scope`
+            // is a number with no denominator: W04 ran this with one set of sinks
+            // and W04-2 with another, and the two counts (304 against 1508) read as
+            // a finding about the firmware until you notice they answer different
+            // questions. A report that cannot state its own question is not evidence,
+            // which is the same rule that put source_sha256 in every report here.
+            out.printf("  \"spec\": [%s],%n", quoteJoin(specArgs));
             out.printf("  \"call_sites_in_scope\": %d,%n", siteCount);
             out.printf("  \"traced\": %d,%n", rows.size());
             // A sink name that resolved to no address means the *question* failed,
@@ -241,13 +266,29 @@ public class BoaArgTrace extends GhidraScript {
             // sstrip'd build while the scope filter made it look like a
             // legitimate difference between the two firmware versions.
             List<String> noCallers = BoaPlt.importedWithNoCallers(this, sinkNames);
+            // Zero accessor matches across the whole scope means no call site in
+            // this report could ever have been attributed to a request
+            // parameter. Every empty "request_parameters" is then a false
+            // negative by construction, and saying so is the difference between
+            // a clean report and a report about nothing.
+            boolean noAccessorAtAll = accessorMatches == 0 && siteCount > 0;
             out.printf("  \"self_check\": {\"sinks_not_found\": [%s],\"untraced_sites\": %d,"
                        + "\"accessor_calls_with_unreadable_name\": %d,"
+                       + "\"accessor_calls_with_unreadable_name_sites\": [%s],"
                        + "\"accessor_declared_but_never_matched\": %b,"
+                       + "\"accessor_calls_matched\": %d,"
+                       + "\"no_accessor_identified\": %b,"
                        + "\"imported_but_no_call_sites\": [%s],\"verdict\": \"%s\"},%n",
-                       quoteJoin(unresolvedSinks), failed, accessorUnresolved, deadOption,
+                       quoteJoin(unresolvedSinks), failed, accessorUnresolved,
+                       String.join(",", accessorUnresolvedSites), deadOption,
+                       accessorMatches, noAccessorAtAll,
                        quoteJoin(noCallers),
-                       unresolvedSinks.isEmpty() && failed == 0 && accessorUnresolved == 0
+                       noAccessorAtAll
+                           ? "SUSPECT - no call was recognised as the request-parameter accessor "
+                             + "anywhere in scope, so every request_parameters field in this "
+                             + "report is empty by construction and not by measurement. A "
+                             + "stripped build needs accessor:<FUN_xxxxxxxx>."
+                       : unresolvedSinks.isEmpty() && failed == 0 && accessorUnresolved == 0
                                && !deadOption && noCallers.isEmpty()
                            ? "consistent"
                            : "SUSPECT - a sink resolved to nothing, a site would not decompile, an "
@@ -330,8 +371,12 @@ public class BoaArgTrace extends GhidraScript {
                     // exact failure that made the first run of this script
                     // report 1 tainted call site out of 304. Counting it makes
                     // the resolver's blind spots visible in the artefact instead
-                    // of turning them into a reassuring number.
+                    // of turning them into a reassuring number — and naming the
+                    // site makes the count something a reader can go and check.
                     accessorUnresolved++;
+                    accessorUnresolvedSites.add(String.format(
+                        "{\"site\":\"%s\",\"function\":\"%s\",\"accessor\":\"%s\"}",
+                        esc(currentSite), esc(currentFunction), esc(callee)));
                 }
                 List<String> inner = new ArrayList<>();
                 for (int i = 1; i < def.getNumInputs() && i <= 4; i++) {
@@ -416,14 +461,37 @@ public class BoaArgTrace extends GhidraScript {
         if (overridden) {
             accessorOverrideMatched = true;
         }
-        return overridden
+        boolean hit = overridden
             || n.contains("get_cstream_var") || n.contains("getvar")
             || n.contains("boa_getvar") || n.contains("req_get");
+        if (hit) {
+            accessorMatches++;
+        }
+        return hit;
     }
 
     /** Set with `accessor:FUN_00412345` when the build is stripped. */
     private String accessorOverride = "";
     private boolean accessorOverrideMatched = false;
+
+    /**
+     * How many calls were recognised as the request-parameter accessor, by any
+     * route. Zero is the condition that matters and it had no check.
+     *
+     * `accessor_declared_but_never_matched` only fires when an override *was*
+     * passed. Run a stripped build with no override at all and the name-based
+     * matcher recognises nothing, every request-parameter result is empty, and
+     * the self_check reports "consistent" — because the failing option was
+     * absent rather than wrong. W04-2 walked into exactly that: re-running all
+     * three builds under one spec to make their scope counts comparable dropped
+     * V3.4.0's accessor override, and its tainted-site count went 49 -> 0 with
+     * a clean verdict. Same 86 -> 0 shape as W04, arriving this time through
+     * *how the tool was called* rather than through what it does.
+     *
+     * The tool cannot know which accessor a stripped build uses. It can know
+     * that it never found one, and refuse to call that result clean.
+     */
+    private int accessorMatches = 0;
 
     private String firstLiteralArg(PcodeOp call) {
         for (int i = 1; i < call.getNumInputs(); i++) {
