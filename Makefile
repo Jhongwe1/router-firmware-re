@@ -51,6 +51,11 @@ test: venv ## Run the fwrecon test suite
 
 lint: venv ## Lint the tooling
 	$(VENV)/bin/ruff check tools/fwrecon/src tools/fwrecon/tests
+	# The standalone scripts are not inside the fwrecon package, so ruff's
+	# upward config search never reaches tools/fwrecon/pyproject.toml and they
+	# were silently linted under default rules until 2026-08-16. Point them at
+	# the same config rather than adding a second one that can drift.
+	$(VENV)/bin/ruff check --config tools/fwrecon/pyproject.toml tools/*.py
 
 recon: venv ## Regenerate every report under reports/
 	@mkdir -p $(REPORTS)

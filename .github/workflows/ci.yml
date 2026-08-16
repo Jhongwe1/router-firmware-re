@@ -44,6 +44,16 @@ jobs:
         working-directory: tools/fwrecon
         run: ruff check src tests
 
+      # The standalone scripts under tools/ were outside every lint target
+      # until 2026-08-16: they are not inside the fwrecon package, so ruff's
+      # upward config search never reaches tools/fwrecon/pyproject.toml and
+      # they were checked under default rules, which is close to not at all.
+      # --config points them at the same file rather than adding a second one
+      # that can drift. Must stay identical to `make lint`, or local green
+      # stops meaning CI green -- see RUNBOOK 10.21.
+      - name: Lint standalone tools
+        run: ruff check --config tools/fwrecon/pyproject.toml tools/*.py
+
       - name: Test
         working-directory: tools/fwrecon
         run: pytest -q

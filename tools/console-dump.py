@@ -569,7 +569,7 @@ def cmd_dump(args) -> int:
             for i in picks:
                 off = stats[i]["flash_offset"] - args.flash
                 n = stats[i]["bytes"]
-                for attempt in range(args.retries + 1):
+                for _attempt in range(args.retries + 1):
                     try:
                         again = db(con, args.ram + off, n, 90.0)
                         if again != data[off:off + n]:

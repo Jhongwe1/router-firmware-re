@@ -1178,6 +1178,118 @@ expected one of ['COMPCS', 'COMPDS', 'COMPHS']
 > 兩次都會以「這個 build 很乾淨」的形式出貨。**`control:30` 兩次都當場擋下來。**
 > 一個沒有在已知壞掉的 build 上驗證過的 SAST 規則,不是檢查,是裝飾。
 
+### 8.8.4 抓一份廠商映像回來,以及它只下載了 40% 的時候怎麼辦
+
+**這一節服務 `PROGRESS.md` 開放問題 #0:把公開的 V2.1.6 重抓一次,而且先驗
+zip 自己的 CRC-32。** 第一次抓只下來 40.3%,而那份殘檔仍然回答了問題,所以
+下面兩件事都要寫:怎麼抓,以及**殘檔可以撐到哪裡、不可以撐到哪裡**。
+
+#### 抓檔:腳本抓不到,瀏覽器抓得到
+
+Softpedia 對 PowerShell `HEAD`、三種 User-Agent 的 `curl`、`WebFetch` 全部回
+**403**。`firmware/SOURCES.json` 從 W01 就記著這件事,所以這是**確認,不是發現**
+—— 不要再花時間繞它。用瀏覽器點,然後**不要憑記憶把網址打進文件**:
+
+```bash
+# Windows 在下載時自己寫了來源,這是證據,不是回憶
+cat "N150RT-V2.1.6-20160516.zip:Zone.Identifier"
+```
+
+```
+[ZoneTransfer]
+ZoneId=3
+ReferrerUrl=https://drivers.softpedia.com/dyn-postdownload.php/335a36e267124a3717d2cddfb77226ef/6a811c68/8974a/4/1
+HostUrl=https://us.softpedia-secure-download.com/dl/54f52698326aaa49c40bddd5fdf34dd8/6a810e64/300563018/drivers/router/N150RT-V2.1.6-20160516.zip
+```
+
+> 從 WSL 讀 NTFS 的 alternate data stream 就是把 `:Zone.Identifier` 接在檔名
+> 後面當成一個檔案開。**檔案搬進 `$FWRE_WORK` 的時候這條 stream 會跟著搬,
+> 但用 `cp` 到別的檔案系統就沒了** —— 要保存 provenance 就先讀出來。
+
+#### 驗檔:`unzip` 說壞掉,不代表它壞掉
+
+```bash
+unzip -t N150RT-V2.1.6-20160516.zip
+```
+
+```
+  End-of-central-directory signature not found.  Either this file is not
+  a zipfile, or it constitutes one disk of a multi-part archive.
+```
+
+**這個訊息會讓你以為檔案是壞的。它不是,它是被截斷的,而那是兩件事。**
+ZIP 的目錄在檔尾,少了目錄 `unzip` 就完全不動手;但 deflate 是**串流**,
+前綴照樣解得開。用 `tools/zipprefix.py`,它直接讀 local file header:
+
+```bash
+python3 tools/zipprefix.py $FWRE_WORK/firmware/N150RT-V2.1.6-20160516.zip
+```
+
+```
+archive              N150RT-V2.1.6-20160516.zip
+bytes on disk        1,390,332
+inner filename       TOTOLINK-N150RT-V2.1.6-B20160516.1233.web
+method               8 (deflate)
+DOS mtime            2016-05-16 12:34:30
+stored CRC-32        0xd20c0622
+compressed size      3,447,222
+uncompressed size    3,453,871
+filename build date  B20160516 — agrees with the DOS timestamp field
+compressed present   1,390,253 of 3,447,222 (40.3%)
+central directory    ABSENT — truncated
+recovered            1,394,888 of 3,453,871 (40.4%)
+CRC-32 recovered     0xb051aa45  vs stored 0xd20c0622  -> MISMATCH
+```
+
+**`DOS mtime` 那一行是這支工具存在的第二個理由。** 檔名裡的 `B20160516` 是
+文字,鏡像站可以隨便打;DOS 時間戳是打包程式寫進去的**另一個欄位**。兩個對上,
+偽造成本就從「改檔名」變成「還要改時間戳」。**這仍然只是佐證** —— TOTOLINK
+不簽章,所以沒有任何東西能證明這些 byte 出自原廠(`firmware/SOURCES.json`)。
+
+#### 取出殘檔:預設不准,而且 `--allow-partial` 不會把結論洗白
+
+```bash
+python3 tools/zipprefix.py <zip> -o /tmp/out.bin        # 沒過 CRC → 拒絕寫,exit 1
+python3 tools/zipprefix.py <zip> -o /tmp/out.bin --allow-partial
+```
+
+```
+refusing to write a payload that failed CRC verification; pass --allow-partial if an incomplete recovery is the intent
+```
+
+```
+wrote                /tmp/recovered.bin  (1,394,888 bytes, INCOMPLETE — not the whole image)
+```
+
+> **`--allow-partial` 只解除「不准寫」,它不會把 exit code 變成 0。**
+> 這是故意的:殘檔可以拿來分析,但**「我知道它是殘的」和「它是完整的」不能
+> 用同一個回傳值表示**。CI 或任何腳本照樣攔得住。
+>
+> 重抓成功的判準只有一個:**`CRC-32 recovered` 要等於 `0xd20c0622`。**
+> 這個數字現在寫在這裡,是為了讓下一次的驗證有一個**事先寫好的目標**,
+> 而不是抓完再看它是多少。
+
+#### 殘檔撐得到哪裡 —— 比第一次寫的多
+
+`fwrecon image` 讀那份 40% 的前綴:
+
+```bash
+$FWRE_WORK/venv/bin/python -m fwrecon image $FWRE_WORK/firmware/v2.1.6-partial.web
+```
+
+```
+ #  tag      file off  flash off   ram addr       length  payload
+ 0  w6cg   0x00000000 0x00010000 0x00010000      296,804  bzip2
+ 1  cr6c   0x00048774 0x00060000 0x80500000      986,114  raw/unrecognised
+      inner: lzma (alone format, lc=3 lp=0 pb=2) at +0x2808
+! 111938 unparsed bytes at 0x139386
+```
+
+**兩個 section 都是完整的,不是只有 header。** `fwrecon` 的 `payload_actual`
+等於 `length`,而且 `cr6c` 裡那條 LZMA 解到底(`eof=True`,3,374,608 bytes)。
+截斷的是第三段 `r6cr`,也就是 rootfs —— 所以缺的是 `/etc/version` 和 `boa`,
+**不是「只有 section 長度」**。第一次寫成後者,低估了手上的東西一整段。
+
 ---
 
 ## 8.9 ⚠️ G3.5 最後一格:`FLW` 回復路徑演練(**還沒做,而且要你親手做**)
@@ -1763,6 +1875,13 @@ bash tools/test-flash-tools.sh         # flash-read.sh 的篩檢守衛(不需要
 ~/fwre-work/venv/bin/python -m fwrecon elf    <執行檔>
 ~/fwre-work/venv/bin/python -m fwrecon rootfs <解開的目錄>
 ~/fwre-work/venv/bin/python -m fwrecon mib    <libapmib.so>
+
+# ── 廠商 zip:驗 CRC,必要時取殘檔(§8.8.4)────────────
+cat "<檔名>.zip:Zone.Identifier"                 # 下載來源,OS 寫的,不是回憶
+python3 tools/zipprefix.py <檔名>.zip            # 讀 header + 驗 CRC-32
+python3 tools/zipprefix.py <檔名>.zip -o out.bin --allow-partial
+#   CRC 沒過就拒絕寫;--allow-partial 只解除「不准寫」,exit code 照樣非 0
+#   重抓 V2.1.6 的成功判準:CRC-32 要等於 0xd20c0622
 ```
 
 > ⚠️ **看報告先看 `self_check`,但不要只看 `self_check`。**
@@ -1939,6 +2058,21 @@ cd FirmAE && ./install.sh      # 30–60 分鐘
 | 2026-08-15 | 收工後 | 新增 **`make ci`**(§9、§12)和 §10.21。起因是本機跑了 `make lint test check-reports` 全綠就 push,CI 還是紅的 —— **CI 有四個 job,靠記憶挑目標跑不是檢查,是遲早會忘的習慣。** |
 | 2026-08-16 | W02 Day 4 | 新增 §8.7.9:完整 4 MiB dump 走 `tools/console-dump.py`(陽性對照、逐塊驗證、抽驗重讀、拼不完整就不吐檔案)。附兩個當天踩到的坑:**ESC 會塞住 bootloader 的輸入緩衝區,搶到之後第一條指令必定失敗**;以及**不要照 `notes/` 的引用寫解析器 —— §8.7.8 這裡的 transcript 才是逐字的**。 |
 | 2026-08-16 | W02 Day 4 | §12 速查表新增 W02 Day 4 全流程與兩支不需要硬體的守衛套件。CH341A 量出來是未改的 5V 板(CS/CLK/DI 全 5V,只有座上 VCC 是 3.3V),3.3V 魔改後仍是 5V、**原因未隔離**,決定改走零風險的 console 路 —— 經過寫在 `LOG.md`。 |
+| 2026-08-16 | W04-2 | 新增 §8.8:把這台自己的 `boa` 讀進 Ghidra 跑五種量測、解碼 `COMPCS`/`COMPDS`、以及 `BoaGate` 為什麼一定要帶 `control:`。 |
+| 2026-08-16 | W04-2 | 新增 §8.9:G3.5 最後一格 `FLW` 回復路徑演練的逐字步驟,含三條保護措施。**這一格還沒做。** |
+| 2026-08-16 | W04-2 補課 | 新增 §8.8.4:廠商映像重抓、從 `Zone.Identifier` 讀 provenance、`tools/zipprefix.py`,以及一份 40% 殘檔**撐得到哪裡**(兩個 section 完整,截斷的是 rootfs)。§12 速查表補上 `zipprefix`。 |
+| 2026-08-16 | W04-2 補課 | `make lint` 與 CI 補掃 `tools/*.py`。**那幾支獨立腳本一直不在任何 lint 範圍內** —— 它們不在 `fwrecon` 套件裡,ruff 往上找設定檔永遠找不到 `tools/fwrecon/pyproject.toml`,所以是用預設規則掃的,等於幾乎沒掃。改成用 `--config` 指同一份設定(不另開一份會漂移的),掃出 `console-dump.py` 一個 `B007`,已修。 |
+
+> **上面三列裡的前兩列是補登的,而漏登的方式值得記一筆。** §8.8 和 §8.9 是
+> 2026-08-16 的「document sync」commit 加進這份文件的,那個 commit **改了
+> RUNBOOK 卻沒有回頭補這張表**;接著又落了兩個 commit 的真工作,兩個都沒有
+> 再同步 RUNBOOK 和 `LOG.md`。
+>
+> 病因不是忘記,是**把「document sync」當成一週過一次的關卡,而不是隨時要
+> 成立的狀態**。§13 那條規則(「每完成一段新工作,回來更新這份文件,而且要在
+> 同一個 commit 裡」)存在的理由就是防這個,而它在規則本身被重寫進 `CLAUDE.md`
+> 的同一週失效了。§13 的自我檢查清單最後一項是「§14 變更紀錄補了嗎?」——
+> 那一項當天沒有被執行。
 
 ---
 
