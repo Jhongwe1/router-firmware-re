@@ -31,7 +31,6 @@ import pytest
 
 from fwrecon import compcs
 
-
 # --------------------------------------------------------------- builders
 
 def _compress_literal(payload: bytes) -> bytes:

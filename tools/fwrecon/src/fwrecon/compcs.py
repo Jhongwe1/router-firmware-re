@@ -372,7 +372,8 @@ def decode_region(data: bytes, offset: int, *, mib=None, disclosure: str = "open
 
 
 def decode_file(path: str, offset: int, **kw) -> Config:
-    data = open(path, "rb").read()
+    with open(path, "rb") as fh:
+        data = fh.read()
     return decode_region(data, offset, path=path,
                          source_sha256=hashlib.sha256(data).hexdigest(), **kw)
 
