@@ -513,6 +513,21 @@ public class BoaArgTrace extends GhidraScript {
      * two callers agreeing.
      */
     private long constAddrOf(Varnode vn, int depth) {
+        return constAddr(vn, depth);
+    }
+
+    /**
+     * Resolve a varnode to the constant address it ultimately holds.
+     *
+     * Static and public because BoaGate needs exactly this and the one thing
+     * this project has learned twice is not to re-implement a resolver. On MIPS
+     * a string address is built with lui/addiu, so it reaches the decompiler as
+     * PTRSUB/INT_ADD over two constants rather than as one -- a caller that only
+     * tests `isConstant()` finds nothing and reports a clean binary. That is
+     * precisely how BoaGate returned zero findings on a build known to contain
+     * 34 defective handlers.
+     */
+    public static long constAddr(Varnode vn, int depth) {
         if (vn == null || depth <= 0) {
             return -1;
         }
@@ -537,7 +552,7 @@ public class BoaArgTrace extends GhidraScript {
             case PcodeOp.COPY:
             case PcodeOp.CAST:
             case PcodeOp.INDIRECT:
-                return constAddrOf(def.getInput(0), depth - 1);
+                return constAddr(def.getInput(0), depth - 1);
             default:
                 return -1;
         }

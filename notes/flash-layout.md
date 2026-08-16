@@ -175,10 +175,20 @@ of them is byte-for-byte the string printed on that label.** Inference upgraded 
 measurement, from a completely independent source — and the redaction applied to
 that photograph was, in hindsight, not optional.
 
-> ⚠️ **The values are not reproduced here, in this repository, or in any log that
-> leaves this machine.** `0x006000`–`0x008000` is the one region of this flash that
-> must never be published: per-unit MACs and radio calibration. Same rule as the
-> photographs — see [`img/README.md`](img/README.md).
+> 📌 **Superseded 2026-08-16 (W04-2).** This note previously said the values
+> "are not reproduced here, in this repository, or in any log that leaves this
+> machine". The rule is now applied per field rather than per region, and for
+> this unit the answer is publish — self-purchased, end-of-life, never deployed.
+> The decoded configuration is in [`compcs-decode.md`](compcs-decode.md).
+>
+> Two things did **not** transfer with that decision, and the reasons are worth
+> separating rather than bundling:
+>
+> - **EXIF on the photographs stays stripped.** Today's argument is "this device
+>   is retired". GPS coordinates identify a *person's* location, not a device's
+>   state, and people do not reach end of life.
+> - **The raw flash image stays out of git**, because the second reason for
+>   withholding it — that it is vendor firmware — is untouched.
 
 ## 7. What is not settled
 

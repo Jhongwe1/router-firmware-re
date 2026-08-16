@@ -46,12 +46,11 @@
       "strongest_check": "the SquashFS at 0x180000 decompresses: 161 files, 20 dirs, 88 symlinks out of 1.8 MiB of LZMA",
       "not_corroborated_by": "a second, independent instrument. The 2026-08-15 windows used this same FLR+DB path, so agreement with them is cross-session repeatability rather than a second route. Only a 3.3 V programmer settles it.",
       "contains_unit_identifiers": true,
-      "must_never_be_committed": [
-        "vendor firmware, which this project does not redistribute",
-        "flash 0x006000-0x008000 holds this unit's MAC addresses and radio calibration",
-        "the COMPCS block at 0x00C000 is the live configuration: admin credentials, PSK, WPS PIN"
+      "not_committed_because": [
+        "vendor firmware, which this project does not redistribute"
       ],
-      "derived_findings": "notes/dump-vs-official.md"
+      "disclosure_policy": "W04-2, 2026-08-16: decided per field rather than per region. The per-unit-secret reason for withholding 0x006000-0x010000 was retired - this is a self-purchased EOL unit that is not in service, its live configuration differs from factory defaults in 21 bytes of 45226, and a MAC is an identifier rather than a credential. The *raw image* is still not committed, on the separate and untouched grounds above. dumps/README.md wrote those two reasons as independent and said either alone was sufficient; exactly one of them expired.",
+      "derived_findings": "notes/dump-vs-official.md, notes/compcs-decode.md"
     }
   ],
   "second_read": {

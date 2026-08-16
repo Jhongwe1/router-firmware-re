@@ -26,6 +26,14 @@ dumps/*
 !dumps/.gitkeep
 !dumps/MANIFEST.json
 !dumps/README.md
+# W04-2: the console transcripts are published. MANIFEST records
+# contains_unit_identifiers:false for both, and that was re-checked against the
+# files rather than taken from the manifest before they were added.
+!dumps/*.log
+# and the raw images are still blocked, by a rule that is deliberately NOT
+# relaxed alongside the one above. See dumps/README.md: the two reasons for
+# keeping them out were written as independent, and only one of them expired.
+dumps/*.bin
 
 # Unpacked filesystems — large, and reconstructible from the manifest + tooling.
 extracted/

@@ -93,6 +93,223 @@ and the 2018 binary is a third opportunity.
 
 ---
 
-## 2. Measurements
+## 2. Measurements — 2026-08-16
 
-*(filled in below as each script completes)*
+| Measurement | 2.1.2 | **unit-2018** | 3.4.0 | predicted | |
+|---|---|---|---|---|---|
+| `root_form[]` entries | 59 | **57** | 49 | 55–59 | ✅ |
+| `formSysCmd` in the table | no | **YES** | no | no | ❌ **§2.1** |
+| `formWsc` in the table | yes | **yes** | yes | yes | ✅ |
+| `strcpy` call sites | 587 | **564** | 577 | 500–600 | ✅ |
+| `submit-url` idiom, handlers | 34 | **32** | 27 | 28–34 | ✅ |
+| `lastUrl` size | 100 | **100** | — | 100 | ✅ |
+| `AUTHG_*` in the MIB table | 4 | **2** | 1 | present | ❌ **§2.4** |
+| the authorisation gate | `strstr(uri,"htm")` | **`.htm` or `.asp`** | `.htm`/`.asp`/POST | like 2015 | ❌ **§2.4** |
+
+Three predictions failed. **That is the useful half of the table** — a week in
+which every old conclusion transferred cleanly would mean the comparison was
+never really done. The two structural ones failed together and for one reason,
+which is §2.4.
+
+Regenerate: `analyze.ps1 -Label <label> -Script BoaFormTable|BoaSinks|BoaArgTrace|BoaMnemonics -Binary <boa>`
+→ [`reports/`](../reports/).
+
+### 2.1 The prediction that failed loudest: `formSysCmd` is here
+
+It is entry `0x004838a8` in `root_form[]`, handler `0x0044ee2c`, and it is in
+**neither** published image.
+
+| | 2.1.2 | **unit-2018** | 3.4.0 |
+|---|---|---|---|
+| `grep -aoc formSysCmd` on the raw binary | **0** | **1** | **0** |
+| in `root_form[]` (`BoaFormTable`) | no | **yes** | no |
+
+Two instruments that share no code. Absent → **present** → absent.
+
+**W04's reading of this is withdrawn.** G3 box 1 recorded the handler's absence
+from V2.1.2 as "the vendor's fix", reasoning from dates: V2.1.2 ships after the
+last build Pierre Kim reports as vulnerable. A fix does not reappear two and a
+half years later. The evidence now supports what W04 explicitly dismissed —
+a **build-time option**, present or absent per release rather than removed once.
+
+It also reverses the direction of the advisory question. CVE-2019-19824 lists
+"N150RT through 3.4.0" as affected; W03 and W04, reading the two images anyone
+can download, concluded the handler was not there. **Both downloadable images
+happen to be ones without it.** Anyone reproducing that CVE against this model
+from published firmware would conclude "not affected", and would be wrong about
+the unit on this desk.
+
+What the handler does, and why it is reachable unauthenticated, is
+[`auth-flow-2018.md`](auth-flow-2018.md) §2.
+
+### 2.2 The falsifiable specifics — all three landed
+
+**1. The four handlers W04 left open.** W04 open #5 asked whether `formDdns`,
+`formNewSchedule`, `formSysLog` and `formWanTcpipSetup` lost the `submit-url`
+idiom in 2020 because they were rewritten, or because a six-hop walk missed it.
+
+| | 2.1.2 | **unit-2018** | 3.4.0 |
+|---|---|---|---|
+| of those four, carrying `submit-url` | **4** | **4** | **0** |
+
+Same tracer, same `depth:6`, three builds. It finds all four twice and none the
+third time. **Rewritten, not a walk limit — W04 open #5 is closed.**
+
+**2. `lastUrl[100]`, then `needReboot`.** From the dynamic symbol table, which
+is not Ghidra:
+
+```
+2.1.2       0049087c  100  OBJECT  lastUrl        0049087c + 100 = 004908e0
+            004908e0    4  OBJECT  needReboot
+unit-2018   0048b8ac  100       D  lastUrl        0048b8ac + 100 = 0048b910
+            0048b910    4       D  needReboot
+            0048b914    4       D  run_init_script_flag
+```
+
+Identical shape, different addresses. Ghidra put `lastUrl` at `0x0048b8ac`
+independently, with 53 references to it.
+
+**3. `boa` is untouched by the `/bin/skt` deletion.** No `skt` string or
+reference in any of the three. The 2018 build deleted the binary and left `#skt&`
+in `rcS`; `boa` never knew about either.
+
+### 2.3 Two numbers that were not predicted and should have been
+
+**`system()` call sites: 158 → 194 → 129.** The resident build has more calls to
+`system()` than either published image, in *fewer* functions (764 against 813).
+No prediction was written for this because the prediction table only listed
+`strcpy`. It is consistent with `formSysCmd` being compiled in, but 36 extra
+call sites is far more than one handler, and the rest are unaccounted for.
+Recorded as an open question rather than explained.
+
+**`sprintf`: 694 / 700 / 694.** Flat across ten years, which is its own comment
+on how this codebase was maintained.
+
+### 2.4 Why the two structural predictions failed together
+
+The prediction said "a late member of the 2015 family", reasoning from the flash
+layout: this unit has a `w6cg` section, its kernel is at `0x060000`, its
+filesystem is LZMA. Every one of those is true and the conclusion was still
+wrong.
+
+| axis | which build does 2018 resemble? |
+|---|---|
+| flash layout, `w6cg`, kernel offset | **2015** |
+| SquashFS compression (LZMA) | **2015** |
+| `root_form[]` size, `submit-url` idiom, `lastUrl` | **2015** |
+| `sstrip`'d, no section headers | **2020** |
+| `AUTHG_IP_ADDR` removed from the MIB table | **2020** |
+| gate keyed on `.htm`/`.asp` rather than bare `htm` | **2020** |
+| `formSysCmd` present | **neither** |
+
+**Packaging and handler code are 2015's; the authorisation path and the build
+flags are 2020's.** The lesson is narrow and worth keeping: *structural* family
+resemblance — how the image is packed, which compressor, where sections sit —
+predicts nothing about *which functions were edited*. They are decided by
+different people at different times.
+
+### 2.5 The instrument check ran first, and it caught something
+
+Per §1, the self-check ran before the table was filled in. Sink counts are
+consistent across builds (`strcpy` 587 / 564 / 577, `system` 158 / 194 / 129,
+21 sinks each, `self_check: consistent`), and the sinks reporting zero report
+zero in **all three** — `alloca`, `execle`, `execlp`, `execvp`, `gets`, `scanf`,
+`strncat`, `vsprintf`. A real absence, not a resolver failure.
+
+That matters more here than in W03 or W04, because **the 2018 binary is
+`sstrip`'d and has no section headers** — the exact condition that produced the
+PLT false negatives twice:
+
+| | 2.1.2 | **unit-2018** | 3.4.0 |
+|---|---|---|---|
+| static symbol table (`nm`) | none | none | none |
+| dynamic symbols (`nm -D`) | 436 | **422** | 202 |
+| section headers (`readelf -S`) | 29 | **none** | none |
+| `handleForm` / `lastUrl` exported | yes | **yes** | no |
+
+So the resident build is stripped like 2020 and *named* like 2015 — which is why
+`BoaFormTable` recovered 95 handler names from it without an accessor override,
+and why `readelf --dyn-syms` returns nothing for it while `nm -D` returns 422.
+Those two are not independent sources on a file in this state; Ghidra and `nm -D`
+are, and they agree on `lastUrl`.
+
+**What the check did catch was in the tracer, not the firmware**, and it is
+written up in [`PROGRESS.md`](../PROGRESS.md) § Instrument work: unifying the
+tracer's spec across the three builds to make their scope counts comparable
+silently dropped V3.4.0's accessor override, and its tainted-site count went
+49 → 0 with `self_check: consistent`. Same 86 → 0 shape as W04, arriving this
+time through how the tool was *called*.
+
+### 2.6 The `lwl` census, and the asymmetry that is the whole answer
+
+New instrument: [`BoaMnemonics.java`](../ghidra/scripts/BoaMnemonics.java).
+
+| | 2.1.2 | **unit-2018** | 3.4.0 | 2018 busybox |
+|---|---|---|---|---|
+| instructions | 98,873 | 96,040 | 77,542 | 59,283 |
+| `lwl`+`lwr`+`swl`+`swr` | **174** | **142** | **0** | **0** |
+| coprocessor 2/3 encodings | 0 | **0** | 0 | 0 |
+| bytes never decoded | 4,020 (1.01%) | 9,891 (2.10%) | 11,671 (2.94%) | 6,664 (2.48%) |
+
+**The zero that matters most is the coprocessor column.** Lexra's added
+instructions — the MAC group, `lt`/`st`/`ltp`, the RADIAX DSP set — live in
+opcode space that standard MIPS reserves for coprocessors 2 and 3, which
+Ghidra's stock MIPS module *will* decode into something plausible. That is a
+silent failure mode sitting underneath every static result in this repository
+since W03, and it had never been named. There are none, in any of the four
+binaries. The risk was real and it did not materialise; testing it is the point.
+
+**On `lwl` itself, the direction of the evidence is not symmetric:**
+
+- **142 present in the binary this unit runs** — a compiler emitted unaligned
+  accesses for this target. That is evidence the toolchain believed the core
+  supports them.
+- **It is not yet proof the silicon does.** Nothing here shows any of those 142
+  sites *executes*. The device boots and `rcS` starts `boa`, but a trapping
+  instruction on a cold path would never be reached. BusyBox from the same image
+  has **zero**, so "everything in this firmware uses them" is false.
+- **Zero would have proved nothing at all** — `-mno-unaligned` and friends
+  produce an identical count on a core that supports them perfectly well. V3.4.0
+  has zero, and that is a fact about its toolchain, not about any CPU.
+
+**The experiment that settles it is now available and was not before.**
+W02 open #6 wants RLX4181 against RLX5281 and records that `/proc/cpuinfo` would
+answer it "and there is no shell to run it from". §2.1 has just supplied one:
+`POST /boafrm/formSysCmd` with `sysCmd=cat /proc/cpuinfo`. That is a W05 action,
+listed here so the connection is on record before it is run.
+
+**And it retires a wrong premise in the W05 plan.** That plan blocks out time for
+FirmAE trouble because "Lexra ≠ standard MIPS — missing unaligned load
+instructions → FirmAE support is unstable". The reasoning is backwards: a subset
+always runs on a superset's emulator, `qemu-mips` implements full MIPS including
+`lwl`/`lwr`, and W01 already ran `/bin/boa --help` under `qemu-mips-static`. What
+actually blocks emulation is `libapmib` reading `/dev/mtdblock0`, the vendor
+kernel modules and the NIC driver — none of it about the instruction set. A wrong
+reason stops you in the wrong place.
+
+---
+
+## How the first version of this note was wrong
+
+**Its predictions were wrong three times out of eight, and the interesting part
+is that two of the three failed for a single shared reason** (§2.4): the
+prediction reasoned from *packaging* to *code*, and on this build those two came
+from different places. Recorded rather than quietly rewritten, because the
+prediction's reasoning was spelled out in §1 precisely so its failure would be
+diagnosable.
+
+**One prediction was withdrawn before it was tested, and it should not have
+been in that form at all.** The plan's `root_form[]` interval was 50–59, which
+spans everything between the two known values except the low endpoint. §1
+tightened it to 55–59 and said why. The answer was 57 — inside both, so the
+tightening cost nothing and proved nothing. **A prediction that survives because
+the measurement landed mid-interval has not been tested either.** The specific
+predictions in §2.2 are the ones that carried weight, and future weeks should
+write more of those and fewer intervals.
+
+**And one claim in an earlier draft of this note was simply false.** It said the
+2018 build "kept its symbol table". It has no static symbol table at all — no
+build here does. What it kept is a 422-entry *dynamic* table while being
+`sstrip`'d, which is a different and more useful fact (§2.5). The error came from
+seeing Ghidra resolve `handleForm` by name and inferring the mechanism instead of
+checking it; `nm` says `no symbols` on all three.

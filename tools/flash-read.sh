@@ -249,11 +249,10 @@ record() {
       interface:$interface, jedec_id:$jedec_id, chip_name:$chip_name,
       flashrom:$flashrom,
       contains_unit_identifiers:true,
-      must_never_be_committed:[
-        "vendor firmware, which this project does not redistribute",
-        "flash 0x006000-0x008000 holds this unit'"'"'s MAC addresses and radio calibration",
-        "the COMPCS block at 0x00C000 is the live configuration: admin credentials, PSK, WPS PIN"
+      not_committed_because:[
+        "vendor firmware, which this project does not redistribute"
       ],
+      disclosure_policy:"per field, not per region - see dumps/MANIFEST.json and notes/compcs-decode.md",
       recorded_by:"tools/flash-read.sh"}')"
 
   tmp="$(mktemp)"
