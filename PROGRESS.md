@@ -1220,6 +1220,14 @@ So the split is by ownership, and it is now written into `CLAUDE.md`:
 | `PROGRESS.md` | gates, weeks, carried-forward questions | an individual test's status |
 | `study/test-ledger.md` | per-test prediction, refutation, result, evidence | a gate's verdict |
 | `README.md` | the gate board and one line of numbers | either of the above |
+| `plan/W0N_*.md` | **the day-by-day ordering, the commands, the timeboxes, the DoD, the week's technical argument** | any claim about current status — its preconditions have been stale twice |
+
+The last row is the one worth stating explicitly, because "the register owns the
+work list" reads at a glance as "the week plan is superseded". It is not.
+**Nothing else in the repository records how a week actually runs** — the
+ordering, the stop-losses, the exact invocations. The register says which tests
+must close; the plan says in what order and with which command. Both are read at
+the start of a week, and `CLAUDE.md` now says so in those words.
 
 ### The instrument
 

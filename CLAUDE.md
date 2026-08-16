@@ -12,21 +12,37 @@ build, went unfound for two weeks. Repo tour: `README.md`. Current state:
 `PROGRESS.md` — read the newest "Open, carried forward" and "Deliberately not
 done" first. Nothing volatile is recorded here.
 
-## Starting a week — do this before anything else
+## Starting a week — two files, both required
 
 When the author says **"let's do W05"** (or W06 / W07 — anything of the form
-*finish week N*), the week's work list is **not** in `plan/W0N_*.md`. That file
-is the day schedule and its preconditions have gone stale before. Run:
+*finish week N*), **read both of these.** They answer different questions and
+neither substitutes for the other.
+
+**1. `plan/W0N_*.md` — how the week runs.** The day-by-day ordering, the actual
+commands, the timeboxes and stop-losses, the DoD, and the week's technical
+argument. **Nothing else in the repository records any of that**, so skipping it
+means inventing an order and re-deriving commands that are already written.
+Read it first.
+
+**2. `make todo WEEK=W05` — what the week owes.**
 
 ```bash
 make todo WEEK=W05        # -> tools/rtcase.py todo, reads study/test-cases.toml
 ```
 
-That prints every registered test scheduled for the week and still outstanding —
-31 for W05, 25 for W06, 60 for W07 — each with its section and title. **That list
-is the deliverable; `plan/` supplies the daily ordering and the commands.** The
-schedule table is also the top block of `study/test-ledger.md`, and `make ci`
-prints the per-week outstanding counts on every run.
+Every registered test scheduled for that week and still outstanding — 31 for
+W05, 25 for W06, 60 for W07 — with its section and title. The same schedule is
+the top block of `study/test-ledger.md`, and `make ci` prints the per-week
+outstanding counts on every run. **This is the closure list**: a week is not
+finished while its rows are still `⬜`, and that is checkable in one command.
+
+**Where the two disagree — and they do.** The plan's **gates** are
+authoritative; its **status claims, dates and preconditions** are not.
+`plan/W05` still asserts "G3.5 passed" when it is 4 of 5, and its risk table
+says the `FLW` drill was rehearsed when it has not been. Check any precondition
+against `PROGRESS.md` and the README board before acting on it, and record the
+divergence in `PROGRESS.md § Corrections` rather than silently editing either
+file.
 
 Then: run each test, record it with `python3 tools/rtcase.py record --id … `
 (it refuses a case with no pre-written refutation condition), and
