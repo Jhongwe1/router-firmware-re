@@ -50,10 +50,10 @@ and the gate; the whole path is `check_host` → `apmib_get(0xb6)` →
 `apmib_get(0xb7)` → credential compare → `.htm`/`.asp` → exemption list →
 `send_r_unauthorized`.
 
-### The gate is 13 unanchored substring tests on one string
+### The gate is 13 unanchored substring tests on one string — 14 with `translate_uri`
 
 Two to decide whether to run at all, then eleven exemptions, every one an
-unanchored `strstr`:
+unanchored `strstr`, plus `translate_uri`'s `strstr(uri, "boafrm")` below:
 
 ```
 index.htm  login.htm  formLogin  status.htm  countDownPage.htm
@@ -95,13 +95,42 @@ void form_formSysCmd(req)
 `handleForm` at `0x004127f4` performs no authorisation of its own — it matches
 the name on an exact-length `memcmp` and calls the handler.
 
+### The step that could have collapsed this, and does not
+
+`handleForm` is not called directly. Boa sets a handler on the request and jumps
+to it later, so the chain has one more link than the gate reading alone shows —
+and that link contains the string `"POST to non-script is disallowed."`, which is
+exactly the shape of a thing that would kill this finding.
+
+It does not. `translate_uri` (`0x004041cc`) ends:
+
+```c
+if (*(int *)(param_1 + 0xc) != 4) {         /* not POST -> allowed */
+    return true;
+}
+pcVar10 = strstr(pcVar10, "boafrm");        /* POST: only if the URI says boafrm */
+if (pcVar10 != (char *)0x0) {
+    return true;
+}
+send_r_bad_request(param_1);                /* every other POST is rejected */
+return false;
+```
+
+**It does not reject the POST — it whitelists it**, on a fourth unanchored
+`strstr` over the same string. `init_form` (`0x00408c0c`) then handles POST
+explicitly (`if (req->method == 4) req[0x1f] = req[0x1e];`) before calling
+`handleForm`, and is itself reached from `write_body` at `0x0040ab30` through the
+computed jump Boa uses for handlers.
+
 So, as the code reads:
 
 ```
 POST /boafrm/formSysCmd     sysCmd=<command>
   URI contains no ".htm" and no ".asp"
-  -> 0040beb8 beq  jumps past send_r_unauthorized
-  -> translate_uri -> handleForm -> form_formSysCmd -> system()
+  -> 0040beb8  beq       skips send_r_unauthorized entirely
+  -> translate_uri        method==POST && strstr(uri,"boafrm")  -> allowed
+  -> write_body -> init_form (handles POST) -> handleForm (authorises nothing)
+  -> form_formSysCmd -> snprintf -> system()
 ```
 
 **CVE-2019-19824 describes this as requiring an authenticated attacker.** On
