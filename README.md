@@ -17,11 +17,21 @@ function in the binary.
 > `grep` on the three raw binaries gives **0 / 1 / 0** for 2015 / 2018 / 2020.
 > Its `sysCmd` parameter reaches `system()` unfiltered, and this build's
 > authorisation gate only runs on URIs containing `.htm` or `.asp`, which
-> `/boafrm/formSysCmd` does not. **As the code reads, that is unauthenticated
-> command execution as root — where CVE-2019-19824's own advisory claims only an
-> *authenticated* attacker.** W04 had recorded the handler's absence from the
+> `/boafrm/formSysCmd` does not. W04 had recorded the handler's absence from the
 > published images as the vendor's fix; a fix does not reappear two and a half
 > years later, and that reading is withdrawn.
+>
+> **That endpoint turns out to have its own CVE, which this project did not know
+> while reading it.** CVE-2024-51228 names `/boafrm/formSysCmd` and lists
+> `TOTOLINK-CX-N150RT V2.1.6-B20171121.1002` — byte-for-byte this unit's
+> `/etc/version`. So the reachability result is an **independent derivation from
+> the binary of a claim disclosed in 2024**, and
+> [`prior-art.md`](notes/prior-art.md#2024--cve-2024-51228-and-the-gap-that-let-it-be-missed)
+> records why a survey organised around known disclosure events missed it.
+> **What is this project's own is narrower and checkable:** NVD scores it `PR:H`
+> (privileges required, high) for 6.8 MEDIUM, while the original researcher
+> writes "without credentials" and the instruction-level read agrees with the
+> researcher. If they are right the vector is `PR:N` and the score 8.8 HIGH.
 >
 > Nothing has been sent to the device. That is G4's job, and **G3.5 is not
 > passed** — the flash recovery path has still never been executed.

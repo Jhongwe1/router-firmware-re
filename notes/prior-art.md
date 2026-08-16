@@ -209,6 +209,81 @@ fourteen 2025 records describe three defects.
 
 ---
 
+## 2024 — CVE-2024-51228, and the gap that let it be missed
+
+**This section exists because it was missing, and its absence cost W04-2 a day
+of rediscovering something already published.**
+
+> **CVE-2024-51228** (NVD, published 2024-11-27). "An issue in
+> TOTOLINK-CX-A3002RU V1.0.4-B20171106.1512 **and TOTOLINK-CX-N150RT
+> V2.1.6-B20171121.1002** and TOTOLINK-CX-N300RT V2.1.6-B20170724.1420 and
+> TOTOLINK-CX-N300RT V2.1.8-B20171113.1408 and TOTOLINK-CX-N300RT
+> V2.1.8-B20191010.1107 and TOTOLINK-CX-N302RE V2.0.2-B20170511.1523 allows a
+> remote attacker to execute arbitrary code via the `/boafrm/formSysCmd`
+> component."
+
+**`TOTOLINK-CX-N150RT V2.1.6-B20171121.1002` is byte-for-byte the contents of
+`/etc/version` in this unit's flash dump.** The CVE names this exact build.
+
+### What that does to W04-2's headline
+
+W04-2 read the resident `boa`, found `formSysCmd` in its dispatch table, traced
+`sysCmd` to `system()`, and established at instruction level that the
+authorisation gate never runs on that URI. That work stands and its evidence is
+in [`auth-flow-2018.md`](auth-flow-2018.md).
+
+**But it is a rediscovery, not a discovery**, and this note is where it should
+have been caught before the work started. The correct description of the result
+is: *an independent derivation, from the binary, of a claim disclosed in 2024* —
+which is exactly what a reproduction project is for, and is a weaker claim than
+the one W04-2's first draft made.
+
+### The part that is not a rediscovery
+
+**All three descriptions of this bug disagree about whether it needs
+credentials, and the CVSS vector is the odd one out.**
+
+| source | says |
+|---|---|
+| NVD CVSS 3.1 vector | `AV:A/AC:L/**PR:H**/UI:N/S:U/C:H/I:H/A:H` → 6.8 MEDIUM. **Privileges Required: HIGH** |
+| the original researcher, [yckuo-sdc](https://github.com/yckuo-sdc/totolink-boa-api-vulnerabilities) | "An attacker may inject arbitrary shell commands **without credentials**" |
+| this project, read from the binary named above | no authorisation runs on `/boafrm/*` in this build — [`auth-flow-2018.md`](auth-flow-2018.md) |
+
+Two of three say no credentials, and the two that agree are the disclosure
+itself and an independent reading of the firmware. **If they are right the
+vector should be `PR:N`, and the base score is 8.8 HIGH rather than 6.8
+MEDIUM.**
+
+That is a checkable disagreement with a published record, and it is the kind
+this project has already found twice — `CVE-2025-3992` and `CVE-2025-3995` name
+endpoints that 404 on this firmware because their names were transcribed from a
+PoC rather than from the binary. A CVSS vector is transcribed the same way.
+
+> **Scope.** The reading is static. It goes to no one until W05/W06 demonstrates
+> it on the hardware, and a score correction is worth exactly nothing without
+> that.
+
+### How this note failed, and what changes
+
+The CVE list here jumped from 2019–2020 straight to 2025. **Nothing in this
+project had ever searched the 2024 series**, and the reason is visible in the
+section heading above it: the searches were organised around *disclosure events*
+this project already knew about — Pierre Kim 2015, Adamczyk 2019, the 2025 batch
+— rather than around the product. A survey anchored on events finds the events
+you started with.
+
+Two things follow, and the second matters more:
+
+1. The 2024 series is now in this table.
+2. **The trigger for re-surveying is no longer "a new week starts" but "a new
+   build string is identified".** W02 read `2018-01-10` off four binaries and
+   nobody searched for it; W04-2 read `V2.1.6-B20171121.1002` out of
+   `/etc/version` and the CVE that names that string was found by the author
+   pasting a link, not by this project. **A build string is a search term, and
+   this project had one for two weeks without using it.**
+
+---
+
 ## Sources
 
 - Pierre Kim, TOTOLINK series, 2015-07-16 — <https://pierrekim.github.io/blog/2015-07-16-backdoor-credentials-found-in-4-TOTOLINK-products.html> and companion posts
@@ -217,3 +292,5 @@ fourteen 2025 records describe three defects.
 - CVE-2019-19824 — <https://www.tenable.com/cve/CVE-2019-19824>
 - Pierre Kim, advisory text naming N150RT-V2 — <https://pierrekim.github.io/advisories/2015-totolink-0x02.txt>
 - The 2025 series against this model — <https://nvd.nist.gov/vuln/detail/CVE-2025-4462> and neighbours
+- CVE-2024-51228 — <https://nvd.nist.gov/vuln/detail/CVE-2024-51228>
+- yckuo-sdc, TOTOLINK Boa API vulnerabilities — <https://github.com/yckuo-sdc/totolink-boa-api-vulnerabilities>

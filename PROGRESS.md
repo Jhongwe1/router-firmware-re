@@ -851,6 +851,24 @@ if (*cmd != '\0') {
 }
 ```
 
+> 🔴 **This endpoint has its own CVE and W04-2 did not know it while working.**
+> **CVE-2024-51228** (NVD, 2024-11-27) names `/boafrm/formSysCmd` and lists
+> **`TOTOLINK-CX-N150RT V2.1.6-B20171121.1002`** — byte-for-byte this unit's
+> `/etc/version`. So the reachability result below is an **independent
+> derivation from the binary of a claim disclosed in 2024**, not a discovery.
+> `notes/prior-art.md` had no 2024 entries at all; that gap, and the change that
+> follows from it, are recorded in
+> [`prior-art.md`](notes/prior-art.md#2024--cve-2024-51228-and-the-gap-that-let-it-be-missed).
+>
+> **What survives as this project's own contribution is narrower and checkable:**
+> NVD scores it `AV:A/AC:L/**PR:H**/UI:N/S:U/C:H/I:H/A:H` = 6.8 MEDIUM, while
+> the original researcher writes "without credentials" and the instruction-level
+> read below finds no authorisation on the path. Two of three sources agree
+> against the vector; if they are right it is `PR:N` and 8.8 HIGH.
+>
+> And this remains new relative to the published images: **the handler is in
+> neither of them**, which is why W04 read its absence as a fix.
+
 **And the gate does not run on that URI.** This build's
 `process_header_end` (`0x0040bb1c`) checks authorisation only when the URI
 contains `.htm` or `.asp`:
@@ -1011,7 +1029,7 @@ fail.
 
 | Item | Why |
 |---|---|
-| **G3.5 #5 — the `FLW` recovery drill** | Requires the device, a serial console and a person. Written up as a paste-able procedure in [`RUNBOOK.md`](RUNBOOK.md) with each step's expected output, so it is a decision rather than an omission. **W05 does not start until this is done** |
+| **G3.5 #5 — the `FLW` recovery drill** | Requires the device, a serial console and a person. Written up as a paste-able procedure in [`RUNBOOK.md`](RUNBOOK.md#89--g35-最後一格flw-回復路徑演練還沒做而且要你親手做) with each step's expected output. **Decided 2026-08-16: it runs as W05's first hardware session, not separately** — the console is already needed then, and one seating is fewer chances to mistype an `FLW`. **W05 still does not proceed past it** |
 | **Day 6 in its entirety** — CH341A pin 28, CH347T verification, JEDEC ID, TFTP→`DB` | Same reason. The JEDEC ID and the second-instrument column in G2 stay empty |
 | Fetching V2.1.1 / 2.1.3 / **2.1.6** | Softpedia returns 403 to scripted fetch and archive.org has only V2.1.2. `SOURCES.json` already recorded this as blocked. **V2.1.6 now matters much more than it did** — see open #1 |
 | The `Encode` side of `libapmib` | Only `Decode` was needed. W06 writes to this region, so `mib_compress_write` and `save_cs_to_file` are located but unread |
@@ -1021,36 +1039,72 @@ fail.
 
 ### Open, carried forward
 
-1. **Is the published V2.1.6 this build?** What is established is only the first
-   line below; the rest is what makes it worth chasing.
+0. **Re-download the published V2.1.6, and verify the zip's own CRC-32 first.**
+   Obtained in a browser on 2026-08-16 and **the download is 40.3% complete** —
+   1,390,332 bytes of a declared 3,447,222, no central directory, `unzip`
+   rejects it. Deflate being a stream, the prefix still decompresses and
+   `fwrecon image` reads two section headers from it, which is enough to answer
+   the version question below but **not** enough for a rootfs comparison. Details
+   and provenance in [`firmware/SOURCES.json`](firmware/SOURCES.json).
+
+1. ~~**Is the published V2.1.6 this build?**~~ → **answered: no.** The published
+   image is `TOTOLINK-N150RT-V2.1.6-**B20160516**.1233.web`; this unit runs
+   `V2.1.6-**B20171121**.1002`. **Same product version, two builds eighteen
+   months apart**, and the unit's carries a `CX` the published name does not.
+   W02's "the resident build is on no download page" survives with better
+   precision: *the version* is published, *this build* is not.
+
+   The 40% prefix also supports the mirror: section lengths land exactly on the
+   curve between the 2015 and 2018 builds — `w6cg` 308,866 → **296,804** →
+   277,012, and `cr6c` 985,090 → **986,114** → 987,138, which is 1,024 bytes
+   apart at each step. A tampered file does not land on that line in both
+   sections. That is the continuity argument, and it can now be made.
+
+   What is still established only weakly:
 
    | | |
    |---|---|
    | **measured** | `/etc/version` in this unit's rootfs reads `TOTOLINK-CX-N150RT-V2.1.6-B20171121.1002` (41 bytes, `cat`) |
-   | **measured** | four binaries in that same rootfs are stamped `2018-01-10` (W02) |
-   | **not measured** | that a V2.1.6 image is downloadable. A product page for it appears in a search index; **the page returns 403 to every fetch attempted** — PowerShell HEAD, `curl` with three user-agents, and `WebFetch`. `firmware/SOURCES.json` has recorded Softpedia as blocking scripted fetch since W01, so this is a confirmation, not a discovery |
-   | **not measured, and not to be quoted** | a search summary gives a 2.1.6 release date of 2017-05-08. That is six months from the `B20171121` in the version string, the page could not be read, and a search snippet is not a source |
+   | **measured** | four binaries in that same rootfs are stamped `2018-01-10` (W02) — so the label and the build date differ by seven weeks |
+   | **measured** | the published V2.1.6 is `B20160516.1233`, from the zip's own local file header |
+   | **not measured** | anything below the second container section of the published image. No rootfs, no `/etc/version`, no `boa`. That needs the other 60% |
+   | **not measured, and not to be quoted** | a search summary gives a 2.1.6 release date of 2017-05-08. The page could not be read, it disagrees with the build string in the file itself, and a search snippet is not a source |
 
-   **A browser can fetch what a script cannot, and one download settles it.** If
-   the images match, the vendor-remediation timeline stops depending on one
-   person's flash dump and becomes reproducible by a reader. If they differ, the
-   `CX` in that version string is worth understanding. Until then this repository
-   says only that the unit *calls itself* V2.1.6.
-2. **Why the binaries are stamped seven weeks after the version label.**
+   **What a complete download would settle:** whether the published B20160516
+   already contains `formSysCmd`. If it does, the handler was present in 2016 and
+   in 2018 and gone by 2020, and the "build option" reading gets a third point.
+   If it does not, the `CX` line diverges from the published one and that is a
+   different and more interesting story.
+
+2. **CVE-2024-51228 was missed for two weeks by a survey that had the build
+   string in hand.** The literature review is now fixed
+   ([`prior-art.md`](notes/prior-art.md#2024--cve-2024-51228-and-the-gap-that-let-it-be-missed)),
+   but the open item is the CVSS discrepancy: NVD scores `PR:H`, the original
+   researcher says "without credentials", and the binary agrees with the
+   researcher. **Settling it is a G4 deliverable**, and it is worth nothing until
+   then. If it holds, it is a reportable correction to a published record — and
+   the *only* thing here that would be, since the vulnerability itself has been
+   public since 2024-11-27.
+
+3. **Are the other five products in CVE-2024-51228 the same binary?** A3002RU,
+   N300RT (three builds) and N302RE are all `-CX-` builds of the same Realtek
+   Boa. This project has one of the six. Nothing here claims anything about the
+   other five, and the `CX` marker is unexplained.
+4. **Why the binaries are stamped seven weeks after the version label.**
    `B20171121` against a uniform 2018-01-10 build date across four binaries.
-3. **`system()` call sites go 158 → 194 → 129.** The resident build has more
+5. **`system()` call sites go 158 → 194 → 129.** The resident build has more
    than either published image, in fewer functions. `formSysCmd` accounts for
    one or two; the other ~34 are unexplained.
-4. **`form_formRoute` / `subnet` reaches `system()` in all three builds.** Found
+6. **`form_formRoute` / `subnet` reaches `system()` in all three builds.** Found
    by `BoaGate`, in none of W04's findings, and still present in 2020. W07.
-5. **The hardcoded `Authorization: Basic YWRtaW46YWRtaW4=` in V2.1.2**, twice.
+7. **The hardcoded `Authorization: Basic YWRtaW46YWRtaW4=` in V2.1.2**, twice.
    Which function holds it, and whether `boa` ever sends it, is unknown.
-6. **Does `POST /boafrm/formSaveConfig` create a servable `/web/config.dat`?**
+8. **Does `POST /boafrm/formSaveConfig` create a servable `/web/config.dat`?**
    This rootfs has no `/web` at all — the docroot is a ramfs whose 143 files do
    not include it. The gate is open; whether there is a file behind it is the
    other half of the CVE-2019-19822 chain.
-7. **Who reads the global at `0x004899d8`**, which the 2018 gate sets to 1 or 2
+9. **Who reads the global at `0x004899d8`**, which the 2018 gate sets to 1 or 2
    after a credential match. Per-request state plus one global is not a session.
-8. Carried from W02, unchanged: **no second instrument has read this flash**, the
+10. Carried from W02, unchanged: **no second instrument has read this flash**, the
    JEDEC ID is unread, `LSP5526` is unidentified, and the SoC core question is
    open — though #4 above now supplies the means to run `/proc/cpuinfo`.

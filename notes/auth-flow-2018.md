@@ -134,10 +134,25 @@ POST /boafrm/formSysCmd     sysCmd=<command>
 ```
 
 **CVE-2019-19824 describes this as requiring an authenticated attacker.** On
-this build, as the code reads, no authorisation runs on that path at all. The
+this build, as the code reads, no authorisation runs on that path at all. That
 advisory's own wording — *"even if the GUI (`syscmd.htm`) is not available"* — is
 literally this device's situation: the `w6cg` web-resource section contains 143
 files and **`syscmd.htm` is not one of them**, while the handler is registered.
+
+> 📌 **This endpoint has its own, later CVE, and this project did not know that
+> while reading it.** **CVE-2024-51228** (NVD, 2024-11-27) names
+> `/boafrm/formSysCmd` and lists **`TOTOLINK-CX-N150RT V2.1.6-B20171121.1002`** —
+> byte-for-byte the contents of `/etc/version` in this unit's dump. Everything
+> below is therefore an *independent derivation from the binary of a claim
+> already disclosed*, not a new finding, and
+> [`prior-art.md`](prior-art.md#2024--cve-2024-51228-and-the-gap-that-let-it-be-missed)
+> records how the gap happened.
+>
+> **What is not a rediscovery is the disagreement about privileges.** NVD scores
+> it `PR:H` — privileges required, high — for 6.8 MEDIUM. The original
+> researcher's own text says "without credentials", and the instruction-level
+> read below says no authorisation runs. Two of three agree, and if they are
+> right the vector is `PR:N` and the score is 8.8 HIGH.
 
 The bound is on the buffer, not on the injection: `snprintf(buf, 100, …)` caps
 the write, and the constant tail `" 2>&1 > /tmp/syscmd.log"` is 23 bytes, so an
