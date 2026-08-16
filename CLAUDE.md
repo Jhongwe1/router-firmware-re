@@ -12,6 +12,47 @@ build, went unfound for two weeks. Repo tour: `README.md`. Current state:
 `PROGRESS.md` — read the newest "Open, carried forward" and "Deliberately not
 done" first. Nothing volatile is recorded here.
 
+## Starting a week — two files, both required
+
+When the author says **"let's do W05"** (or W06 / W07 — anything of the form
+*finish week N*), **read both of these.** They answer different questions and
+neither substitutes for the other.
+
+**1. `plan/W0N_*.md` — how the week runs.** The day-by-day ordering, the actual
+commands, the timeboxes and stop-losses, the DoD, and the week's technical
+argument. **Nothing else in the repository records any of that**, so skipping it
+means inventing an order and re-deriving commands that are already written.
+Read it first.
+
+**2. `make todo WEEK=W05` — what the week owes.**
+
+```bash
+make todo WEEK=W05        # -> tools/rtcase.py todo, reads study/test-cases.toml
+```
+
+Every registered test scheduled for that week and still outstanding — 31 for
+W05, 25 for W06, 60 for W07 — with its section and title. The same schedule is
+the top block of `study/test-ledger.md`, and `make ci` prints the per-week
+outstanding counts on every run. **This is the closure list**: a week is not
+finished while its rows are still `⬜`, and that is checkable in one command.
+
+**Where the two disagree — and they do.** The plan's **gates** are
+authoritative; its **status claims, dates and preconditions** are not.
+`plan/W05` still asserts "G3.5 passed" when it is 4 of 5, and its risk table
+says the `FLW` drill was rehearsed when it has not been. Check any precondition
+against `PROGRESS.md` and the README board before acting on it, and record the
+divergence in `PROGRESS.md § Corrections` rather than silently editing either
+file.
+
+Then: run each test, record it with `python3 tools/rtcase.py record --id … `
+(it refuses a case with no pre-written refutation condition), and
+`make ledger`. Procedure with worked examples: `RUNBOOK.md` §8.10.
+**Do not write test outcomes into prose in `PROGRESS.md`** — that file owns
+gates and weeks, not individual tests.
+
+Nine items were deliberately cut, each with its reason in the register. Do not
+quietly reinstate one; if a cut looks wrong, argue with the reason first.
+
 ## The rule that outranks the others
 
 The deliverable is not this repo; it is the author's ability to defend every
@@ -81,6 +122,22 @@ reader undefended.
 - `RUNBOOK.md`, `PROGRESS.md` and the README board move in the **same commit**
   as the work; a ticked box carries its evidence link. Hostile questions go to
   `study/QA.md`. Week branches, never `main`.
+- **One piece of state has exactly one owner.** `PROGRESS.md` owns gates, weeks
+  and carried-forward questions; `study/test-cases.toml` owns per-test
+  prediction / refutation / result / evidence; the README board owns the gate
+  checkboxes and one line of numbers. A gate may **cite** a test, never restate
+  its row. This rule exists because the 2026-08-16 sync failure was one piece of
+  state with two owners, and a 130-row matrix in two files would repeat it
+  weekly. `study/test-ledger.md` is **generated** — edit the register.
+- **A test result is inadmissible without a refutation condition written
+  first**, and `tools/rtcase.py check` enforces it in CI along with: an artefact
+  that exists, no dynamic tick for a static reading, and no editing a prediction
+  after a result was recorded against it. `tools/test-rtcase.sh` proves each
+  refusal fires; both run in `make ci`.
+- **Findings are published, reproductions follow the disclosure state,
+  tradecraft is not published at all.** Naming a defect and its address is
+  research; a copy-pasteable request for something unreported is not.
+  `docs/disclosure.md` holds the register and the current state of each item.
 - **Every week closes with a `study/weekly-results.md` entry** — the one-line
   version, three defensible claims each with its evidence and what it
   demonstrates, and **what that week did not prove**. The last of those three is

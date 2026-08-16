@@ -207,6 +207,12 @@ image**, which predates both CVEs by ten years. And the four `submit-url` CVEs
 are four samples of one idiom that appears in 34 handlers. Twelve of the
 fourteen 2025 records describe three defects.
 
+> 📌 **Per-CVE status against the build this unit actually runs** — including
+> the upstream Realtek/Boa advisories this section does not cover, and the two
+> that this unit's dump refutes — is in
+> [`cve-status.md`](cve-status.md). The naming errors above hold on the third
+> build too: `formWlWds` and `formStaticDHCP`, all three tables.
+
 ---
 
 ## 2024 — CVE-2024-51228, and the gap that let it be missed

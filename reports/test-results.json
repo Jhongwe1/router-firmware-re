@@ -1,0 +1,69 @@
+{
+  "producer": "rtcase",
+  "schema_version": "1",
+  "results": [
+    {
+      "id": "P0-1",
+      "date": "2026-08-16",
+      "verdict": "confirmed",
+      "evidence_kind": "dynamic",
+      "artefacts": [
+        "dumps/MANIFEST.json",
+        "reports/flashdump-unit-2018.json",
+        "notes/dump-vs-official.md"
+      ],
+      "note": "兩次全讀 sha256 a800059a…，經不同 RAM 中繼位址，cmp 零差異 byte",
+      "case_freeze_sha256": "a7f187f786c997cec196c19754f95ce0116e161b7970199e21fd238f16931620"
+    },
+    {
+      "id": "P9-2",
+      "date": "2026-08-16",
+      "verdict": "confirmed",
+      "evidence_kind": "dynamic",
+      "artefacts": [
+        "notes/flash-layout.md",
+        "reports/flashdump-unit-2018.json"
+      ],
+      "note": "FLR+DB 105 分鐘、零 chunk 重試；W01 導出的三個 burn address 全中",
+      "case_freeze_sha256": "c8b1a089ad1e662ba4ec33f0d5be6eba902d5a90f3d317f93fd81d2c55b2109e"
+    },
+    {
+      "id": "P0-6",
+      "date": "2026-08-16",
+      "verdict": "confirmed",
+      "evidence_kind": "static",
+      "artefacts": [
+        "reports/ghidra-formtable-unit-2018.json",
+        "reports/n150rt-unit-2018.json"
+      ],
+      "note": "兩支獨立工具得出 57 與 60；不一致本身就是 P1-5",
+      "case_freeze_sha256": "204f8eb0949e428e9528be8d13d9672755a3ed0c0824497c96ce617e83ee793a"
+    },
+    {
+      "id": "P0-7",
+      "date": "2026-08-07",
+      "verdict": "confirmed",
+      "evidence_kind": "static",
+      "artefacts": [
+        "notes/anatomy-n150rt.md",
+        "notes/flash-layout.md"
+      ],
+      "note": "IMG_HEADER_T 欄位順序在 tools/fwrecon/src/fwrecon/rtlimage.py",
+      "case_freeze_sha256": "131c7f27213a8b471489483b58359c90a328cce0c4a534875ab6522e1f48654e"
+    },
+    {
+      "id": "P0-8",
+      "date": "2026-08-16",
+      "verdict": "partial",
+      "evidence_kind": "static",
+      "artefacts": [
+        "notes/skt-analysis.md",
+        "notes/credentials.md"
+      ],
+      "note": "rcS 已審；但 /bin/*.sh 的 MIB→shell 內插普查沒有寫進任何 committed note，P8-8 目前無可引用證據",
+      "case_freeze_sha256": "5d4c09a582bc4648fa902f53c2edf4b4b3bf743781c716ded65f47b4ebffb255"
+    }
+  ],
+  "register": "study/test-cases.toml",
+  "register_freeze_sha256": "90fe878da57549f9469b382b9fff0fca9071cd3a422cd19baaa3e76857a3c3d9"
+}

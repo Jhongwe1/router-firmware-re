@@ -20,6 +20,10 @@ Several producers write into reports/, on purpose:
                                        -> carry "producer": "ghidra:<Script>"
   Ghidra script  BoaStringXrefs.java   -> carries "program" and "matches"
                                           (W01, predates the "producer" field)
+  tools/rtcase.py `rtcase record`      -> carries "producer": "rtcase"
+                                          (shape only here; admissibility is
+                                           `rtcase check`, which needs the
+                                           register)
 
 An unrecognised file is an error rather than something to skip. A stray or
 half-written report in a directory that is presented as the project's results
@@ -62,7 +66,7 @@ def main(argv: list[str]) -> int:
         return 1
 
     errors: list[str] = []
-    counts = {"fwrecon": 0, "ghidra": 0}
+    counts = {"fwrecon": 0, "ghidra": 0, "rtcase": 0}
 
     for path in files:
         try:
@@ -71,7 +75,27 @@ def main(argv: list[str]) -> int:
             errors.append(f"{path.name}: invalid JSON ({exc})")
             continue
 
-        if "schema_version" in doc:
+        # Must come before the schema_version branch: the rtcase results file
+        # carries one of its own, and would otherwise be checked against
+        # fwrecon's.
+        if str(doc.get("producer", "")) == "rtcase":
+            counts["rtcase"] += 1
+            # Shape only. Whether the results are *admissible* — a refutation
+            # written before the result, an artefact that exists, a prediction
+            # that has not been edited since — is `tools/rtcase.py check`, which
+            # needs the register and runs as its own CI step.
+            if not doc.get("register"):
+                errors.append(
+                    f"{path.name}: no register - the results cannot name the test "
+                    "register they were recorded against")
+            if not isinstance(doc.get("results"), list):
+                errors.append(f"{path.name}: results is not a list")
+            for i, res in enumerate(doc.get("results", [])):
+                for field in ("id", "date", "verdict", "evidence_kind", "case_freeze_sha256"):
+                    if not res.get(field):
+                        errors.append(f"{path.name}: results[{i}] missing {field!r}")
+
+        elif "schema_version" in doc:
             counts["fwrecon"] += 1
             got = doc["schema_version"]
             if got != expected:
@@ -190,7 +214,7 @@ def main(argv: list[str]) -> int:
         return 1
 
     print(f"reports OK — {counts['fwrecon']} fwrecon (schema {expected}), "
-          f"{counts['ghidra']} Ghidra")
+          f"{counts['ghidra']} Ghidra, {counts['rtcase']} rtcase")
     return 0
 
 
