@@ -22,7 +22,8 @@ UNIT_LABEL := N150RT unit, 2018-01-10 build (read from flash)
 UNIT_DUMP  := $(FWRE_WORK)/dumps/flash-n150rt-console-1.bin
 
 .DEFAULT_GOAL := help
-.PHONY: help setup verify fetch unpack venv test lint recon recon-unit diff check-reports shellcheck ci clean-work
+.PHONY: help setup verify fetch unpack venv test lint recon recon-unit diff check-reports \
+        rtcase rtcase-test todo ledger shellcheck ci clean-work
 
 help: ## Show this help
 	@grep -hE '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) \
@@ -104,6 +105,19 @@ recon-partial: venv ## Report for the partially-downloaded published V2.1.6 (see
 check-reports: ## Verify the committed reports still match the tooling
 	python3 tools/check-reports.py
 
+rtcase: ## G3.75: the test register is frozen and every result carries evidence
+	python3 tools/rtcase.py check
+
+todo: ## What this week still owes: `make todo WEEK=W05`
+	python3 tools/rtcase.py todo $(if $(WEEK),--week $(WEEK),)
+
+rtcase-test: ## Prove the register gate can actually fail (22 cases)
+	bash tools/test-rtcase.sh
+
+ledger: ## Regenerate study/test-ledger.md from the register + results
+	python3 tools/rtcase.py render
+	python3 tools/rtcase.py check
+
 shellcheck: ## Lint the shell scripts, exactly as CI does
 	shellcheck --severity=warning tools/*.sh tools/setup/*.sh
 
@@ -113,7 +127,10 @@ shellcheck: ## Lint the shell scripts, exactly as CI does
 # eventually forgets. `make ci` is the whole set minus the container build, which
 # is left out only because it costs minutes rather than seconds - run
 # `docker build -f docker/Dockerfile .` before touching anything under docker/.
-ci: lint test shellcheck check-reports ## Everything CI checks, except the container build
+# `rtcase-test` is in here and not optional. It is the only thing proving the
+# register gate can fail; without it `make rtcase` going green means nothing,
+# which is the exact shape of instrument bug 12.
+ci: lint test shellcheck check-reports rtcase rtcase-test ## Everything CI checks, except the container build
 	@echo "  ok   local CI equivalents passed (container build not included)"
 
 diff: venv ## Diff the two builds

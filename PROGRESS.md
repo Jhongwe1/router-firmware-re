@@ -7,7 +7,8 @@
 | **W03** | Static reversing, upper half | — (DoD) | ✅ **DoD met** — 2026-08-10 |
 | **W04** | CVE root-cause location | **G3** | ✅ **passed** — 2026-08-11 |
 | **W04-2** | Catch-up: move the findings onto the build this unit runs | **G3.5** | ⚠️ **4 of 5** — 2026-08-16 |
-| W05 | Dynamic analysis, upper half | — | ▶ next, **after G3.5 #5** |
+| **W05 Day 0** | Pre-engagement: freeze the predictions before the first packet | **G3.75** | ⚠️ **2 of 5** — 2026-08-17 |
+| W05 | Dynamic analysis, upper half | — | ▶ next, **after G3.5 #5 / G3.75** |
 | W06 | PoC reproduction | G4 | |
 | W07 | Systematic bug hunt | — | |
 | W08 | Write-up draft | — | |
@@ -1173,3 +1174,177 @@ repair is one commit and the habit is not.
    2015→2018 drops 27 bundle entries and adds 26, so `syscmd.htm` sits inside a
    rebuild rather than standing out as a deletion. Reading intent into it would
    be reading intent into a rebuild.
+
+---
+
+## W05 Day 0 — 2026-08-17
+
+**G3.75: two of five.** The other three need the hardware and the console, and
+run as W05's first session. Added after the fact, and for a reason that is not
+"the plan said so": W05–W07 execute on the order of 130 tests, and the plan had
+no mechanism for recording what each one predicted before it ran.
+
+### G3.75 — nothing is sent to the device until the pre-engagement is done
+
+| # | Required | Result |
+|---|---|---|
+| 1 | the `FLW` recovery path rehearsed | ❌ **not done.** This is G3.5 #5, cited rather than restated. It blocks everything below |
+| 2 | isolation verified — two MACs on the segment, WAN on a fake upstream | ❌ needs the bench |
+| 3 | IoC pre-check — live config against this unit's own factory baseline, plus the ports known botnets leave behind | ❌ needs the device. **Criterion written in advance: the difference stays at 4 of 344 entries** |
+| 4 | the prediction ledger frozen before any request | ✅ [`study/test-ledger.md`](study/test-ledger.md) — 128 tests, 98 with a written refutation condition, hash `ba6810e8…` |
+| 5 | the disclosure register written | ✅ [`docs/disclosure.md`](docs/disclosure.md) — eight candidates, and the rule that decides what is publishable |
+
+> ⚠️ **G3.75 is not passed.** Box 3 in particular is not a formality: this model
+> is named in public botnet tooling, and a unit that is already someone else's
+> is an incident, not a test target. The criterion is written down now so that
+> it cannot be adjusted after seeing the data.
+
+### The problem this solves, which is a documentation problem
+
+The red-team test corpus arrived as one document that was three documents: a
+state table, a body of evidence-bearing analysis, and an attack execution
+manual. It did not fit anywhere because those three belong in three places, and
+the state table in particular **collided directly with `PROGRESS.md`** — 130
+rows of checkbox that this file already claims to own.
+
+That collision is not hypothetical. The process failure recorded one section
+above — a "document sync" commit that ran before the week's last two commits and
+was never re-run — is the same failure: **one piece of state, two owners.** A
+hand-maintained 130-row matrix duplicated into `PROGRESS.md` and `README.md`
+would have drifted inside a week.
+
+So the split is by ownership, and it is now written into `CLAUDE.md`:
+
+| file | owns | must not restate |
+|---|---|---|
+| `PROGRESS.md` | gates, weeks, carried-forward questions | an individual test's status |
+| `study/test-ledger.md` | per-test prediction, refutation, result, evidence | a gate's verdict |
+| `README.md` | the gate board and one line of numbers | either of the above |
+
+### The instrument
+
+[`tools/rtcase.py`](tools/rtcase.py) — the register is
+[`study/test-cases.toml`](study/test-cases.toml), the ledger is generated from
+it, and `rtcase check` is a CI gate. What it refuses:
+
+| refusal | why it exists |
+|---|---|
+| a result whose case has **no pre-written refutation condition** | this is the whole point. A test with no written failure condition is read as a success afterwards, because by then the reader knows what they wanted to see |
+| a `confirmed` or `partial` verdict **naming no artefact**, or naming a path that does not exist | the same rule `check-reports.py` applies to Ghidra output: a result that cannot name what it was measured on is not evidence |
+| a prediction or refutation **edited after a result was recorded against it** | each result is stamped with a per-case hash of the wording it was judged against. Refining a refutation after seeing the answer is the one way to launder a miss into a hit that leaves no other trace |
+| `confirmed` + `evidence_kind: static` **rendered as the dynamic tick** | it renders 🟥 instead. "Static ≠ dynamic" stops being a habit and becomes a column that cannot be left ambiguous |
+| a register in which **nothing at all is frozen** | otherwise the freeze check hashes an empty list and passes. That is instrument bug 12's exact shape — a self-check that reports success when it has nothing to work on |
+
+The register-wide freeze hash sits in the register itself, so changing a
+prediction means changing the hash **in the same commit**, where `git diff`
+shows it as two deliberate lines. This is not tamper-proofing — the author holds
+the key. It is the difference between a change that is visible and one that is
+not.
+
+**And the gate is proved able to fail.** [`tools/test-rtcase.sh`](tools/test-rtcase.sh)
+drives 22 cases: one control that must pass, and 21 that must be rejected *and
+rejected for the stated reason* — checking the exit code alone would let a case
+pass on an unrelated failure. `make ci` runs both, and so does CI. Writing that
+suite caught a real defect in `rtcase record` on its first run: it assumed the
+register lived inside the repository and crashed on a temporary copy.
+
+### The nine items that were cut, and why
+
+Cutting them is a decision, so each carries its reason in the ledger rather than
+disappearing from it. Grouped:
+
+| | |
+|---|---|
+| **post-exploitation tradecraft** — the 60-second rule, credential harvesting on a live host, lateral movement / DNS / WAN-management changes, anti-forensics, weaken-to-persist | None produces a checkable fact about this device. The credentials they would collect are **already decoded from flash** ([`compcs-decode.md`](notes/compcs-decode.md)); collecting them again on a live shell learns nothing and produces a copy that should not exist. Anti-forensics and weaken-to-persist exist to make a compromised device read as a badly configured one — the opposite of what a write-up is for |
+| **downgrading the unit to reinstall the 2015 backdoor** | Irreversible, and its purpose is to put a known backdoor back into a device that no longer has it. The property it would demonstrate — no firmware signature, no anti-rollback — is already established statically, and reflashing does not make it truer |
+| **social engineering an administrator into handing over the device** | The target is a person, not the device. There is no administrator in this lab, so in this environment the test is not falsifiable at all |
+| **evil twin, and broadcast wireless DoS** | Both radiate into third-party equipment by construction. Targeted wireless work against this unit's own SSID and this lab's own client stays in, with the constraint written on the case |
+
+**What was kept from the same chapters is the finding, not the method.** A
+configuration value interpolated into a boot-time shell command is a
+vulnerability class worth locating; how to make it survive a reboot unnoticed is
+not.
+
+### What building the register turned up, before any packet was sent
+
+Two claims this repository leans on turn out to have no committed evidence.
+Neither was found by looking for problems; both were found by trying to write
+down what would refute them.
+
+1. **The boot-script survey of configuration values reaching a shell exists in
+   no committed artefact.** `rcS` was reviewed
+   ([`skt-analysis.md`](notes/skt-analysis.md),
+   [`credentials.md`](notes/credentials.md)), but the `/bin/*.sh` interpolation
+   census that the persistence line depends on was never written up. Recorded as
+   a **partial** result rather than a pass, which is what the ledger is for.
+2. **"This unit has no `nc` and no `tftp`" is not established.** The 55-binary
+   inventory in [`n150rt-unit-2018.json`](reports/n150rt-unit-2018.json) counts
+   ELF files; busybox applets are symlinks and would not appear in it. The claim
+   may well be true — it is now a *prediction*, with a refutation naming exactly
+   what a hit would mean.
+3. **`rcS` starts no daemon on this build, and every "this service is disabled"
+   claim rested on it.** Two documents predicted UPnP in opposite directions —
+   one from "`rcS` starts `miniigd`", the other from "`miniigd` is in the
+   disabled-services list" — and **both were reading the wrong file**. `rcS`
+   contains `mkdir /var/linuxigd` and the comment `##For miniigd`, and nothing
+   else; `miniigd` appears in no script in the rootfs. **`/bin/sysconf` is the
+   supervisor**, holding `telnetd`, `miniigd`, `mini_upnpd`, `snmpd.sh`, `wscd`,
+   `dnsmasq`, `igmpproxy` and `lld2d`, gated on MIB flags — and W04-2 had
+   already read that exact mechanism for one of them (`apmib_get(0xbbb)`
+   guarding `system("telnetd &")`) without anyone generalising it.
+
+   **`UPNP_ENABLED` is `1`**, in the live config and in the factory default. So
+   the expectation flips to *UPnP is listening*, and CVE-2014-8361,
+   CVE-2021-35392 and CVE-2021-35393 come back onto the W07 list. Corrected at
+   source in [`attack-surface.md`](notes/attack-surface.md) and
+   [`cve-status.md`](notes/cve-status.md).
+
+   Three things worth separating here. **The instrument was not wrong** —
+   `fwrecon` says "disabled only by commenting out their init line", which is
+   what it measured; the word "disabled" was compressed out of that sentence by
+   a note, and then by a note written today. **The register's own prediction was
+   the one overturned**, not the plan's. And **the telnet conclusion survives on
+   different evidence** — its flag was read *and* the code reading it was read,
+   which is precisely the second source UPnP does not have.
+
+### Corrections to the plan
+
+**G3.75 did not exist in `plan/`.** It is added here rather than folded into
+G3.5, because G3.5 was already reported as 4 of 5 and retroactively widening a
+gate would make the earlier report wrong. G3.5 #5 is **not** moved into G3.75 —
+it is cited from it. Moving it would have turned a failed box into a passed gate
+by renaming, which is the specific thing the board exists to prevent.
+
+The plan's W05 also assumed the test list would be written during W05. Freezing
+it first is a change in ordering, and the reason is falsifiability: a prediction
+recorded after the observation is not a prediction.
+
+### Deliberately not done in W05 Day 0
+
+| Item | Why |
+|---|---|
+| **G3.75 boxes 1–3** | Hardware, console, and a person. They run as W05's first session, in one seating, exactly as decided on 2026-08-16 for G3.5 #5 |
+| **Refutation conditions for 21 of the scheduled cases** | Mostly Phase 6–8, which run in W07. Writing a refutation for a test whose preconditions are unknown produces a sentence, not a condition. `rtcase check` will not accept a result for any of them, and the ledger prints the list per phase, so the gap cannot go quiet |
+| **`poc/`** | G4's deliverable, and it stays absent until something has been demonstrated. An empty directory with a plan in it reads as work done |
+| **Reporting anything to TWCERT/CC** | Unchanged. Everything is still static. [`docs/disclosure.md`](docs/disclosure.md) now records what the queue would contain and what has to happen first |
+
+### Open, carried forward
+
+W04-2's list stands unchanged. Added by this session:
+
+12. **The `/bin/*.sh` configuration-to-shell census has no committed artefact.**
+    Either it is redone into a note, or the claims resting on it stop being
+    made. Ledger `P0-8`, currently 🔶.
+13. **The binary inventory measures ELF files, not available commands.** Every
+    conclusion of the form "this unit does not have *X*" inherits that
+    limitation, and at least three do.
+14. **Who calls each of `sysconf`'s eight daemon strings, and on what flag.**
+    Only `telnetd`'s gate has been read. Until the others are, "the flag is 1 so
+    it runs" is one source — the same standard that made
+    `TELNET_ENABLED = 0` reportable requires reading the branch, not just the
+    value. `UPNP_ENABLED = 1` is the first case where this matters, because it
+    reinstates three CVEs.
+15. **`SNMP_RO_COMMUNITY` and `SNMP_RW_COMMUNITY` decode as all-zero strings and
+    there is no `SNMP_ENABLED` among the recovered entries.** Either the flag is
+    named something else, or the decoder is not recovering it. Both are worth
+    knowing before W07 predicts anything about port 161.

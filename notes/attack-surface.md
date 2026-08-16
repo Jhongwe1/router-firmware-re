@@ -130,6 +130,26 @@ Worth a look after Boa:
 
 ## 3. Services present but disabled
 
+> ⚠️ **Corrected 2026-08-17, and the word "disabled" in this section is the
+> error.** What was measured is *"the line in `rcS` is commented out"*. On the
+> build this unit actually runs, that turns out not to decide anything:
+> **`rcS` starts no daemon at all — `/bin/sysconf` does**, and it holds the
+> strings `telnetd`, `miniigd`, `mini_upnpd`, `snmpd.sh`, `wscd`, `dnsmasq`,
+> `igmpproxy` and `lld2d`, gating them on MIB flags. W04-2 had already read
+> exactly that mechanism for one service — `apmib_get(0xbbb)` guarding
+> `system("telnetd &")` — and nobody generalised it.
+>
+> The immediate consequence: **`UPNP_ENABLED` is `1`** in this unit's live
+> config *and* in its factory default, so the correct prediction for UPnP is
+> that it is **running**, not off. Tracked as `P1-10` in
+> [`study/test-ledger.md`](../study/test-ledger.md), with the three CVEs behind
+> it (`P6-1`–`P6-3`) reinstated. Nothing here is confirmed until a port
+> responds; the point is that the previous reading rested on the wrong file.
+>
+> The table below is about the 2015 and 2020 images and is left as written.
+> `skt` is unaffected either way — on this unit the binary is gone, which is a
+> different and stronger kind of absence.
+
 Reported as `service-disabled-not-removed`. Commenting out an init line stops it
 starting; it does not remove the capability.
 

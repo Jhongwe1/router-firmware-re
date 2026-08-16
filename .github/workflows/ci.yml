@@ -68,6 +68,33 @@ jobs:
           sudo apt-get update -qq && sudo apt-get install -y -qq shellcheck
           shellcheck --severity=warning tools/*.sh tools/setup/*.sh
 
+  register:
+    name: test register (frozen predictions + evidence)
+    runs-on: ubuntu-24.04
+    # Needs no firmware and no device: the register is text, and every check is
+    # a property of the text. That is why this one can run on every push while
+    # `make recon` cannot.
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Gate — the register is frozen and every result carries evidence
+        run: python3 tools/rtcase.py check
+      # And the gate must be able to fail. Without this step the one above going
+      # green would carry no information — instrument bug 12, which shipped a
+      # self-check that only fired when it had something to work on.
+      - name: Control — the gate rejects what it claims to reject
+        run: bash tools/test-rtcase.sh
+      # The ledger is generated. If a commit edits it by hand, or edits the
+      # register without re-rendering, the two disagree and this catches it —
+      # the same "one owner per state" rule the register exists to enforce.
+      - name: The ledger matches the register it is generated from
+        run: |
+          python3 tools/rtcase.py render
+          git diff --exit-code -- study/test-ledger.md \
+            || { echo "study/test-ledger.md is out of date — run \`make ledger\`"; exit 1; }
+
   toolbox-image:
     name: toolchain image builds
     runs-on: ubuntu-24.04

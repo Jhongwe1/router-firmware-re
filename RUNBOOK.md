@@ -1416,6 +1416,126 @@ transcript 是逐字的 —— W02 Day 4 的第 8 號 bug 就是因為有人去�
 
 ---
 
+## 8.10 W05 Day 0:測試登記簿怎麼用(G3.75)
+
+W05–W07 要對同一台機器跑一百多個測試。**這一節是那一百多次的操作規程。**
+
+### 8.10.1 為什麼不直接開一張表在 PROGRESS 裡
+
+兩個理由,都不是潔癖:
+
+1. **同一份狀態被兩個檔案擁有,一定會漂移。** 2026-08-16 就發生過一次
+   (`PROGRESS.md` 說開放題已答、`LOG.md` 三個檔案外還把同一題當成未答)。
+   130 列的表放兩份,一個禮拜就散。
+2. **沒有事先寫下「失敗長什麼樣」的測試,事後一定會被讀成成功。** 回應到手的時候,
+   讀的人已經知道自己想看到什麼了。
+
+所以:`study/test-cases.toml` 是唯一擁有單項狀態的檔案,`study/test-ledger.md`
+是它生成出來的,`tools/rtcase.py check` 在 CI 裡擋。
+
+### 8.10.2 三個指令
+
+```bash
+# 這一週還欠什麼(每天開工第一條)
+make todo WEEK=W05
+#   W05: 0/31 done, 31 outstanding
+#      [ ] P0-3   §3.2/12.3  bootloader 救援路徑演練 FLW→FLR→抹除(G3.5 #5)
+#      [ ] P1-5   §4.5       E-0:57 還是 60 —— 測的是工具,不是裝置
+#      ...
+
+# 開工前:確認登記簿是綠的(CI 也跑同一條)
+python3 tools/rtcase.py check
+#   register OK - 130 cases, 102 frozen, 5 executed, freeze 69c342dce863dcc7...
+#     outstanding: W05 0/31  W06 0/25  W07 0/60
+
+# 跑完一項之後:記錄
+python3 tools/rtcase.py record --id P3-3 --date 2026-08-20 \
+    --verdict confirmed --evidence dynamic \
+    --artefact poc/formSysCmd/README.md \
+    --note "回應 200,GET /k 取回 uid=0(root)"
+#   recorded P3-3 = confirmed (dynamic) in test-results.json
+
+# 重生成可讀的那一份,然後再 check 一次
+make ledger
+```
+
+| 欄位 | 只能填 | 意思 |
+|---|---|---|
+| `--verdict` | `confirmed` / `refuted` / `partial` / `na` | 成立 / 不成立 / 部分 / 不適用 |
+| `--evidence` | `static` / `dynamic` | **真的送過封包才算 `dynamic`。** 填 `static` 的話,登記簿印 🟥 不印 ✅ |
+| `--artefact` | 可重複,repo 相對路徑 | 判 `confirmed` / `partial` 一定要有,而且路徑必須存在 |
+
+### 8.10.3 反證條件怎麼寫
+
+**這是整份登記簿唯一真正重要的欄位。** 判準是:*看到什麼,我就承認這條不成立?*
+
+| ❌ 這樣寫沒有用 | ✅ 這樣寫才擋得住自己 |
+|---|---|
+| 「沒有反應就是不成立」 | 「未帶憑證收到 301 到登入頁 → `未認證` 的讀法錯了,NVD 的 `PR:H` 是對的,X-7 那條爭議要撤回」 |
+| 「掃不到就是關的」 | 「9034 有回應 → rootfs 的 ELF 清單漏了東西。那比命中一個 KEV 更重要,因為它讓所有『這台沒有 X』的說法一起失效」 |
+
+差別是:好的反證條件會**指名哪一份既有結論要跟著改**。寫不出那一句,通常代表
+這個測試本身還沒想清楚要問什麼。
+
+### 8.10.4 要改預測的時候
+
+改了就得同時改 `[freeze].sha256`,**而且要在同一個 commit 裡**:
+
+```bash
+python3 tools/rtcase.py freeze        # 印出新的雜湊,自己貼進 study/test-cases.toml
+python3 tools/rtcase.py check
+```
+
+> ⚠️ **如果那一項已經有結果了,`check` 會直接擋下來**,因為每一筆結果都戳了它
+> 當時被判定所依據的那段文字的雜湊。要改就得連戳記一起改,`git diff` 會把
+> 「事後改了預測」這件事攤在那裡。這不是防你,是讓那個動作留下痕跡。
+
+### 8.10.5 紀錄卡(每一次執行都要留)
+
+登記簿只留判定與證據連結。**逐字的 request / response 留在這裡的格式**:
+
+```
+T-xx  <項目 ID>                                    日期時間:
+可行性: ★    出場證據:            依據:
+送出(逐字,含完整 URL 與 body):
+
+原始回應(狀態碼 + header + 前 200 bytes):
+
+觀測通道 1(例:GET /k 的內容):
+觀測通道 2(例:tcpdump 的 ICMP/DNS):
+UART console 當下輸出:
+
+判定:  ✅成立 / ❌不成立 / 🔶部分 / ⚠️不確定(說明為什麼)
+反證檢查: 測前寫的是「看到 ___ 就不成立」,實際看到 ___
+這一步燒掉了什麼(不可逆的部分):
+下一步:
+```
+
+**「反證檢查」那一行不能空白。** 它跟登記簿裡凍結的那一句必須對得起來 ——
+對不起來就是你測的不是你當初要測的東西。
+
+### 8.10.6 會踩到的
+
+| 症狀 | 原因 |
+|---|---|
+| `check` 說 `freeze mismatch` | 改了 `predict` 或 `refute` 沒重算雜湊。跑 `rtcase freeze` 貼回去 |
+| `record` 拒絕,說 `no refutation condition` | 那一項還沒寫反證。**先寫,不要先記結果** —— 這是刻意的 |
+| `check` 說 `artefact ... does not exist` | 證據連結指到不存在的檔。證據不能是裝飾 |
+| `check` 說 `has been edited since the result` | 有結果的項目被改了預測。要嘛把字改回去,要嘛連戳記一起改讓 diff 看得見 |
+| CI 說 `study/test-ledger.md is out of date` | 改了登記簿沒跑 `make ledger` |
+| 本機 `python3` 說沒有 `tomllib` | Windows 側那顆是 3.10。走 WSL,或 `FWRE_PY=$HOME/fwre-work/venv/bin/python` |
+
+### 8.10.7 這個 gate 自己會不會騙人
+
+會,所以有 `bash tools/test-rtcase.sh`:1 個必須通過的對照組 + 21 個
+**必須被擋下來、而且必須是因為正確的理由被擋下來**的案例。`make ci` 兩個都跑。
+
+> 沒有對照組的守衛套件會在整個系統壞掉的情況下全綠 —— 2026-08-14
+> `tools/test-photo-tools.sh` 就是 5/5 通過而每一次呼叫都死在 `import PIL`。
+> 這 22 個案例第一次跑就抓到 `rtcase record` 的一個真 bug。
+
+---
+
 ## 9. 驗收
 
 ### G0 — 工具鏈全綠
@@ -1462,12 +1582,31 @@ make ci          # CI 會檢查的全部(容器建置除外)
 ```
   ok   G0 GREEN — all tools functional
 All checks passed!
-70 passed in 0.40s
-reports OK — 4 fwrecon (schema 1.0), 11 Ghidra
+110 passed in 2.17s
+reports OK — 12 fwrecon (schema 1.0), 27 Ghidra, 1 rtcase
+register OK - 128 cases, 98 frozen, 5 executed, freeze ba6810e848c69f56...
+  22 passed, 0 failed
   ok   local CI equivalents passed (container build not included)
 ```
 
 > ⚠️ **push 之前跑 `make ci`,不要自己挑幾個目標跑。** 見 [§10.21](#1021-本機全綠但-ci-還是紅的)。
+
+### G3.75 — 開打前的前置(W05 Day 0)
+
+```bash
+python3 tools/rtcase.py check        # 登記簿凍結了、每一筆結果都有證據
+bash tools/test-rtcase.sh            # 而且這個 gate 真的擋得住東西(22 個案例)
+```
+
+| # | 要有什麼 | 現況 |
+|---|---|---|
+| 1 | `FLW` 回復路徑演練過(＝ G3.5 #5,見 §8.9) | ❌ **還沒做,它擋住下面全部** |
+| 2 | 隔離驗證過:網段上只有兩個 MAC,WAN 接假上游 | ❌ 要在機台前做 |
+| 3 | IoC 預檢:設定 vs 出廠基準線 + 殭屍網路常用埠 | ❌ 要有機器。**判準先寫好了:差異維持在 4/344** |
+| 4 | 預測登記簿凍結 | ✅ `study/test-ledger.md`,128 項 / 98 項有反證 |
+| 5 | 揭露登記簿寫好 | ✅ `docs/disclosure.md` |
+
+**5 條沒到齊之前,不准對這台送第一個封包。** 操作規程在 §8.10。
 
 ---
 
@@ -1932,6 +2071,17 @@ python3 tools/zipprefix.py <檔名>.zip            # 讀 header + 驗 CRC-32
 python3 tools/zipprefix.py <檔名>.zip -o out.bin --allow-partial
 #   CRC 沒過就拒絕寫;--allow-partial 只解除「不准寫」,exit code 照樣非 0
 #   重抓 V2.1.6 的成功判準:CRC-32 要等於 0xd20c0622
+
+# ── W05 測試登記簿(§8.10)─────────────────────────
+make todo WEEK=W05                               # 這週還欠哪幾項(每天第一條)
+make rtcase                                      # gate:凍結 + 每筆結果都有證據
+make rtcase-test                                 # 對照:證明這個 gate 擋得住東西
+make ledger                                      # 重生成 study/test-ledger.md
+python3 tools/rtcase.py record --id P3-3 --date 2026-08-20 \
+    --verdict confirmed --evidence dynamic --artefact poc/formSysCmd/README.md
+python3 tools/rtcase.py freeze                   # 改過預測之後,把新雜湊貼回登記簿
+#   --evidence dynamic 才會印 ✅;static 印 🟥。真的送過封包才叫 dynamic
+#   沒寫反證條件的項目,record 會直接拒絕 —— 這是刻意的
 ```
 
 > ⚠️ **看報告先看 `self_check`,但不要只看 `self_check`。**
@@ -2108,6 +2258,8 @@ cd FirmAE && ./install.sh      # 30–60 分鐘
 | 2026-08-15 | 收工後 | 新增 **`make ci`**(§9、§12)和 §10.21。起因是本機跑了 `make lint test check-reports` 全綠就 push,CI 還是紅的 —— **CI 有四個 job,靠記憶挑目標跑不是檢查,是遲早會忘的習慣。** |
 | 2026-08-16 | W02 Day 4 | 新增 §8.7.9:完整 4 MiB dump 走 `tools/console-dump.py`(陽性對照、逐塊驗證、抽驗重讀、拼不完整就不吐檔案)。附兩個當天踩到的坑:**ESC 會塞住 bootloader 的輸入緩衝區,搶到之後第一條指令必定失敗**;以及**不要照 `notes/` 的引用寫解析器 —— §8.7.8 這裡的 transcript 才是逐字的**。 |
 | 2026-08-16 | W02 Day 4 | §12 速查表新增 W02 Day 4 全流程與兩支不需要硬體的守衛套件。CH341A 量出來是未改的 5V 板(CS/CLK/DI 全 5V,只有座上 VCC 是 3.3V),3.3V 魔改後仍是 5V、**原因未隔離**,決定改走零風險的 console 路 —— 經過寫在 `LOG.md`。 |
+| 2026-08-17 | W05 Day 0 | 新增 **§8.10 測試登記簿**（G3.75）：`rtcase check / record / render` 三個指令、反證條件怎麼寫（好例 vs 壞例）、改預測要同一個 commit 重算雜湊、紀錄卡格式、六個會踩到的坑。**這一列是跟§8.10 同一個 commit 寫的** —— W04-2 就是在新增 §8.8/§8.9 的那個 commit 裡漏了這張表。 |
+| 2026-08-17 | W05 Day 0 | §9 驗收新增 G3.75；§12 速查表新增 `make rtcase` / `make ledger` / `make rtcase-test`。`study/QA.md` 新增 §13。 |
 | 2026-08-16 | W04-2 | 新增 §8.8:把這台自己的 `boa` 讀進 Ghidra 跑五種量測、解碼 `COMPCS`/`COMPDS`、以及 `BoaGate` 為什麼一定要帶 `control:`。 |
 | 2026-08-16 | W04-2 | 新增 §8.9:G3.5 最後一格 `FLW` 回復路徑演練的逐字步驟,含三條保護措施。**這一格還沒做。** |
 | 2026-08-16 | W04-2 補課 | 新增 §8.8.4:廠商映像重抓、從 `Zone.Identifier` 讀 provenance、`tools/zipprefix.py`,以及一份 40% 殘檔**撐得到哪裡**(兩個 section 完整,截斷的是 rootfs)。§12 速查表補上 `zipprefix`。 |

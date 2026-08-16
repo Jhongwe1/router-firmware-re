@@ -331,6 +331,40 @@ that is not backed by a command someone else can re-run.
   > ⚠️ **Still entirely static.** Nothing has been sent to the device, no port
   > has been touched, and the phrase used throughout is *the code reads as*.
 
+- [ ] **G3.75 — nothing is sent to the device until the pre-engagement is done** (W05 Day 0) ⚠️ **2 of 5, 2026-08-17** ← [PROGRESS.md](PROGRESS.md#w05-day-0--2026-08-17)
+  - [ ] **the `FLW` recovery path rehearsed** — this is G3.5 #5, unchanged and not restated here; it is the one box that blocks everything below
+  - [ ] isolation verified — two MAC addresses on the segment and no third, WAN on a fake upstream
+  - [ ] **IoC pre-check** — this unit's live config against its own factory baseline, and the ports known botnets leave behind. **The success criterion was written before the check: the difference stays at 4 of 344 entries**
+  - [x] **the prediction ledger is frozen** ← [`study/test-ledger.md`](study/test-ledger.md) — 128 registered tests, 98 carrying a written refutation condition, hashed and committed **before any request is served**
+  - [x] **the disclosure register is written** ← [`docs/disclosure.md`](docs/disclosure.md) — eight candidate originals, what each is worth, and the rule that decides what gets published
+
+  > ### ★ Why this gate exists
+  >
+  > W05–W07 execute on the order of 130 tests against one device, and two things
+  > go wrong with that if the list is a document. **State duplicated across two
+  > files drifts** — PROGRESS.md records that happening on 2026-08-16, one commit
+  > after the rule against it was rewritten. And **a test with no pre-written
+  > failure condition gets read as a success afterwards**, because by the time
+  > the response arrives the reader knows what they wanted to see.
+  >
+  > So the register owns per-test state and nothing else does; the gate board
+  > links to it and never restates a row. Predictions and refutation conditions
+  > are hashed into the register, so editing one after the fact means editing the
+  > hash in the same commit, where `git diff` shows it. `tools/rtcase.py check`
+  > runs in CI and **refuses a result whose case has no refutation condition, a
+  > confirming verdict with no artefact, an artefact path that does not exist,
+  > and a prediction edited after a result was recorded against it.**
+  >
+  > [`tools/test-rtcase.sh`](tools/test-rtcase.sh) drives 22 cases proving each
+  > of those refusals actually fires, and CI runs it beside the gate — because a
+  > gate that has never been seen to fail is the shape of instrument bug 12.
+  >
+  > **Nine items were cut rather than run**, each with its reason in the ledger:
+  > post-exploitation persistence, anti-forensics, lateral movement, credential
+  > harvesting on a live host, downgrading the unit to reinstall a factory
+  > backdoor, and the wireless attacks whose radiation reaches third parties.
+  > None of them produce a checkable fact about this device.
+
 - [ ] **G4 — a PoC a stranger can follow** (W05–W06)
   - [ ] ≥ 1 CVE reproduced on the physical unit or under emulation
   - [ ] `poc/` with preconditions, copy-pasteable `curl`, expected result, evidence
@@ -362,6 +396,9 @@ that is not backed by a command someone else can re-run.
 | [`notes/flash-layout.md`](notes/flash-layout.md) | **The flash map, read off the device** — W01's three predicted burn addresses, all three hit, plus where the config actually lives |
 | [`notes/dump-vs-official.md`](notes/dump-vs-official.md) | **The 4 MiB dump against the two published images** — a five-year vendor remediation caught mid-step, and what four layers of verification do and do not prove |
 | [`notes/prior-art.md`](notes/prior-art.md) | Who disclosed what, when — and which claims survive contact with these images |
+| [`notes/cve-status.md`](notes/cve-status.md) | **Per-CVE, against the build this unit runs** — five located in its own binary, two refuted by it, and two published endpoint names that exist in no dispatch table |
+| [`docs/disclosure.md`](docs/disclosure.md) | **The disclosure register** — what might be new, what state it is in, and the rule separating a finding from a reproduction from tradecraft |
+| [`study/test-ledger.md`](study/test-ledger.md) | **The test register, generated** — 128 tests with their predictions frozen before the first request, what would refute each, and what nine items were cut and why (Traditional Chinese) |
 | [`notes/attack-surface.md`](notes/attack-surface.md) | Where to look, ranked |
 | [`notes/ghidra-triage.md`](notes/ghidra-triage.md) | Which functions to open first, and why — with the three W01 calls W03 overturned |
 | [`notes/dispatch-table.md`](notes/dispatch-table.md) | `root_form[]` recovered: every `/boafrm/` route in both builds, and what changed between them |
@@ -396,6 +433,8 @@ make fetch     # download + hash-verify the firmware (not redistributed here)
 make unpack    # carve and extract the root filesystems
 make recon     # regenerate everything under reports/
 make test      # fwrecon test suite
+make rtcase    # G3.75: the test register is frozen, every result carries evidence
+make ledger    # regenerate study/test-ledger.md from the register
 ```
 
 ```powershell
