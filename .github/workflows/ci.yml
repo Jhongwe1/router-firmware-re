@@ -128,6 +128,17 @@ jobs:
       - name: runsheet checker — prove it can fail
         run: bash tools/test-check-runsheet.sh
 
+      # The record-card template lived only in plan/, which is gitignored and
+      # which committed files may not quote, so the format BENCH-LOG.md is
+      # supposed to follow lived where BENCH-LOG.md could not cite it. It
+      # drifted out within one week: nine prose sections, six with no refutation
+      # field, written by the session that spent the evening insisting on that
+      # exact rule.
+      - name: bench log — every record card carries a refutation condition
+        run: python3 tools/check-benchlog.py
+      - name: bench-log checker — prove it can fail, and that it sees every card
+        run: bash tools/test-check-benchlog.sh
+
       # The four below were outside every CI list until 2026-08-18. Three of
       # them predate this job and were simply never added — 35 cases, none
       # needing hardware, recorded as PROGRESS open #33 when the guard-case

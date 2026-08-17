@@ -14,7 +14,7 @@ step, each with its expected output and its stop conditions.
 
 | tier | what you need | what you can check | roughly |
 |---|---|---|---|
-| **T1** | this clone and an internet connection | the two **published** firmware images, every report derived from them, and **263 checks that prove this project's own instruments can fail** | 30 min, most of it downloads |
+| **T1** | this clone and an internet connection | the two **published** firmware images, every report derived from them, and **276 checks that prove this project's own instruments can fail** | 30 min, most of it downloads |
 | **T2** | T1 **+ your own N150RT + a CP2102 serial adapter** (about US$3) | your unit's flash, its own boot loader, its own `boa`, the emulator — the same *procedures*, on *your* bytes | an afternoon |
 | **T3** | T2 **+ a USB Ethernet adapter + a segment you are willing to isolate** | the network behaviour: the authorisation gate, the endpoint census, the timing | a second afternoon |
 | **T-none** | — | **the specific byte-level results this repository reports** | not reproducible by anyone but the author, and the reason is below |
@@ -67,7 +67,7 @@ make setup             # the Linux-side toolchain
 make fetch             # the two published images, hash-verified
 make unpack            # carve and extract
 make recon             # every report a downloadable image supports
-make ci                # ← the 263 checks
+make ci                # ← the 276 checks
 ```
 
 ### Why `make ci` is the interesting one
@@ -77,6 +77,7 @@ Most of a reverse-engineering repository is assertions. This part is not:
 | suite | cases | what it proves |
 |---|---|---|
 | `tools/test-rtcase.sh` | 34 | the register gate can fail: a prediction edited after a result, a week moved without a reason, **a reschedule reason rewritten after its hash was declared**, a result with no refutation condition, an artefact that does not exist, a static reading rendered as a dynamic tick |
+| `tools/test-check-benchlog.sh` | 13 | the bench-log checker can fail, **and that it sees every card there is** — its first version took one fenced block to be one card and reported "19 record cards, every one with a refutation check" about a file holding thirty |
 | `tools/test-console-write.sh` | 28 | the flash **writer** refuses every range it must never touch — the boot loader the recovery path runs on, and the block holding this unit's MACs and radio calibration — plus a wrong hash, a short file, a misaligned sector, a blank payload, and a dry run that would print the bytes it promised to withhold |
 | `tools/test-bench-probe.sh` | 15 | the network prober refuses a POST that would crash the web server, refuses shell metacharacters, refuses thirteen handlers by name, and **writes its transcript even when the run stops** |
 | `tools/test-console-dump.sh` | 18 | the flash reader parses a real console transcript, ignores the ASCII column that looks like more hex, and cannot emit the one boot-loader command that would be dangerous |
@@ -86,8 +87,8 @@ Most of a reverse-engineering repository is assertions. This part is not:
 | `tools/test-flash-tools.sh`, `tools/test-photo-tools.sh` | 4 + 13 | the hardware-side helpers, and photo redaction |
 | `tools/fwrecon` pytest | 110 | the parsers |
 
-**153 guard cases across nine suites, plus 110 parser tests, and `make ci` now
-runs all of them** — 263 checks from a clone, with no device.
+**166 guard cases across ten suites, plus 110 parser tests, and `make ci` now
+runs all of them** — 276 checks from a clone, with no device.
 
 Until 2026-08-17 it ran 89 of 124: `test-console-dump.sh` (18),
 `test-photo-tools.sh` (13) and `test-flash-tools.sh` (4) were in no CI list at

