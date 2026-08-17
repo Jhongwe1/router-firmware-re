@@ -199,6 +199,34 @@ else
   bad "sector splitting is wrong: $n FLW line(s)"
 fi
 
+# A dry run into the config region must not print the payload. The first dry run
+# of this tool did: the header said "offsets and digests are logged, bytes are
+# not" and every EB line then carried sixteen of them -- and 0x8000 currently
+# holds a copy of COMPCS, so those bytes include this unit's admin password.
+# The bytes here are the recognisable pattern the fixture is built from, so if
+# any of them reach stdout this fails.
+out="$("$PY" "$TOOL" write --flash 0x8000 --length 0x4000 --input "$TMP/payload.bin" \
+       --confirm 0x8000 --expect-sha256 "$SHA" --dry-run 2>&1)"
+if printf '%s' "$out" | grep -q 'bytes withheld: per-unit secret'; then
+  ok "a dry run into the config region withholds the payload bytes"
+else
+  bad "the dry run printed payload bytes into a secret range"
+fi
+if printf '%s' "$out" | grep -qE '==> +EB [0-9A-F]+ [0-9A-F]{2} '; then
+  bad "raw hex payload still reaches stdout for a secret range"
+else
+  ok "no raw payload hex appears for a secret range"
+fi
+# ...and the redaction must not swallow the thing a dry run is for. The drill
+# sector is not secret, so its bytes must still be visible, or the check above
+# would pass just as well against a tool that prints nothing at all.
+if "$PY" "$TOOL" write --flash 0x3F0000 --input "$TMP/eight.bin" --dry-run 2>&1 |
+   grep -q 'EB 80600000 DE AD BE EF'; then
+  ok "the drill sector still shows its bytes — redaction is by range, not blanket"
+else
+  bad "redaction swallowed the drill sector too, and a dry run checks the shape"
+fi
+
 if "$PY" "$TOOL" probe-eb --dry-run 2>&1 | grep -q '^ *==> *EB '; then
   ok "probe-eb emits EB lines"
 else

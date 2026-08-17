@@ -24,7 +24,8 @@ UNIT_DUMP  := $(FWRE_WORK)/dumps/flash-n150rt-console-1.bin
 .DEFAULT_GOAL := help
 .PHONY: help setup verify fetch unpack venv test lint recon recon-unit diff check-reports \
         rtcase rtcase-test todo ledger shellcheck ci clean-work qemu-env qemu-test probe-test \
-        loader-test loader-report doctor check-runsheet runsheet-test
+        loader-test loader-report doctor check-runsheet runsheet-test \
+        dump-test flash-tools-test photo-test write-test
 
 help: ## Show this help
 	@grep -hE '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) \
@@ -128,7 +129,7 @@ rtcase: ## G3.75: the test register is frozen and every result carries evidence
 todo: ## What this week still owes: `make todo WEEK=W05`
 	python3 tools/rtcase.py todo $(if $(WEEK),--week $(WEEK),)
 
-rtcase-test: ## Prove the register gate can actually fail (33 cases)
+rtcase-test: ## Prove the register gate can actually fail (34 cases)
 	bash tools/test-rtcase.sh
 
 ledger: ## Regenerate test-ledger.md from the register + results

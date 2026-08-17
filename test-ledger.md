@@ -53,10 +53,10 @@ W05 週計畫原本要另外建一份 `notes/prediction-scorecard.md`（12 條�
 |---|---|
 | 登記項目 | **130**（排入 121，砍掉 9） |
 | 已寫反證條件（凍結） | **102** / 121 |
-| 已執行 | **34** |
+| 已執行 | **35** |
 | 其中以真機動態證據收掉 | **27** |
-| 其中以模擬環境執行收掉（**不是矽上**） | **3** |
-| 判定成立 / 判定不成立 | **19** / **5** |
+| 其中以模擬環境執行收掉（**不是矽上**） | **4** |
+| 判定成立 / 判定不成立 | **20** / **5** |
 | 凍結雜湊 | `69c342dce863dcc7d2450d3f45f97ad2b3753296a2c8756a54ec27604caffc55` |
 
 ## 排程：哪一週要打掉哪些
@@ -69,8 +69,8 @@ W05 週計畫原本要另外建一份 `notes/prediction-scorecard.md`（12 條�
 | **W02** | Phase 0, 9 | 2 / 2 | `▰▰▰▰▰▰▰▰▰▰` |
 | **W04-2** | Phase 0 | 2 / 2 | `▰▰▰▰▰▰▰▰▰▰` |
 | **W05** | Phase 0, 1, 2, 3, 6, 9 | 27 / 27 | `▰▰▰▰▰▰▰▰▰▰` |
-| **W06** | Phase 0, 2, 3, 4, 5, 10 | 1 / 28 | `▱▱▱▱▱▱▱▱▱▱` |
-| **W07** | Phase 1, 2, 3, 5, 6, 7, 8, 9, 10 | 1 / 61 | `▱▱▱▱▱▱▱▱▱▱` |
+| **W06** | Phase 0, 2, 3, 4, 5, 10 | 2 / 18 | `▰▱▱▱▱▱▱▱▱▱` |
+| **W07** | Phase 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 | 1 / 71 | `▱▱▱▱▱▱▱▱▱▱` |
 
 ## 圖例
 
@@ -96,7 +96,7 @@ W05 週計畫原本要另外建一份 `notes/prediction-scorecard.md`（12 條�
 | P0-6 | 抽 form handler 函式表（交叉驗證用） | 3.8.3 | ★★★★☆ | 🟥 | W04-2 | 🟥 兩支獨立工具得出 57 與 60；不一致本身就是 P1-5 | [ghidra-formtable-unit-2018.json](reports/ghidra-formtable-unit-2018.json) · [n150rt-unit-2018.json](reports/n150rt-unit-2018.json) |
 | P0-7 | 抽韌體升級 magic（偽造 header 用） | 3.8.4 | ★★★☆☆ | 🟥 | W01 | 🟥 IMG_HEADER_T 欄位順序在 tools/fwrecon/src/fwrecon/rtlimage.py | [anatomy-n150rt.md](notes/anatomy-n150rt.md) · [flash-layout.md](notes/flash-layout.md) |
 | P0-8 | 開機腳本審閱：找 MIB 值被拼進 shell 的地方 | 3.8.5 | ★★★★☆ | 🟥 | W04-2 | 🔶 rcS 已審；但 /bin/*.sh 的 MIB→shell 內插普查沒有寫進任何 committed note，P8-8 目前無可引用證據 | [skt-analysis.md](notes/skt-analysis.md) · [credentials.md](notes/credentials.md) |
-| P0-9 | qemu / FirmAE 模擬環境（桌機 fuzz 用） | 3.8.6 | ★★☆☆☆ | 🟧 | W06 | ⬜ | — |
+| P0-9 | qemu / FirmAE 模擬環境（桌機 fuzz 用） | 3.8.6 | ★★☆☆☆ | 🟧 | W06 | 🟪 boa serves under qemu-user after all, and W05 finding 6 was too strong. The alignment trap is real but confined to one path: -strace shows SIGBUS at an odd address (si_addr=0x00492b41) immediately after open("/web/config.dat",O_RDWR|O_CREAT|O_TRUNC) at start-up, i.e. while GENERATING config.dat, not while serving. Make that one open() fail (config.dat is a directory) and boa prints Create config file error!, binds, and answers: login.htm 200 (exempt), blank.htm 302 (gated), status.htm 200/30087B - the gate model W04-2 read at instruction level, reproduced with no device attached. POST /boafrm/formSysCmd with sysCmd=cat /etc/version > /var/web/w06emu.txt;# returns the build string through the docroot oracle, and the same POST without the ;# idiom yields HTTP 204 0 bytes - the empty-file trap predicted from the format string %s 2>&1 > %s. Controls: /bin/flash get IP_ADDR works, guest /bin/wget completes HTTP against a host server, the target file 302s before the test, and a POST carrying no sysCmd creates nothing. Desktop fuzz route is open. Cost, stated: /config.dat cannot be fetched from the emulated server because the file standing in for it is the directory that keeps boa alive, so chain links 1-2 stay device-only. tools/qemu-env.sh serve refuses to report success unless both gate controls hold. | [qemu-env.sh](tools/qemu-env.sh) · [emulation-2018.md](notes/emulation-2018.md) |
 | **P0-10** | 每次動手前抓 64 KiB 設定區快照（0x0–0x10000） | 3.2 | ★★★★★ | 🟥 | W05 | 🔶 基準快照已取，與 8/16 完整 dump 的前 64 KiB 逐 byte 相同。反證條件要一次寫入後的差分，那是 W06 | [BENCH-LOG.md](BENCH-LOG.md) |
 
 <details><summary>Phase 0 的預測與反證條件（10/10 項已凍結）</summary>
@@ -409,11 +409,11 @@ W05 週計畫原本要另外建一份 `notes/prediction-scorecard.md`（12 條�
 | P4-2 | submit-url= 空值 → 1-byte heap 寫入 | 7.1 | ★★★★☆ | 🟧 | W06 | ⬜ | — |
 | P4-3 | submit-url 100-byte 階梯掃描 | 7.2 | ★★★★★ | 🟥 | W06 | ⬜ | — |
 | **P4-4** | ifname / wlan_id 的 20-byte 階梯（偏移與 100 那組完全不同） | 7.2 | ★★★★★ | 🟥 | W06 | ⬜ | — |
-| P4-5 | stack 溢位群（12 個函式、20+ 參數） | 7.3 | ★★★★☆ | 🟥 | W06 | ⬜ | — |
-| P4-6 | 已知 CVE 溢位端點逐一驗（12 條） | 7.4 | ★★★☆☆ | 🟨 | W06 | ⬜ | — |
-| **P4-7** | submit-url 全 57 端點通殺 + 存活探針 | 7.5 | ★★★☆☆ | 🟥 | W06 | ⬜ | — |
-| P4-8 | 超長 HTTP 標頭 / 參數數量炸彈 / Range | 7.6 | ★★★☆☆ | 🟦 | W06 | ⬜ | — |
-| P4-9 | boofuzz 系統化 fuzz | 7.7 | ★★★★☆ | — | W06 | ⬜ | — |
+| P4-5 | stack 溢位群（12 個函式、20+ 參數） | 7.3 | ★★★★☆ | 🟥 | W07 | ⬜ | — |
+| P4-6 | 已知 CVE 溢位端點逐一驗（12 條） | 7.4 | ★★★☆☆ | 🟨 | W07 | ⬜ | — |
+| **P4-7** | submit-url 全 57 端點通殺 + 存活探針 | 7.5 | ★★★☆☆ | 🟥 | W07 | ⬜ | — |
+| P4-8 | 超長 HTTP 標頭 / 參數數量炸彈 / Range | 7.6 | ★★★☆☆ | 🟦 | W07 | ⬜ | — |
+| P4-9 | boofuzz 系統化 fuzz | 7.7 | ★★★★☆ | — | W07 | ⬜ | — |
 
 <details><summary>Phase 4 的預測與反證條件（9/9 項已凍結）</summary>
 
@@ -469,12 +469,12 @@ W05 週計畫原本要另外建一份 `notes/prediction-scorecard.md`（12 條�
 
 | ID | 項目 | § | 可行性 | 出場證據 | 排程 | 結果 | 證據 |
 |---|---|---|---|---|---|---|---|
-| P5-1 | cyclic pattern 定偏移 + epc 可控 | 8.3 | ★★★★☆ | 🟥 | W06 | ⬜ | — |
-| P5-2 | MIPS ret2libc | 8.3 | ★★★★☆ | 🟥 | W06 | ⬜ | — |
-| P5-3 | GOT 覆寫（No RELRO） | 8.3 | ★★★☆☆ | 🟥 | W06 | ⬜ | — |
-| P5-4 | MIPS-BE 交叉編譯 + msfvenom 產 payload | 8.4 | ★★★★☆ | — | W06 | ⬜ | — |
+| P5-1 | cyclic pattern 定偏移 + epc 可控 | 8.3 | ★★★★☆ | 🟥 | W07 | ⬜ | — |
+| P5-2 | MIPS ret2libc | 8.3 | ★★★★☆ | 🟥 | W07 | ⬜ | — |
+| P5-3 | GOT 覆寫（No RELRO） | 8.3 | ★★★☆☆ | 🟥 | W07 | ⬜ | — |
+| P5-4 | MIPS-BE 交叉編譯 + msfvenom 產 payload | 8.4 | ★★★★☆ | — | W07 | ⬜ | — |
 | **P5-5** | cat /proc/cpuinfo —— Lexra 那塊最後的拼圖 | 8.2 | ★★★★★ | 🟥 | W06 | ⬜ | — |
-| P5-6 | qemu + LD_PRELOAD 桌機 fuzz（省實體機） | 8.5 | ★★★★☆ | 🟧 | W06 | ⬜ | — |
+| P5-6 | qemu + LD_PRELOAD 桌機 fuzz（省實體機） | 8.5 | ★★★★☆ | 🟧 | W07 | ⬜ | — |
 | P5-7 | BinDiff 差分：拿 3.4.0 的漏洞當這台的地圖 | 8.6 | ★★★★☆ | 🟧 | W07 | ⬜ | — |
 
 <details><summary>Phase 5 的預測與反證條件（7/7 項已凍結）</summary>

@@ -178,6 +178,22 @@ sed -i '0,/^week = "W05"$/s//week = "W05"\nreschedule_reason = "moved, honest"/'
 refreeze "$TMP/reg.toml"
 reject "a reason with no rescheduled_from" "does not say what it moved from"
 
+# Editing the REASON alone, after the fact, must also break the hash.
+#
+# Added later on 2026-08-17, and for a specific failure rather than for symmetry.
+# Ten cases were moved out of W06 citing (among other things) that boa cannot
+# serve under qemu-user — a claim taken from a previous week's prose instead of
+# from a test. The test was then run, P0-9 came back `confirmed`, and four of
+# the ten reasons were wrong. Correcting them moved nothing, because the hash
+# covered only (id, week): a reason could be rewritten afterwards with nothing
+# marking it, and "I could not do this" could quietly become "I chose not to".
+# That is the prediction-freeze problem one field over.
+mkreg "$TMP/reg.toml"
+sed -i '0,/^week = "W05"$/s//week = "W06"\nrescheduled_from = "W05"\nreschedule_reason = "the week plan forbids it"\nreschedule_date = "2026-08-17"/' "$TMP/reg.toml"
+refreeze "$TMP/reg.toml"
+sed -i 's/reschedule_reason = "the week plan forbids it"/reschedule_reason = "we simply chose not to"/' "$TMP/reg.toml"
+reject "rewriting a reschedule reason after the hash was declared" "schedule mismatch"
+
 # And the positive control for this block: a complete, honest reschedule passes.
 mkreg "$TMP/reg.toml"
 sed -i '0,/^week = "W05"$/s//week = "W06"\nrescheduled_from = "W05"\nreschedule_reason = "the week plan forbids it"\nreschedule_date = "2026-08-17"/' "$TMP/reg.toml"

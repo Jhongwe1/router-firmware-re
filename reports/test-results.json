@@ -415,8 +415,20 @@
       ],
       "note": "兩次獨立的掃描,結果高度一致:送出 34 / 36 個 POST(全部帶 submit-url),有回應 31 / 32,**零個 404**;狀態碼 200×4、302×27–28;302 去向 msg.htm×13、status.htm×11–12、countDownPage.htm×2、login.htm×1(= formLogout,合理)。**formSysCmd → 302 → status.htm,10 ms,未認證** —— 這關掉 W05 DoD 第 5 項的 (b),而且可證明沒有執行任何東西:handler 是 `if (*cmd != 0) { … system(buf); }` 而 sysCmd 缺席。判 partial 有兩個原因。(1) 13 個端點依名字拒打,理由逐條在 RUNBOOK §8.12.12 —— 失去 LAN 位址會讓後面每一個端點變成偽陰性,失去管理密碼會毀掉 CVE-2019-19823 的端到端鏈。(2) **掃描跑不完**:不帶參數的未認證 POST 讓單一 process 的 boa 卡住 4.7–9.7 秒(formPortFw 9650ms、formPocketWizard 6359ms、formWlanSetup / formRoute / formSysLog 各 6008ms),約 45 個之後它徹底停止服務,兩次都是。反證條件寫「大量端點回 404 或連線中斷 → **先確認是不是自己把 boa 打掛了**」—— 確認了,是我們打掛的,證據是逐項 elapsed_ms、會重試的對照組(它能分辨 busy 與 dead)、以及 console 全程零訊息。ping 全程正常,boa 20 分鐘後仍未回來:rcS 是一次性啟動它的,不是 respawn。",
       "case_freeze_sha256": "3048e44e0262abbb2b3df463482c6d5b96e2ff17ae6863010fbfc875ac03ee49"
+    },
+    {
+      "id": "P0-9",
+      "date": "2026-08-17",
+      "verdict": "confirmed",
+      "evidence_kind": "emulated",
+      "artefacts": [
+        "tools/qemu-env.sh",
+        "notes/emulation-2018.md"
+      ],
+      "note": "boa serves under qemu-user after all, and W05 finding 6 was too strong. The alignment trap is real but confined to one path: -strace shows SIGBUS at an odd address (si_addr=0x00492b41) immediately after open(\"/web/config.dat\",O_RDWR|O_CREAT|O_TRUNC) at start-up, i.e. while GENERATING config.dat, not while serving. Make that one open() fail (config.dat is a directory) and boa prints Create config file error!, binds, and answers: login.htm 200 (exempt), blank.htm 302 (gated), status.htm 200/30087B - the gate model W04-2 read at instruction level, reproduced with no device attached. POST /boafrm/formSysCmd with sysCmd=cat /etc/version > /var/web/w06emu.txt;# returns the build string through the docroot oracle, and the same POST without the ;# idiom yields HTTP 204 0 bytes - the empty-file trap predicted from the format string %s 2>&1 > %s. Controls: /bin/flash get IP_ADDR works, guest /bin/wget completes HTTP against a host server, the target file 302s before the test, and a POST carrying no sysCmd creates nothing. Desktop fuzz route is open. Cost, stated: /config.dat cannot be fetched from the emulated server because the file standing in for it is the directory that keeps boa alive, so chain links 1-2 stay device-only. tools/qemu-env.sh serve refuses to report success unless both gate controls hold.",
+      "case_freeze_sha256": "5e3a2779e7a92c7f13026af519412b0df299c01b84c939eca834b751bd313252"
     }
   ],
-  "register": "study/test-cases.toml",
+  "register": "test-cases.toml",
   "register_freeze_sha256": "69c342dce863dcc7d2450d3f45f97ad2b3753296a2c8756a54ec27604caffc55"
 }

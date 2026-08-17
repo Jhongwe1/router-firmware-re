@@ -311,9 +311,28 @@ def eb_lines(ram: int, data: bytes, per_line: int) -> list[str]:
 # ---------------------------------------------------------------------------
 # device operations
 # ---------------------------------------------------------------------------
-def eb(con, ram: int, data: bytes, per_line: int, timeout: float, dry: list | None = None) -> None:
-    for line in eb_lines(ram, data, per_line):
+def eb(con, ram: int, data: bytes, per_line: int, timeout: float,
+       dry: list | None = None, redact: bool = False) -> None:
+    """Stage *data* into RAM, one EB line at a time.
+
+    ``redact`` exists because the first dry run of this tool printed the payload.
+    The header two lines above it said "this range is per-unit secret: offsets
+    and digests are logged, bytes are not" -- and then every EB line carried
+    sixteen of those bytes, which for 0x8000 now includes a copy of COMPCS and
+    therefore this unit's admin password.
+
+    A tool that states a guarantee and breaks it on the next line is worse than
+    one that never claimed it, because the claim is what stops the reader
+    looking. What a dry run is actually for is the *shape* - the address
+    arithmetic and the argument order - and the shape survives redaction intact.
+    """
+    for i, line in enumerate(eb_lines(ram, data, per_line)):
         if dry is not None:
+            if redact:
+                chunk = data[i * per_line:(i + 1) * per_line]
+                addr, _, _ = line.partition(" ")[2].partition(" ")
+                line = (f"EB {addr} <{len(chunk)} bytes withheld: per-unit secret, "
+                        f"sha256 {hashlib.sha256(chunk).hexdigest()[:12]}>")
             dry.append(line)
             continue
         try:
@@ -630,8 +649,10 @@ def cmd_write(args) -> int:
 
     if args.dry_run:
         dry: list[str] = []
+        secret = is_secret(args.flash, length)
         for payload_off, flash_off, n in plan:
-            eb(None, args.ram, data[payload_off:payload_off + n], args.eb_bytes, 0, dry)
+            eb(None, args.ram, data[payload_off:payload_off + n], args.eb_bytes, 0,
+               dry, redact=secret)
             flw(None, flash_off, args.ram, n, 0, dry)
         for line in dry[:args.dry_lines]:
             print(f"  ==>   {line}")
