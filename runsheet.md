@@ -1,6 +1,8 @@
 # runsheet — 一行一行照做的作業單
 
 > **這份檔案的目的:讓一個從來沒碰過這個專案的人,把命令複製貼上,得到可比對的輸出。**
+> **它刻意冗長,而那是功能不是缺點** —— 每一個旗標都解釋、每一步都有逐字的預期輸出、
+> 每一步都有停止條件。**不要壓縮它。**
 > 它不解釋為什麼。**為什麼在 [`RUNBOOK.md`](RUNBOOK.md) —— 兩份檔案分工,不重複。**
 
 ## 先讀這 60 秒:你能重現到哪裡
@@ -532,38 +534,139 @@ python3 -u tools/console-dump.py catch --port /dev/ttyUSB0 --window 300 -v
 |---|---|
 | **層** | T3 |
 | **會不會改變裝置** | 純讀 |
+| **前置** | `A2` 已經把網卡交給 WSL |
 | **關掉的項目** | `P1-1` |
 | **最後驗證** | 2026-08-17 |
+
+**這一節做兩件事,而第二件比第一件重要:給網卡一個位址,然後證明封包是直接送到
+裝置的,不是繞經別的地方。**
+
+### A4.1 找出介面名字 —— 而它不叫 `eth1`
+
+```bash
+ip -br link
+```
+
+**預期**(三行,你要的是第三行):
+
+```text
+lo               UNKNOWN        00:00:00:00:00:00 <LOOPBACK,UP,LOWER_UP>
+eth0             UP             00:15:5d:xx:xx:xx <BROADCAST,MULTICAST,UP,LOWER_UP>
+enxfc19286184c9  DOWN           fc:19:28:61:84:c9 <BROADCAST,MULTICAST>
+```
+
+**逐欄解釋:**
+
+| 欄 | 意思 |
+|---|---|
+| `lo` | loopback,本機自己。永遠在,跟這件事無關 |
+| `eth0` | **WSL 自己的虛擬網卡**,通到 Windows 和外網。**不是你要的那個** |
+| `enx…` | **USB 網卡。`enx` 後面那串就是它的 MAC** —— 這是 Linux 的「可預測命名」 |
+| `DOWN` | 介面還沒啟動(下一步做) |
+| `LOWER_UP` | **實體線路已經協商成功**。沒有這個字代表線沒插好、或對端沒上電 |
+
+> 🔴 **它不叫 `eth1`,而這件事害過人。** 2026-08-17 的作業單寫死了 `eth1`,結果
+> `Cannot find device "eth1"` 和 `ping 10.1.1.1` **同時成立** —— 因為封包繞經
+> Windows 出去了。所以**永遠用 `ip -br link` 問,不要寫死名字**。
+
+### A4.2 啟動介面並給位址
 
 ```bash
 IF="$(ip -br link | awk '/^enx/{print $1; exit}')"
 echo "iface = $IF"
 sudo ip link set "$IF" up
 sleep 3
+ip -br link show "$IF"
 sudo ip addr flush dev "$IF"
 sudo ip addr add 10.1.1.100/24 dev "$IF"
 ip -br addr show "$IF"
-ip route get 10.1.1.1
-cat "/sys/class/net/$IF/statistics/rx_packets"
 ```
+
+**逐行解釋:**
+
+| 行 | 做什麼 |
+|---|---|
+| `IF="$(…awk…)"` | 抓第一個 `enx` 開頭的介面名字存進變數。`exit` 是「只要第一個」 |
+| `ip link set … up` | 啟動介面 |
+| `sleep 3` | **等協商。** 乙太網路要一兩秒握手,馬上查會看到還沒 `LOWER_UP` |
+| `addr flush` | **清掉舊位址。** 不清的話上一場留下的 `10.1.1.100` 會疊上去,而 `ip addr add` 會回 `File exists` |
+| `addr add 10.1.1.100/24` | 給自己一個同網段的位址。`/24` = 遮罩 255.255.255.0 |
 
 **預期**:
 
 ```text
 iface = enxfc19286184c9
-enxfc19286184c9  UNKNOWN  10.1.1.100/24
-10.1.1.1 dev enxfc19286184c9 src 10.1.1.100 uid 1000
-0
+enxfc19286184c9  UNKNOWN        fc:19:28:61:84:c9 <BROADCAST,MULTICAST,UP,LOWER_UP>
+enxfc19286184c9  UNKNOWN        10.1.1.100/24
 ```
 
-> 🔴 **`ip route get` 那一行是這一步唯一的對照組。**
-> 要看到 `dev enx…`,**不可以有 `via`**。出現 `via 172.18.128.1 dev eth0`
-> 代表網卡還在 Windows 側,你是繞過去的 —— 而在那個狀態下:隔離做不了、
-> SSDP 一定失敗得像「服務沒開」、兩個來源 IP 會被 NAT 成同一個、`nmap -sS/-sU` 不可信。
+> ⚠️ **`UNKNOWN` 不是錯。** 那是 `operstate`,USB 網卡常常回 `UNKNOWN` 而實際上是通的。
+> **看的是 `LOWER_UP`,不是 `UP`/`UNKNOWN`。**
 
-> ❌ **`iface = ` 是空的 → 網卡沒有交給 WSL。** 回 `A2`。
+> ❌ **`iface = ` 是空的 → 網卡不在 WSL 裡。** 回 `A2`,或跑 `make doctor TIER=3`。
 
-> ⚠️ `rx_packets` 現在是 `0` 是正常的 —— 它是 `A6` 的對照組基準。
+> ❌ **沒有 `LOWER_UP` → 線沒插好,或裝置沒上電,或板子停在 bootloader
+> 而 Ethernet 還沒初始化。** 板子在 `<RealTek>` 時通常是有的(開機 log 會印
+> `---Ethernet init Okay!`),但 `IPCONFIG` 之前它不回應 IP。
+
+**為什麼是 `10.1.1.100`**:這台的 LAN 位址是 `10.1.1.1`(從它自己的 `COMPCS` 解出來的,
+不是猜的),DHCP 池是 `10.1.1.10`–`254`。`.100` 在池子裡但不會跟前幾個租約撞。
+**如果你的機器不是 `10.1.1.1`**,先解出來:
+
+```bash
+"$HOME/fwre-work/venv/bin/python" -m fwrecon compcs \
+    "$HOME/fwre-work/dumps/flash-n150rt-console-1.bin" --offset 0xC000 \
+    --mib "$HOME/fwre-work/extracted/unit-2018/squashfs-root/lib/libapmib.so" \
+    --disclosure protect -f md | grep -iE '^\| *IP_ADDR|^\| *SUBNET'
+```
+
+### A4.3 ★ 證明是直連 —— 這一步是整節的重點
+
+```bash
+ip route get 10.1.1.1
+```
+
+**預期 —— 必須長成這樣:**
+
+```text
+10.1.1.1 dev enxfc19286184c9 src 10.1.1.100 uid 1000
+    cache
+```
+
+**不可以長成這樣:**
+
+```text
+10.1.1.1 via 172.18.128.1 dev eth0 src 172.18.136.170 uid 1000
+```
+
+> 🔴 **關鍵字是 `via`。有 `via` 就是繞道,沒有 `via` 才是直連。**
+>
+> 為什麼這件事致命:如果網卡留在 Windows 側,Windows 會從這台路由器拿到 DHCP
+> 位址,而 WSL 的封包會被**路由**過去。在那個狀態下:
+>
+> - **隔離確認做不了** —— 你抓到的封包是 WSL 虛擬網卡的,不是那條線上的
+> - **SSDP / 廣播一定失敗** —— multicast 不跨路由器,而失敗長得跟「服務沒開」一模一樣
+> - **兩個來源 IP 會被 NAT 成同一個** —— `A11.5` 的 session 測試整個失效
+> - **`nmap -sS` / `-sU` 不可信** —— 你量的是那條路徑,不是裝置
+>
+> **而 `ping` 會通。** 唯一的破綻是 `ttl=63` 而不是 64 —— 少的那一跳就是路由器。
+> 這是 `PROGRESS.md` 的儀器 bug 21,2026-08-17 真的發生過,而它是靠讀路由表發現的,
+> 不是靠看 `ping` 成功。
+
+**`tools/bench-probe.py` 每一次執行都自己查這件事**並記進 transcript,
+而且對 `ssdp` 那一組**直接拒絕執行**。所以那支工具的結果可以信;手打的不一定。
+
+### A4.4 收尾:記下起點
+
+```bash
+cat "/sys/class/net/$IF/statistics/rx_packets"
+```
+
+**預期**:`0`
+
+> ⚠️ **這個 `0` 不是問題,是 `A6` 的基準。** 那個計數器是 **kernel 自己數的**,
+> 跟 `tcpdump` 不共用程式碼 —— 所以它是「這條線到底有沒有東西進來」的第二來源。
+> `A6` 會再讀一次,而**它必須變大**。
 
 ---
 
@@ -577,34 +680,116 @@ enxfc19286184c9  UNKNOWN  10.1.1.100/24
 | **關掉的項目** | `P0-10` · `P0-5` |
 | **最後驗證** | 2026-08-17 |
 
-**這一節每次動手前都跑,而且它便宜到沒有藉口不做** —— 64 KiB 約 2 分鐘,
-完整的 4 MiB 是 105 分鐘。`0x6000` 的 `H601`、`0x8000` 的 `COMPDS`、
-`0xC000` 的 `COMPCS` 全在裡面。
+**這一節每一次動手前都跑,而且它便宜到沒有藉口不做:64 KiB 約 2 分鐘,
+完整的 4 MiB 是 105 分鐘 —— 而會被改的只有那 64 KiB。**
+
+### A5.1 那 64 KiB 裡有什麼
+
+```text
+0x000000 ─┬─ bootloader stage 1(DRAM 訓練)
+0x0012F0 ─┤   LZMA stage 2:指令直譯器、TFTP、SPI 型號表(見 A1.6)
+0x006000 ─┼─ H601   這一台的 MAC 與射頻校準  ★ 全世界只有這一份,reset 也不還原
+0x008000 ─┼─ COMPDS 出廠預設設定
+0x00C000 ─┼─ COMPCS 現行設定                 ← /config.dat 服務的就是它(A8.5)
+0x010000 ─┴─ w6cg  網頁資源(不在這 64 KiB 裡)
+```
+
+**所以一份 64 KiB 快照同時是三件東西:**
+
+1. **還原點** —— 寫壞了可以寫回來(`A12`)
+2. **IoC 預檢的輸入** —— 現行設定 vs 出廠預設差幾筆
+3. **「上一場到現在沒被動過」的證明** —— 跟上一份逐 byte 比
+
+### A5.2 抓
 
 ```bash
 SNAP="$HOME/fwre-work/dumps/config-region-$(date +%Y%m%d-%H%M)-pre.bin"
+echo "writing to: $SNAP"
 python3 -u tools/console-dump.py dump --at-prompt \
         --flash 0x0 --length 0x10000 --ram 0x81000000 --chunk 16384 \
         -o "$SNAP"
+```
+
+**逐個旗標:**
+
+| 旗標 | 值 | 意思 |
+|---|---|---|
+| `--at-prompt` | — | **板子已經停在 `<RealTek>`,不要再搶一次。** 沒加的話它會等你上電 |
+| `--flash 0x0` | flash 位移 | 從頭開始 |
+| `--length 0x10000` | 65,536 | 只要那 64 KiB |
+| `--ram 0x81000000` | RAM 目標位址 | `FLR` 先把 flash 讀進 RAM,再用 `DB` 印出來 |
+| `--chunk 16384` | 每次 `DB` 印多少 | 太大 → 一次錯誤重讀很貴;太小 → 往返次數多。16 KiB 是量過的平衡點 |
+| `-o` | 檔名 | **檔案已存在會拒絕覆蓋**,除非 `--force` |
+
+**預期輸出:**
+
+```text
+  ==>   control: FLR flash 0x000000 -> RAM, expecting 0b f0 00 04
+  >>>   DB 81000000 64
+  ok    control matched: 0b f0 00 04
+  ==>   FLR flash 0x000000 +0x10000 -> RAM 0x81000000
+  ==>   DB, chunked and validated per chunk
+     16384/65536 bytes   25.0%     691 B/s  eta   1.2 min
+     ...
+     65536/65536 bytes  100.0%     691 B/s  eta   0.0 min
+  ==>   verifying 1 of 4 chunks by re-reading them
+  ok    1 of 1 re-read chunks identical
+  ok    65536 bytes -> .../config-region-…-pre.bin
+  ok    sha256  78186d2b…
+  ok    4 chunks, 0 needed a re-read, 2.0 min
+```
+
+> 🔴 **第一行那個對照組是這一步的全部價值。** 它先讀 flash `0x000000`
+> 進同一個 RAM 位址,比對已知的 `0b f0 00 04`(那是 bootloader 開頭的一個 `j` 指令)。
+> **對不上就丟例外,不會出檔案。**
+>
+> 為什麼需要它:`FLR` 會問 `(Y)es , (N)o ?` 並且**把下一行整個吃掉當答案**。
+> 如果那個 `Y` 沒被接受,`FLR` 根本沒生效,而接下來的 `DB` 印出來的是
+> **RAM 裡上一次留下的舊資料** —— 一份格式完全正常、內容完全錯誤的 dump。
+> **對照組把那件事變成一個例外,而不是一個結論。**(儀器坑,`RUNBOOK` §8.7.8)
+
+> ⚠️ **`691 B/s` 是正常速度。** 38400 baud 的理論上限約 3.8 KB/s,而 `DB` 是
+> 十六進位文字輸出(每個 byte 印成 3–4 個字元)加上往返,所以實際約 700 B/s。
+> **64 KiB ≈ 95 秒。看到 2 分鐘不要以為卡住了。**
+
+> ❌ **有 `.partial` 檔案但沒有 `.bin` → 有一塊重讀三次都沒過。**
+> 工具的規則是「拼不完整就不吐檔案」。**那要查,不要繞過** ——
+> 通常是線路品質或 `usbipd` 掉了。
+
+### A5.3 跟上一份比 —— 這一步回答「有沒有人動過這台」
+
+```bash
 cmp <(head -c 65536 "$HOME/fwre-work/dumps/flash-n150rt-console-1.bin") "$SNAP" \
   && echo "IDENTICAL"
 ```
 
-**預期**:
+**預期**(如果從 8/16 的完整 dump 到現在沒有任何寫入):
 
 ```text
-  ==>   FLR flash 0x000000 +0x10000 -> RAM 0x81000000
-     65536/65536 bytes  100.0%     691 B/s  eta   0.0 min
-  ok    1 of 1 re-read chunks identical
-  ok    65536 bytes -> .../config-region-…-pre.bin
-  ok    4 chunks, 0 needed a re-read, 2.0 min
 IDENTICAL
 ```
 
-**IoC 預檢**(把上面那份快照的兩個設定區解出來比):
+**不相同的話,先看差在哪裡再判斷:**
 
 ```bash
-tools/ioc-precheck.sh "$SNAP"
+bash tools/config-attrib.sh \
+  <(head -c 65536 "$HOME/fwre-work/dumps/flash-n150rt-console-1.bin") "$SNAP"
+```
+
+> ⚠️ **不相同不一定是壞事。** 這台從 2026-08-17 下午起,`COMPDS` 已經被
+> POST 輪覆寫過(`A9`),所以跟 8/16 那份**一定不同**。
+> **判準是「跟上一場收工時記下的數字相同」,不是「跟最早那份相同」。**
+
+> ★ **而 `IDENTICAL` 這件事本身在 2026-08-17 變成了一個免費的對照組:**
+> 那天 11:02 的快照與 8/16 的完整 dump 逐 byte 相同 —— **而那期間這台開過機
+> 至少兩次、跑過完整的 GET 輪、還成功登入過一次。**
+> 所以「開機和讀取不會改設定區」不是假設,是量出來的 ——
+> 而那正是下午 POST 輪的差異可以**全部歸因**給 POST 的理由。
+
+### A5.4 IoC 預檢
+
+```bash
+bash tools/ioc-precheck.sh "$SNAP"
 ```
 
 **預期**:
@@ -614,18 +799,30 @@ COMPCS: checksum_ok=True verdict=consistent ring_fill_agrees=True entries=344
 COMPDS: checksum_ok=True verdict=consistent ring_fill_agrees=True entries=344
 
 common entries: 343
-differing     : 4  -> CHECK_SSID_OK · DHCP_LEASE_TIME · MIB_VER · WLAN_SSIDS
+differing     : 0
 ```
 
-> 🔴 **這台在 2026-08-17 之後不再是 4 / 343。**
-> 那天的 POST 輪(`A9`)把出廠預設區覆蓋成現行設定,所以現在是 **0 / 343**。
-> **看到不是 4 就當資安事件處理是錯的** —— 先讀 `BENCH-LOG.md` 那一場的
-> 「POST 之後的快照,以及歸因」。真正的成功條件是「**跟上一場收工時記下的數字相同**」。
+**三個欄位,而它們不是同一件事:**
+
+| 欄位 | 誰在說話 |
+|---|---|
+| `checksum_ok` | **廠商自己的程式碼。** `libapmib` 的 8-bit payload checksum |
+| `ring_fill_agrees` | **解碼器自己的對照組。** 用兩種不同的 LZSS 視窗初值解一次,結果要相同 —— 否則結果依賴了「沒有任何 literal 寫過」的視窗 byte |
+| `verdict` | 解碼器對自己這次工作的判斷 |
+
+> 🔴 **`differing` 這個數字不是常數。**
+> 它到 2026-08-17 上午是 **4 / 343**(`CHECK_SSID_OK` · `DHCP_LEASE_TIME` ·
+> `MIB_VER` · `WLAN_SSIDS`),下午的 POST 輪之後是 **0 / 343** ——
+> 因為那一輪把 `COMPDS` 覆寫成 `COMPCS` 了。
+>
+> **判準是「跟上一場記下的數字相同」。看到不是 4 就當資安事件是錯的** ——
+> 先讀 `BENCH-LOG.md` 最後一場的「燒掉了什麼」。
 
 > ❌ **出現一筆你的紀錄裡沒有的差異 → 停,走事件處理程序。**
-> 這個型號在公開的殭屍網路工具裡被點名過。
+> 這個型號在公開的殭屍網路工具裡被點名過,而 `A7.3` 的 IoC 埠掃描是這一項的另一半。
 
-> ⚠️ **有 `.partial` 沒有 `.bin` = 有一塊重讀三次都沒過。** 那要查,不要繞過。
+> ❌ **`checksum_ok=False` → 停。** 那代表裝置自己也會拒絕這份 blob。
+> 不要在一份廠商程式碼都不接受的資料上做任何推論。
 
 ---
 
@@ -635,43 +832,105 @@ differing     : 4  -> CHECK_SSID_OK · DHCP_LEASE_TIME · MIB_VER · WLAN_SSIDS
 |---|---|
 | **層** | T3 |
 | **會不會改變裝置** | 純讀 |
+| **前置** | `A4` 完成,而且 `ip route get` 沒有 `via` |
 | **關掉的項目** | `P0-4` |
 | **最後驗證** | 2026-08-17 |
+
+**這一節要證明的是:那條線上只有你和這台裝置,沒有第三個東西,而且它沒有在對外連線。**
+
+### A6.1 為什麼這一節看起來多此一舉,而它不是
+
+**直覺的做法是:抓 45 秒封包,零個封包 = 網段乾淨。**
+
+**2026-08-17 就是這樣做的,而它差點被寫成結論。** 那一刻 kernel 的計數器是
+`RX: 0 packets / TX: 12` —— **送得出去,收不回來。** 也就是零封包不是因為網段乾淨,
+是因為**那條線根本沒在送東西給你**。
+
+> 🔴 **「抓到零個封包」不是證據,它是兩件事的其中一件,而你分不出是哪一件:**
+> (a) 網段乾淨,或 (b) 你的擷取根本沒在工作。
+>
+> **所以這一節主動製造已知流量。** 「封包數 > 0」就是那次擷取的**對照組** ——
+> 它證明擷取是活的,零才有意義。
+
+### A6.2 抓,而且自己製造流量
 
 ```bash
 IF="$(ip -br link | awk '/^enx/{print $1; exit}')"
 PCAP="$HOME/fwre-work/dumps/lab-$(date +%Y%m%d-%H%M).pcap"
+echo "rx before: $(cat "/sys/class/net/$IF/statistics/rx_packets")"
+
 sudo tcpdump -ni "$IF" -w "$PCAP" & TD=$!
 sleep 1
 ping -c 3 -i 0.3 10.1.1.1 >/dev/null
 curl -s -o /dev/null http://10.1.1.1/
 sleep 12
 sudo kill "$TD"
+echo "rx after : $(cat "/sys/class/net/$IF/statistics/rx_packets")"
+```
+
+**逐行解釋:**
+
+| 行 | 做什麼 |
+|---|---|
+| `tcpdump -n` | **不要做反解 DNS。** 不加 `-n` 的話 tcpdump 自己會發 DNS 查詢,而那正是你要找的東西之一 —— **工具會污染自己的量測** |
+| `-i "$IF"` | 只聽那一張網卡 |
+| `-w "$PCAP"` | 寫成檔案,不要印在螢幕上(要能重看) |
+| `& TD=$!` | 丟到背景,記下 PID 等一下殺 |
+| `sleep 1` | 讓 tcpdump 真的開始聽再送東西。**不等的話你自己製造的流量會漏掉** |
+| `ping -c 3 -i 0.3` | 三個 ICMP,間隔 0.3 秒 —— **這就是對照組流量** |
+| `curl … http://…/` | 再加一次 TCP,證明不只 ICMP 在動 |
+| `sleep 12` | 留 12 秒安靜期,看有沒有**別的東西**自己冒出來 |
+
+**預期**:
+
+```text
+rx before: 0
+rx after : 16
+```
+
+### A6.3 讀那份 pcap
+
+```bash
 tshark -r "$PCAP" 2>/dev/null | wc -l
 tshark -r "$PCAP" -T fields -e eth.src 2>/dev/null | sort | uniq -c
 tshark -r "$PCAP" -Y dns 2>/dev/null | head
+tshark -r "$PCAP" -Y 'ip.dst != 10.1.1.0/24 && ip.src != 10.1.1.0/24' 2>/dev/null | head
 ```
+
+| 行 | 問什麼 |
+|---|---|
+| `wc -l` | **總封包數。這是對照組,必須 > 0** |
+| `-T fields -e eth.src \| uniq -c` | **來源 MAC 各出現幾次。必須剛好兩個** |
+| `-Y dns` | **有沒有 DNS 查詢。必須是空的** |
+| `-Y 'ip.dst != …'` | **有沒有對 10.1.1.0/24 以外的流量。必須是空的** |
 
 **預期**:
 
 ```text
 16
-      8 <你的網卡 MAC>
-      8 <裝置 MAC>
+      8 fc:19:28:61:84:c9
+      8 14:4d:xx:xx:xx:xx
 ```
-DNS 那一行**必須是空的**。
+`dns` 和最後那一行**都必須沒有輸出**。
 
-> 🔴 **「抓到零個封包」不是證據。** 2026-08-17 第一次抓 45 秒得到零,
-> 差點寫成「網段乾淨」—— 而那一刻 kernel 的計數器是 `RX: 0 / TX: 12`:
-> **送得出去、收不回來**。所以這一節**主動製造已知流量**,
-> 而「封包數 > 0」就是那次擷取的對照組。
->
-> 懷疑鏈路時用一個不共用程式碼的第二來源:
-> ```bash
-> cat "/sys/class/net/$IF/statistics/rx_packets"
-> ```
+> ✅ **剛好兩個 MAC** = 你的網卡 + 裝置。第一個數字是你在 `A4` 看到的 `enx` 後面那串。
 
-> ❌ **剛好兩個 MAC 以外的任何結果 → 網段上有第三個東西。停。**
+> ❌ **第三個 MAC → 停。** 網段上有別的東西。可能是:
+> (a) 你插在 switch 上而不是直連 —— 拔掉,一條線直接對接;
+> (b) Windows 側還有一個位址在那個網段 —— 檢查 `Get-NetIPAddress` 有沒有 `10.1.1.x`;
+> (c) 真的有第三台機器 —— 那就不是隔離網段。
+
+> ❌ **總封包數是 0 → 擷取沒在工作,不是網段乾淨。** 先看 `rx after`:
+> 如果它也是 0,那條線沒在送東西給你(`A4` 的 `LOWER_UP` 再確認一次)。
+> **不要把這個寫成「網段乾淨」。**
+
+> ❌ **有 DNS 或對外流量 → WAN 埠可能插了東西,或裝置在嘗試對外連線。**
+> 先確認 WAN 埠是空的。這台在 `wan_disconnect` 時會叫一個 DNS spoof helper,
+> 那是登記簿 `P6-10` 的事,還沒有人看過它。
+
+> ⚠️ **per-unit 識別碼(MAC、SSID)不要寫進 repo 裡的檔案。** 跟 W02 把 PCB 條碼
+> 塗掉是同一條規則,而 `BENCH-LOG.md` 的標頭跟它自己 2026-08-17 上午那一段
+> 正好互相矛盾 —— 那件事還沒決定要往哪邊收。
 
 ---
 
@@ -681,36 +940,141 @@ DNS 那一行**必須是空的**。
 |---|---|
 | **層** | T3 |
 | **會不會改變裝置** | 純讀 |
+| **前置** | `A6` 通過;裝置已正常開機並服務(等 45 秒,見 `A10`) |
 | **關掉的項目** | `P1-2` · `P6-11` · `P1-10` |
 | **最後驗證** | 2026-08-17(上午場) |
 
+### A7.1 掃描前先確認 web 活著 —— 這是對照組,不是禮貌
+
+```bash
+curl -s -o /dev/null -m 4 -w 'before: %{http_code}\n' http://10.1.1.1/
+```
+
+**預期**:`before: 200`
+
+> 🔴 **為什麼一定要先做這件事。** 這是 400 MHz MIPS、32 MiB RAM 的機器。
+> **一次把 `boa` 打掛的掃描,結果看起來會跟「埠都關著」一模一樣** ——
+> 65,532 個 `closed`,而你會把它寫成發現。
+> **掃描前後各一次,兩次都 200,`closed` 才是裝置的答案而不是你的。**
+
+### A7.2 全 TCP
+
 ```bash
 D="$HOME/fwre-work/dumps"
-curl -s -o /dev/null -m 4 -w 'before: %{http_code}\n' http://10.1.1.1/
 sudo nmap -sS -p- --reason -T3 --max-retries 2 -oA "$D/tcp" 10.1.1.1
 curl -s -o /dev/null -m 4 -w 'after tcp: %{http_code}\n' http://10.1.1.1/
-sudo nmap -sU -p 53,67,69,123,161,162,1900,5353,5555 --reason -T3 -oA "$D/udp" 10.1.1.1
-curl -s -o /dev/null -m 4 -w 'after udp: %{http_code}\n' http://10.1.1.1/
 ```
 
-**這台已知的答案(2026-08-17)**:
+**逐個旗標:**
+
+| 旗標 | 意思 | 為什麼是這個 |
+|---|---|---|
+| `-sS` | SYN 掃描(送 SYN,看 SYN/ACK,不完成三方握手) | 比 `-sT` 輕,對這台的負擔小 |
+| `-p-` | **全部 65,535 個埠** | 因為預測裡有具體的埠號,而「沒掃到」和「關著」不一樣 |
+| `--reason` | 印出**為什麼**判定成 open / closed | `closed (reset)` 和 `filtered (no-response)` 是不同的事實 |
+| `-T3` | 時序等級 3(預設) | **不要用 `-T4`。** 見下 |
+| `--max-retries 2` | 每個埠最多重試兩次 | 預設 10,在慢裝置上會拖到幾十分鐘 |
+| `-oA "$D/tcp"` | 同時輸出三種格式(`.nmap` / `.gnmap` / `.xml`) | **證據要留檔,不能只留在螢幕上** |
+
+**預期**(這台 2026-08-17 的答案):
 
 ```text
-80/tcp     open
-52869/tcp  open        <- miniigd, UPnP SOAP
-52881/tcp  open        <- wscd, WPS
+PORT      STATE SERVICE REASON
+80/tcp    open  http    syn-ack ttl 64
+52869/tcp open  unknown syn-ack ttl 64
+52881/tcp open  unknown syn-ack ttl 64
 Not shown: 65532 closed tcp ports (reset)
-53/udp · 67/udp · 1900/udp  open|filtered
 ```
 
-> ⚠️ **不要 `-T4`。** 這是 400 MHz MIPS、32 MiB RAM。
+> 🔴 **不要用 `-T4`。** 在這台上 `-T4` 的併發量足以讓 `boa` 停止回應,
+> 而你會得到一份「幾乎全部 closed」的結果 —— 那是你自己造成的。
 
-> 🔴 **掃描前後各確認一次 web 還活著,而那三行 `curl` 就是為此。**
-> 一次把 `boa` 打掛的掃描,結果看起來會跟「埠都關著」一模一樣。
+> ⚠️ **`52869` 與 `52881` 不在任何一條預測裡。** 這是 2026-08-17 的實測發現:
+> 預測**點名的每一項都對**(80 開、22/23/5555 關),而**它點名得太少**。
+> `52869` 是 `miniigd`(UPnP SOAP),`52881` 是 `wscd`(WPS)。
 
-> 🔴 **服務的 banner 不等於它的 codebase。** 這台的 UPnP 送
-> `Server: miniupnpd/1.4`,而 rootfs 裡**只有 `/bin/miniigd`、沒有 `mini_upnpd`** ——
-> 那個 banner 字串就在 `miniigd` 自己的字串表裡。**只讀 banner 會查錯一整組 CVE。**
+> 🔴 **`52869` 是 CVE-2014-8361 的埠,而那個 CVE 在 CISA KEV 裡、有公開的武器化程式碼。**
+> **這一節只做偵察。不要呼叫任何 SOAP action。**
+
+### A7.3 重點 UDP,以及 IoC 埠
+
+```bash
+sudo nmap -sU -p 53,67,69,123,161,162,1900,5353,5555 --reason -T3 -oA "$D/udp" 10.1.1.1
+curl -s -o /dev/null -m 4 -w 'after udp: %{http_code}\n' http://10.1.1.1/
+sudo nmap -sT -Pn -p 19412,31412,48101,2323,60001,5555,9034,7547 --reason -oA "$D/ioc" 10.1.1.1
+curl -s -o /dev/null -m 4 -w 'after ioc: %{http_code}\n' http://10.1.1.1/
+```
+
+| 旗標 | 意思 |
+|---|---|
+| `-sU` | UDP 掃描。**慢,所以只掃指定的九個**,不掃全部 |
+| `-sT` | 完整 TCP 連線掃描(三方握手)。IoC 那一組用它,因為要確定「真的沒有東西在聽」 |
+| `-Pn` | **跳過主機存活探測。** 不加的話 nmap 可能先 ping,而 ping 不通就整組跳過 |
+
+**預期**:
+
+```text
+53/udp   open|filtered domain
+67/udp   open|filtered dhcps
+1900/udp open|filtered upnp
+161/udp  closed        snmp
+```
+IoC 那八個埠 **全部 `closed`**。
+
+> ⚠️ **`open|filtered` 不是「開著」。** UDP 沒回應時 nmap 分不出「開著但不回」
+> 和「被防火牆丟掉」—— 所以它老實說兩種都可能。`53` / `67` 是 DNS 與 DHCP,
+> 這台是路由器,合理。
+
+> ❌ **IoC 那八個埠任何一個有回應 → 停,走事件處理程序。**
+> 那些埠是公開殭屍網路工具用的(`2323` telnet 變體、`48101` Mirai、
+> `7547` TR-069 CVE-2016-10372…)。這個型號在那些工具裡被點名過。
+> **有回應不代表被入侵,但它代表你不能再把後面的量測當成乾淨裝置的量測。**
+
+### A7.4 UPnP:banner 說的和 binary 說的不一樣
+
+```bash
+printf 'M-SEARCH * HTTP/1.1\r\nHOST: 239.255.255.250:1900\r\nMAN: "ssdp:discover"\r\nMX: 2\r\nST: upnp:rootdevice\r\n\r\n' \
+  | nc -u -w3 10.1.1.1 1900
+```
+
+或用工具(它會先確認你是直連,不是的話直接拒絕):
+
+```bash
+python3 tools/bench-probe.py ssdp --host 10.1.1.1 -o "$D/ssdp.json"
+```
+
+**預期**:
+
+```text
+Server: miniupnpd/1.4 UPnP/1.4
+Location: http://10.1.1.1:52869/picsdesc.xml
+```
+
+**然後去 rootfs 裡找那個 binary:**
+
+```bash
+ls -l "$HOME/fwre-work/extracted/unit-2018/squashfs-root/bin/" | grep -iE 'upnp|igd'
+strings -a "$HOME/fwre-work/extracted/unit-2018/squashfs-root/bin/miniigd" \
+  | grep -iE 'miniupnpd|MiniIGD'
+```
+
+**預期 —— 而這是這一節最重要的一件事:**
+
+```text
+-rwxr-xr-x 1 ... 97100 ... miniigd
+Server: miniupnpd/1.4 UPnP/1.4
+MiniIGD %s (%s).
+/etc/miniigd.conf
+```
+
+> 🔴 **rootfs 裡只有 `/bin/miniigd`,`mini_upnpd` / `miniupnpd` 這兩個 binary 不存在**
+> —— 而那個 banner 字串就在 `miniigd` 自己的字串表裡。
+>
+> **只讀 banner 會查錯一整組 CVE。** `miniigd` 是 Realtek 的
+> (CVE-2014-8361,CISA KEV);`miniupnpd` 是完全不同的專案、不同的 CVE 歷史。
+> **登記簿 `P1-10` 事先就要求分辨這一點,而那才是它存在的理由。**
+
+> ⚠️ **`nc` 在這台裝置上不存在,但你的主機上要有。** 沒有的話用上面那個工具版本。
 
 ---
 
@@ -720,8 +1084,25 @@ Not shown: 65532 closed tcp ports (reset)
 |---|---|
 | **層** | T3 |
 | **會不會改變裝置** | **純讀**(全部是 GET;POST 在 `A9`) |
+| **前置** | `A4` 直連;裝置已服務 |
 | **關掉的項目** | `P1-3` · `P1-5` · `P1-8` · `P2-1` · `P2-2` · `P2-3` · `P2-4` · `P2-5` · `P3-13` |
 | **最後驗證** | 2026-08-17 |
+
+### A8.1 為什麼是工具,不是 curl
+
+**一次打錯的 POST 會讓 `boa` 死掉,然後後面 57 個端點全部回「連不上」——
+而那看起來跟「端點不存在」一模一樣。** 一次手滑,57 個端點的普查變成 57 個偽陰性。
+
+`tools/bench-probe.py` 擋掉這件事,而且它做四件手打做不到的事:
+
+| 它做什麼 | 為什麼 |
+|---|---|
+| **拒絕**沒帶 `submit-url` 的 `/boafrm/` POST | 那會讓 handler `strcpy("/status.htm")` 寫進唯讀段 |
+| **拒絕**參數裡有 shell 元字元 | 注入是 W06 的事,而且要在回復演練之後 |
+| **每 5–20 個請求重跑對照組**,而且會重試 | 單一 process 的 `boa` 忙起來跟死掉長得一樣 |
+| 端點清單從**committed 的 Ghidra 報告**讀 | 不是寫死的副本,所以不會跟報告漂移 |
+
+### A8.2 五個 group,一次一個
 
 ```bash
 D="$HOME/fwre-work/dumps"
@@ -733,14 +1114,29 @@ python3 tools/bench-probe.py endpoints   --host 10.1.1.1 -o "$D/endpoints-get.js
 python3 tools/bench-probe.py ssdp        --host 10.1.1.1 -o "$D/ssdp.json"
 ```
 
-**預期**(`control`):
+| group | 問什麼 | 關掉哪幾項 |
+|---|---|---|
+| `control` | 裝置回不回應、是不是直連 | —(每一組自己也會跑) |
+| `fingerprint` | `Server:` 標頭、404 的形狀、`/boafrm/` vs `/goform/` | `P1-3` `P1-8` |
+| `gate` | 授權閘門的實際涵蓋範圍,約 50 種 URI 形狀 | `P2-1` `P2-2` `P2-3` `P2-4` `P2-5` |
+| `writes` | 寫入類 handler 有沒有被門特別對待(**GET only**) | `P3-13` |
+| `endpoints` | 57 + 3 + 4 個名字(GET 模式) | `P1-5` |
+| `ssdp` | UPnP,單播與多播 | `P1-10` |
+
+> ❌ **`-o` 沒給就等於沒做。** 工具會提醒你:
+> `(no --output: nothing was recorded. A probe whose response is not kept is not evidence)`
+
+**`control` 的預期輸出:**
 
 ```text
    200  control                                  408B  Boa/0.94.14rc21
   route: 10.1.1.1 is directly attached on enxfc19286184c9
 ```
 
-**閘門的指紋,記住這四行,它們是判讀一切的基準:**
+> ❌ **第二行出現 `⚠ … is reached via …` → 回 `A4`。** 那一整組結果會是那條路徑的
+> 量測,不是裝置的。
+
+### A8.3 ★ 閘門的四行指紋 —— 記住它們,後面每一個判讀都靠它
 
 ```text
 不存在的 .htm,不含豁免子字串   302 → login.htm    門跑了,擋掉
@@ -749,13 +1145,113 @@ python3 tools/bench-probe.py ssdp        --host 10.1.1.1 -o "$D/ssdp.json"
 /boafrm/formX.htm               302 → login.htm    門跑了
 ```
 
-> 🔴 **測繞過的時候,目標必須是真的被擋的頁面。**
-> 2026-08-17 第一輪把十三種變形全打在 `/status.htm` 上,
-> 而**它在豁免清單上、本來就回 200** —— 等於拿沒鎖的門測開鎖技巧。
-> 真的被擋的:`/password.htm`、`/tcpiplan.htm`、`/upload.htm`。
+**怎麼從 JSON 把它撈出來:**
 
-> ⚠️ **`endpoints` 預設 GET,而 GET 在這個 build 上分不出端點存在與否**
-> —— 全部回 302/131B。要分辨必須 POST,那是 `A9`。
+```bash
+python3 - <<'PY'
+import json, os
+p = os.path.expanduser("~/fwre-work/dumps/gate.json")
+for r in json.load(open(p, encoding="utf-8"))["records"]:
+    if r.get("probe") != "gate":
+        continue
+    loc = (r.get("response_headers") or {}).get("Location", "").rsplit("/", 1)[-1]
+    print(f'{str(r.get("status")):>4} {r.get("body_bytes",0):>6}B  '
+          f'{r.get("target","")[:44]:<44} -> {loc}')
+PY
+```
+
+**這台的機制(2026-08-17 量到的):閘門只在 URI 含 `.htm` 或 `.asp` 時才跑,
+然後對照一份 11 個字串的豁免清單,而比對是「路徑裡**含有**」——不錨定。**
+
+出貨的 76 個 `.htm` 裡,**7 個未認證可取**:
+
+```text
+index · login · status · countDownPage · countDownPageWizard   ← 清單上直接列的
+wan_status · Connect_status                                    ← 只因為含有 "status.htm"
+```
+
+> ★ **最後兩個不在任何一份清單上,而它們免認證。** 那就是「不錨定」的真正效果 ——
+> 不是一個繞過工具,是**一個比程式碼寫出來的名單更大的豁免集合**。
+
+> 🔴 **而它不是繞過,理由比「試了沒用」精確得多:豁免比對和開檔用的是同一個
+> 正規化路徑。** 任何裝飾到足以取得豁免的路徑,伺服器都開不到:
+>
+> ```text
+> /password.htm?x=status.htm   302 → login.htm   query 被切掉了
+> /password.htm;status.htm     404               豁免生效了,但沒有這個檔
+> /login.htm/../password.htm   302 → login.htm   正規化在閘門之前
+> ```
+>
+> **第二行同時證明兩件事:豁免真的生效了,而且繞不過去。**
+
+> 🔴 **測繞過的時候目標必須是真的被擋的頁面。**
+> 2026-08-17 第一輪把十三種變形全打在 `/status.htm` 上 —— 而它在豁免清單上、
+> **本來就回 200**。那等於拿一扇沒鎖的門測開鎖技巧。
+> 這台真的被擋的:`/password.htm`、`/tcpiplan.htm`、`/upload.htm`。
+
+### A8.4 `writes` group:回答一個問題而不執行任何 handler
+
+```bash
+python3 - <<'PY'
+import collections, json, os
+p = os.path.expanduser("~/fwre-work/dumps/writes.json")
+d = json.load(open(p, encoding="utf-8"))
+print("test names:", d["records"][0]["named_by_P3_13"])
+print("counts    :", d["records"][0]["counts"])
+t = collections.defaultdict(collections.Counter)
+for r in d["records"]:
+    if r.get("probe") != "write-endpoint":
+        continue
+    loc = (r.get("response_headers") or {}).get("Location", "").rsplit("/", 1)[-1]
+    t[(r["klass"], r["uri_shape"])][f'{r.get("status")} -> {loc}'] += 1
+for k in sorted(t):
+    print(k, dict(t[k]))
+PY
+```
+
+**預期**:
+
+```text
+('quiet', 'bare')      {'302 -> home.htm': 22}
+('quiet', 'with .htm') {'302 -> login.htm': 22}
+('spawns', 'bare')     {'302 -> home.htm': 35}
+('spawns', 'with .htm'){'302 -> login.htm': 34, '404 -> ': 1}
+```
+
+> ✅ **寫入類與讀取類完全相同 → `P3-13` 的反證條件不成立,預測成立。**
+
+> ★ **那個唯一的 `404` 是 `formLogin.htm`,而它是這一節最漂亮的一格。**
+> `formLogin` 也在閘門的豁免清單上,所以路徑含有它就豁免 → 門不跑 →
+> 落到檔案層 → 沒有這個檔 → 404。
+> **那是閘門模型預測的第 57 個資料點,而它沒有被擬合過。**
+
+> ⚠️ **`quiet` / `spawns` 這個分類是代理指標,工具自己也這樣講。**
+> 它分的是「有沒有呼叫 `system()`/`execl()`」,**不是「有沒有寫設定」** ——
+> 所以它把 `formPasswordSetup` 判成 `quiet`(它只呼叫 `strcpy`),而那顯然會寫。
+> **所以這一組也單獨探測測試自己點名的三個端點**,而且**表裡沒有那三個就拒絕執行**。
+
+### A8.5-預告 `endpoints` 這一組在 GET 模式下分不出東西
+
+**57 個 `root_form[]` 名字的 GET 全部回 `302 / 131B → home.htm`,
+和一個不存在的名字無法區分** —— 因為 `translate_uri` 在 `handleForm` 之前就轉走了。
+
+**但有兩個例外,而它們是真的端點:**
+
+```text
+formOpdRedirect   302 / 535B → /opmode1.htm
+formWanRedirect   302 / 536B
+formWlanRedirect2 302 / 131B     ← 與不存在的名字無異
+```
+
+> ★ **那兩個回應與其他所有路徑都不同,所以它們被處理了 —— 而 Ghidra 讀出來的
+> 57 筆不含它們。** 追下去發現它們由 `init_get`(`0x00407b7c`)處理,不是
+> `handleForm`。**所以 `root_form[]` 的 57 不是少,它對 `handleForm` 是完整的;
+> 另外有一條更早的路徑。** 而 `formWlanRedirect2` 沒有任何函式引用它 ——
+> 字串在 `.rodata` 裡,但是死的。
+>
+> **三個來源一致:字串在、無人引用、裝置當它不存在。**
+
+**要真正分辨端點存在與否必須 POST,那是 `A9`。**
 
 ---
 
@@ -877,19 +1373,54 @@ IDENTICAL
 | | |
 |---|---|
 | **層** | T3 |
-| **會不會改變裝置** | **改設定。而且它已經證明會把 web server 弄掉。** |
-| **前置** | **`A5` 的快照必須已經抓好** |
+| **會不會改變裝置** | **改設定。而且它已經兩次把 web server 弄掉。** |
+| **前置** | **`A5` 的快照必須已經抓好**;`A8` 已經跑過(GET 那半邊先做) |
 | **關掉的項目** | `P1-4` · `P1-5` · `P1-6` |
 | **最後驗證** | 2026-08-17(跑兩次,兩次都在第 45 個附近把 `boa` 弄掉) |
 
-**跑之前先讀完這一整節。**
+> ## 🔴 跑之前把這一整節讀完
+>
+> **POST 到 form handler 就是執行它。** 而參數全部缺席的 handler **不會什麼都不做** ——
+> accessor 會回它的預設值,而 handler 把那個預設值寫進去。
+>
+> 這一節做完你會有:57 個端點的存在性答案、W05 DoD 最後一格、
+> **以及一個未認證的可用性缺陷的量測**。代價是這台的設定會變,而那是計畫內的。
+
+### A9.1 為什麼有 13 個端點不會被打
+
+```bash
+python3 - <<'PY'
+import importlib.util, pathlib
+spec = importlib.util.spec_from_file_location("bp", pathlib.Path("tools/bench-probe.py"))
+bp = importlib.util.module_from_spec(spec); spec.loader.exec_module(bp)
+for name, why in sorted(bp.HAZARDOUS.items()):
+    print(f"  {name:<22} {why}")
+PY
+```
+
+**四種最壞情況,而第一種最陰險:**
+
+| handler | 打下去會怎樣 |
+|---|---|
+| `formTcpipSetup` / `formWanTcpipSetup` / `formVlan` | **LAN 位址或 VLAN 被改 → 掃到一半失去這台**,而後面每個端點都回「連不上」,看起來跟「端點不存在」一模一樣 —— **正是這支工具當初為了 `submit-url` 而生的那個失效模式,換一件衣服** |
+| `formPasswordSetup` | 管理密碼被改 → **`A8.5` 和 `A11.5` 的 CVE-2019-19823 端到端鏈當場毀掉**,而那是這個專案最硬的一條證據 |
+| `formUpload` / `formUploadConfig` | 韌體 / 設定上傳路徑。`boa` 裡有 `DownloadRFW` —— **這是會磚的那一類** |
+| `formOpMode*` / `formWizard` / `formReboot*` | 運作模式變更,多半接重開機 |
+
+> ⚠️ **設定被改是可以歸因也可以還原的;失去 LAN 位址、失去密碼、進入韌體上傳路徑不是。**
+> 那是這份清單的分界線,不是「危險程度」。
+
+> 💡 **真的要打其中一個,要第二個旗標 `--allow-destructive`,而它會被記進 transcript。**
+> 「我接受設定會變」和「請把 LAN 位址從我手上拿走」是兩個不同的同意。
+
+### A9.2 打
 
 ```bash
 python3 tools/bench-probe.py endpoints --host 10.1.1.1 --allow-post \
         -o "$HOME/fwre-work/dumps/endpoints-post.json"
 ```
 
-**預期開頭**(這一行是重點,它列出**不會**被打的端點):
+**第一行輸出就是拒絕清單 —— 它出現在任何結果之前,是刻意的:**
 
 ```text
   note  13 of 64 endpoints will not be POSTed: formTcpipSetup, formPasswordSetup,
@@ -898,34 +1429,131 @@ python3 tools/bench-probe.py endpoints --host 10.1.1.1 --allow-post \
         formUploadConfig, formRebootSchedule
 ```
 
-**已知會發生的事(2026-08-17 兩次一致)**:
+> 🔴 **一份覆蓋 44 / 57 而不說的掃描,讀起來就像一份完整的普查。**
+> 所以名字和數量寫在第一筆紀錄裡,讀者先遇到缺口,才遇到結論。
+
+**每一個 POST 之後,工具會等到伺服器再度回應,並把等待時間記成那個端點的停滯時長。**
+那不是繞過障礙,**那就是量測**。
+
+**已知會發生的事(2026-08-17 兩次一致):**
 
 ```text
 送出 POST 34–36 個   有回應 31–32   零個 404
+狀態碼: 200 ×4 · 302 ×27–28
+302 去向: msg.htm ×13 · status.htm ×11–12 · countDownPage.htm ×2 · login.htm ×1
 最慢: formPortFw 9650ms · formPocketWizard 6359ms
       formWlanSetup / formRoute / formSysLog 各 ~6008ms
 約第 45 個之後 -> control failed ... ConnectionRefusedError
 ```
 
-> 🔴 **這不是掃描失敗,這是結果。** 不帶任何參數的未認證 POST,佔住這台唯一的
-> web server 4.7–9.7 秒;約 45 個連續請求讓它徹底停止服務。
-> `ping` 全程正常、console 一行訊息都沒有、20 分鐘後 `boa` 沒有自己回來
-> —— `rcS` 是一次性啟動它的,不是 respawn。**斷電重開即復原。**
+### A9.3 ★ 那個 `ConnectionRefusedError` 不是掃描失敗,是結果
 
-> 🔴 **這一輪之後 IoC 的基準會變,而那是預期的。** 跑完之後:
-> 1. 回 `A3` + `A5` 再抓一份快照(檔名用 `-post`)
-> 2. 逐欄位歸因:
->    ```bash
->    tools/config-attrib.sh <pre.bin> <post.bin>
->    ```
-> 3. **新的數字成為新基準**,舊的連同「是哪一步造成的」一起留在 `BENCH-LOG.md`
+> 🔴 **不帶任何參數的未認證 POST,佔住這台唯一的 web server 4.7–9.7 秒。**
+> `boa` 在這台是**單一 process**(`boa: starting server pid=350, port 80`),
+> handler 呼叫 `system()` / `execl()` 期間它不回到 accept 迴圈,
+> backlog 滿了之後新連線被**拒絕**。
 >
-> **守住基準只證明沒動到;歸因證明了動了什麼、被誰動的。** 而沒有前後快照就掃,
-> 等於把基準洗掉而且說不出被誰洗的。
+> 約 45 個連續請求讓它徹底停止服務,**兩次都是**。而且:
+>
+> - `ping` **全程正常** —— kernel 活著,只有 `boa` 不見了
+> - console **一行訊息都沒有** —— 沒有 oops,什麼都沒有
+> - **20 分鐘後 `boa` 仍然沒有回來** —— `rcS` 是一次性啟動它的,不是 respawn
+>
+> **斷電重開即復原。**
 
-> ⚠️ **2026-08-17 的歸因結果,先知道再跑:** `H601` 與 bootloader 未動;
-> `COMPCS` 動 19 欄;**`COMPDS` 動 23 欄** —— 同樣那 19 個加上原本區分兩區的 4 個,
-> 而且每一個都移到 `COMPCS` 的值。**一次未認證的設定寫入會把出廠預設區覆蓋掉。**
+> ⚠️ **這與 `P4-1` 不是同一條。** `P4-1` 是**不帶** `submit-url`、往唯讀段 `strcpy`;
+> 這一條**帶**了 `submit-url`,是一個完全合法的請求。
+> **分類與影響評估留給 W06/W07**,`docs/disclosure.md` 的 `D-9` 記了一筆。
+
+**中止之後 transcript 仍然會寫出來**(2026-08-17 之前不會 —— 儀器 bug 20),
+而它會印出最慢的五個請求:
+
+```text
+wrote .../endpoints-post.json  (46 requests, run STOPPED)
+
+  slowest requests before the stop:
+       9650 ms  POST /boafrm/formPortFw
+       6359 ms  POST /boafrm/formPocketWizard
+```
+
+### A9.4 ★ `formSysCmd` 答了,而且可證明它沒有執行任何東西
+
+```bash
+python3 - <<'PY'
+import json, os
+p = os.path.expanduser("~/fwre-work/dumps/endpoints-post.json")
+for r in json.load(open(p, encoding="utf-8"))["journal"]:
+    if r["method"] == "POST" and r["target"].endswith("formSysCmd"):
+        loc = (r.get("response_headers") or {}).get("Location", "")
+        print(f'{r["status"]}  {r["elapsed_ms"]}ms  -> {loc}')
+PY
+```
+
+**預期**:
+
+```text
+302  10ms  -> http://10.1.1.1/status.htm
+```
+
+**這一格關掉 W05 DoD 的最後一項(W06 目標的「可達性已知」),而且它什麼都沒執行 ——
+那不是我的保證,是 handler 自己的程式碼:**
+
+```c
+cmd = req_get_cstream_var(req, "sysCmd", "");
+if (*cmd != '\0') {              /* <- sysCmd 缺席,所以這裡是 false */
+    snprintf(buf, 100, "%s 2>&1 > %s", cmd, "/tmp/syscmd.log");
+    system(buf);                 /* <- 根本沒被呼叫 */
+}
+send_redirect_perm(req, submit_url);
+```
+
+> 🔴 **「可達性」和「概念驗證」是兩件事,而把它們混為一談會讓 DoD 因為一個
+> 不存在的理由開著。** 一個不帶 `sysCmd` 的 POST 證明端點可達且未認證;
+> 一個**帶命令**的 POST 才是 PoC —— 那是 `P3-3`,W06 的,而且要在
+> `docs/disclosure.md` 說明狀態之後。
+
+### A9.5 收尾:再抓一份快照,然後歸因
+
+```bash
+# 1) 回 A3 搶 bootloader（要斷電重開），然後：
+SNAP2="$HOME/fwre-work/dumps/config-region-$(date +%Y%m%d-%H%M)-post.bin"
+python3 -u tools/console-dump.py dump --at-prompt \
+        --flash 0x0 --length 0x10000 --ram 0x81000000 --chunk 16384 -o "$SNAP2"
+# 2) 逐欄位歸因
+bash tools/config-attrib.sh "$HOME/fwre-work/dumps/"*-pre.bin "$SNAP2"
+```
+
+**預期 —— 而 2026-08-17 的答案有一半不在任何人的預測裡:**
+
+```text
+raw: 14068 of 65536 bytes differ
+
+  0x00000-0x06000  boot loader                                  UNCHANGED
+  0x06000-0x08000  H601   hardware MIB (MAC + radio calibration) UNCHANGED
+  0x08000-0x0c000  COMPDS factory defaults                      7105 bytes
+  0x0c000-0x10000  COMPCS live configuration                    6963 bytes
+
+  COMPCS (live)    : 19 fields
+  COMPDS (defaults): 23 fields
+  only in COMPDS   : ['CHECK_SSID_OK', 'DHCP_LEASE_TIME', 'MIB_VER', 'WLAN_SSIDS']
+```
+
+> 🔴 **`COMPDS` 動了,而它是出廠預設區。** 那 23 欄 = 同樣的 19 欄
+> **加上原本區分兩區的 4 欄,而且每一欄都移到 `COMPCS` 的值**。
+> 兩區現在 343 個共同欄位完全相同。
+>
+> **所以:一次未認證的設定寫入,同時把出廠預設區覆蓋掉。**
+> 在這個 build 上,**「恢復原廠設定」還原的是最後被寫進去的那一份** ——
+> reset 按鈕不是復原路徑。唯一的復原是從裝置外的副本重寫(`A12`)。
+
+> ✅ **`H601` UNCHANGED 是這裡最重要的一行。** 那是這一台的 MAC 與射頻校準,
+> 全世界只有這一份,而且 reset 不還原它。**每一次歸因都先看那一行。**
+
+> ⚠️ **沒有一個危險旗標被打開**(2026-08-17):`SSH_ENABLED`、`UPNP_ENABLED`、
+> `PING_WAN_ACCESS_ENABLED` 和三個 `VPN_PASSTHRU_*` 全部 1 → 0。
+> **但 `NOTICE_ENABLED` 變成 208** —— 一個布林欄位裝了 208,
+> 代表某個 handler 把它 accessor 對「參數缺席」回的值寫了進去,而那既不是 0 也不是 1。
+> **那是一條線索,不是結論。**
 
 ---
 
@@ -935,9 +1563,17 @@ python3 tools/bench-probe.py endpoints --host 10.1.1.1 --allow-post \
 |---|---|
 | **層** | T3 |
 | **會不會改變裝置** | 純讀 |
-| **前置** | 板子**斷電**;`A4` 的網段已設好 |
+| **前置** | 板子**斷電**;`A4` 的網段已設好;console 沒有被別的程式佔用 |
 | **關掉的項目** | `P1-12` |
 | **最後驗證** | 2026-08-17 |
+
+**一次完整的上電同時交付三樣東西**,所以不要為它們分三次開機:
+
+1. `P1-12` —— 上電到 web 可服務的秒數
+2. `P9-1` 的動態半 —— kernel 印(或不印)什麼 cmdline
+3. 一份帶時間戳的完整開機 log,之後任何問題都可以回頭查
+
+### A10.1 跑
 
 ```bash
 bash tools/coldboot-timing.sh /dev/ttyUSB0 10.1.1.1 "$HOME/fwre-work/dumps"
@@ -946,8 +1582,22 @@ bash tools/coldboot-timing.sh /dev/ttyUSB0 10.1.1.1 "$HOME/fwre-work/dumps"
 **看到這一行才 🔌 插電**(這次**不要**送 ESC,讓它正常開機):
 
 ```text
+  ==>   armed.  console -> .../coldboot-…-log
+  ==>           http    -> .../coldboot-…-http
+
         >>> POWER THE ROUTER ON NOW <<<   (no ESC; let it boot)
 ```
+
+**為什麼要一支腳本而不是兩個終端機:**
+
+| 它做什麼 | 為什麼手做不到 |
+|---|---|
+| console 每一行蓋一個 `date +%s.%N` | picocom **沒有行內時間戳**,而 `ts` 不是每台機器都有 |
+| HTTP 用 `until curl` 硬輪詢,`-m 1` | 沒有 `-m 1` 的話一個卡住的 connect 會吞掉「伺服器起來」那一刻 |
+| **兩半用同一個時鐘** | 兩個終端機各自的「我按下 Enter 的時間」不能相減 |
+| t=0 取 **console 第一行的時間戳** | 從腳本啟動算,量到的是**你的反應時間** |
+
+### A10.2 讀結果
 
 **預期**:
 
@@ -956,6 +1606,9 @@ bash tools/coldboot-timing.sh /dev/ttyUSB0 10.1.1.1 "$HOME/fwre-work/dumps"
   ok    first HTTP 200:
         38.76 s from the console's first line
 
+  ==>   P9-1: the kernel's own report of its command line
+  FAIL  the kernel printed no 'Kernel command line:' line at all
+
   ==>   markers
 3:… chipName: UNKNOWN
 6:… ---RealTek(RTL8196E)at 2014.04.22-16:22+0800 v1.3 [16bit](400MHz)
@@ -963,12 +1616,57 @@ bash tools/coldboot-timing.sh /dev/ttyUSB0 10.1.1.1 "$HOME/fwre-work/dumps"
 69:… boa: starting server pid=350, port 80
 ```
 
-> ⚠️ **`boa` 自報啟動之後還有約 6.3 秒不能服務**(+32.50 vs +38.76)。
-> **所以掃描前要等 45 秒,不是 40。**
+**這台的分段(2026-08-17)**:
 
-> ⚠️ **這顆 kernel 不印 `Kernel command line:`,也不印 `Linux version`。**
-> 那不是你的擷取漏了 —— **那兩個字串裡的第一個根本不在 kernel image 裡**。
-> 腳本會為此報一行 `FAIL`,而在這台上那是預期的。
+```text
++0.00  第一個 console 字元
++0.61  ---RealTek(RTL8196E) v1.3 (400MHz)
++5.84  Jump to image start=0x80500000
++6.91  Uncompressing Linux... done, booting the kernel.
++14.02 init started: BusyBox v1.13.4
++32.50 boa: starting server pid=350, port 80
++38.76 ★ 第一個 HTTP 200
+```
+
+> 🔴 **`boa` 印出自己啟動之後,還有 6.26 秒不能服務。**
+> 那段時間它在做 `flash extr /web` —— 把 143 個檔案從 flash 解到 ramfs。
+> **所以「console 上看到 boa 啟動」不等於「可以開始掃描」。**
+
+> 🔴 **預測是「< 40 秒」,量到 38.76,餘裕只有 1.24 秒 —— 而 t=0 是第一個
+> console 字元,不是通電瞬間。** 通電到第一個字元那段沒有量,所以 **38.76 是下界**。
+>
+> 反證條件寫的是「**明顯**超過 40 秒」,38.76 不是,所以判成立 ——
+> **不可以因為餘裕太薄就事後改標準,那正是登記簿要防的事。**
+> 但這一項的用途是當「服務沒回應」判定的基準線,**所以可用的形式是「等 45 秒」**,
+> 不是「小於 40 秒成立」。
+
+> ⚠️ **那個 `FAIL  the kernel printed no 'Kernel command line:'` 在這台上是預期的,
+> 不是你的擷取漏了。** `A1.6.2` 解出的 kernel 裡**根本沒有這個字串** ——
+> 所以它永遠印不出來。腳本報 `FAIL` 是對的(它不該假設這台特殊),
+> 而**「image 裡沒有那個字串」正是解釋 console 為什麼沒印的那個獨立來源**。
+
+> ⚠️ **也沒有 `Linux version`。** 那個字串**在** image 裡(`A1.6.2` 的對照組會證明),
+> 但沒印出來 —— 早期 printk 在這個 build 上是關的。
+> **兩件事不同:一個是字串不存在,一個是存在但沒印。** 分清楚。
+
+### A10.3 手做的版本(腳本壞了的時候)
+
+```bash
+# 終端機 1:帶時間戳的 console
+stty -F /dev/ttyUSB0 38400 cs8 -cstopb -parenb -crtscts -ixon -ixoff raw -echo
+while IFS= read -r line; do printf '%s %s\n' "$(date +%s.%N)" "$line"; done \
+  < /dev/ttyUSB0 | tee "$HOME/fwre-work/dumps/coldboot-manual.log"
+
+# 終端機 2:輪詢(先跑這個,再插電)
+until curl -s -o /dev/null -m 1 http://10.1.1.1/; do sleep 0.2; done
+date +%s.%N
+```
+
+**然後把終端機 2 印的那個數字,減掉終端機 1 log 第一行的數字。**
+
+> ⚠️ **`stty` 的那一長串不是裝飾。** `-echo` 沒關的話你送的字元會被回傳,
+> log 裡會出現重複;`-ixon -ixoff` 沒關的話 `0x11`/`0x13` 這兩個 byte 會被
+> 當成流量控制吃掉 —— 而 flash 裡到處都是那兩個 byte。
 
 ---
 
@@ -1392,27 +2090,110 @@ xxd "$HOME/fwre-work/dumps/probe.bin"
 | | |
 |---|---|
 | **層** | T1(記錄本身不碰裝置) |
-| **關掉的項目** | —（這一節不關掉登記簿項目） |
+| **會不會改變裝置** | 沒有 |
+| **關掉的項目** | —(這一節不關掉登記簿項目,它是把別節的結果登記進去) |
 | **最後驗證** | 2026-08-17 |
 
+**這一節是把「我跑過」變成「repo 裡有一筆可被質疑的紀錄」。跳過它,前面全部白做。**
+
+### A13.1 每一項跑完就登記,不要累積到最後
+
 ```bash
-python3 tools/rtcase.py record --id <ID> --date <YYYY-MM-DD> \
+python3 tools/rtcase.py record --id P1-2 --date 2026-08-17 \
     --verdict confirmed --evidence dynamic \
-    --artefact BENCH-LOG.md --note "..."
-make ledger
-make todo WEEK=W05
+    --artefact BENCH-LOG.md \
+    --note "80 開;52869 / 52881 也開,而它們不在任何一條預測裡。22 / 23 / 5555 關,IoC 八埠全關。四次對照組全 200,所以 closed 是裝置的答案。"
 ```
 
-> ❌ **`--artefact` 必須指向 repo 裡存在的檔。** `~/fwre-work/dumps/` 不在 repo 裡。
-> 慣例是指 `BENCH-LOG.md`,substance 寫在 `--note` 裡。
+| 參數 | 值域 | 意思 |
+|---|---|---|
+| `--id` | 登記簿裡的編號 | 打錯 → 工具直接拒絕 |
+| `--date` | `YYYY-MM-DD` | 測試**執行**的日期,不是登記的日期 |
+| `--verdict` | `confirmed` / `refuted` / `partial` / `na` | 對照**事先凍結**的那句話判,不是對照你的感覺 |
+| `--evidence` | `dynamic` / `static` / `emulated` | 見下,這一欄不能含糊 |
+| `--artefact` | **repo 裡存在的路徑**,可重複 | 見下 |
+| `--note` | 自由文字 | substance 寫在這裡 |
 
-> ❌ **`rtcase` 會拒絕一個沒有事先寫好反證條件的項目。** 那不是 bug。
+**`--evidence` 三個等級,而它們渲染成不同的符號:**
 
-**然後往 [`BENCH-LOG.md`](BENCH-LOG.md) 追加這一場**:計畫(動手前寫的)、紀錄卡、
-逐字節錄、燒掉了什麼、下一場從哪裡開始。**只追加,不修改既有段落。**
+| 值 | 意思 | 渲染 |
+|---|---|---|
+| `dynamic` | 在**這台矽**上跑出來的 | ✅ |
+| `static` | 讀出來的(反組譯、字串、dump) | 🟥,**永遠不會變成 ✅** |
+| `emulated` | 在模擬環境裡**執行**過,但不是矽 | 🟪,**也永遠不會變成 ✅** |
 
-> 🔴 **計畫要在動手之前 commit。** append-only + git 讓「寫在前面」可以被 diff 證明,
-> 而那是這整套東西唯一不肯妥協的一件事。
+> 🔴 **`emulated` 是 2026-08-17 才加的第三個等級,而它解決一個真實的困境:**
+> `A1.7` 的環境讓這台自己的 binary 對這台自己的 flash 真的**跑起來**了。
+> 記成 `static` 低估了(有東西執行了);記成 `dynamic` 就是**這個登記簿存在的目的
+> 要防的那種漂白**。所以它有自己的符號,而且不會變成勾。
+
+> ❌ **`--artefact` 必須是 repo 裡存在的檔。** `~/fwre-work/dumps/` **不在 repo 裡**,
+> 所以不能當 artefact —— `rtcase check` 會擋掉指向不存在檔案的證據連結。
+> **慣例是指向 `BENCH-LOG.md`**,而 substance 寫在 `--note` 裡。
+
+> ❌ **`rtcase` 會拒絕一個沒有事先寫好反證條件的項目,而那不是 bug。**
+> 訊息長這樣:`P?-? has no refutation condition. Write it into the register and re-freeze`。
+> **一個沒有事先寫下「失敗長什麼樣」的測試,事後一定會被讀成成功** ——
+> 因為回應到手的時候,讀的人已經知道自己想看到什麼了。
+
+> ⚠️ **每一筆結果會戳上它當時所依據那段反證文字的逐項雜湊。**
+> 所以事後去改反證條件會被抓到:`rtcase check` 會說
+> `result was recorded against a different wording`。**這不是防篡改** ——
+> 你手上有鑰匙 —— 它是「改動出現在 diff 裡」和「不會」的差別。
+
+### A13.2 重生成、驗證、看還欠什麼
+
+```bash
+make ledger
+make todo WEEK=W05
+make rtcase
+```
+
+**預期**:
+
+```text
+wrote test-ledger.md - 130 cases, 34 executed
+W05: 27/27 done, 0 outstanding
+register OK - 130 cases, 102 frozen, 34 executed, freeze 69c342dc...
+  schedule d68ace7d..., 4 rescheduled: P3-1, P3-2, P3-3, P9-9
+```
+
+> ⚠️ **`test-ledger.md` 是生成的,不要手改。** CI 會跑
+> `make ledger && git diff --exit-code`,改了登記簿沒重生成就紅。
+
+> ⚠️ **`4 rescheduled` 那一行是刻意顯眼的。** `week` 欄位進了第二個雜湊
+> `[schedule].sha256`,所以**搬動一項到別的週必須同時寫下 `rescheduled_from`、
+> 理由、日期,並重新宣告雜湊** —— 少一個 CI 就紅。
+> 那條機制存在的原因:W05 有四項排在 W05 但**週計畫自己禁止本週做**,
+> 所以收斂指令永遠到不了 0。**決定早就寫在 `PROGRESS.md`,不一致的是資料。**
+
+### A13.3 往 BENCH-LOG 追加這一場
+
+**格式**:計畫(動手之前寫的)→ 紀錄卡 → 實測結果 → 燒掉了什麼 → 下一場從哪裡開始。
+
+> 🔴 **計畫要在動手之前 commit。** append-only 加上 git,讓「寫在前面」這件事
+> **可以被 diff 證明** —— 而那是這整套東西唯一不肯妥協的一件事。
+> 一份事後才寫的成功條件證明不了任何東西。
+
+> ⚠️ **只追加,不修改既有段落。** 一場做完就定版,連你發現自己當時錯了也一樣 ——
+> **把更正寫在新的一場裡**。2026-08-17 的兩處更正(`FLW` 的預期字樣、
+> 閘門的錯誤推論)就是這樣處理的。
+
+> ⚠️ **per-unit 識別碼(MAC、SSID、`config.dat` 內容、射頻校準值)不寫進來。**
+> 跟 W02 把 PCB 條碼塗掉是同一條規則,而揭露策略的擁有者是
+> [`docs/disclosure.md`](docs/disclosure.md) —— **這裡不複述它,只指向它。**
+> (標頭曾經複述過,然後跟自己檔案裡的一段矛盾了。)
+
+### A13.4 一週結束時還有三件事
+
+| 檔案 | 寫什麼 |
+|---|---|
+| [`PROGRESS.md`](PROGRESS.md) | gate、DoD、carried-forward。**不要把單項測試結果寫成散文** |
+| [`README.md`](README.md) | gate 勾選板 + 一行數字。**跟 PROGRESS 同一個 commit** |
+| [`study/weekly-results.md`](study/weekly-results.md) | 一句話版本、三個可辯護的點、**以及「這週沒證明什麼」** |
+
+> 🔴 **「這週沒證明什麼」那一欄是空的,代表這一週的自我檢查不夠。**
+> 那一欄是三個裡面最重要的一個。
 
 ---
 
