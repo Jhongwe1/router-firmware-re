@@ -112,8 +112,52 @@ supports the same reading.
 > §1 and §2 is emulation.
 >
 > And a question the desk can answer before that: **does the 2020 build do this
-> too?** There is no `v3.4.0` profile yet. `mkflash` makes one cheap, and that is
-> the differential harness W07 Day 2 was going to build regardless.
+> too?** It does not — see §3a, added the same afternoon. It did not need the
+> emulation profile after all.
+
+## 3a. The 2020 build removed it, and that is the whole differential thesis in one function
+
+Added later the same afternoon, statically, on V3.4.0's `/bin/boa` — which is
+`sstrip`'d, so the function has no name: it is `FUN_00409fd8`, located by the
+same `host invalid!` string the 2018 gate carries, 1,312 bytes against 2018's
+1,964.
+
+```
+0040a130  apmib_get(0xb6, sp+0x44)                ; USER_NAME
+0040a13c  apmib_get(0xb7, sp+0x64)                ; USER_PASSWORD
+0040a184  strcmp(supplied_user, sp+0x44)          ; the only username comparison
+0040a1c0  strcmp(supplied_pw,   sp+0x64)          ; the only password comparison
+0040a1cc  match -> req->0xb0 = 1
+```
+
+**One pair, both halves filled by `apmib_get` immediately above, and no second
+level.** The `req->0xb0 = 2` branch does not exist in this build. Every `a1`
+loaded with a stack address in that function is either one of those two `strcmp`
+arguments or an `apmib_get` destination — `sp+0x24`, `sp+0x20`, `sp+0x1c` at
+`0x0040a1e8`, `0x0040a1f4`, `0x0040a200`, for MIB ids `0xc5`, `0xaa`, `0xab`,
+which is a different feature further down.
+
+So the lifecycle is:
+
+| | V2.1.2 (2015) | **this unit (2018)** | V3.4.0 (2020) |
+|---|---|---|---|
+| second credential pair | `sp+0x40` / `sp+0x60` | `sp+0x18` / `sp+0x38` | **absent** |
+| written by anything | no | no | — |
+| level it grants | supervisor | `req->0xb0 = 2` | — |
+| fires with empty credentials | ✅ measured | ✅ measured | — |
+
+**The vendor removed it.** Nothing in the repository says when between January
+2018 and October 2020, or whether they knew what they were removing — the same
+question W02's `/bin/skt` timeline left open, and the same shape: a defect
+visible in two builds and gone in the third, which no CVE search finds because
+nobody diffs three builds of one product.
+
+This is what W07's plan calls the differential line, and it arrived without the
+emulation harness that line was going to be built on. **A three-way static read
+answered in twenty minutes what a six-profile fuzzing bench was scheduled a day
+for.** The bench is still worth building — it finds divergences nobody thought
+to look for, which is not what happened here — but the cheap version ran first
+and that ordering should have been obvious.
 
 ## 4. What is not established
 
