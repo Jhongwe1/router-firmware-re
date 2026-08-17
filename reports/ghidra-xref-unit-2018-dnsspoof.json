@@ -1,0 +1,17 @@
+{
+  "producer": "ghidra:BoaXref",
+  "program": "dnsspoof",
+  "source_sha256": "ab44bf8fc69afd405849bc596a18a03977f7bf223c8377dca3217b3cfe52e15c",
+  "language": "MIPS:BE:32:default",
+  "image_base": "00400000",
+  "function_count": 37,
+  "reverse_depth": 2,
+  "self_check": {"unresolved_selectors": [], "verdict": "consistent"},
+  "data_xrefs": [
+
+  ],
+  "functions": [
+    {"function":"FUN_00400910","entry":"00400910","size":624,"selector":"callers:recvfrom","caller_count":1,"callers":[{"site":"00400c94","caller":"main","caller_entry":"00400c4c","ref":"UNCONDITIONAL_CALL"}],"callee_count":8,"callees":[{"site":"00400958","target":"socket","target_entry":"00400d50"},{"site":"0040099c","target":"bind","target_entry":"00400d70"},{"site":"00400a0c","target":"recvfrom","target_entry":"00400d40"},{"site":"00400ac0","target":"memcpy","target_entry":"00400d10"},{"site":"00400ae4","target":"memcpy","target_entry":"00400d10"},{"site":"00400b10","target":"sendto","target_entry":"00400d80"},{"site":"00400b2c","target":"perror","target_entry":"00400d20"},{"site":"00400b44","target":"close","target_entry":"00400da0"}],"strings":[{"at":"00400e1c","site":"00400b30","text":"bind"}],"reachability":{"depth":2,"ancestors":1,"handlers":[],"indirect_or_dead_roots":["main@00400c4c"],"truncated":false,"note":"frontier exhausted within the depth limit"}},
+    {"function":"main","entry":"00400c4c","size":100,"selector":"name:main","caller_count":0,"callers":[],"callee_count":3,"callees":[{"site":"00400c78","target":"puts","target_entry":"00400d30"},{"site":"00400c8c","target":"FUN_00400b80","target_entry":"00400b80"},{"site":"00400c94","target":"FUN_00400910","target_entry":"00400910"}],"strings":[{"at":"00400e24","site":"00400c7c","text":"missing IP"}],"reachability":{"depth":2,"ancestors":0,"handlers":[],"indirect_or_dead_roots":[],"truncated":false,"note":"frontier exhausted within the depth limit"}}
+  ]
+}
