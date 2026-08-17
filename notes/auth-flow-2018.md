@@ -68,6 +68,70 @@ technique **thirteen** times. `countDownPageWizard.htm` and `notice_frame.htm`
 are here, and W03 recorded both as absent from 2020 — so on this axis the 2018
 build is the older one.
 
+#### 2026-08-17: the list above is exactly right, and it predicts the device
+
+**Every one of those eleven strings was read at instruction level in W04-2,
+before any packet was sent.** On 2026-08-17 the device was asked, and the
+prediction the list implies holds in both directions across every page the
+bundle ships.
+
+The model: *a request is exempt if the normalised path CONTAINS one of the
+eleven, anywhere.* Five of the eleven `.htm` names are not shipped at all
+([`webbundle-unit-2018.json`](../reports/webbundle-unit-2018.json) has 143 files,
+76 of them `.htm`), so the model predicts exactly seven exempt pages:
+
+| shipped `.htm` | why exempt |
+|---|---|
+| `index` `login` `status` `countDownPage` `countDownPageWizard` | listed literally |
+| **`wan_status.htm`** | contains `status.htm` |
+| **`Connect_status.htm`** | contains `status.htm` |
+
+**Seven predicted, seven observed, sixty-nine blocked, no error in either
+direction.** The last two appear in no list a reader of `process_header_end`
+would write down, and they are unauthenticated because a substring test does not
+know where a filename begins.
+
+Then four requests the model had never seen, and the fingerprint is cleaner than
+the redirect targets the morning had been using:
+
+```
+GET /zzqq.htm            302 -> login.htm   the gate ran and blocked
+GET /zzqq_status.htm     404                the gate did not run: file layer, no file
+GET /zzqq_login.htm      404
+GET /zzqq_index.htm      404
+GET /notice.htm          404                listed, not shipped -> exempt, absent
+GET /boafrm/formLogin.htm  404              `formLogin` is on the list too
+GET /boafrm/formWsc.htm    302 -> login.htm  it is not
+```
+
+`/boafrm/formLogin.htm` is the one worth staring at. It is the fifty-seventh
+endpoint of a sweep of the dispatch table, it answered unlike the other
+fifty-six, and the reason is a string in the *authorisation* function. **A
+handler name that happens to contain an exemption token is exempt.**
+
+### But it is not a bypass, and the reason is sharper than "it did not work"
+
+Twelve shapes on the morning of 2026-08-17 tried to smuggle an exemption string
+into the path of a protected page. All twelve failed. Fifteen more that
+afternoon — the exemption string in the query, bare in the query, in a fragment,
+after a semicolon, as a path suffix, against `/password.htm`, `/tcpiplan.htm`
+and `/upload.htm` — also failed:
+
+```
+GET /password.htm?x=status.htm   302 -> login.htm    the query is not part of it
+GET /password.htm;status.htm     404                 exempt, and no such file
+GET /password.htm/status.htm     400
+```
+
+The second line is the whole answer. **The exemption is decided on the same
+string the file lookup uses.** Any path decorated enough to become exempt is a
+path Boa then fails to open, and Boa's lookup is exact. So an unanchored
+substring test that would be a bypass primitive in a system with two different
+path strings is, here, only a wider exemption set than the code names.
+
+**X-3 does not stand — for this reason, not for the one recorded on the morning
+of 2026-08-17.**
+
 ---
 
 ## 2. What that unlocks, and why it is worse than the advisory says
@@ -323,7 +387,7 @@ Independent confirmations used here, none of which share code with Ghidra:
 
 ## How the first version of this note was wrong
 
-Three ways, and the second is the one worth keeping.
+Four ways, and the second and fourth are the ones worth keeping.
 
 **1. It predicted the wrong build.** [`three-way-read.md`](three-way-read.md) §1,
 committed before any script ran, predicted the gate would "look like 2015" —
@@ -348,3 +412,29 @@ this rootfs has no `/web` at all, and the document root is a ramfs that at boot
 contains 143 files, none of them `config.dat`. **The gate being open says nothing
 about there being a file behind it** — reachability and existence are two
 questions, and the CVE-2019-19822 chain needs both.
+
+**4. It let "unanchored" mean "bypassable", and then the correction over-swung
+the other way.** The eleven strings and the word *unanchored* were both right,
+and the note left a reader to infer the consequence. The consequence a reader
+infers is "smuggle one of these into a URI and the gate opens" — which is what
+`P2-2` predicted and what twelve requests on 2026-08-17 falsified.
+
+The correction written that morning was **also wrong**, and worse, because it
+contradicted the disassembly to explain the requests: *"unanchored in the
+disassembly is not unanchored in effect; the comparison must be anchored or
+length-limited somewhere the read did not capture."* Nothing was missed. The
+comparison is exactly what this note says it is.
+
+What was missing was one sentence about *where the string comes from*: the
+exemption and the file lookup read the same normalised path, so decorating a
+path to win the exemption also decorates it out of existence. Both the
+observation and the disassembly were right and the inference joining them was
+invented.
+
+**The lesson is narrower than "check twice".** A failed exploitation attempt is
+evidence about the attempt. It became, for a few hours, a claim about the
+instruction-level read that had been correct all along — and the thing that
+finally settled it was not another bypass shape but asking the mechanism what
+*else* it should predict. It predicted `wan_status.htm`, `Connect_status.htm`
+and `/boafrm/formLogin.htm`, none of which anyone had looked at, and the device
+agreed three times.

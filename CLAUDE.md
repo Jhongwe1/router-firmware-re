@@ -27,12 +27,12 @@ Read it first.
 **2. `make todo WEEK=W05` — what the week owes.**
 
 ```bash
-make todo WEEK=W05        # -> tools/rtcase.py todo, reads study/test-cases.toml
+make todo WEEK=W05        # -> tools/rtcase.py todo, reads test-cases.toml
 ```
 
 Every registered test scheduled for that week and still outstanding — 31 for
 W05, 25 for W06, 60 for W07 — with its section and title. The same schedule is
-the top block of `study/test-ledger.md`, and `make ci` prints the per-week
+the top block of `test-ledger.md`, and `make ci` prints the per-week
 outstanding counts on every run. **This is the closure list**: a week is not
 finished while its rows are still `⬜`, and that is checkable in one command.
 
@@ -105,16 +105,33 @@ reader undefended.
 
 ## Bench sessions — W06 and W07 have one every week
 
-- **Procedure lives in `RUNBOOK.md` §8.12**, cut into composable sub-sections. A
-  week is *which sections, in what order, plus its own extra steps* — **never a
-  new `W0N-bench-runsheet.md`.** W05 opened one; 580 of its 1,091 lines were
-  reusable procedure, and a second copy would be one state with two owners.
-- **What was actually run goes in `BENCH-LOG.md`** (repo root, append-only): the
-  session's plan written *before* touching anything, then verbatim excerpts, what
-  each step burned, and what is next.
-- **Because that record is verbatim, §8.12 may be refined freely** — the evidence
-  does not depend on the procedure document still saying what it said.
-- Verdicts and evidence links stay owned by `study/test-cases.toml`, unchanged.
+**Four files, split by *kind of content*, not by week. Nothing appears twice.**
+
+| file | owns | shape |
+|---|---|---|
+| **`runsheet.md` Part A** | **the exact commands, verbatim expected output, stop conditions, the verify-after step, the gotcha at the point it bites** | edited freely |
+| **`runsheet.md` Part B** | which sections a week runs, in what order, plus its extras | **append-only** |
+| **`RUNBOOK.md` §8.12** | **why each step exists**, how it went wrong the first time, cross-week reasoning | edited freely, **no full command blocks** |
+| **`BENCH-LOG.md`** | what was actually typed and seen on a given day; the plan written *before* touching anything | **append-only** |
+
+- **Never a per-week `W0N-bench-runsheet.md`.** W05 opened one; 580 of its 1,091
+  lines were reusable procedure. That is what Part A / Part B replaces.
+- **`REPRODUCE.md`** is the stranger's front door: three tiers, and **what each
+  tier cannot verify**. A reader cannot obtain this unit's dump and the document
+  says so on page one rather than letting them find out at step 40.
+- **`make doctor`** is the first command of any session. It checks the tier's
+  prerequisites and every failure names the command that fixes it — a markdown
+  file can ask a reader to check something; only a script can say what broke.
+- **`make ci` runs `tools/check-runsheet.py`**: every `make` target in the
+  runsheet exists, every `tools/` path exists, **every flag appears in that
+  tool's own `--help`**, every subcommand is real, every `§8.x.y` resolves, and
+  every fence is tagged so "run this" and "you will see this" are never the same
+  thing. `tools/test-check-runsheet.sh` (15 cases) proves that checker can fail.
+  The runsheet is hand-written on purpose; a command that no longer works is not
+  a matter of taste.
+- **Because `BENCH-LOG.md` is verbatim, both §8.12 and the runsheet may be
+  refined freely** — the evidence stands on what was typed and seen.
+- Verdicts and evidence links stay owned by `test-cases.toml`, unchanged.
 
 ## House style
 
@@ -128,20 +145,28 @@ reader undefended.
   fail their read. `plan/` is gitignored and may address the author directly;
   committed files may not. `study/QA.md` is a design review of the repo's own
   claims — a hostile *reader*, not a hostile interviewer.
-- English: `README`, `PROGRESS`, `notes/`, `docs/`, `tools/`, commits.
-  Traditional Chinese: `LOG.md`, `RUNBOOK.md`, `study/QA.md`, `plan/`.
+- English: `README`, `REPRODUCE`, `PROGRESS`, `notes/`, `docs/`, `tools/`, commits.
+  Traditional Chinese: `LOG.md`, `RUNBOOK.md`, `runsheet.md`, `BENCH-LOG.md`,
+  `study/QA.md`, `plan/`.
 - A note answers a carried-forward question, gives the answer first with
   addresses, and ends with **how its first version was wrong**. Not optional.
 - `RUNBOOK.md`, `PROGRESS.md` and the README board move in the **same commit**
   as the work; a ticked box carries its evidence link. Hostile questions go to
   `study/QA.md`. Week branches, never `main`.
 - **One piece of state has exactly one owner.** `PROGRESS.md` owns gates, weeks
-  and carried-forward questions; `study/test-cases.toml` owns per-test
+  and carried-forward questions; `test-cases.toml` owns per-test
   prediction / refutation / result / evidence; the README board owns the gate
-  checkboxes and one line of numbers. A gate may **cite** a test, never restate
+  checkboxes and one line of numbers; **`runsheet.md` owns the exact commands and
+  `RUNBOOK.md` owns why they exist.** A gate may **cite** a test, never restate
   its row. This rule exists because the 2026-08-16 sync failure was one piece of
   state with two owners, and a 130-row matrix in two files would repeat it
-  weekly. `study/test-ledger.md` is **generated** — edit the register.
+  weekly. `test-ledger.md` is **generated** — edit the register.
+  **The split that matters is by *kind of content*, not by file.** Two documents
+  covering the same procedure is two owners; one holding the commands and one
+  holding the reasoning is not. Where restating is unavoidable, point at the
+  owner instead — `BENCH-LOG.md`'s header restated the redaction rule
+  `docs/disclosure.md` owns, and by 2026-08-17 it contradicted an entry in its
+  own file.
 - **A test result is inadmissible without a refutation condition written
   first**, and `tools/rtcase.py check` enforces it in CI along with: an artefact
   that exists, no dynamic tick for a static reading, and no editing a prediction

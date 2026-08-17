@@ -1191,7 +1191,7 @@ no mechanism for recording what each one predicted before it ran.
 | 1 | the `FLW` recovery path rehearsed | ❌ **not done.** This is G3.5 #5, cited rather than restated. It blocks everything below |
 | 2 | isolation verified — two MACs on the segment, WAN on a fake upstream | ❌ needs the bench |
 | 3 | IoC pre-check — live config against this unit's own factory baseline, plus the ports known botnets leave behind | ❌ needs the device. **Criterion written in advance: the difference stays at 4 of 344 entries** |
-| 4 | the prediction ledger frozen before any request | ✅ [`study/test-ledger.md`](study/test-ledger.md) — 128 tests, 98 with a written refutation condition, hash `ba6810e8…` |
+| 4 | the prediction ledger frozen before any request | ✅ [`test-ledger.md`](test-ledger.md) — 130 tests, 102 with a written refutation condition, freeze `69c342dc…`, schedule `d68ace7d…` |
 | 5 | the disclosure register written | ✅ [`docs/disclosure.md`](docs/disclosure.md) — eight candidates, and the rule that decides what is publishable |
 
 > ⚠️ **G3.75 is not passed.** Box 3 in particular is not a formality: this model
@@ -1218,7 +1218,7 @@ So the split is by ownership, and it is now written into `CLAUDE.md`:
 | file | owns | must not restate |
 |---|---|---|
 | `PROGRESS.md` | gates, weeks, carried-forward questions | an individual test's status |
-| `study/test-ledger.md` | per-test prediction, refutation, result, evidence | a gate's verdict |
+| `test-ledger.md` | per-test prediction, refutation, result, evidence | a gate's verdict |
 | `README.md` | the gate board and one line of numbers | either of the above |
 | `plan/W0N_*.md` | **the day-by-day ordering, the commands, the timeboxes, the DoD, the week's technical argument** | any claim about current status — its preconditions have been stale twice |
 
@@ -1232,7 +1232,7 @@ the start of a week, and `CLAUDE.md` now says so in those words.
 ### The instrument
 
 [`tools/rtcase.py`](tools/rtcase.py) — the register is
-[`study/test-cases.toml`](study/test-cases.toml), the ledger is generated from
+[`test-cases.toml`](test-cases.toml), the ledger is generated from
 it, and `rtcase check` is a CI gate. What it refuses:
 
 | refusal | why it exists |
@@ -1397,15 +1397,31 @@ ask about, in *Open, carried forward* #17.
 | 4 | the prediction ledger frozen | ✅ W05 Day 0 |
 | 5 | the disclosure register written | ✅ W05 Day 0 |
 
-### W05 DoD — 4 of 5
+### W05 DoD — 5 of 5
 
 | # | Required | Result |
 |---|---|---|
-| 1 | a prediction scorecard committed **before** testing, then scored | ✅ frozen in W05 Day 0; **22 of 31 scored** — 14 confirmed, 4 refuted, 4 partial |
+| 1 | a prediction scorecard committed **before** testing, then scored | ✅ frozen in W05 Day 0; **27 of 27 scored** — 16 confirmed, 5 refuted, 6 partial |
 | 2 | one dynamic path standing up | ✅ **two**: the device on an isolated segment, and the emulator |
 | 3 | [`notes/emulation-2018.md`](notes/emulation-2018.md) — what was faked and whether it distorts | ✅ |
 | 4 | [`notes/oracle-design.md`](notes/oracle-design.md), ≥ 1 oracle rehearsed under emulation | ✅ **four of five** |
-| 5 | W06's target with its three conditions | 🔶 **(a) and (c) yes, (b) not yet.** `formSysCmd` is in this build's dispatch table and an oracle is rehearsed — but its *reachability* is the one thing not tested, because reaching it means POSTing to it, and that is the proof-of-concept the plan reserves for W06 |
+| 5 | W06's target with its three conditions | ✅ **all three.** (b) closed in the afternoon: an unauthenticated `POST /boafrm/formSysCmd` carrying only `submit-url` answers `302 -> status.htm` in 10 ms. **Nothing was injected, and the handler's own guard proves nothing ran** — W04-2's decompilation shows `if (*cmd != '\0')` around the `system()` call, and `sysCmd` was absent |
+
+**The register reads 27, not 31.** Four cases scheduled W05 were ones this
+week's own plan forbids running — the three command injections it defers to
+W06 in the same paragraph that calls them the week's highest risk, and the reset
+button, which is destructive. Both decisions were already recorded below under
+*Deliberately not done*; the register still said W05, so `make todo WEEK=W05`
+could never reach zero without either breaking the plan or editing a field.
+They now carry `rescheduled_from`, a reason and a date, and `[schedule].sha256`
+makes a week that moves show up in the diff — see *Instrument work*.
+
+**The morning's reading of item 5 was wrong and is corrected here.** It said
+*"reaching it means POSTing to it, and that is the proof-of-concept the plan
+reserves for W06."* Those are two different acts. A POST carrying no `sysCmd`
+demonstrates reachability and executes nothing; the proof of concept is a POST
+carrying a command. Conflating them would have left the DoD open for a reason
+that does not exist. Recorded in *Corrections to the plan*.
 
 **The scorecard is the week's stated deliverable and it is worth reading as a
 number: of 22 scored, four predictions were refuted and four were partial.** The
@@ -1821,7 +1837,7 @@ The fix, in the same commit as this note:
 |---|---|
 | **procedure** | `RUNBOOK.md` **§8.12**, cut into composable sub-sections — a week is *which sections in what order*, not a new document. §8.9 gains **§8.9.4**, the improved `FLW` steps that had existed only in the runsheet |
 | **what was actually run** | **`BENCH-LOG.md`** at the repo root, append-only: the session's plan written before touching anything, then verbatim record cards |
-| **verdicts and evidence** | unchanged, `study/test-cases.toml` |
+| **verdicts and evidence** | unchanged, `test-cases.toml` |
 
 And the rule that makes refinement safe rather than lossy, now in `CLAUDE.md`:
 **because the bench log is verbatim, §8.12 may be refined freely** — the evidence
@@ -1900,3 +1916,330 @@ W04-2's list stands except #15, which is answered above. Added by this session:
     web interfaces also report the non-`CX` string, the identification gap is a
     property of the vendor's build system rather than of this one unit — and that
     is the difference between an anecdote and a finding.
+
+---
+
+## W05 close-out — 2026-08-17 (afternoon)
+
+**The register reads 27 of 27 and the DoD is 5 of 5.** The five that were
+outstanding all needed the device, and all five were run in one seating.
+Verbatim record cards: [`BENCH-LOG.md`](BENCH-LOG.md). Verdicts and evidence:
+[`test-ledger.md`](test-ledger.md).
+
+### The boot loader's strings were never in the dump
+
+`grep FLR` over the whole 4 MiB finds nothing. So does `grep "COMMAND MODE
+HELP"`. That silence had been read as *the loader is small and terse*; it is
+not. `0x000000`–`0x0012F0` is stage 1 — DRAM training, `Booting...`, `DTR
+Done.` — and at **`0x0012F0` there is an LZMA-alone stream, 17,334 bytes in and
+56,592 out**, holding the command interpreter, the TFTP client, the SPI chip
+table and the whole help text.
+
+[`tools/loader-unpack.py`](tools/loader-unpack.py) recovers it and **refuses to
+write a report** unless exactly one stream is found in the region, the declared
+output size matches, the help banner is present, and all seventeen commands the
+console's own `?` prints are found by the same scan that reports absences. That
+last one is the whole design: this report's headline result *is* an absence.
+
+It also traces `chipName: UNKNOWN`, which
+[`notes/uart-findings.md`](notes/uart-findings.md) recorded as explicitly
+unconfirmed. **One of its three halves now holds and two still do not.** The
+loader's chip table carries Eon parts only as `F` and `Q` families — no `QH` —
+and `UNKNOWN` is the table's last entry. The *fallback behaviour* is a claim
+about code and this is a string scan; and **which** chip it failed to identify
+is still unknown, because the JEDEC ID has never been read
+([`notes/hardware-inspection.md`](notes/hardware-inspection.md) still lists it
+as outstanding). The silkscreen remains the only source for the part number.
+
+### `P9-1` — refuted, and refuted without spending a boot cycle
+
+The prediction was that the `<RealTek>` prompt could be caught and `init=`
+passed from there. The first half is true — it was caught twice. **The second
+half has no mechanism**, and three instruments say so without sharing a line of
+code:
+
+| | |
+|---|---|
+| loader stage 2, decompressed | thirteen command-line-shaped needles, **zero hits**. No environment, no `bootargs`, no `setenv`, nowhere to put an `init=` |
+| the device's own `?` | sixteen commands, matching the binary's string table entry for entry |
+| the kernel, decompressed from flash `0x060010`+`0x2808` (976,470 → 3,374,772, declared size matched) | `console=ttyS0,38400 root=/dev/mtdblock1` at `0x2f9590` — compiled in, **no `init=`** — while `No init found.  Try passing init= option to kernel.` at `0x2d8590` shows the kernel *would* honour one |
+
+And the observation that closes it: **the boot log prints no `Kernel command
+line:` line, because that string is not in the kernel image at all.** The
+console and the image agree, and the image explains the console.
+
+The route that remains is RAM-only and now fully specified: `AUTOBURN 0`,
+`LOADADDR`, TFTP a kernel with a patched command line into RAM, `J`. Zero flash
+written. It costs the ability to recompress a kernel, and it is not W05's.
+
+### `P9-3` — and two of my own success conditions were wrong
+
+Rescue mode is enterable. `AUTOBURN 0` gives `AutoBurning=0`; `IPCONFIG
+10.1.1.1` gives `Now your Target IP is 10.1.1.1`. **The colon forms the help
+prints are both `Unknown command !`** — the loader's string table holds the
+command token and the help line separately, which is the third time this
+loader's documentation disagrees with its parser.
+
+Its network answers: ARP resolved, and the kernel's own `rx_packets` went 0 to
+1, which is a second source for *the link delivered something*. A TFTP read
+request for a name that cannot exist came back with **516 bytes of DATA**.
+
+**The plan written that morning said "ping answers and the MAC is this unit's".
+Neither happened, and both halves of that condition were mine and wrong.** A
+TFTP-only stack owes nobody an ICMP implementation, and the loader synthesises
+its MAC from the address it was handed (`0a 01 01 01` is `10.1.1.1`). The
+register's frozen condition asks only whether rescue mode can be entered. It
+can. Recorded `partial`, because the prediction says `tftp put` and put was not
+exercised.
+
+### `P1-12` — 38.76 s, and the margin is the finding
+
+From the first console character to the first HTTP 200, measured by
+[`tools/coldboot-timing.sh`](tools/coldboot-timing.sh) with both halves stamped
+by one clock. `boa: starting server pid=350, port 80` lands at **+32.50 s and
+the first 200 at +38.76 s** — six and a quarter seconds during which the server
+has announced itself and answers nobody.
+
+The prediction is "under 40 s" and the refutation says "clearly over", so it
+stands. **But t=0 is the first console character, not the moment power was
+applied, so 38.76 s is a lower bound with 1.24 s of headroom.** This test exists
+to be the baseline for every later "the service did not answer" judgement. The
+usable form of it is **wait 45 seconds**, not 40.
+
+### `P3-13` — confirmed, without running a single handler
+
+The claim is about the gate, and the gate decides from the URI in
+`process_header_end` before `handleForm` is reached — so `bench-probe writes`
+asks with GET, which never reaches dispatch on this build.
+
+All 57 `/boafrm/formX` answer `302 -> home.htm`; all 57 `/boafrm/formX.htm`
+answer `302 -> login.htm`. **Write-class and read-class are indistinguishable**,
+including the three the test's own text names. One exception, and it is the
+week's neatest result: `/boafrm/formLogin.htm` answers **404**, because
+`formLogin` is one of the eleven exemption strings W04-2 read at instruction
+level. A handler name that happens to contain an exemption token is exempt.
+
+### The gate: this morning's correction was itself wrong
+
+**W04-2's instruction-level read was right in every particular.** Eleven
+exemption strings, every comparison an unanchored `strstr`. Five of the `.htm`
+names are not shipped in the 143-file bundle, so the model predicts exactly
+seven exempt pages — the five listed literally, plus `wan_status.htm` and
+`Connect_status.htm`, which are exempt only because `status.htm` is a substring
+of them. **Seven predicted, seven observed, sixty-nine blocked, no error either
+way across all 76 shipped pages**, and then four more the model had never seen,
+all correct.
+
+So the morning's sentence — *"unanchored in the disassembly is not unanchored in
+effect: the comparison is anchored or length-limited somewhere the read did not
+capture"* — contradicted an accurate disassembly in order to explain twelve
+failed bypasses. Fifteen further shapes that afternoon also failed, and the
+reason is one line: **the exemption and the file lookup read the same normalised
+path.** `/password.htm?x=status.htm` stays `302` because the query is not part
+of it; `/password.htm;status.htm` becomes `404` because it *is* exempt and there
+is no such file. X-3 does not stand — for that reason, not the recorded one.
+Full working in [`notes/auth-flow-2018.md`](notes/auth-flow-2018.md).
+
+### `P1-4` — partial, and it took the web server down twice
+
+Two independent sweeps agreed closely: 34 / 36 POSTs sent, 31 / 32 answered,
+**not one 404**, 13 refused by name. `formSysCmd` answered `302 -> status.htm`
+in 10 ms, which is DoD item 5.
+
+It is `partial` for two reasons and the second is the finding. **An
+unauthenticated POST carrying no parameters at all holds this device's single
+web server for four to ten seconds** — `formPortFw` 9,650 ms, `formPocketWizard`
+6,359 ms, `formWlanSetup` / `formRoute` / `formSysLog` at the client's 6 s
+ceiling. Around forty-five of them in sequence stopped it answering entirely,
+both times. `ping` kept working throughout, the console printed **not one
+line**, and **`boa` was still absent twenty minutes later**: `rcS` starts it
+once and nothing respawns it.
+
+`P1-4`'s refutation said, in advance: *"connections dropping — first confirm
+whether you knocked boa over yourself."* We did, and it is provable: per-request
+`elapsed_ms`, a control that retries and can tell *busy* from *dead*, and a
+console with nothing on it.
+
+This is **not** `P4-1`. That one omits `submit-url` and writes into a read-only
+segment. This one carries `submit-url` and is entirely well-formed.
+
+### The one that was not on anyone's list
+
+The POST round changed the configuration, which was planned, snapshotted either
+side, and attributed. What it changed was not planned:
+
+```
+0x00000-0x06000  boot loader                     UNCHANGED
+0x06000-0x08000  H601 (MAC + radio calibration)  UNCHANGED
+0x08000-0x0c000  COMPDS factory defaults         7,105 bytes changed
+0x0c000-0x10000  COMPCS live configuration       6,963 bytes changed
+```
+
+COMPCS moved in 19 fields. **COMPDS moved in 23 — the same 19, plus the four
+that used to distinguish it — and in each of those four it moved to COMPCS's
+value.** The two regions are now identical across all 343 shared entries, and
+both still pass `libapmib`'s own checksum.
+
+**So an unauthenticated configuration write also overwrites the factory-default
+region.** Two consequences:
+
+1. **W04-2 open #20 is answered.** It asked what eventually persists `COMPCS`,
+   given that `flash set` and `flash write-current` did not. The answer is a
+   POST to a form handler, and it persists both regions.
+2. **On this build, "restore factory defaults" would restore the attacker's
+   configuration.** `P9-9` predicts reset overwrites COMPCS from COMPDS; if that
+   holds, and COMPDS is a copy of the modified COMPCS, the reset button is not a
+   recovery path. The only recovery is rewriting from a copy held off the device.
+
+**Nothing moved in a dangerous direction** — `SSH_ENABLED`, `UPNP_ENABLED`,
+`PING_WAN_ACCESS_ENABLED` and the three `VPN_PASSTHRU_*` flags all went 1 to 0.
+One field is worth its own line: **`NOTICE_ENABLED` went 0 to 208.** A boolean
+holding 208 means a handler wrote whatever its accessor returned for an absent
+parameter, and that value was neither 0 nor 1.
+
+> **And `P9-9` was deferred to W07 precisely to protect the 4-of-343 difference
+> that this destroyed.** The guarded action was guarded; the unguarded one
+> reached the same evidence through a door nobody had labelled. That is how a
+> risk register fails — not by missing the dangerous thing, but by writing the
+> danger on the loud one.
+
+The pre-sweep 64 KiB snapshot is byte-identical to the 2026-08-16 full dump, so
+**nothing is lost**; restoring COMPDS is a 16 KiB `FLW`, and W06 opens with it.
+
+### Open #17 — settled, with a control the first attempt did not have
+
+`DB` after `FLR` of flash `0x3F0100` into a fresh RAM address returns
+`ca fe ba be ca fe ba be`: the neighbour written on the morning of 2026-08-17
+survived an `FLW` to `0x3F0000` in the same 4 KiB sector. **`FLW` is
+read-modify-erase-program of the containing sector and it preserves the rest of
+it.**
+
+The evidence is stronger than the morning's for a reason worth keeping. The
+morning's flaw was reading back into a RAM address that already held the
+expected pattern; the obvious fix is "use an address you have not used", and
+that is still weak — you do not know what is in it. `console-dump.py dump` runs
+a positive control first, reading flash `0x000000` into **the same** address and
+matching `0b f0 00 04`. So before the real read that RAM held a **third** thing,
+neither of the two answers. The control that proves `FLR` works also proves the
+destination was not already the answer.
+
+For W06: writing `HW_WLAN0_WSC_PIN` will not disturb the rest of `H601` — but
+power lost mid-cycle costs the whole 4 KiB, not eight bytes.
+
+### Instrument work
+
+| | |
+|---|---|
+| [`tools/loader-unpack.py`](tools/loader-unpack.py) | unpacks the loader's LZMA stage 2 from a flash dump. Refuses on: no stream, more than one stream, a size that does not match, a missing help banner, or any of the seventeen commands not found. `tools/test-loader-unpack.sh`, 7 cases, needs no dump |
+| `console-dump.py rescue` | the one write this reader is allowed to make. It can emit **only** `AUTOBURN 0` — no flag turns it on and the string does not exist in the file — and it asserts the reply before touching the network |
+| `bench-probe` refusal list | thirteen handlers refused **by name with a reason each**, the skipped names recorded in the transcript's first record, overridable only by a second flag that is also recorded |
+| `bench-probe writes` | answers `P3-13` with GET, so no handler runs. Its classifier is reported as the proxy it is — splitting on "reaches a process-spawning sink" calls `formPasswordSetup` quiet — so it also probes the three endpoints the test's own text names, and refuses to run if the table lacks them |
+| `rtcase` `[schedule].sha256` | a week may move and may not move quietly. `rescheduled_from` + reason + date required, hash re-declared in the same commit. `test-rtcase.sh` 27 to 33 cases |
+| [`tools/coldboot-timing.sh`](tools/coldboot-timing.sh) | one power cycle feeding `P1-12`, `P9-1`'s dynamic half and a timestamped boot log, both clocks the same clock |
+
+### Instrument bugs 18 through 21
+
+**18. A guard that pushes the dangerous action onto a human is inverted.**
+`console-dump.py` refused `AUTOBURN` because it is a write — correct for a tool
+that only reads. But `AUTOBURN 0` is the command that makes every later command
+safe, and refusing it meant typing it into picocom next to the opposite value,
+on the only unit there is.
+
+**19. The help text is not the syntax.** `AUTOBURN: 0` and `IPCONFIG:<addr>`
+are both `Unknown command !`. The loader stores the command token and the help
+line as separate strings, and the accepted forms use a space. Third instance of
+the same trait on this loader.
+
+**20. A run that stopped wrote nothing.** `bench-probe` detected the most
+interesting event of the session — the web server ceasing to answer — and
+discarded the evidence of it in the same action: fifty-nine responses with the
+`elapsed_ms` that would have named the slow one. **Detecting an event and
+destroying its record should not be the same code path.** The journal and the
+records now live at module scope and are written on every exit.
+
+**21. `set -o pipefail` plus `grep -q`, reintroduced by me, into a guard
+suite, on the day this file recorded it as bug 15.** `grep -q` exits on match,
+the writer takes `SIGPIPE`, and the pipeline reports 141 for a *successful*
+match — so two refusals that fired correctly were reported as failures. Knowing
+a failure mode and not recognising it are different things, and a guard suite is
+the worst place to find that out.
+
+Twenty-one recorded. **Seventeen were caught by comparing two things that should
+have agreed; four by a check written to fail.**
+
+### The control that made the attribution possible, and it cost nothing
+
+The 11:02 snapshot was byte-identical to the 2026-08-16 dump — after two boots,
+a full unauthenticated GET round and a successful login had happened in between.
+**So booting and reading change nothing in the first 64 KiB**, which is what
+makes every byte of the post-sweep difference attributable to the POST round.
+That control was not run for the purpose; it was the routine pre-flight
+snapshot, and it happened to answer the question the afternoon needed.
+
+### Deliberately not done in the close-out
+
+| Item | Why |
+|---|---|
+| **Restoring `COMPDS`** | It is a flash write, and this session's ceiling was non-destructive by the author's decision. The data exists twice off the device. W06 opens with the restore, where a write procedure and a verification step already have to exist |
+| **A third POST sweep** | Two runs agreed closely and the incremental information is nil against more configuration change. `P1-4` is `partial` and says why |
+| **Chasing the TFTP read** | `IPCONFIG` plus a TFTP read request for a nonexistent name returned 516 bytes matching flash `0x060010` exactly. If the served address follows `LOADADDR`, that is a flash read in seconds where the console path takes 105 minutes — an instrument question big enough to deserve its own plan, not the last hour of a week |
+| **Characterising the POST stall as a defect** | It is recorded with numbers and left unclassified. Whether one request suffices, how long it lasts and whether it is already published are W06/W07 questions, and `docs/disclosure.md` holds the item |
+| **Reporting anything to TWCERT/CC** | Unchanged |
+
+### Corrections to the plan
+
+| Said | Actually |
+|---|---|
+| **This morning:** "reaching `formSysCmd` means POSTing to it, and that is the proof-of-concept the plan reserves for W06" | Two different acts. A POST with no `sysCmd` demonstrates reachability and executes nothing — the handler's own guard is in W04-2's decompilation. The DoD would have stayed open for a reason that does not exist |
+| **This morning:** the exemption comparison "is anchored or length-limited somewhere the read did not capture" | Nothing was missed. It is an unanchored substring test on the normalised path, and it is not a bypass because that path is also what the file lookup uses |
+| **`RUNBOOK.md` §8.9.2:** `Flash Write Successed!` is simply the wrong string | It exists, at stage-2 `0x0a861`, in the TFTP auto-burn cluster. The interactive `FLW`'s message is 2.7 KiB away beside `Flash Read Successed!` — which *is* what the interactive `FLR` prints. The original expectation was not invented; it was the other path in the same binary |
+| **The register:** `P3-1`, `P3-2`, `P3-3` are W05 items | W05's own plan forbids them. Moved to W06 with a reason on the record |
+| **The register:** `P9-9` is a W05 item | Destructive, and it deletes evidence other tests depend on. Moved to W07 |
+| **`BENCH-LOG.md`'s header:** "per-unit identifiers are not written here" | The 2026-08-17 morning entry records two MAC addresses. The file is append-only, so the entry stands and the contradiction is recorded rather than repaired — either the rule is too broad or the entry is a breach, and that is the author's call, not a footnote |
+
+### Open, carried forward
+
+W04-2's list stands except #20, answered above. From the morning: #16, #17
+(**answered above**), #18, #19, #21 (fixed), #22, #23 (**answered below**), #24,
+#25, #26. Added or changed by the close-out:
+
+23. ~~**At least one `/boafrm/` route is not in the recovered `root_form[]`.**~~
+    → **answered.** `formOpdRedirect` and `formWanRedirect` are referenced by
+    `init_get` (`0x00407b7c`) and `process_header_end` (`0x0040bb1c`), not by
+    `handleForm`; `init_get` holds `redirect-url=`, `&wlan_id=`, `tcpipwan.htm`
+    and `opmode1.htm` beside them. **`root_form[]`'s 57 entries are not short —
+    they are complete for `handleForm`, and there is a second, earlier route.**
+    `formWlanRedirect2` resolves to no function at all: the string is in
+    `.rodata`, nothing references it, and the device answers it exactly like an
+    absent name. Every count derived from 57 / 59 / 49 since W03 can stand.
+    [`reports/ghidra-xref-unit-2018-redirects.json`](reports/ghidra-xref-unit-2018-redirects.json)
+    — whose `self_check` reads `SUSPECT` **by design**, because two selectors
+    resolved to nothing and one of them is the negative control.
+27. **The boot loader's TFTP serves memory to a read request for any name.**
+    516 bytes came back matching flash `0x060010` byte for byte. Whether the
+    address follows `LOADADDR` decides whether this is a curiosity or a flash
+    read that takes seconds instead of 105 minutes. It needs console access, so
+    it is not remotely reachable — it is an *instrument* question.
+28. **An unauthenticated, parameter-less POST stalls the only web server for
+    seconds, and about forty-five in sequence remove it until a power cycle.**
+    Distinct from `P4-1`. Unclassified on purpose: whether one request suffices,
+    how long the stall lasts, and whether prior art covers it are all unmeasured.
+29. **`NOTICE_ENABLED` holds 208.** A boolean written by a handler whose
+    parameter was absent, so the accessor's default for that field is neither 0
+    nor 1. `form_formNotice` is the only handler whose sole tracked sink is
+    `system()`.
+30. **Which handlers write MIB, as opposed to spawning processes.** The
+    `bench-probe writes` classifier splits on process-spawning because that is
+    what a committed report can measure, and it therefore calls
+    `formPasswordSetup` quiet. Naming the real set needs an `apmib_set` caller
+    census, which no report carries.
+31. **`SSH_ENABLED` was 1 on this unit** — before the POST round set it to 0 —
+    while port 22 is closed and no `sshd` or `dropbear` appears in the port scan.
+    Either the flag means something else or the daemon is absent. Noticed while
+    attributing the diff; not chased.
+32. **Five of the gate's eleven exemption strings name pages the bundle does not
+    ship**, and `formUpload` / `formUploadConfig` are referenced by
+    `process_header_end` without behaving as exemptions —
+    `/boafrm/formUpload.htm` is still blocked while `/boafrm/formLogin.htm` is
+    not. Same function, three different uses of a string, and only one of them
+    read.

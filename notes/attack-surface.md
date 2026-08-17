@@ -142,7 +142,7 @@ Worth a look after Boa:
 > The immediate consequence: **`UPNP_ENABLED` is `1`** in this unit's live
 > config *and* in its factory default, so the correct prediction for UPnP is
 > that it is **running**, not off. Tracked as `P1-10` in
-> [`study/test-ledger.md`](../study/test-ledger.md), with the three CVEs behind
+> [`test-ledger.md`](../test-ledger.md), with the three CVEs behind
 > it (`P6-1`–`P6-3`) reinstated. Nothing here is confirmed until a port
 > responds; the point is that the previous reading rested on the wrong file.
 >

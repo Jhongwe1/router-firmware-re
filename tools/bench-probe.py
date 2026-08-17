@@ -26,6 +26,12 @@ What it will not do
     its accessors defaulted to. Existence can be probed with GET; changing the
     device's configuration to find out whether a route exists is not a trade
     this tool makes for you.
+  * POST to thirteen named handlers even then. Configuration change is
+    recoverable and attributable with a snapshot either side; losing the LAN
+    address mid-sweep, losing the admin password, or entering the firmware
+    upload path is not. See HAZARDOUS below -- each entry carries its reason,
+    the skipped names go into the transcript's first record, and overriding
+    them takes a second flag.
   * send shell metacharacters in any parameter. Injection is W06's job and it
     happens after the recovery drill, not inside a reconnaissance sweep.
   * write anything unless every response it recorded is in the transcript.
@@ -52,6 +58,61 @@ from typing import Any
 
 REPO = Path(__file__).resolve().parent.parent
 FORMTABLE = REPO / "reports/ghidra-formtable-unit-2018.json"
+SINKS = REPO / "reports/ghidra-sinks-unit-2018.json"
+
+# --------------------------------------------------------------------------
+# Handlers a parameter-less POST must not reach.
+#
+# `--allow-post` was written for P1-4, whose whole shape is "POST all 57 names
+# and see which answer". What that sentence hides is that on this build 23 of
+# the 57 call system() and 13 call execl() (reports/ghidra-sinks-unit-2018.json),
+# and a handler whose parameters are all absent still writes whatever its
+# accessors defaulted to. A blind sweep therefore runs 36 process-spawning
+# handlers on the only unit there is.
+#
+# Four of the outcomes are not "the configuration changed", which a snapshot
+# pair can attribute and undo. They destroy the run or the evidence:
+#
+#   * losing the address the sweep is being driven over turns every remaining
+#     endpoint into "connection refused" -- the exact false-negative shape this
+#     file was written to prevent, wearing different clothes;
+#   * losing the admin password destroys the CVE-2019-19823 chain, which is the
+#     hardest evidence this project has;
+#   * the firmware and configuration upload paths are the ones that brick;
+#   * an operating-mode change reboots into a different network.
+#
+# So they are refused by name, each with its reason, and the refusal is
+# recorded in the transcript rather than being a quiet gap. A future week that
+# genuinely wants one has to pass --allow-destructive and say so on the record.
+# --------------------------------------------------------------------------
+HAZARDOUS: dict[str, str] = {
+    "formTcpipSetup": "LAN addressing. Losing it mid-sweep makes every "
+                      "remaining endpoint read as absent",
+    "formWanTcpipSetup": "WAN addressing; same class, and it can restart the "
+                         "network stack",
+    "formVlan": "VLAN membership. Can remove the bench port from the segment",
+    "formPasswordSetup": "the admin credential. Changing it destroys the "
+                         "end-to-end CVE-2019-19823 demonstration, which "
+                         "depends on admin/admin being the value decoded from "
+                         "this unit's own flash",
+    "formUpload": "firmware upload; boa carries DownloadRFW. This is the one "
+                  "that bricks",
+    "formUploadConfig": "configuration restore; sscanf over an uploaded file",
+    "formSaveConfig": "commits the configuration, so anything the sweep "
+                      "changed earlier would be made durable by it",
+    "formOpMode": "operating mode (router/AP/bridge) and a reboot with it",
+    "formOpMode1": "operating mode; same",
+    "formOpMode2": "operating mode; same",
+    "formWizard": "the setup wizard writes many fields at once and calls "
+                  "system()",
+    "formRebootCheck": "reboot",
+    "formRebootSchedule": "reboot scheduling",
+}
+
+# The three endpoints P3-13's own prediction names as "write" ones. Probing the
+# set the test names, rather than a set this file invented, is the difference
+# between answering the registered question and answering a nearby one.
+NAMED_WRITE_ENDPOINTS = {"formUpload", "formPasswordSetup", "formSaveConfig"}
 
 # Anything that would turn a parameter into a second command. A reconnaissance
 # sweep has no business carrying one, and the check is here rather than in the
@@ -64,6 +125,31 @@ CONNECT_TIMEOUT = 6.0
 
 class ProbeError(Exception):
     pass
+
+
+# Every request and response, appended as it happens, independently of whichever
+# group is running.
+#
+# Added 2026-08-17 after a run that stopped mid-sweep wrote NOTHING. The web
+# server stopped accepting at endpoint 60 of 64, the control caught it and the
+# run halted -- correctly -- and then `main` returned on the exception before
+# reaching the line that writes the transcript. So the tool detected the
+# interesting event and destroyed the evidence of it in the same breath: fifty-
+# nine responses, each with its elapsed_ms, and the one that had taken seconds
+# was in there.
+#
+# A run that stops is exactly the run whose transcript matters most.
+JOURNAL: list[dict[str, Any]] = []
+
+# And the same argument one level up. JOURNAL holds raw requests; the *records*
+# are the raw request plus what the group knew about it -- which endpoint name,
+# where it came from, and how long the server then took to answer again. Those
+# annotations were still being thrown away on a stopped run, because the group
+# built its list locally and the exception unwound past the return.
+#
+# So the list lives here and the groups append into it as they go. The
+# measurement that exists to describe a stall must survive the stall.
+RECORDS: list[dict[str, Any]] = []
 
 
 # --------------------------------------------------------------------------
@@ -82,6 +168,7 @@ def raw_request(
     headers: dict[str, str] | None = None,
     body: bytes = b"",
     timeout: float = CONNECT_TIMEOUT,
+    record: bool = True,
 ) -> dict[str, Any]:
     hdr = {"Host": f"{host}:{port}" if port != 80 else host,
            "User-Agent": "fwre-bench-probe/1",
@@ -122,6 +209,8 @@ def raw_request(
     except OSError as e:
         out["error"] = f"{type(e).__name__}: {e}"
         out["elapsed_ms"] = round((time.monotonic() - t0) * 1000)
+        if record:
+            JOURNAL.append(out)
         return out
 
     out["elapsed_ms"] = round((time.monotonic() - t0) * 1000)
@@ -137,6 +226,8 @@ def raw_request(
             out["response_headers"][k.strip()] = v.strip()
     out["body_bytes"] = len(rest)
     out["body_head"] = rest[:BODY_KEEP].decode("latin-1", "replace")
+    if record:
+        JOURNAL.append(out)
     return out
 
 
@@ -154,7 +245,8 @@ def check_params(params: dict[str, str]) -> None:
             )
 
 
-def check_post(target: str, params: dict[str, str]) -> None:
+def check_post(target: str, params: dict[str, str],
+               allow_destructive: bool = False) -> None:
     if "/boafrm/" in target and "submit-url" not in params:
         raise ProbeError(
             f"refusing POST {target} without submit-url. When the parameter is "
@@ -162,6 +254,17 @@ def check_post(target: str, params: dict[str, str]) -> None:
             "segment (notes/submit-url-overflow.md); as the code reads that is "
             "a one-request crash of the web server, and every endpoint probed "
             "afterwards would answer as if it did not exist"
+        )
+    name = target.rsplit("/", 1)[-1]
+    if name in HAZARDOUS and not allow_destructive:
+        raise ProbeError(
+            f"refusing POST {target}: {HAZARDOUS[name]}.\n"
+            "  A POST runs the handler, and absent parameters do not mean the "
+            "handler does nothing -- the accessors return their defaults and it "
+            "writes those.\n"
+            "  This is not the configuration-changes-and-a-snapshot-attributes-it "
+            "case. Pass --allow-destructive if that is genuinely the decision, "
+            "and take a 64 KiB snapshot either side first (RUNBOOK 8.12.3)."
         )
 
 
@@ -228,6 +331,34 @@ def route_to(host: str) -> dict[str, Any]:
     return out
 
 
+def wait_ready(host: str, port: int, budget: float = 45.0) -> dict[str, Any]:
+    """Poll until the web server answers again, and report how long that took.
+
+    `boa` here is one process. A handler that calls system() or execl() does not
+    return to the accept loop until the child does, so for that whole interval
+    the server answers nobody -- and with the backlog full, new connections are
+    refused outright. A sweep that fires the next POST immediately therefore
+    measures its own impatience.
+
+    Sleeping a fixed two seconds between POSTs would work around that. Waiting
+    for readiness instead *measures* it: the number this returns is how long
+    that endpoint occupied the only web server the device has, from an
+    unauthenticated request carrying no parameters. That is the finding, not the
+    obstacle.
+    """
+    t0 = time.monotonic()
+    tries = 0
+    while time.monotonic() - t0 < budget:
+        tries += 1
+        r = raw_request(host, port, "GET", "/", timeout=2.0, record=False)
+        if r.get("status") is not None:
+            return {"ready": True, "stall_s": round(time.monotonic() - t0, 2),
+                    "polls": tries}
+        time.sleep(0.5)
+    return {"ready": False, "stall_s": round(time.monotonic() - t0, 2),
+            "polls": tries, "budget_s": budget}
+
+
 def control(host: str, port: int) -> dict[str, Any]:
     """The device answers, answers as the thing we think it is, and is on our
     segment.
@@ -244,11 +375,40 @@ def control(host: str, port: int) -> dict[str, Any]:
 
 
 def require_control(host: str, port: int, where: str,
-                    need_direct: bool = False) -> dict[str, Any]:
-    c = control(host, port)
+                    need_direct: bool = False, tries: int = 3,
+                    gap: float = 6.0) -> dict[str, Any]:
+    # Retried, and every attempt kept. `boa` on this unit is ONE process
+    # (`boa: starting server pid=350, port 80`), so a handler that calls
+    # system() blocks the accept loop for as long as the command runs; the
+    # listen backlog fills and new connections are refused. To a single-shot
+    # control that is indistinguishable from a web server that has died.
+    #
+    # Seen on 2026-08-17: the sweep stopped at endpoint 60 of 64 with
+    # ConnectionRefusedError, and the device was answering 200 again a minute
+    # later. Both readings are worth recording and they are not the same
+    # finding, so the retry is not a loosening of the check -- it is the check
+    # learning to tell them apart. If every attempt fails it still stops.
+    attempts: list[dict[str, Any]] = []
+    c: dict[str, Any] = {}
+    for i in range(max(1, tries)):
+        if i:
+            time.sleep(gap)
+        c = control(host, port)
+        attempts.append({"attempt": i + 1, "reachable": c["reachable"],
+                         "error": c.get("error", ""),
+                         "elapsed_ms": c.get("elapsed_ms")})
+        if c["reachable"]:
+            break
+    c["attempts"] = attempts
+    if len(attempts) > 1 and c["reachable"]:
+        c["recovered_after"] = len(attempts)
+        print(f"  note  control {where}: refused, then answered on attempt "
+              f"{len(attempts)}. The server was BUSY, not dead - and a "
+              f"single-shot control would have called it dead", file=sys.stderr)
     if not c["reachable"]:
         raise ProbeError(
-            f"control failed {where}: {c.get('error') or 'no HTTP status line'}.\n"
+            f"control failed {where} on all {len(attempts)} attempts "
+            f"{gap:.0f}s apart: {c.get('error') or 'no HTTP status line'}.\n"
             "  Stopping. Results recorded after an unreachable control describe "
             "the state of the web server, not the state of the endpoint."
         )
@@ -284,7 +444,7 @@ def load_endpoints() -> tuple[list[str], dict[str, Any]]:
 
 def group_fingerprint(host: str, port: int) -> list[dict[str, Any]]:
     """P1-3 (Boa fingerprint, 404 shape) and P1-8 (/boafrm/ vs /goform/)."""
-    out = []
+    out = RECORDS
     for label, method, target in [
         ("root", "GET", "/"),
         ("login page", "GET", "/login.htm"),
@@ -305,7 +465,8 @@ def group_fingerprint(host: str, port: int) -> list[dict[str, Any]]:
     return out
 
 
-def group_endpoints(host: str, port: int, allow_post: bool) -> list[dict[str, Any]]:
+def group_endpoints(host: str, port: int, allow_post: bool,
+                    allow_destructive: bool = False) -> list[dict[str, Any]]:
     """P1-4 / P1-5 / P1-6.
 
     P1-5 is the interesting one and it is a test of the tools, not the device:
@@ -319,28 +480,172 @@ def group_endpoints(host: str, port: int, allow_post: bool) -> list[dict[str, An
     cve_spellings = ["formWlwds", "fromStaticDHCP"]
     real_spellings = ["formWlWds", "formStaticDHCP"]
 
-    out: list[dict[str, Any]] = [{"probe": "endpoints-meta", **meta,
-                                  "extra_from_string_extraction": extra,
-                                  "cve_spellings": cve_spellings}]
+    out = RECORDS
+    out.append({"probe": "endpoints-meta", **meta,
+                "extra_from_string_extraction": extra,
+                "cve_spellings": cve_spellings})
     plan = ([(n, "root_form") for n in names]
             + [(n, "string-extraction-only") for n in extra]
             + [(n, "CVE text spelling") for n in cve_spellings]
             + [(n, "dispatch-table spelling") for n in real_spellings])
 
+    skipped = [n for n, _ in plan if n in HAZARDOUS] if allow_post else []
+    out[0]["hazardous_skipped"] = skipped
+    out[0]["hazardous_reasons"] = {n: HAZARDOUS[n] for n in skipped}
+    # A sweep that silently covers 44 of 57 reads as a complete census. The
+    # count and the names go in the transcript's first record, before any
+    # result, so a reader meets the gap before they meet the findings.
+    if skipped:
+        print(f"  note  {len(skipped)} of {len(plan)} endpoints will not be "
+              f"POSTed: {', '.join(skipped)}", file=sys.stderr)
+
+    # Every 5 when POSTing, every 20 when not. A POST runs the handler, so the
+    # window in which the device can stop answering is a window this sweep
+    # opened; 20 requests of it is 20 results that have to be re-run.
+    step = 5 if allow_post else 20
     for i, (name, origin) in enumerate(plan):
-        if i and i % 20 == 0:
+        if i and i % step == 0:
             require_control(host, port, f"before endpoint {i} of {len(plan)}")
         target = f"/boafrm/{name}"
+        if allow_post and name in HAZARDOUS and not allow_destructive:
+            out.append({"probe": "endpoint", "name": name, "origin": origin,
+                        "skipped": "hazardous", "reason": HAZARDOUS[name],
+                        "method_note": "not sent; see RUNBOOK 8.12.12"})
+            continue
         if allow_post:
             params = {"submit-url": "/status.htm"}
             check_params(params)
-            check_post(target, params)
+            check_post(target, params, allow_destructive)
             r = raw_request(host, port, "POST", target, body=urlencode(params))
             r["method_note"] = "POST with submit-url only; the handler ran"
+            # How long this one endpoint kept the device's only web server to
+            # itself. Recorded per endpoint, in the same run, unauthenticated
+            # and with no parameters beyond submit-url.
+            r["server"] = wait_ready(host, port)
+            if not r["server"]["ready"]:
+                raise ProbeError(
+                    f"after POST {target} the web server did not answer within "
+                    f"{r['server']['budget_s']:.0f}s. Stopping: that is either a "
+                    "handler that does not return or a server that has gone, and "
+                    "either way nothing measured after it is about the next "
+                    "endpoint")
         else:
             r = raw_request(host, port, "GET", target)
             r["method_note"] = "GET; the handler's parameter processing may not run"
         out.append({"probe": "endpoint", "name": name, "origin": origin, **r})
+    return out
+
+
+def handler_sink_profile() -> dict[str, list[str]]:
+    """Which sinks each `/boafrm/` handler reaches, from the committed report.
+
+    Used to split the endpoint list into "reconfigures the device" and "does
+    not" on evidence rather than on whether the name contains the word `Setup`.
+    A handler that calls system() or execl() is running ifconfig / route /
+    iptables / flash; one that calls neither is not.
+    """
+    doc = json.loads(SINKS.read_text("utf-8"))
+    sinks = doc.get("sinks")
+    if not isinstance(sinks, dict):
+        raise ProbeError(f"{SINKS} has no 'sinks' object; its shape changed")
+    prof: dict[str, list[str]] = {}
+    for sink_name, d in sinks.items():
+        for cs in d.get("call_sites") or []:
+            if cs.get("is_handler") and cs.get("caller"):
+                prof.setdefault(cs["caller"], []).append(sink_name)
+    if not prof:
+        raise ProbeError(
+            f"{SINKS} lists no handler call sites at all. Either the report was "
+            "generated before BoaFormTable named the handlers, or the "
+            "'is_handler' field moved -- and a classification built on an empty "
+            "profile would call every endpoint read-only")
+    return {k: sorted(set(v)) for k, v in prof.items()}
+
+
+def group_writes(host: str, port: int) -> list[dict[str, Any]]:
+    """P3-13 -- are the *write* endpoints outside the gate, like the read ones?
+
+    The prediction is that the gate only looks for `.htm` / `.asp` in the URI,
+    so write-class handlers sit outside it exactly as read-class ones do. Its
+    refutation is "write endpoints blocked while read ones are not -> the gate
+    is not a plain URI string test".
+
+    The obvious way to test that is to POST the write handlers, and it is the
+    wrong way: it runs them. But the claim is about the *gate*, and the gate
+    decides in process_header_end from the URI alone, before handleForm is ever
+    reached. So each name is probed in two URI shapes with GET:
+
+        /boafrm/formX        -- no `.htm` anywhere -> the gate should not run
+        /boafrm/formX.htm    -- contains `.htm`    -> the gate should run
+
+    If the second flips to `302 -> login.htm` while the first does not, the gate
+    is a URI string test and the endpoint's write-ness had no bearing on it --
+    which is exactly the demonstration `/config.dat` versus `/config.dat.htm`
+    already gave for a non-form path.
+
+    GET never reaches handleForm on this build (every `/boafrm/` GET redirects
+    in translate_uri), so **not one handler runs in this group**.
+    """
+    names, meta = load_endpoints()
+    prof = handler_sink_profile()
+
+    def classify(n: str) -> str:
+        sinks = prof.get(f"form_{n}") or prof.get(n) or []
+        spawns = [s for s in sinks if s in ("system", "popen", "execl", "execlp",
+                                            "execle", "execv", "execvp", "execve")]
+        return "spawns" if spawns else "quiet"
+
+    groups = {n: classify(n) for n in names}
+    n_spawn = sum(1 for v in groups.values() if v == "spawns")
+    out = RECORDS
+    out.append({
+        "probe": "writes-meta", **meta,
+        # Two groupings, and the difference between them matters more than
+        # either. The first is what the register's own text names; the second is
+        # what a committed report can actually measure.
+        "named_by_P3_13": sorted(NAMED_WRITE_ENDPOINTS & set(names)),
+        "classifier": "handler reaches a process-spawning sink in "
+                      + str(SINKS.relative_to(REPO)),
+        "classifier_measures": "spawning a process, NOT writing configuration",
+        "classifier_limit":
+            "A handler can persist configuration through apmib_set without "
+            "spawning anything, and formPasswordSetup is exactly that case: its "
+            "only tracked sink is strcpy, so this classifier calls it 'quiet' "
+            "while it plainly writes the admin credential. The split is a proxy "
+            "and it is reported as one. Naming which handlers write MIB needs an "
+            "apmib_set caller census, which no committed report carries -- "
+            "PROGRESS carried-forward.",
+        "spawns": sorted(n for n, v in groups.items() if v == "spawns"),
+        "quiet": sorted(n for n, v in groups.items() if v == "quiet"),
+        "counts": {"spawns": n_spawn, "quiet": len(names) - n_spawn,
+                   "no_sink_profile": sum(
+                       1 for n in names
+                       if not (prof.get(f"form_{n}") or prof.get(n)))},
+        "method_note": "GET only. GET never reaches handleForm on this build, "
+                       "so no handler runs in this group",
+    })
+    missing = NAMED_WRITE_ENDPOINTS - set(names)
+    if missing:
+        raise ProbeError(
+            f"P3-13's prediction names {sorted(missing)}, which the recovered "
+            "root_form[] does not contain. Either the register means a different "
+            "build or the table is short -- and comparing 'write endpoints' "
+            "against a set missing the ones the test names proves nothing")
+    if n_spawn == 0 or n_spawn == len(names):
+        raise ProbeError(
+            f"the classifier put all {len(names)} endpoints in one class, so it "
+            "separates nothing and the comparison it exists to make cannot be "
+            "made")
+
+    for i, name in enumerate(names):
+        if i and i % 20 == 0:
+            require_control(host, port, f"before write-probe {i} of {len(names)}")
+        for suffix in ("", ".htm"):
+            r = raw_request(host, port, "GET", f"/boafrm/{name}{suffix}")
+            out.append({"probe": "write-endpoint", "name": name,
+                        "klass": groups[name],
+                        "named_by_test": name in NAMED_WRITE_ENDPOINTS,
+                        "uri_shape": "bare" if not suffix else "with .htm", **r})
     return out
 
 
@@ -376,7 +681,99 @@ def group_gate(host: str, port: int) -> list[dict[str, Any]]:
          "/boafrm/formSysCmd?submit-url=/status.htm"),
         ("P2-5: GET a form handler, no parameters", "GET", "/boafrm/formWsc"),
     ]
-    out = []
+    # --------------------------------------------------------------------
+    # The unanchored-exemption test, added 2026-08-17 after the morning round.
+    #
+    # The morning tried twelve shapes that smuggle an exemption string into the
+    # path of a *protected* page. All twelve failed, and the conclusion drawn
+    # was "the comparison must be anchored or length-limited somewhere". That
+    # conclusion is wrong, and the reason the shapes failed is different: the
+    # path is normalised before the gate sees it, so `/login.htm/../password.htm`
+    # is already `/password.htm` by then and the substring is gone.
+    #
+    # BoaXref on process_header_end lists ten .htm names. Five of the ten
+    # (notice, notice_frame, iLogin, iReboot, iLink) are not shipped in the
+    # 143-file bundle at all. If the remaining five are matched UNANCHORED, then
+    # `status.htm` also exempts `wan_status.htm` and `Connect_status.htm` --
+    # which is exactly the seven pages the morning found served without
+    # credentials, and exactly the sixty-nine it found blocked. Seventy-six
+    # shipped pages, no error in either direction.
+    #
+    # That is a fit to existing data. These two requests are the part it did not
+    # see, and either one can refute it:
+    #
+    #   an absent .htm with no exemption substring -> the gate runs -> login.htm
+    #   an absent .htm CONTAINING one              -> exempt -> home.htm
+    #
+    # If the second answers login.htm, the model is dead and the morning's
+    # reading stands.
+    cases += [
+        ("UNANCHORED: absent .htm, no exemption substring (expect login.htm)",
+         "GET", "/zzqq.htm"),
+        ("UNANCHORED: absent .htm containing 'status.htm' (expect home.htm)",
+         "GET", "/zzqq_status.htm"),
+        ("UNANCHORED: absent .htm containing 'login.htm'",
+         "GET", "/zzqq_login.htm"),
+        ("UNANCHORED: absent .htm containing 'index.htm'",
+         "GET", "/zzqq_index.htm"),
+        ("control for the pair: a shipped page that IS exempt",
+         "GET", "/wan_status.htm"),
+        ("control for the pair: a shipped page that is NOT",
+         "GET", "/password.htm"),
+        # Five names the gate references that the bundle does not ship. If one
+        # of them answers unlike an ordinary absent page, the bundle is not the
+        # whole document root.
+        ("gate names it, bundle does not ship it", "GET", "/notice.htm"),
+        ("gate names it, bundle does not ship it", "GET", "/iLogin.htm"),
+        ("gate names it, bundle does not ship it", "GET", "/iReboot.htm"),
+        # process_header_end also references five /boafrm/ names -- formUpload,
+        # formUploadConfig and the three *Redirect ones. Whatever it does with
+        # them happens before handleForm, so a GET is enough to see whether the
+        # gate treats them unlike the other 52.
+        ("gate names this handler: formUpload", "GET", "/boafrm/formUpload"),
+        ("gate names this handler: formUploadConfig", "GET",
+         "/boafrm/formUploadConfig"),
+        ("gate names this handler: formOpdRedirect", "GET",
+         "/boafrm/formOpdRedirect"),
+        ("a handler the gate does NOT name, for comparison", "GET",
+         "/boafrm/formWsc"),
+    ]
+
+    # --------------------------------------------------------------------
+    # The question the unanchored result raises, and the one the morning round
+    # could not ask because it used the wrong strings.
+    #
+    # On 2026-08-17 morning, P2-2 tried `/password.htm?login=1`. The exemption
+    # tokens carry the extension -- `login.htm`, not `login` -- so that request
+    # contained no exemption string and its 302 proved nothing about the query.
+    #
+    # If the gate tests the URI *before* the query is split off, then appending
+    # `?x=status.htm` to a protected page is an authorisation bypass, and it
+    # needs no traversal, no encoding and no normalisation trick. If it tests
+    # the path only, every one of these stays 302 -> login.htm.
+    #
+    # These are GETs against pages the morning confirmed are gated
+    # (/password.htm, /tcpiplan.htm, /upload.htm all answered 302 -> login.htm).
+    # Nothing is written and no handler runs.
+    for page in ("/password.htm", "/tcpiplan.htm", "/upload.htm"):
+        cases += [
+            (f"BYPASS?: {page} with an exemption string in the query",
+             "GET", f"{page}?x=status.htm"),
+            (f"BYPASS?: {page} with a bare exemption string in the query",
+             "GET", f"{page}?status.htm"),
+            (f"BYPASS?: {page} with an exemption string in a fragment",
+             "GET", f"{page}#status.htm"),
+            (f"BYPASS?: {page} with an exemption string after a semicolon",
+             "GET", f"{page};status.htm"),
+            (f"BYPASS?: {page} with an exemption string as a path suffix",
+             "GET", f"{page}/status.htm"),
+        ]
+    cases += [
+        ("BYPASS control: the gated page, untouched", "GET", "/password.htm"),
+        ("BYPASS control: an exempt page, untouched", "GET", "/status.htm"),
+    ]
+
+    out = RECORDS
     for i, (label, method, target) in enumerate(cases):
         if i and i % 10 == 0:
             require_control(host, port, f"before gate case {i}")
@@ -409,7 +806,7 @@ def group_ssdp(host: str, port: int) -> list[dict[str, Any]]:
            'MAN: "ssdp:discover"\r\n'
            "MX: 2\r\n"
            "ST: upnp:rootdevice\r\n\r\n").encode("latin-1")
-    out = []
+    out = RECORDS
     for label, dest in [("unicast to the device", host),
                         ("multicast", "239.255.255.250")]:
         rec: dict[str, Any] = {"probe": "ssdp", "label": label,
@@ -437,11 +834,13 @@ def group_ssdp(host: str, port: int) -> list[dict[str, Any]]:
 
 
 GROUPS = {
-    "control": lambda h, p, _: [control(h, p)],
-    "fingerprint": lambda h, p, _: group_fingerprint(h, p),
-    "endpoints": group_endpoints,
-    "gate": lambda h, p, _: group_gate(h, p),
-    "ssdp": lambda h, p, _: group_ssdp(h, p),
+    "control": lambda h, p, a: [control(h, p)],
+    "fingerprint": lambda h, p, a: group_fingerprint(h, p),
+    "endpoints": lambda h, p, a: group_endpoints(h, p, a.allow_post,
+                                                 a.allow_destructive),
+    "gate": lambda h, p, a: group_gate(h, p),
+    "writes": lambda h, p, a: group_writes(h, p),
+    "ssdp": lambda h, p, a: group_ssdp(h, p),
 }
 
 
@@ -456,9 +855,22 @@ def main(argv: list[str] | None = None) -> int:
                          "change this unit's configuration. Take a 64 KiB config "
                          "snapshot before and after; tools/qemu-env.sh diff shows "
                          "what a write looks like")
+    ap.add_argument("--allow-destructive", action="store_true",
+                    help="also POST the handlers on the refusal list -- LAN "
+                         "addressing, the admin password, firmware and config "
+                         "upload, operating mode, reboot. Each is refused by "
+                         "name with its reason; this overrides all of them at "
+                         "once, which is why it is a separate flag from "
+                         "--allow-post and why the transcript records it")
     ap.add_argument("-o", "--output", help="JSON transcript (recommended)")
     args = ap.parse_args(argv)
+    if args.allow_destructive and not args.allow_post:
+        print("bench-probe: --allow-destructive without --allow-post does "
+              "nothing; the refusal list only applies to POSTs", file=sys.stderr)
+        return 2
 
+    records: list[dict[str, Any]] = RECORDS
+    stopped: dict[str, Any] | None = None
     try:
         if args.group != "control":
             # SSDP is the group that cannot survive a router in the path at all,
@@ -466,7 +878,7 @@ def main(argv: list[str] | None = None) -> int:
             # worse than one that is read.
             require_control(args.host, args.port, "before the run",
                             need_direct=(args.group == "ssdp"))
-        records = GROUPS[args.group](args.host, args.port, args.allow_post)
+        records = GROUPS[args.group](args.host, args.port, args)
         if args.group not in ("control", "ssdp"):
             # The spread goes first: `control()` sets "probe" itself, so putting
             # the literal first lets it be overwritten and the after-run control
@@ -475,8 +887,12 @@ def main(argv: list[str] | None = None) -> int:
             records.append({**require_control(args.host, args.port, "after the run"),
                             "probe": "control-after"})
     except ProbeError as e:
+        # Falls through to write the transcript. The run that stopped is the run
+        # whose transcript matters most, and until 2026-08-17 this branch
+        # returned before reaching the writer, discarding fifty-nine responses
+        # and the elapsed_ms that would have named the slow one.
+        stopped = {"reason": str(e), "requests_before_stopping": len(JOURNAL)}
         print(f"bench-probe: {e}", file=sys.stderr)
-        return 1
 
     doc = {
         "producer": "bench-probe/1",
@@ -484,7 +900,12 @@ def main(argv: list[str] | None = None) -> int:
         "host": args.host,
         "port": args.port,
         "allow_post": args.allow_post,
+        "allow_destructive": args.allow_destructive,
+        "stopped": stopped,
         "records": records,
+        # Every request this process made, in order, whether or not the group
+        # that made it finished. Duplicates `records` on a clean run, on purpose.
+        "journal": JOURNAL,
     }
     for r in records:
         st = r.get("status")
@@ -512,10 +933,23 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.output:
         Path(args.output).write_text(json.dumps(doc, indent=1, ensure_ascii=False), "utf-8")
-        print(f"wrote {args.output}")
+        print(f"wrote {args.output}"
+              + (f"  ({len(JOURNAL)} requests, run STOPPED)" if stopped else ""))
     else:
         print("  (no --output: nothing was recorded. A probe whose response is "
               "not kept is not evidence)", file=sys.stderr)
+
+    if stopped:
+        # The slowest requests before the stop, because on a single-process
+        # server the thing that stopped it is usually the thing that took the
+        # longest just before.
+        slow = sorted((r for r in JOURNAL if r.get("elapsed_ms") is not None),
+                      key=lambda r: -r["elapsed_ms"])[:5]
+        print("\n  slowest requests before the stop:", file=sys.stderr)
+        for r in slow:
+            print(f"    {r['elapsed_ms']:>7} ms  {r['method']} {r['target']}",
+                  file=sys.stderr)
+        return 1
     return 0
 
 

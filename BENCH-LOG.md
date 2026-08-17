@@ -1,6 +1,24 @@
 # 實機場次紀錄
 
 > **只追加。** 既有段落不修改 —— 一場做完就定版。
+> (本節是標頭,不是場次紀錄,所以它會隨規則變動;變動記在最新那一場裡。)
+
+## ⚠️ 這份檔案要配合 [`test-ledger.md`](test-ledger.md) 一起看
+
+**單獨讀這一份會誤解。** 本檔是**過程**:某一天實際打了什麼指令、實際看到什麼
+回應、以及當場發現自己哪裡做錯了。它**不是判定**。
+
+| 你想知道 | 去讀 |
+|---|---|
+| 「這個專案主張什麼,憑什麼,以及什麼情況下它會是錯的」 | **[`test-ledger.md`](test-ledger.md)** —— 130 項的預測、**事先凍結的反證條件**、判定、證據連結 |
+| 「那天到底發生了什麼」 | **本檔** |
+| 「怎麼自己跑一次」 | [`RUNBOOK.md` §8.12](RUNBOOK.md) |
+
+**兩者的關係是有方向的**:登記簿的每一列判定,證據欄指回本檔的某一段逐字紀錄;
+本檔的每一張紀錄卡,都對照它所屬那一項**在測試之前就寫好**的反證條件。
+**先寫反證條件、再送封包**,而 append-only + git 讓「寫在前面」可以被 diff 證明 ——
+這是這個 repo 唯一一件不肯妥協的事。**沒有事先寫下失敗長什麼樣的測試,事後一定
+會被讀成成功。**
 
 ## 這份檔案擁有什麼
 
@@ -8,8 +26,9 @@
 |---|---|
 | [`RUNBOOK.md` §8.12](RUNBOOK.md) | **程序** —— 可組合的小節,跨週共用,會被精煉 |
 | **本檔** | **每一場實際跑了什麼** —— 計畫(動手前寫的)、紀錄卡、逐字節錄、燒掉了什麼 |
-| [`study/test-cases.toml`](study/test-cases.toml) | 單項的預測 / 反證 / 判定 / 證據連結 |
+| [`test-cases.toml`](test-cases.toml) → [`test-ledger.md`](test-ledger.md) | 單項的預測 / 反證 / 判定 / 證據連結。**登記簿是來源,ledger 是生成的** |
 | [`PROGRESS.md`](PROGRESS.md) | gate、週、carried-forward |
+| [`docs/disclosure.md`](docs/disclosure.md) | 每一個發現的揭露狀態 |
 | `$FWRE_WORK/dumps/` | 原始 transcript、pcap、JSON。**不進 repo** |
 
 **因為本檔是逐字的,§8.12 可以自由精煉** —— 證據站在這裡,不站在程序文件上。
@@ -322,3 +341,375 @@ HTTP Basic**。`PROGRESS.md` 開放 #9 的問法要改。
 
 **開工順序**:`make todo WEEK=W05` → §8.12.1 → §8.12.4(注意 `usbipd attach`
 不會活過 WSL 重啟)→ §8.12.3 → 然後才是新項目。
+
+---
+
+# 2026-08-17（下午） — W05 收尾場
+
+**跑 §8.12.1 → 8.12.2 → §8.9.3 → 8.12.3 → 8.12.10 → 8.12.11 → 8.12.9 →
+8.12.4 → 8.12.5 → 8.12.12 → 8.12.7 → 8.12.3 → 8.12.8。**
+目標：**把 W05 剩下的五項打完，並把四項排錯週的移到它們該去的週。**
+
+## 這一場之前，桌面上先做完的事（不碰裝置）
+
+**上午那一場留下一個判斷：`P9-1`（`init=/bin/sh`）「回報最高」。**
+下午上機前先查了它的機制，結果是 —— **它沒有機制，而且這件事查得出來，不必燒開機循環。**
+
+| 查了什麼 | 結果 |
+|---|---|
+| bootloader 的 `?` 有沒有漏印指令 | **沒有。** 16 條全部對得上 binary 自己的字串表 |
+| loader 裡有沒有 cmdline / 環境變數 | **13 個針，0 命中**；同一次掃描找到全部 17 個已知指令 |
+| flash 裡有沒有可改的 cmdline 明文 | **整顆 4 MiB 沒有。** 它在 `cr6c` 的 LZMA 酬載裡 |
+
+**而查得到的原因本身是這一場最大的一個更正：整顆 dump 裡沒有任何一個
+bootloader 字串是明文的。** `0x0012F0` 起是 LZMA，17,334 → 56,592 bytes，
+指令直譯器整個在裡面。工具：`tools/loader-unpack.py`（`make loader-report`），
+它在 17 個指令沒找齊時拒絕出報告。詳見 `RUNBOOK.md` §8.9.2 的方框。
+
+## 這一場的計畫（動手之前寫的）
+
+| 目標 | 事先寫下的成功條件 |
+|---|---|
+| **開放 #17** `FLW` 磁區語意 | `DB 80560000 8` / `FLR 80560000 3F0100 8` / `Y` / `DB 80560000 8`。**`ca fe ba be` → 讀-改-抹-寫回；`ff ff` → 整磁區抹掉，寫 flash 風險全部上調** |
+| `P0-10` 快照 | 與 8/16 完整 dump 的前 64 KiB 相同（POST 之前那一份） |
+| `P0-5` IoC 預檢 | **POST 之前**維持 4 / 343；IoC 埠全 closed |
+| `P9-1` cmdline | `Kernel command line:` 印出來的**沒有多任何東西** → 與靜態那側一致，**判 refuted** |
+| `P9-3` 救援 | `AUTOBURN: 0` 先送並回 `AutoBurning=0`；`IPCONFIG:10.1.1.1` 後主機 `ping` 有回應，且 `ip neigh` 的 MAC 是這台 |
+| `P1-12` 開機時間 | console 第一行時間戳到 HTTP 第一個 200，**< 40 秒** |
+| `P1-4` 端點 | 57 + 3 + 4 個名字全部 POST（**扣掉拒絕清單**），非 404，且對照組全程 200 |
+| `P3-13` 寫入端點 | 寫入類 handler 與讀取類一樣在門外（gate 只看 `.htm`/`.asp`） |
+
+## 這一場事先決定、而且要被 diff 證明是事先決定的三件事
+
+**1. POST 掃描一定會改設定，所以基準改用「歸因」而不是「守住」。**
+IoC 預檢凍結的條件是 4 / 343。POST 之後那個數字會變，而且**應該**變。
+所以前後各一份 64 KiB 快照，差異逐欄位歸因到哪一輪，新數字成為新基準。
+守住只證明沒動到；歸因證明了動了什麼、被誰動的。
+
+**2. 有一份拒絕清單，寫在打之前。**
+`reports/ghidra-sinks-unit-2018.json`：57 個 handler 裡 23 個呼叫 `system()`、
+13 個 `execl()`。不打的是 `formTcpipSetup` / `formWanTcpipSetup` / `formVlan`
+（會失去這台，而且後面每個端點都變偽陰性）、`formPasswordSetup`（會毀掉
+CVE-2019-19823 的端到端鏈）、`formUpload` / `formUploadConfig`、
+`formOpMode*` / `formWizard` / `formReboot*`。理由逐條在 `RUNBOOK.md` §8.12.12。
+
+**3. `P9-3` 只做到「進得去」為止。** 它凍結的反證條件只問這個，沒有要求上傳。
+`AUTOBURN: 0` 在 `IPCONFIG` 之前送，順序不可換。
+
+## 這一場明確不做的
+
+| | 為什麼 |
+|---|---|
+| `P3-1` / `P3-2` / `P3-3` 開火 | 計畫 §五：本週不做正式 PoC。**登記簿的 `week` 改成 W06**，理由入案 |
+| `P9-9` reset | 破壞性。**改成 W07**，理由入案 |
+| TFTP 上傳任何檔案 | §8.12.11 的上限 |
+| 呼叫任何 UPnP SOAP action | 與上午同一條 |
+
+## 上機之前多出來的一條預測（Ghidra，寫在送出之前）
+
+跑 `BoaXref` 追 `formOpdRedirect` / `formWanRedirect` / `formWlanRedirect2`
+（外加一個不存在的名字當負對照組）之後，掉出兩件不在計畫裡的事。
+
+**① 開放 #23 有答案了。** 那三個名字**不是** `handleForm` 的 handler：
+
+| | |
+|---|---|
+| 引用者 | `init_get` (`0x00407b7c`) 與 `process_header_end` (`0x0040bb1c`) |
+| `init_get` 的字串 | `formWlanRedirect` · `formWanRedirect` · `tcpipwan.htm` · `formOpdRedirect` · `opmode1.htm` · `redirect-url=` · `&wlan_id=` |
+| `formWlanRedirect2` | **unresolved —— 沒有任何函式引用它**。字串在 `.rodata` 裡，但是死的 |
+
+所以 `root_form[]` 的 57 不是錯的，**它對 `handleForm` 是完整的**；另有一條更早的
+路徑在 `init_get` 裡特判三個 `*Redirect`。而 `formWlanRedirect2` 早上實測「與不存在
+的名字無法區分」——**三個來源一致：字串在、無人引用、裝置當它不存在。**
+
+**② 早上關於閘門的結論是錯的，而這裡有一條可以否證新說法的測試。**
+
+`process_header_end` 引用 10 個 `.htm` 名字，其中 **5 個 (`notice` `notice_frame`
+`iLogin` `iReboot` `iLink`) 根本不在出貨的 143 檔裡**。若比對是**未錨定子字串**，
+`status.htm` 會同時豁免 `wan_status.htm` 與 `Connect_status.htm`：
+
+```
+模型預測豁免 : Connect_status countDownPage countDownPageWizard index login status wan_status
+早上實測豁免 : Connect_status countDownPage countDownPageWizard index login status wan_status
+差集（兩向） : 空
+```
+
+**76 個出貨的 `.htm`，7 豁免 / 69 擋，逐一相符。**
+早上寫的「comparison is anchored or length-limited somewhere」不成立。
+十二種形狀失敗的真正原因是**路徑在閘門看到之前就被正規化了** ——
+`/login.htm/../password.htm` 到那時候已經是 `/password.htm`，子字串沒了。
+
+> ⚠️ **但以上是拿模型去配已有的資料。** 下面兩條是它沒看過的，任一條都能殺死它：
+>
+> | 請求 | 模型預測 | 反證 |
+> |---|---|---|
+> | `GET /zzqq.htm`（不存在，無豁免子字串） | `302 → login.htm`（門跑了） | 回 `home.htm` → 門根本沒在跑 |
+> | `GET /zzqq_status.htm`（不存在，含 `status.htm`） | `302 → home.htm`（豁免） | **回 `login.htm` → 模型死，早上的讀法成立** |
+
+**③ 而閘門也點名了五個 `/boafrm/` 端點** —— `formUpload`、`formUploadConfig`
+以及三個 `*Redirect`。**`P3-13` 的預測點名的三個裡有兩個就在這張表上。**
+所以本場對 `P3-13` 的問題比登記時更尖銳：不是「寫入類在不在門外」，而是
+**「閘門為什麼特地點名這兩個」**。用 GET 探（不執行 handler）。
+
+## 紀錄卡
+
+```
+T-06  開放#17  FLW 的磁區語意                            11:00
+      指令: console-dump.py dump --at-prompt --flash 0x3F0100 --length 8
+                              --ram 0x80560000 --chunk 8
+      對照組: FLR flash 0x000000 -> 0x80560000, 期望 0b f0 00 04 -> 命中
+      讀出:  cafe babe cafe babe
+      判定: ✅ 讀-改-抹-寫回,而且**保留磁區其餘內容**
+      反證檢查: 測前寫「ca fe ba be → 讀-改-抹-寫回;ff ff → 整磁區抹掉,
+                寫 flash 風險全部上調」。前者成立
+      ⚠️ 為什麼這次的證據比 07:47 那次硬: 對照組先把 flash 0x0 讀進**同一個**
+         RAM 位址,所以真正讀取之前那塊 RAM 裝的是第三種東西 ——
+         「換一個沒用過的位址」還是不知道裡面是什麼,這個知道
+
+T-07  P0-10   64 KiB 快照(POST 之前)                    11:02
+      檔名: dumps/config-region-20260817-1102-pre.bin   sha256 78186d2b…
+      與 8/16 完整 dump 前 64 KiB: **IDENTICAL**
+      判定: ✅ 而且它同時是一個對照組 ——
+            8/16 之後這台開機至少三次、跑過完整 GET 輪、成功登入過一次,
+            設定區**一個 byte 都沒變**。所以稍後 POST 造成的差異可以歸因
+
+T-08  P0-5    IoC 預檢                                   11:03
+      COMPCS / COMPDS 各 344 筆,共同 343 筆
+      差異: 4 —— CHECK_SSID_OK · DHCP_LEASE_TIME · MIB_VER · WLAN_SSIDS
+      兩區 checksum_ok=True, ring_fill_agrees=True, verdict=consistent
+      判定: ✅ 凍結條件「4 / 343」MET,四個名字與 07:35 那次相同
+
+T-09  P9-3    救援路徑(非破壞性上限)                    11:05
+      AUTOBURN: 0        -> Unknown command !
+      AUTOBURN 0         -> AutoBurning=0            ★ 空格才是語法
+      IPCONFIG:10.1.1.1  -> Unknown command !
+      IPCONFIG 10.1.1.1  -> Now your Target IP is 10.1.1.1
+      主機端: ping 4 送 0 收;ip neigh = REACHABLE;rx_packets 0 -> 1
+      TFTP RRQ(不存在的檔名) -> **516 bytes DATA (opcode 3) from :2098**
+      判定: 🔶 部分 —— 救援進得去、網路活著、TFTP 服務會回應;
+            但預測寫的是「tftp **put** 可用」,而 put 依這一場的上限不做
+      反證檢查: 凍結條件只問「救援模式進不進得去」。進得去,不成立
+      ⚠️ 我自己寫在計畫裡的成功條件是「ping 有回應,且 MAC 是這台」——
+         **兩半都不成立,而那是我的條件寫錯了**:TFTP-only 的堆疊沒有義務
+         實作 ICMP,而 loader 的 MAC 是從 IP 合成的(0a 01 01 01 = 10.1.1.1)。
+         凍結的那一條沒有要求這些
+      計畫外: TFTP GET 不看檔名,吐的 516 bytes 與 flash 0x060010 起的
+              cr6c 酬載逐 byte 相同。列為開放題,本週不追
+
+T-10  P1-12   上電到 web 可服務                          11:11
+      工具: tools/coldboot-timing.sh(一次上電同時餵三項)
+      +0.00  第一個 console 字元          +6.91  Uncompressing Linux... done
+      +0.61  ---RealTek(RTL8196E) v1.3    +14.02 init started: BusyBox v1.13.4
+      +5.84  Jump to image start=0x80500000
+      +32.50 boa: starting server pid=350, port 80
+      +38.76 **第一個 HTTP 200**
+      判定: ✅ 成立(預測 < 40 秒)
+      反證檢查: 測前寫「**明顯**超過 40 秒 → bootlog 時間戳不是牆鐘時間,
+                或有服務是延遲啟動的」。38.76 不是明顯超過
+      ⚠️ 但餘裕只有 1.24 秒,而 **t=0 是第一個 console 字元不是通電瞬間**,
+         所以 38.76 是下界。而且 boa 自報啟動之後還有 6.3 秒不能服務。
+         這一項的用途是「掃太早會把沒起來的服務讀成關的」——實務結論是**等 45 秒**
+
+T-11  P9-1    bootloader 能不能傳 kernel cmdline         (靜態,11:1x 補動態)
+      A 儀器: loader stage 2(flash 0x0012F0 起 LZMA, 17,334 -> 56,592)
+              13 個 cmdline 形狀的針 -> **0 命中**
+              同一次掃描找到 `?` 印的全部 17 個指令(找不齊就拒絕出報告)
+      B 儀器: 裝置 console 的 `?` -> 16 條,與 A 的字串表逐條相符
+      C 儀器: kernel(flash 0x060010+0x2808 起 LZMA, 976,470 -> 3,374,772)
+              0x2f9590  console=ttyS0,38400 root=/dev/mtdblock1   ← 沒有 init=
+              0x2d8590  No init found.  Try passing init= option to kernel.
+              "Kernel command line" -> **ABSENT**
+      D 觀測: 開機 log 全程沒有 `Kernel command line:` ——
+              而 C 說那個字串不在 image 裡,所以它**永遠印不出來**
+      判定: ❌ 反證成立(static)
+      反證檢查: 測前寫「改了 init 之後仍然進正常開機 → cmdline 不是從
+                bootloader 傳的」。**前件無法構成** —— loader 沒有任何指令
+                可以表達它。而 C 顯示 kernel 會認 init=,缺的完全在 loader 那側
+
+T-12  P3-13   未認證的設定「寫入」端點盤點              11:2x
+      工具: bench-probe writes(**GET only,一個 handler 都沒執行**)
+      全部 57 個 /boafrm/formX      -> 302 → home.htm  (門沒跑)
+      全部 57 個 /boafrm/formX.htm  -> 302 → login.htm (門跑了,擋掉)
+      唯一例外: formLogin.htm -> 404 —— `formLogin` 在豁免清單上
+      測試自己點名的三個(formUpload / formPasswordSetup / formSaveConfig)
+      與其餘 54 個**完全同一種行為**
+      判定: ✅ 成立
+      反證檢查: 測前寫「寫入類被擋而讀取類沒被擋 → 門不是純 URI 字串比對」。
+                兩類逐一相同,不成立
+
+T-13  P1-4    57 個端點 POST 存在性                      11:3x / 11:4x
+      跑了兩次,結果高度一致:
+        送出 POST 34 / 36    有回應 31 / 32    無回應 3 / 4
+        狀態碼: 200 ×4, 302 ×27–28,**零個 404**
+        302 去向: msg.htm ×13, status.htm ×11–12, countDownPage.htm ×2,
+                  login.htm ×1(= formLogout,合理)
+        依名字拒打: 13(拒絕清單,理由逐條在 RUNBOOK §8.12.12)
+      **formSysCmd -> 302 → status.htm, 10 ms** ← W05 DoD 第 5 項 (b) 關掉
+        而它可證明沒有執行任何東西:handler 是
+        `if (*cmd != '\0') { … system(buf); }`,而 sysCmd 缺席
+      判定: 🔶 部分
+      反證檢查: 測前寫「大量端點回 404 或連線中斷 → **先確認是不是自己把
+                boa 打掛了**,再下端點不存在的結論」。
+                連線確實中斷了,而我們確認了是自己打掛的 —— 逐項 elapsed_ms、
+                會重試的對照組、以及 console 全程無訊息
+```
+
+## 這一場最重要的一個計畫外結果
+
+**未認證、不帶任何參數的 POST,可以把這台唯一的 web server 佔住好幾秒;
+連續約 45 個就把它徹底弄掉,而且它不會自己回來。**
+
+```
+9650 ms  POST /boafrm/formPortFw          6009 ms  POST /boafrm/formSysLog
+6359 ms  POST /boafrm/formPocketWizard    6008 ms  POST /boafrm/formRoute
+                                          6007 ms  POST /boafrm/formWlanSetup
+```
+
+`boa` 在這台是**單一 process**(`boa: starting server pid=350`),handler 呼叫
+`system()` / `execl()` 期間它不回到 accept 迴圈,backlog 滿了之後新連線被拒。
+兩次獨立的掃描都在第 45 個附近死掉。死掉之後:
+
+- `ping` 全程正常 —— **kernel 活著,只有 boa 不見了**
+- console **一行訊息都沒有** —— 沒有 oops,沒有任何字
+- 超過 20 分鐘後 `boa` 仍然沒有回來 —— `rcS` 是一次性啟動它的,不是 respawn
+
+**這與 `P4-1`(不帶 submit-url 往唯讀段 strcpy)是不同的一條。** 這一條**帶**
+`submit-url`,而且完全合法。歸類與影響評估留給 W06/W07,`docs/disclosure.md`
+先記一筆。
+
+## 這一場的四個儀器缺陷
+
+1. **`console-dump.py` 擋掉 `AUTOBURN` —— 在這一格是反的。** 那是唯一一個
+   「讓後面每件事變安全」的指令,擋掉它等於把它推回給手指,而旁邊就是相反的值。
+   → 新增 `rescue` 子指令,**只送得出 0**,而且驗回應。
+2. **說明文字不是語法。** `AUTOBURN: 0` / `IPCONFIG:<addr>` 都回 `Unknown
+   command !`;loader 的字串表把指令 token 和說明行分開存。這是這顆 loader
+   第三次文件與 parser 不一致(前兩次:`HELP` 不能用、`FLR`/`FLW` 的 Y 提示標點)。
+3. **`bench-probe` 中止時一個 byte 都不寫。** 它偵測到最有價值的事件,然後在
+   同一個動作裡把該事件的證據銷毀 —— 59 筆回應連同逐項 elapsed_ms。
+4. **`set -o pipefail` + `grep -q` 又來一次**,由我,寫進守衛套件裡,
+   而 `PROGRESS.md` 當天就把它記為儀器 bug 15。
+
+## 這一場燒掉了什麼
+
+| | |
+|---|---|
+| flash 寫入 | **零** —— `FLR`/`DB` 全是讀 |
+| 裝置設定 | **有改,而且是計畫內的**:約 70 個 handler 被 POST 執行過(兩輪) |
+| web 服務 | `boa` 目前不在。**斷電重開即復原**,不需要救援路徑 |
+| 不可逆 | 無 |
+
+> 🔴 **下一場的 IoC 預檢不會是 4 / 343,而那是預期的。**
+> 凍結條件是對「這一場之前」的狀態寫的。POST 輪之後基準必須重新建立,
+> 而重建的方式是**歸因**而不是重設:POST 之後的 64 KiB 快照與
+> `config-region-20260817-1102-pre.bin` 逐欄位比對,差異逐項對到哪一輪。
+> **看到不是 4 就當資安事件處理是錯的 —— 先讀這一段。**
+
+## POST 之後的快照,以及歸因
+
+```
+T-14  P0-10   64 KiB 快照(POST 之後)                    12:0x
+      檔名: dumps/config-region-20260817-post.bin   sha256 2c7fd9c4…
+      與 pre 逐 byte: **14,068 bytes 不同**
+
+      分區:
+        0x00000-0x06000  boot loader                      UNCHANGED
+        0x06000-0x08000  H601 (MAC + 射頻校準)            **UNCHANGED**
+        0x08000-0x0c000  COMPDS 出廠預設                  7,105 bytes changed
+        0x0c000-0x10000  COMPCS 現行設定                  6,963 bytes changed
+
+      三份解碼全部 checksum_ok=True / verdict=consistent / 344 筆
+```
+
+**歸因成立,而且它比預期的嚴重。**
+
+| | |
+|---|---|
+| COMPCS 改了 | **19** 個欄位 |
+| COMPDS 改了 | **23** 個 = 同樣那 19 個 **＋ 原本區分兩者的那 4 個** |
+| 那 4 個的方向 | `CHECK_SSID_OK` `0→1`、`DHCP_LEASE_TIME` `0.0.0.0→0.0.1.224`、`MIB_VER` `0→1`、`WLAN_SSIDS` 全零→現行值 —— **每一個都是 COMPDS 移動到 COMPCS 的值** |
+| 新基準 | COMPCS vs COMPDS 現在差 **0 / 343** |
+
+**所以:一次未認證的設定寫入,同時把出廠預設區覆蓋成現行設定。**
+
+這一句話有兩個後果,第二個比第一個重要:
+
+1. **`PROGRESS` 開放 #20 答完了。** 它問「`flash set` 對設定 MIB 不落地、
+   `flash write-current` 也沒寫,那到底什麼東西會持久化 COMPCS」。
+   答案:**一個未認證的 form handler POST**,而且它同時寫兩區。
+2. **在這個 build 上,「恢復原廠設定」還原的是攻擊者寫進去的那一份。**
+   `P9-9` 的預測是「reset 會把 COMPCS 覆寫回 COMPDS」。如果那成立,
+   而 COMPDS 已經等於被改過的 COMPCS —— **reset 按鈕不是復原路徑。**
+   唯一的復原是從裝置外的副本重寫。
+
+> 🔴 **而 `P9-9` 被延到 W07 的理由,正是為了保護這 4 / 343。**
+> 它被一個沒有任何警告標籤的測試毀掉了。
+> **風險登記簿的失效模式不是漏掉危險的動作,是把危險寫在響亮的那一個上面。**
+
+**改掉的欄位,沒有一個往危險的方向走**(值只印旗標,不印識別碼):
+
+```
+SSH_ENABLED               1 -> 0        UPNP_ENABLED              1 -> 0
+PING_WAN_ACCESS_ENABLED   1 -> 0        ALG_SIP_ENABLED           1 -> 0
+VPN_PASSTHRU_{IPSEC,L2TP,PPTP}_ENABLED  1 -> 0
+AUTHG_LOGIN               0 -> 1        IGMP_PROXY_DISABLED       0 -> 1
+DHCP_ROUTE{1,2,3}         0 -> 1        IPV6_ULA_MODE             0 -> 1
+DHCP_MTU_SIZE          1500 -> 0        NOTICE_ENABLED            0 -> 208  ★
+```
+
+★ **`NOTICE_ENABLED` 被寫成 208。** 那是一個布林旗標,而 handler 在參數缺席時
+把一個不是 0 也不是 1 的值寫了進去 —— 「accessor 的預設值」不是零,是別的東西。
+`form_formNotice` 是唯一只呼叫 `system()` 的 handler。**這是一條線索,不是結論。**
+
+**還原路徑(不在本場的上限內,建議排在 W06 開場):**
+
+```
+pre 快照:  dumps/config-region-20260817-1102-pre.bin   (與 8/16 完整 dump 的前 64 KiB 相同)
+要還原的:  0x8000-0xC000 (COMPDS) 16 KiB —— COMPCS 是現況,不需要還原
+方法:      FLR 讀出比對 -> EB 灌 RAM -> FLW 寫回 -> 新 RAM 位址讀回驗證
+           今天已知 FLW 是讀-改-抹-寫回且保留磁區,所以 16 KiB = 4 個磁區
+```
+
+## 下一場從哪裡開始
+
+**W05 = 登記簿 27/27。** 這一場結束時裝置的狀態:
+
+| | |
+|---|---|
+| 電源 | 停在 `<RealTek>`(拍完快照之後沒有再開機) |
+| `boa` | 上一次開機時被 POST 輪弄掉了;**斷電重開即恢復** |
+| COMPDS | **已被覆蓋為 COMPCS 的內容**。副本在 `config-region-20260817-1102-pre.bin` 和 8/16 完整 dump |
+| `H601` | 未動 |
+| IoC 凍結條件 | **不再是 4 / 343,是 0 / 343** —— 這是預期的,見上 |
+
+**W06 開場的三件事,照這個順序:**
+
+1. **還原 COMPDS**(上面那段),然後重新建立 IoC 基準 —— 之後才有對照組
+2. `RUNBOOK` §8.12.0 的 W06 組合:1 → 2 → 3 → 4 → 8
+3. **懸著的兩件**:TFTP GET 會吐記憶體內容(可能是把 4 MiB 讀取從 105 分鐘變成幾秒的路徑);
+   以及那條未認證 POST 讓 `boa` 停擺、不自我復原的路
+
+## 對標頭的兩處更動,以及一個沒解決的矛盾
+
+**1. 標頭加了「要配合 `test-ledger.md` 一起看」。** 單獨讀本檔會把過程讀成結論。
+同時 `test-cases.toml` 與 `test-ledger.md` 從 `study/` 移到 repo 根目錄 ——
+理由是可發現性:一個第一次打開這個 repo 的人看得到根目錄,不會知道要進 `study/`。
+
+**2. 標頭原本複述了一條遮蔽規則,現在改成指向 `docs/disclosure.md`。**
+理由是這個 repo 自己的規矩:**一份狀態只有一個擁有者**。標頭複述規則,就是第二個擁有者。
+
+> 🔴 **而複述的那一份已經跟現實不符,這一點必須寫下來而不是修掉。**
+> 標頭原本寫「per-unit 識別碼(MAC、SSID、`config.dat` 內容、射頻校準值)不寫進來」,
+> 而 **2026-08-17 上午那一場的 `R1` 段落裡有兩個 MAC 位址**(隔離確認的
+> 「剛好兩個 MAC」)。本檔只追加,所以那一段不動。
+>
+> **兩種可能,而我不打算替作者選:**
+> - 那條規則是對的 → 上午那一段是違規,要走一次 git 歷史重寫,而那是一個
+>   有成本、要作者決定的動作;
+> - `docs/disclosure.md` 的 per-field 決定(自購、已停產、從未部署)涵蓋 MAC
+>   → 那條規則本身寫得太寬,該由 `docs/disclosure.md` 收斂。
+>
+> **這是 W06 的第一件事,而不是一個註腳。** 公開的 repo 裡有一個
+> 「說不寫卻寫了」的欄位,對敵意讀者而言那不是疏忽,那是關於這個專案自我檢查
+> 有多可靠的資料點。
+

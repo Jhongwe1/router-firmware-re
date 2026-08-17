@@ -35,6 +35,45 @@ function in the binary.
 > radio calibration, which exist nowhere else — is inside one such sector, and
 > so is the `HW_WLAN0_WSC_PIN` that W06's proof-of-concept writes.
 >
+> **W05 closed at 27 of 27 with the definition of done complete.** Four cases
+> scheduled for the week were ones the week's own plan forbids running — three
+> command injections it defers to W06, and the reset button, which is
+> destructive — so its closure command could never have reached zero. They were
+> moved with a reason, a date and a hash re-declared in the same commit;
+> `[schedule].sha256` now makes a week that moves show up in a diff, the same way
+> `[freeze].sha256` already did for a prediction.
+>
+> **The boot loader's own strings are not in the flash dump.** `grep FLR` over
+> 4 MiB finds nothing, and that had been read as *the loader is terse*. At
+> `0x0012F0` there is an LZMA stream, 17,334 bytes in and 56,592 out, holding the
+> command interpreter, the TFTP client and the SPI chip table. Unpacking it
+> settles `P9-1` from the desk: thirteen command-line-shaped needles, **zero
+> hits**, from a scan demonstrated in the same run to find all seventeen commands
+> the console prints. The kernel, decompressed from the same dump, carries
+> `console=ttyS0,38400 root=/dev/mtdblock1` compiled in and **no `init=`** — so
+> the boot loader has nowhere to put one, and the prediction that it could was
+> refuted without spending a power cycle.
+>
+> **The authorisation gate predicted three pages nobody had looked at.** W04-2
+> read eleven exemption strings out of `process_header_end` at instruction level.
+> Five name pages the firmware does not ship; an unanchored substring test over
+> the rest predicts exactly seven exempt pages — including `wan_status.htm` and
+> `Connect_status.htm`, which are unauthenticated only because `status.htm` is a
+> substring of them. Seven predicted, seven observed, sixty-nine blocked, **no
+> error either way across all 76 shipped pages** — and then `/boafrm/formLogin.htm`
+> answered `404` where the other fifty-six answered `302`, because `formLogin` is
+> on that list too. It is still not a bypass, and the reason is sharper than "it
+> did not work": the exemption and the file lookup read the same normalised path,
+> so any path decorated enough to become exempt is one the server then fails to
+> open.
+>
+> **And an unauthenticated POST with no parameters at all holds the device's
+> single web server for four to ten seconds; about forty-five in sequence remove
+> it until someone cuts the power.** `ping` keeps answering, the console prints
+> nothing, and nothing respawns `boa`. Separately, that POST round overwrote the
+> **factory-default** configuration region with the current one — so on this
+> build, "restore factory defaults" would restore whatever was last written.
+>
 > **And then it was put on an isolated segment and asked 22 of the 31 questions
 > that were frozen before the first packet.** An unauthenticated
 > `GET /config.dat` returns 7,490 bytes whose SHA-256 is **identical to flash
@@ -388,7 +427,7 @@ that is not backed by a command someone else can re-run.
   - [x] **the `FLW` recovery path rehearsed** — this is G3.5 #5, cited and not restated. Closed 2026-08-17
   - [x] **isolation verified** — exactly two MAC addresses on the segment, eight packets each, no DNS and nothing outbound. The control is that the capture recorded 16 packets at all: an earlier one recorded **zero**, and zero proves nothing until the link is known to deliver
   - [x] **IoC pre-check** — both halves, against criteria written before the check: **the live config differs from this unit's own factory baseline in 4 of 343 entries**, no fifth, and every port the register named is closed
-  - [x] **the prediction ledger is frozen** ← [`study/test-ledger.md`](study/test-ledger.md) — 128 registered tests, 98 carrying a written refutation condition, hashed and committed **before any request is served**
+  - [x] **the prediction ledger is frozen** ← [`test-ledger.md`](test-ledger.md) — **130** registered tests, **102** carrying a written refutation condition, hashed and committed **before any request is served**; W05 closed **27 of 27**
   - [x] **the disclosure register is written** ← [`docs/disclosure.md`](docs/disclosure.md) — eight candidate originals, what each is worth, and the rule that decides what gets published
 
   > ### ★ Why this gate exists
@@ -439,7 +478,9 @@ that is not backed by a command someone else can re-run.
 
 | Path | |
 |---|---|
-| [`RUNBOOK.md`](RUNBOOK.md) | **Start here to reproduce this.** Step-by-step from a bare Windows machine, written for someone with no reverse-engineering background. Every command carries its real expected output. (Traditional Chinese) |
+| [`REPRODUCE.md`](REPRODUCE.md) | **Start here.** Which claims you can verify with a clone alone, which need an N150RT of your own, and **which are not reproducible by anyone but the author — and why.** Also: the one five-minute check worth running first |
+| [`runsheet.md`](runsheet.md) | **The commands.** One section per step, front to back: what to paste, the **verbatim** output to compare against, a stop condition, and the gotcha that bites at that step. Physical actions marked. `make ci` verifies every command in it still resolves (Traditional Chinese) |
+| [`RUNBOOK.md`](RUNBOOK.md) | **Why each step exists**, and how it went wrong the first time. The reference behind the runsheet — it holds the reasoning, the runsheet holds the commands, and neither repeats the other (Traditional Chinese) |
 | [`PROGRESS.md`](PROGRESS.md) | Gate status — the evidence behind every box above |
 | [`notes/anatomy-n150rt.md`](notes/anatomy-n150rt.md) | How the firmware is built: container format, flash map, binaries, mitigations |
 | [`notes/hardware-inspection.md`](notes/hardware-inspection.md) | **What the board actually is** — five ICs, the 4 MiB flash that W01 predicted, and a column of second sources that is still empty |
@@ -451,7 +492,7 @@ that is not backed by a command someone else can re-run.
 | [`notes/prior-art.md`](notes/prior-art.md) | Who disclosed what, when — and which claims survive contact with these images |
 | [`notes/cve-status.md`](notes/cve-status.md) | **Per-CVE, against the build this unit runs** — five located in its own binary, two refuted by it, and two published endpoint names that exist in no dispatch table |
 | [`docs/disclosure.md`](docs/disclosure.md) | **The disclosure register** — what might be new, what state it is in, and the rule separating a finding from a reproduction from tradecraft |
-| [`study/test-ledger.md`](study/test-ledger.md) | **The test register, generated** — 128 tests with their predictions frozen before the first request, what would refute each, and what nine items were cut and why (Traditional Chinese) |
+| [`test-ledger.md`](test-ledger.md) | **The test register, generated** — 130 tests with their predictions frozen before the first request, what would refute each, and what nine items were cut and why (Traditional Chinese) |
 | [`notes/attack-surface.md`](notes/attack-surface.md) | Where to look, ranked |
 | [`notes/ghidra-triage.md`](notes/ghidra-triage.md) | Which functions to open first, and why — with the three W01 calls W03 overturned |
 | [`notes/dispatch-table.md`](notes/dispatch-table.md) | `root_form[]` recovered: every `/boafrm/` route in both builds, and what changed between them |
@@ -479,19 +520,36 @@ that is not backed by a command someone else can re-run.
 
 ## Reproducing
 
-[`RUNBOOK.md`](RUNBOOK.md) walks through this from a bare Windows machine,
-assuming no prior reverse-engineering knowledge. The short version:
+**[`REPRODUCE.md`](REPRODUCE.md) first** — it says which of the claims above you
+can verify with a clone alone, which need an N150RT of your own, and which are
+not reproducible by anyone but the author. The commands themselves, one section
+per step with its expected output and its stop conditions, are in
+[`runsheet.md`](runsheet.md); the reasoning behind each is in
+[`RUNBOOK.md`](RUNBOOK.md).
 
 ```bash
+make doctor    # is this machine ready? every failure names the command that fixes it
 make setup     # install the toolchain (Linux side)
 make verify    # G0: every tool answers when called
 make fetch     # download + hash-verify the firmware (not redistributed here)
 make unpack    # carve and extract the root filesystems
 make recon     # regenerate everything under reports/
-make test      # fwrecon test suite
+make ci        # 205 checks — and 95 of them exist to prove the tools can refuse
 make rtcase    # G3.75: the test register is frozen, every result carries evidence
-make ledger    # regenerate study/test-ledger.md from the register
+make ledger    # regenerate test-ledger.md from the register
 ```
+
+**If you have five minutes and no hardware**, run this one:
+
+```bash
+bash tools/test-loader-unpack.sh
+```
+
+Seven cases, no device and no downloads. It builds five deliberately broken
+synthetic boot-loader images and checks the unpacker refuses each **for the right
+reason**, then unpacks a good one as the positive control — because a tool that
+always refuses and a tool that refuses correctly are indistinguishable in a suite
+made only of refusals.
 
 ```powershell
 # Windows side: pinned JDK 21 + Ghidra 12.1.2, no admin rights needed

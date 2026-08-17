@@ -131,19 +131,32 @@ stage_unblob() {
 }
 
 stage_path() {
-  # rustup ran with --no-modify-path and pipx installs into ~/.local/bin, so an
-  # interactive login shell would not see binwalk or unblob. Write one idempotent
-  # snippet rather than letting each installer append its own.
+  # rustup ran with --no-modify-path and pipx installs into ~/.local/bin, so a
+  # shell would not see binwalk or unblob. Write one idempotent snippet rather
+  # than letting each installer append its own.
+  #
+  # ~/.profile AND ~/.bashrc, and the first one is the whole point. Until
+  # 2026-08-17 this wrote only ~/.bashrc, and Ubuntu's ~/.bashrc opens with
+  #
+  #     case $- in *i*) ;; *) return;; esac
+  #
+  # so it returns immediately in a NON-INTERACTIVE shell -- which is every
+  # `wsl -d Ubuntu-24.04 -- bash -lc '...'`, the exact form CLAUDE.md prescribes
+  # and the exact form that was documented as working *because* of `-l`. It never
+  # did. `command -v binwalk` came back empty from a login shell for ten days
+  # while ~/.cargo/bin/binwalk sat there executable, and the failure was read as
+  # "binwalk is missing" more than once.
+  #
+  # `bash -l` reads ~/.profile (there is no ~/.bash_profile here), and ~/.profile
+  # is not interactivity-guarded. So the snippet goes there too.
   local marker='# >>> fwre toolchain path >>>'
-  if grep -qF "$marker" "$HOME/.bashrc" 2>/dev/null; then
-    c_ok "PATH snippet already in ~/.bashrc"
-    return
-  fi
-  c_run "shell: adding toolchain PATH to ~/.bashrc"
-  cat >> "$HOME/.bashrc" <<'EOF'
+  local snippet
+  snippet="$(cat <<'EOF'
 
 # >>> fwre toolchain path >>>
 # Added by tools/setup/setup-wsl.sh — cargo (binwalk v3) and pipx (unblob) shims.
+# In ~/.profile as well as ~/.bashrc on purpose: ~/.bashrc returns early for a
+# non-interactive shell, and `bash -lc` is non-interactive.
 case ":$PATH:" in
   *":$HOME/.cargo/bin:"*) ;;
   *) PATH="$HOME/.cargo/bin:$PATH" ;;
@@ -155,7 +168,26 @@ esac
 export PATH
 # <<< fwre toolchain path <<<
 EOF
-  c_ok "PATH snippet written (takes effect in a new shell)"
+)"
+  local wrote=0
+  for rc in "$HOME/.profile" "$HOME/.bashrc"; do
+    if grep -qF "$marker" "$rc" 2>/dev/null; then
+      c_ok "PATH snippet already in $(basename "$rc")"
+      continue
+    fi
+    c_run "shell: adding toolchain PATH to $(basename "$rc")"
+    printf '%s\n' "$snippet" >> "$rc"
+    wrote=$((wrote + 1))
+  done
+  [ "$wrote" -gt 0 ] && c_ok "PATH snippet written (takes effect in a new shell)"
+  # And prove it, rather than trusting it: a login shell must now find binwalk.
+  if [ -x "$HOME/.cargo/bin/binwalk" ]; then
+    if bash -lc 'command -v binwalk' >/dev/null 2>&1; then
+      c_ok "a non-interactive login shell now finds binwalk"
+    else
+      c_warn "binwalk exists but \`bash -lc\` still cannot see it — check $HOME/.profile"
+    fi
+  fi
 }
 
 # ---------------------------------------------------------------- verification

@@ -23,7 +23,8 @@ UNIT_DUMP  := $(FWRE_WORK)/dumps/flash-n150rt-console-1.bin
 
 .DEFAULT_GOAL := help
 .PHONY: help setup verify fetch unpack venv test lint recon recon-unit diff check-reports \
-        rtcase rtcase-test todo ledger shellcheck ci clean-work qemu-env qemu-test probe-test
+        rtcase rtcase-test todo ledger shellcheck ci clean-work qemu-env qemu-test probe-test \
+        loader-test loader-report doctor check-runsheet runsheet-test
 
 help: ## Show this help
 	@grep -hE '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) \
@@ -105,6 +106,22 @@ recon-partial: venv ## Report for the partially-downloaded published V2.1.6 (see
 check-reports: ## Verify the committed reports still match the tooling
 	python3 tools/check-reports.py
 
+# The first command of any session, and the only one that is allowed to be run
+# without having read anything. Every failure names the command that fixes it.
+# TIER=1 clone only · TIER=2 adds a flash dump · TIER=3 adds the device.
+doctor: ## Is this machine ready? `make doctor` or `make doctor TIER=1`
+	@bash tools/bench-doctor.sh $(if $(TIER),$(TIER),all)
+
+# runsheet.md is hand-written on purpose - it is the one document a stranger
+# follows front to back, and generating it from RUNBOOK.md would make it exactly
+# as terse as a reference. The cost of hand-writing is drift, and this narrows
+# that cost to the part that matters: a command that no longer resolves.
+check-runsheet: ## Verify every command in runsheet.md still resolves
+	python3 tools/check-runsheet.py
+
+runsheet-test: ## Prove the runsheet checker can fail (15 cases)
+	bash tools/test-check-runsheet.sh
+
 rtcase: ## G3.75: the test register is frozen and every result carries evidence
 	python3 tools/rtcase.py check
 
@@ -114,7 +131,7 @@ todo: ## What this week still owes: `make todo WEEK=W05`
 rtcase-test: ## Prove the register gate can actually fail (22 cases)
 	bash tools/test-rtcase.sh
 
-ledger: ## Regenerate study/test-ledger.md from the register + results
+ledger: ## Regenerate test-ledger.md from the register + results
 	python3 tools/rtcase.py render
 	python3 tools/rtcase.py check
 
@@ -134,6 +151,16 @@ qemu-test: ## Prove the emulation environment's positive control can fail
 probe-test: ## Prove the bench prober's refusals fire (needs no device)
 	bash tools/test-bench-probe.sh
 
+loader-test: ## Prove the boot-loader unpacker's refusals fire (needs no dump)
+	bash tools/test-loader-unpack.sh
+
+# Like recon-unit and qemu-env: needs the flash dump read off my own unit, so it
+# is not in `recon`. The report it writes is mostly a claim about what the boot
+# loader does *not* contain, which is why its committed form carries a positive
+# control and `check-reports.py` fails without one.
+loader-report: ## Unpack the boot loader's LZMA stage 2 (needs the flash dump)
+	python3 tools/loader-unpack.py "$(UNIT_DUMP)" -o $(REPORTS)/bootloader-unit-2018.json
+
 # Exists because on 2026-08-15 a push went out green on `make lint test
 # check-reports` and CI failed anyway: there are four jobs and that covers two of
 # them. Knowing which subset to run by heart is not a check, it is a habit that
@@ -143,7 +170,7 @@ probe-test: ## Prove the bench prober's refusals fire (needs no device)
 # `rtcase-test` is in here and not optional. It is the only thing proving the
 # register gate can fail; without it `make rtcase` going green means nothing,
 # which is the exact shape of instrument bug 12.
-ci: lint test shellcheck check-reports rtcase rtcase-test qemu-test probe-test ## Everything CI checks, except the container build
+ci: lint test shellcheck check-reports check-runsheet rtcase rtcase-test qemu-test probe-test loader-test runsheet-test ## Everything CI checks, except the container build
 	@echo "  ok   local CI equivalents passed (container build not included)"
 
 diff: venv ## Diff the two builds

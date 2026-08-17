@@ -92,8 +92,8 @@ jobs:
       - name: The ledger matches the register it is generated from
         run: |
           python3 tools/rtcase.py render
-          git diff --exit-code -- study/test-ledger.md \
-            || { echo "study/test-ledger.md is out of date — run \`make ledger\`"; exit 1; }
+          git diff --exit-code -- test-ledger.md \
+            || { echo "test-ledger.md is out of date — run \`make ledger\`"; exit 1; }
 
   bench-guards:
     name: bench tooling refuses what it claims to refuse
@@ -115,6 +115,18 @@ jobs:
         run: bash tools/test-qemu-env.sh
       - name: bench prober — the refusals, against a real local HTTP server
         run: bash tools/test-bench-probe.sh
+      - name: boot-loader unpacker — five broken images and one good one
+        run: bash tools/test-loader-unpack.sh
+      # runsheet.md is hand-written, which is the right call for the one document
+      # a stranger follows front to back — and it means a command in it can rot
+      # without anyone noticing. This reads every command as a command: make
+      # targets, tool paths, subcommands, flags against each tool's own --help,
+      # and every §8.x.y reference. It is here and not only in `make ci` because
+      # a check that only runs locally eventually only runs sometimes.
+      - name: runsheet — every command in it still resolves
+        run: python3 tools/check-runsheet.py
+      - name: runsheet checker — prove it can fail
+        run: bash tools/test-check-runsheet.sh
 
   toolbox-image:
     name: toolchain image builds
