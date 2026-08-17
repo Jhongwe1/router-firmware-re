@@ -53,10 +53,10 @@ W05 週計畫原本要另外建一份 `notes/prediction-scorecard.md`（12 條�
 |---|---|
 | 登記項目 | **132**（排入 123，砍掉 9） |
 | 已寫反證條件（凍結） | **104** / 123 |
-| 已執行 | **53** |
+| 已執行 | **54** |
 | 其中以真機動態證據收掉 | **43** |
-| 其中以模擬環境執行收掉（**不是矽上**） | **6** |
-| 判定成立 / 判定不成立 | **30** / **11** |
+| 其中以模擬環境執行收掉（**不是矽上**） | **7** |
+| 判定成立 / 判定不成立 | **31** / **11** |
 | 凍結雜湊 | `121550712670996a7c1e20816932c10a063a1a7b9804cb631199b050a8e76ef8` |
 
 ## 排程：哪一週要打掉哪些
@@ -70,7 +70,8 @@ W05 週計畫原本要另外建一份 `notes/prediction-scorecard.md`（12 條�
 | **W04-2** | Phase 0 | 2 / 2 | `▰▰▰▰▰▰▰▰▰▰` |
 | **W05** | Phase 0, 1, 2, 3, 6, 9 | 27 / 27 | `▰▰▰▰▰▰▰▰▰▰` |
 | **W06** | Phase 0, 2, 3, 4, 5, 10 | 20 / 20 | `▰▰▰▰▰▰▰▰▰▰` |
-| **W07** | Phase 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 | 1 / 71 | `▱▱▱▱▱▱▱▱▱▱` |
+| **W07** | Phase 1, 2, 3, 4, 5, 6, 8, 9, 10 | 2 / 56 | `▱▱▱▱▱▱▱▱▱▱` |
+| **W08** | Phase 7, 9 | 0 / 15 | `▱▱▱▱▱▱▱▱▱▱` |
 
 ## 圖例
 
@@ -423,7 +424,7 @@ W05 週計畫原本要另外建一份 `notes/prediction-scorecard.md`（12 條�
 | **P4-4** | ifname / wlan_id 的 20-byte 階梯（偏移與 100 那組完全不同） | 7.2 | ★★★★★ | 🟥 | W06 | ❌ ifname and wlan_id at 16, 20, 24, 40, 80, 120 and 160 bytes on formWlanSetup: 200 every time, server alive every time. The 20-byte buffer class R3 separates from the 100-byte one produces no observable difference here either. | [BENCH-LOG.md](BENCH-LOG.md) |
 | P4-5 | stack 溢位群（12 個函式、20+ 參數） | 7.3 | ★★★★☆ | 🟥 | W07 | ⬜ | — |
 | P4-6 | 已知 CVE 溢位端點逐一驗（12 條） | 7.4 | ★★★☆☆ | 🟨 | W07 | ⬜ | — |
-| **P4-7** | submit-url 全 57 端點通殺 + 存活探針 | 7.5 | ★★★☆☆ | 🟥 | W07 | ⬜ | — |
+| **P4-7** | submit-url 全 57 端點通殺 + 存活探針 | 7.5 | ★★★☆☆ | 🟥 | W07 | 🟪 全 58 個端點掃過（57 個分派表 handler + 一個不存在的負對照），每一發之前 reap + reset + serve，所以每一發都從同一份 flash 開始。結果：39 個在模擬下讓 boa 消失，19 個存活，39 次重啟 0 次失敗。對照成立：formLogin 200 且存活、formNotARealHandler 404。預測說「四個有 CVE 編號的是取樣不是集合」—— 39 不是四。反證條件（只有那四個有反應）沒有觸發。**這不是對實機的主張**：qemu-user 對未對齊存取丟 SIGBUS，而實機的 MIPS kernel 會在 trap handler 裡修掉，所以報告裡的欄位叫 died_under_emulation。它是一份要拿去實機驗的候選清單，而 W06 在實機上量到的一發請求斷線（docs/disclosure.md D-11）本來就說不出是哪一類 handler。存活的 19 個裡包含 formSysCmd（CVE 那一個）本身，所以「會死」跟「有缺陷」不是同一件事。這一輪之前有三次無效的量測：治具讓 32 個孤兒 boa 累積、port 被任意一個舊的持有，而 serve 的對照通過了，因為它驗的是 port 的性質而不是它自己啟動的那個 process。 | [handler-sweep-unit-2018.json](reports/handler-sweep-unit-2018.json) · [handler-sweep.py](tools/handler-sweep.py) |
 | P4-8 | 超長 HTTP 標頭 / 參數數量炸彈 / Range | 7.6 | ★★★☆☆ | 🟦 | W07 | ⬜ | — |
 | P4-9 | boofuzz 系統化 fuzz | 7.7 | ★★★★☆ | — | W07 | ⬜ | — |
 
@@ -610,15 +611,15 @@ W05 週計畫原本要另外建一份 `notes/prediction-scorecard.md`（12 條�
 
 | ID | 項目 | § | 可行性 | 出場證據 | 排程 | 結果 | 證據 |
 |---|---|---|---|---|---|---|---|
-| P7-1 | WPS Pixie Dust | 10.1 | ★★★★☆ | 🟨 | W07 | ⬜ | — |
-| P7-2 | WPS 線上 PIN 爆破 / 廠商預設 PIN | 10.1 | ★★★☆☆ | 🟨 | W07 | ⬜ | — |
-| **P7-3** | 惡意 Beacon → Site Survey 表溢位 | 10.2 | ★★★☆☆ | 🟨 | W07 | ⬜ | — |
-| P7-4 | 惡意 WPS IE（Device Name 長度欄 2 bytes） | 10.2 | ★★★☆☆ | 🟨 | W07 | ⬜ | — |
-| P7-5 | PMKID（clientless） | 10.3 | ★★★☆☆ | 🟦 | W07 | ⬜ | — |
-| P7-6 | Deauth → 4-way handshake → 離線爆破 | 10.4 | ★★★★☆ | 🟧 | W07 | ⬜ | — |
-| P7-7 | 預設 PSK 推導（或直接讀 COMPDS） | 10.5 | ★★★☆☆ | 🟦 | W07 | ⬜ | — |
-| P7-9 | WDS / Repeater 模式 → KRACK | 10.7 | ★★☆☆☆ | 🟦 | W07 | ⬜ | — |
-| P7-10 | FragAttacks | 10.8 | ★★☆☆☆ | 🟦 | W07 | ⬜ | — |
+| P7-1 | WPS Pixie Dust | 10.1 | ★★★★☆ | 🟨 | W08 | ⬜ | — |
+| P7-2 | WPS 線上 PIN 爆破 / 廠商預設 PIN | 10.1 | ★★★☆☆ | 🟨 | W08 | ⬜ | — |
+| **P7-3** | 惡意 Beacon → Site Survey 表溢位 | 10.2 | ★★★☆☆ | 🟨 | W08 | ⬜ | — |
+| P7-4 | 惡意 WPS IE（Device Name 長度欄 2 bytes） | 10.2 | ★★★☆☆ | 🟨 | W08 | ⬜ | — |
+| P7-5 | PMKID（clientless） | 10.3 | ★★★☆☆ | 🟦 | W08 | ⬜ | — |
+| P7-6 | Deauth → 4-way handshake → 離線爆破 | 10.4 | ★★★★☆ | 🟧 | W08 | ⬜ | — |
+| P7-7 | 預設 PSK 推導（或直接讀 COMPDS） | 10.5 | ★★★☆☆ | 🟦 | W08 | ⬜ | — |
+| P7-9 | WDS / Repeater 模式 → KRACK | 10.7 | ★★☆☆☆ | 🟦 | W08 | ⬜ | — |
+| P7-10 | FragAttacks | 10.8 | ★★☆☆☆ | 🟦 | W08 | ⬜ | — |
 
 <details><summary>Phase 7 的預測與反證條件（5/9 項已凍結）</summary>
 
@@ -761,14 +762,14 @@ W05 週計畫原本要另外建一份 `notes/prediction-scorecard.md`（12 條�
 | P9-2 | FLR / DB 全 flash 讀出（＝ P0-1） | 12.2 | ★★★★★ | 🟥 | W02 | ✅ FLR+DB 105 分鐘、零 chunk 重試；W01 導出的三個 burn address 全中 | [flash-layout.md](notes/flash-layout.md) · [flashdump-unit-2018.json](reports/flashdump-unit-2018.json) |
 | P9-3 | bootloader TFTP / HTTP 救援 | 12.3 | ★★★★☆ | 🟥 | W05 | 🔶 救援模式進得去,凍結的反證條件不成立。AUTOBURN 0 → AutoBurning=0;IPCONFIG 10.1.1.1 → Now your Target IP is 10.1.1.1(**冒號形式兩個都回 Unknown command !,說明文字不是語法**)。網路活著,兩個來源:ARP 解析成功,以及 kernel 自己的 rx_packets 0→1。TFTP 服務確認會回應 —— 對一個不存在的檔名回 516 bytes 的 DATA(opcode 3)。判 partial 是因為預測寫的是「tftp **put** 可用」,而上傳依本場的非破壞性上限不做。**我自己寫在計畫裡的成功條件(ping 有回應、MAC 是這台)兩半都不成立,而那是我的條件錯了**:TFTP-only 的堆疊沒有義務實作 ICMP,loader 的 MAC 是從 IP 合成的(0a 01 01 01 = 10.1.1.1)。計畫外:TFTP GET 不看檔名,吐出的 516 bytes 與 flash 0x060010 起的 cr6c 酬載逐 byte 相同 —— 列為開放題。 | [BENCH-LOG.md](BENCH-LOG.md) |
 | P9-4 | 搶重開機瞬間的救援窗口上傳韌體 | 12.3 | ★★☆☆☆ | 🟦 | W07 | ⬜ | — |
-| **P9-5** | SPI 直讀 dump（第二支儀器） | 12.4 | ★★☆☆☆ | 🟨 | W07 | ⬜ | — |
-| P9-6 | SPI 直寫植入 | 12.4 | ★★☆☆☆ | 🟨 | W07 | ⬜ | — |
-| **P9-7** | 讀 JEDEC ID（flash 型號的第二來源） | 12.4 | ★★☆☆☆ | 🟨 | W07 | ⬜ | — |
-| P9-8 | EJTAG | 12.5 | ★☆☆☆☆ | 🟦 | W07 | ⬜ | — |
+| **P9-5** | SPI 直讀 dump（第二支儀器） | 12.4 | ★★☆☆☆ | 🟨 | W08 | ⬜ | — |
+| P9-6 | SPI 直寫植入 | 12.4 | ★★☆☆☆ | 🟨 | W08 | ⬜ | — |
+| **P9-7** | 讀 JEDEC ID（flash 型號的第二來源） | 12.4 | ★★☆☆☆ | 🟨 | W08 | ⬜ | — |
+| P9-8 | EJTAG | 12.5 | ★☆☆☆☆ | 🟦 | W08 | ⬜ | — |
 | P9-9 | Reset 按鈕行為 | 12.6 | ★★★★★ | 🟥 | W07 | ⬜ | — |
 | P9-10 | 改造韌體回刷 / implant | 12.7 | ★★★☆☆ | 🟨 | W07 | ⬜ | — |
-| P9-11 | 短接 SPI 強制落回 bootloader（HW-a） | 12.8 | ★★★☆☆ | 🟦 | W07 | ⬜ | — |
-| P9-12 | 換自製 flash / tftpboot RAM kernel（HW-b/c） | 12.8 | ★★★☆☆ | 🟦 | W07 | ⬜ | — |
+| P9-11 | 短接 SPI 強制落回 bootloader（HW-a） | 12.8 | ★★★☆☆ | 🟦 | W08 | ⬜ | — |
+| P9-12 | 換自製 flash / tftpboot RAM kernel（HW-b/c） | 12.8 | ★★★☆☆ | 🟦 | W08 | ⬜ | — |
 
 <details><summary>Phase 9 的預測與反證條件（6/12 項已凍結）</summary>
 

@@ -51,7 +51,7 @@ that settles it, and both of them can fail in either direction."""
 # breaking the plan or editing the field. Editing it quietly is
 # indistinguishable from moving the goalposts, so now it hashes.
 # `python3 tools/rtcase.py schedule` prints the current value.
-sha256 = "b8a6fde8f7dc6cb43055e6de5967e658dab2a0318ed1eaa506dc0cd65b3f4bd8"
+sha256 = "edcf62806edbdff8f6dee89d4a8aa780957a31dc42f4d54d3bc5a4feabe02ba1"
 committed = "2026-08-18"
 note = """The payload changed on 2026-08-17: it was (id, week) and is now
 (id, week, rescheduled_from, reschedule_date, reschedule_reason), so every
@@ -1161,7 +1161,10 @@ section = "10.1"
 title = "WPS Pixie Dust"
 feasibility = 4
 exit_evidence = "presumed"
-week = "W07"
+week = "W08"
+rescheduled_from = "W07"
+reschedule_date = "2026-08-18"
+reschedule_reason = '''需要 monitor mode + 封包注入的無線網卡，而本實驗室只有乙太網卡（Realtek RTL8153，USB Gigabit Ethernet）。這不是時間問題也不是排序問題，是儀器不存在：沒有適配器就沒有量測，而「設定裡 WPS 是開的」不等於「這台的 WPS PIN 可以被還原」。採購清單與型號取捨見 docs/lab-inventory.md（建議 AR9271，約 US$30，因為這台只有 2.4 GHz）。另外三項（P7-3 / P7-6 / P7-9）就算買了也還要先解決輻射範圍的問題：deauth 與 beacon 注入會打到範圍內所有裝置，那跟兩個埠之間拉一條線是不同的同意情境，登記簿已經因為同一個理由砍掉三項。'''
 caution = "無線發射。全部 Phase 7 的項目都只對自有 SSID / 自有 client MAC 定向，不得廣播"
 predict = 'Realtek 的 WPS 實作歷來是 Pixie Dust 的典型目標'
 refute = 'wash 顯示 WPS 已鎖或未啟用 → 這條前提不成立'
@@ -1173,7 +1176,10 @@ section = "10.1"
 title = "WPS 線上 PIN 爆破 / 廠商預設 PIN"
 feasibility = 3
 exit_evidence = "presumed"
-week = "W07"
+week = "W08"
+rescheduled_from = "W07"
+reschedule_date = "2026-08-18"
+reschedule_reason = '''需要 monitor mode + 封包注入的無線網卡，而本實驗室只有乙太網卡（Realtek RTL8153，USB Gigabit Ethernet）。這不是時間問題也不是排序問題，是儀器不存在：沒有適配器就沒有量測，而「設定裡 WPS 是開的」不等於「這台的 WPS PIN 可以被還原」。採購清單與型號取捨見 docs/lab-inventory.md（建議 AR9271，約 US$30，因為這台只有 2.4 GHz）。另外三項（P7-3 / P7-6 / P7-9）就算買了也還要先解決輻射範圍的問題：deauth 與 beacon 注入會打到範圍內所有裝置，那跟兩個埠之間拉一條線是不同的同意情境，登記簿已經因為同一個理由砍掉三項。'''
 
 [[case]]
 id = "P7-3"
@@ -1182,7 +1188,10 @@ section = "10.2"
 title = "惡意 Beacon → Site Survey 表溢位"
 feasibility = 3
 exit_evidence = "presumed"
-week = "W07"
+week = "W08"
+rescheduled_from = "W07"
+reschedule_date = "2026-08-18"
+reschedule_reason = '''需要 monitor mode + 封包注入的無線網卡，而本實驗室只有乙太網卡（Realtek RTL8153，USB Gigabit Ethernet）。這不是時間問題也不是排序問題，是儀器不存在：沒有適配器就沒有量測，而「設定裡 WPS 是開的」不等於「這台的 WPS PIN 可以被還原」。採購清單與型號取捨見 docs/lab-inventory.md（建議 AR9271，約 US$30，因為這台只有 2.4 GHz）。另外三項（P7-3 / P7-6 / P7-9）就算買了也還要先解決輻射範圍的問題：deauth 與 beacon 注入會打到範圍內所有裝置，那跟兩個埠之間拉一條線是不同的同意情境，登記簿已經因為同一個理由砍掉三項。'''
 star = true
 caution = "無線發射，且 beacon 是廣播。需要衰減或屏蔽環境；不能在共用頻段直接灑"
 predict = '這台的 Site Survey 頁不需要憑證就能觸發（P2-1），所以掃描動作可以自己發起，不必等管理員'
@@ -1195,7 +1204,10 @@ section = "10.2"
 title = "惡意 WPS IE（Device Name 長度欄 2 bytes）"
 feasibility = 3
 exit_evidence = "presumed"
-week = "W07"
+week = "W08"
+rescheduled_from = "W07"
+reschedule_date = "2026-08-18"
+reschedule_reason = '''需要 monitor mode + 封包注入的無線網卡，而本實驗室只有乙太網卡（Realtek RTL8153，USB Gigabit Ethernet）。這不是時間問題也不是排序問題，是儀器不存在：沒有適配器就沒有量測，而「設定裡 WPS 是開的」不等於「這台的 WPS PIN 可以被還原」。採購清單與型號取捨見 docs/lab-inventory.md（建議 AR9271，約 US$30，因為這台只有 2.4 GHz）。另外三項（P7-3 / P7-6 / P7-9）就算買了也還要先解決輻射範圍的問題：deauth 與 beacon 注入會打到範圍內所有裝置，那跟兩個埠之間拉一條線是不同的同意情境，登記簿已經因為同一個理由砍掉三項。'''
 caution = "無線發射"
 
 [[case]]
@@ -1205,7 +1217,10 @@ section = "10.3"
 title = "PMKID（clientless）"
 feasibility = 3
 exit_evidence = "unverified"
-week = "W07"
+week = "W08"
+rescheduled_from = "W07"
+reschedule_date = "2026-08-18"
+reschedule_reason = '''需要 monitor mode + 封包注入的無線網卡，而本實驗室只有乙太網卡（Realtek RTL8153，USB Gigabit Ethernet）。這不是時間問題也不是排序問題，是儀器不存在：沒有適配器就沒有量測，而「設定裡 WPS 是開的」不等於「這台的 WPS PIN 可以被還原」。採購清單與型號取捨見 docs/lab-inventory.md（建議 AR9271，約 US$30，因為這台只有 2.4 GHz）。另外三項（P7-3 / P7-6 / P7-9）就算買了也還要先解決輻射範圍的問題：deauth 與 beacon 注入會打到範圍內所有裝置，那跟兩個埠之間拉一條線是不同的同意情境，登記簿已經因為同一個理由砍掉三項。'''
 
 [[case]]
 id = "P7-6"
@@ -1214,7 +1229,10 @@ section = "10.4"
 title = "Deauth → 4-way handshake → 離線爆破"
 feasibility = 4
 exit_evidence = "other-build"
-week = "W07"
+week = "W08"
+rescheduled_from = "W07"
+reschedule_date = "2026-08-18"
+reschedule_reason = '''需要 monitor mode + 封包注入的無線網卡，而本實驗室只有乙太網卡（Realtek RTL8153，USB Gigabit Ethernet）。這不是時間問題也不是排序問題，是儀器不存在：沒有適配器就沒有量測，而「設定裡 WPS 是開的」不等於「這台的 WPS PIN 可以被還原」。採購清單與型號取捨見 docs/lab-inventory.md（建議 AR9271，約 US$30，因為這台只有 2.4 GHz）。另外三項（P7-3 / P7-6 / P7-9）就算買了也還要先解決輻射範圍的問題：deauth 與 beacon 注入會打到範圍內所有裝置，那跟兩個埠之間拉一條線是不同的同意情境，登記簿已經因為同一個理由砍掉三項。'''
 caution = "只對自有 client 的 MAC 定向送。廣播 deauth 會打到範圍內所有第三方裝置，不做"
 predict = '無 WPA3/SAE，所以 handshake 一抓到就可離線爆破'
 refute = '抓不到 handshake → client 端有 PMF/802.11w，那本身是一個結論'
@@ -1226,7 +1244,10 @@ section = "10.5"
 title = "預設 PSK 推導（或直接讀 COMPDS）"
 feasibility = 3
 exit_evidence = "unverified"
-week = "W07"
+week = "W08"
+rescheduled_from = "W07"
+reschedule_date = "2026-08-18"
+reschedule_reason = '''需要 monitor mode + 封包注入的無線網卡，而本實驗室只有乙太網卡（Realtek RTL8153，USB Gigabit Ethernet）。這不是時間問題也不是排序問題，是儀器不存在：沒有適配器就沒有量測，而「設定裡 WPS 是開的」不等於「這台的 WPS PIN 可以被還原」。採購清單與型號取捨見 docs/lab-inventory.md（建議 AR9271，約 US$30，因為這台只有 2.4 GHz）。另外三項（P7-3 / P7-6 / P7-9）就算買了也還要先解決輻射範圍的問題：deauth 與 beacon 注入會打到範圍內所有裝置，那跟兩個埠之間拉一條線是不同的同意情境，登記簿已經因為同一個理由砍掉三項。'''
 predict = '出廠 PSK 已經在 COMPDS 裡解出來了，所以「推導」這條的價值只在於它是否為全型號通用'
 refute = '推導公式算出來的值與 COMPDS 裡的不同 → 公式不成立，只剩單機事實'
 
@@ -1247,7 +1268,10 @@ section = "10.7"
 title = "WDS / Repeater 模式 → KRACK"
 feasibility = 2
 exit_evidence = "unverified"
-week = "W07"
+week = "W08"
+rescheduled_from = "W07"
+reschedule_date = "2026-08-18"
+reschedule_reason = '''需要 monitor mode + 封包注入的無線網卡，而本實驗室只有乙太網卡（Realtek RTL8153，USB Gigabit Ethernet）。這不是時間問題也不是排序問題，是儀器不存在：沒有適配器就沒有量測，而「設定裡 WPS 是開的」不等於「這台的 WPS PIN 可以被還原」。採購清單與型號取捨見 docs/lab-inventory.md（建議 AR9271，約 US$30，因為這台只有 2.4 GHz）。另外三項（P7-3 / P7-6 / P7-9）就算買了也還要先解決輻射範圍的問題：deauth 與 beacon 注入會打到範圍內所有裝置，那跟兩個埠之間拉一條線是不同的同意情境，登記簿已經因為同一個理由砍掉三項。'''
 predict = 'build 日期 2017-11-21 晚於 KRACK 公開日 2017-10-16 僅一個月，Realtek 是否併入修補無公開紀錄，是純實測題'
 refute = '重放 message 3 沒有造成 nonce 重用 → 已修補，那是一個可寫的正面結論'
 
@@ -1258,7 +1282,10 @@ section = "10.8"
 title = "FragAttacks"
 feasibility = 2
 exit_evidence = "unverified"
-week = "W07"
+week = "W08"
+rescheduled_from = "W07"
+reschedule_date = "2026-08-18"
+reschedule_reason = '''需要 monitor mode + 封包注入的無線網卡，而本實驗室只有乙太網卡（Realtek RTL8153，USB Gigabit Ethernet）。這不是時間問題也不是排序問題，是儀器不存在：沒有適配器就沒有量測，而「設定裡 WPS 是開的」不等於「這台的 WPS PIN 可以被還原」。採購清單與型號取捨見 docs/lab-inventory.md（建議 AR9271，約 US$30，因為這台只有 2.4 GHz）。另外三項（P7-3 / P7-6 / P7-9）就算買了也還要先解決輻射範圍的問題：deauth 與 beacon 注入會打到範圍內所有裝置，那跟兩個埠之間拉一條線是不同的同意情境，登記簿已經因為同一個理由砍掉三項。'''
 
 [[case]]
 id = "P7-11"
@@ -1571,7 +1598,10 @@ section = "12.4"
 title = "SPI 直讀 dump（第二支儀器）"
 feasibility = 2
 exit_evidence = "presumed"
-week = "W07"
+week = "W08"
+rescheduled_from = "W07"
+reschedule_date = "2026-08-18"
+reschedule_reason = '''需要 SPI 燒錄器與 SOIC-8 夾具，本實驗室沒有。這一項的價值不在「再讀一次」，而在**第二支獨立儀器**：目前 flash 的每一個 byte 級主張都只有一個來源 —— 透過 boot loader 自己的 FLR 指令、走裝置自己的 UART。兩次全讀 byte 相同是很強的內部檢查，但兩次都走同一條路。本 repo 的第一條證據規則就是「沒有單一工具的主張」，所以這一項是拿來修補那個弱點的，不是重複勞動。採購與電壓陷阱（常見 CH341A 板子對資料線輸出 5V，而這顆 flash 是 3.3V）見 docs/lab-inventory.md。'''
 star = true
 caution = "桌上那片 CH341A 實測是未改板的 5V 版本，每一支腳都對 3.3V 的顆粒輸出 5V。夾之前一定要量 CS#/CLK/DI"
 predict = '目前兩次全讀都走 bootloader 的 FLR，所以一個系統性錯誤的 FLR 對兩次讀取都是隱形的。第二支儀器就是為了打掉這個單點'
@@ -1584,7 +1614,10 @@ section = "12.4"
 title = "SPI 直寫植入"
 feasibility = 2
 exit_evidence = "presumed"
-week = "W07"
+week = "W08"
+rescheduled_from = "W07"
+reschedule_date = "2026-08-18"
+reschedule_reason = '''需要 SPI 燒錄器與 SOIC-8 夾具，本實驗室沒有。這一項的價值不在「再讀一次」，而在**第二支獨立儀器**：目前 flash 的每一個 byte 級主張都只有一個來源 —— 透過 boot loader 自己的 FLR 指令、走裝置自己的 UART。兩次全讀 byte 相同是很強的內部檢查，但兩次都走同一條路。本 repo 的第一條證據規則就是「沒有單一工具的主張」，所以這一項是拿來修補那個弱點的，不是重複勞動。採購與電壓陷阱（常見 CH341A 板子對資料線輸出 5V，而這顆 flash 是 3.3V）見 docs/lab-inventory.md。'''
 caution = "最高風險。P0-3 與 P9-3 都通過之前不做"
 
 [[case]]
@@ -1594,7 +1627,10 @@ section = "12.4"
 title = "讀 JEDEC ID（flash 型號的第二來源）"
 feasibility = 2
 exit_evidence = "presumed"
-week = "W07"
+week = "W08"
+rescheduled_from = "W07"
+reschedule_date = "2026-08-18"
+reschedule_reason = '''需要 SPI 燒錄器與 SOIC-8 夾具，本實驗室沒有。這一項的價值不在「再讀一次」，而在**第二支獨立儀器**：目前 flash 的每一個 byte 級主張都只有一個來源 —— 透過 boot loader 自己的 FLR 指令、走裝置自己的 UART。兩次全讀 byte 相同是很強的內部檢查，但兩次都走同一條路。本 repo 的第一條證據規則就是「沒有單一工具的主張」，所以這一項是拿來修補那個弱點的，不是重複勞動。採購與電壓陷阱（常見 CH341A 板子對資料線輸出 5V，而這顆 flash 是 3.3V）見 docs/lab-inventory.md。'''
 star = true
 predict = '目前「Eon EN25QH32B」只有一個來源：封裝上的字。flashrom 同意它是 4096 KiB 並不獨立，因為它的資料庫就是用同一個型號名索引的'
 refute = 'JEDEC ID 對應到別的廠牌或別的容量 → 封裝上的字被誤讀，或這顆是換過的'
@@ -1606,7 +1642,10 @@ section = "12.5"
 title = "EJTAG"
 feasibility = 1
 exit_evidence = "unverified"
-week = "W07"
+week = "W08"
+rescheduled_from = "W07"
+reschedule_date = "2026-08-18"
+reschedule_reason = '''需要 EJTAG 探針（BusPirate 或 FT2232 + OpenOCD），本實驗室沒有，而且板子上是否有可用的 EJTAG 焊盤本身也還沒確認過。docs/lab-inventory.md 對這一項的建議是**不要買**：boot loader 主控台已經提供記憶體讀寫，那是 EJTAG 在這裡會多給的大部分東西。所以這一項移到 W08 的意思是「留著不做」，不是「等器材」。'''
 
 [[case]]
 id = "P9-9"
@@ -1639,7 +1678,10 @@ section = "12.8"
 title = "短接 SPI 強制落回 bootloader（HW-a）"
 feasibility = 3
 exit_evidence = "unverified"
-week = "W07"
+week = "W08"
+rescheduled_from = "W07"
+reschedule_date = "2026-08-18"
+reschedule_reason = '''需要 SPI 燒錄器與 SOIC-8 夾具，本實驗室沒有。這一項的價值不在「再讀一次」，而在**第二支獨立儀器**：目前 flash 的每一個 byte 級主張都只有一個來源 —— 透過 boot loader 自己的 FLR 指令、走裝置自己的 UART。兩次全讀 byte 相同是很強的內部檢查，但兩次都走同一條路。本 repo 的第一條證據規則就是「沒有單一工具的主張」，所以這一項是拿來修補那個弱點的，不是重複勞動。採購與電壓陷阱（常見 CH341A 板子對資料線輸出 5V，而這顆 flash 是 3.3V）見 docs/lab-inventory.md。'''
 
 [[case]]
 id = "P9-12"
@@ -1648,7 +1690,10 @@ section = "12.8"
 title = "換自製 flash / tftpboot RAM kernel（HW-b/c）"
 feasibility = 3
 exit_evidence = "unverified"
-week = "W07"
+week = "W08"
+rescheduled_from = "W07"
+reschedule_date = "2026-08-18"
+reschedule_reason = '''需要 SPI 燒錄器與 SOIC-8 夾具，本實驗室沒有。這一項的價值不在「再讀一次」，而在**第二支獨立儀器**：目前 flash 的每一個 byte 級主張都只有一個來源 —— 透過 boot loader 自己的 FLR 指令、走裝置自己的 UART。兩次全讀 byte 相同是很強的內部檢查，但兩次都走同一條路。本 repo 的第一條證據規則就是「沒有單一工具的主張」，所以這一項是拿來修補那個弱點的，不是重複勞動。採購與電壓陷阱（常見 CH341A 板子對資料線輸出 5V，而這顆 flash 是 3.3V）見 docs/lab-inventory.md。'''
 
 # ===========================================================================
 # Phase 10 — 設定層

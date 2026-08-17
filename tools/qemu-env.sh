@@ -275,6 +275,34 @@ cmd_build() {
 cmd_reset() {
   [ -f "$PRISTINE" ] || die "no pristine image; run build first"
   need_root
+
+  # The IPC removal below is HOST-GLOBAL: SysV segments have no namespace here,
+  # so `reset` on one profile destroys the segments the other profile's running
+  # boa is holding. That process then spins on
+  #   APMIB Semaphore Lock semop() failed !! [Invalid argument]
+  # forever, never binds, and the next `serve` times out with no output -- which
+  # is what happened on 2026-08-18 once a second profile existed, and it looked
+  # like a broken restart rather than a broken reset.
+  #
+  # So: stop everything in THIS environment first, and refuse if another
+  # profile's environment still has processes, rather than pulling the floor out
+  # from under it.
+  local other n
+  cmd_reap >/dev/null 2>&1 || true
+  for other in "$WORK"/qemu-env-*; do
+    [ -d "$other" ] || continue
+    [ "$other" = "$ENVDIR" ] && continue
+    n=0
+    for p in /proc/[0-9]*; do
+      [ "$(readlink "$p/root" 2>/dev/null)" = "$other" ] && n=$((n + 1))
+    done
+    [ "$n" -eq 0 ] || die \
+      "$n process(es) are still running in $other, and this reset would delete
+     the SysV segments they are using -- they have no namespace on this host.
+     Stop them first:
+       sudo $0 --profile ${other##*qemu-env-} reap"
+  done
+
   cp "$PRISTINE" "$ENVDIR/dev/mtdblock0"
   cp "$PRISTINE" "$ENVDIR/dev/mtd0"
   local id
@@ -360,10 +388,81 @@ cmd_run() { need_root; exec chroot "$ENVDIR" ./qemu-mips-static "$@"; }
 # fetched from the emulated server, because the file it would serve is the
 # directory standing in the way. Links 1 and 2 of the chain stay device-only;
 # links 3, 4 and the gate reproduce here.
+# Who is listening on a TCP port, as a pid, or empty.
+#
+# The trailing `|| true` is load-bearing. `grep` exits 1 when the port is FREE,
+# which is the ordinary case, and under `set -euo pipefail` that made the whole
+# pipeline fail, which made the assignment fail, which made `serve` exit 1 --
+# printing nothing at all. A guard written to stop a stale server silently
+# stopped the server it was guarding, and the symptom was an empty line.
+port_holder() {
+  ss -ltnp 2>/dev/null | awk -v p=":$1\$" '$4 ~ p {print $0}' \
+    | grep -o 'pid=[0-9]*' | head -1 | cut -d= -f2 || true
+}
+
+# Every guest process still running inside THIS environment, found by the one
+# thing that cannot match the wrong process: /proc/<pid>/root resolves to the
+# chroot it is in. `pkill -f` was rejected once already for matching the calling
+# shell's own command line (see cmd_stop); matching on a command-line pattern
+# would also match the *other* profile's boa, which is a different environment
+# with a different flash and would be silently killed by a tool aimed here.
+env_pids() {
+  local p target
+  for p in /proc/[0-9]*; do
+    target="$(readlink "$p/root" 2>/dev/null)" || continue
+    [ "$target" = "$ENVDIR" ] && printf '%s\n' "${p#/proc/}"
+  done
+}
+
+# ------------------------------------------------------------------ reap ----
+# Kill every guest process belonging to this environment.
+#
+# `boa` under qemu-user does not survive several of its own handlers, and a
+# crashed process leaves the pidfile pointing at a corpse -- so `stop` reports
+# success and the process that was actually listening is still there. Over a
+# 58-handler sweep on 2026-08-18 that produced **32 orphans**, and the port was
+# held by an arbitrary old one. Every probe after the first crash was answered
+# by a server carrying state from an earlier point in the run, and the results
+# were nonsense in a way that looked like data.
+cmd_reap() {
+  need_root
+  local pids n
+  pids="$(env_pids)"
+  n="$(printf '%s' "$pids" | grep -c . || true)"
+  if [ "$n" -eq 0 ]; then echo "no processes running in $ENVDIR"; return 0; fi
+  echo "$pids" | xargs -r kill  2>/dev/null || true
+  sleep 1
+  echo "$pids" | xargs -r kill -9 2>/dev/null || true
+  rm -f "$ENVDIR/tmp/boa-emu.pid"
+  echo "reaped $n process(es) in $ENVDIR"
+}
+
 cmd_serve() {
   need_root
   local port="${1:-8080}" conf="$ENVDIR/var/boa-emu.conf"
-  [ -f "$ENVDIR/var/boa.conf" ] || die "no /var/boa.conf in the environment; run build"
+
+  # Refuse to start on a port somebody else holds. Without this the checks below
+  # pass by talking to the incumbent: they verify a property of the *port*, not
+  # of the process this function started, and those are different claims.
+  local holder; holder="$(port_holder "$port")"
+  if [ -n "$holder" ]; then
+    die "port $port is already held by pid $holder ($(tr '\0' ' ' < "/proc/$holder/cmdline" 2>/dev/null))
+     Starting now would bind nothing and every check below would be answered by
+     that process instead. If it is a leftover of this environment:
+       sudo $0 --profile $PROFILE reap"
+  fi
+  # Name the directory. This message used to say only "run build", and when the
+  # work directory was resolved wrongly -- nested sudo makes SUDO_USER=root and
+  # sends everything to /root/fwre-work -- it sent the operator to rebuild an
+  # environment that was already correct, 55 times. A refusal that does not say
+  # where it looked cannot be distinguished from the thing it accuses you of.
+  [ -f "$ENVDIR/var/boa.conf" ] || die \
+    "no boa.conf at $ENVDIR/var/boa.conf
+     profile   $PROFILE
+     work dir  $WORK   (FWRE_WORK, else the invoking user's home)
+     If that work dir looks wrong, this is the sudo-inside-sudo trap: SUDO_USER
+     becomes root and \$WORK moves to /root. Pass FWRE_WORK explicitly.
+     If it looks right, the environment really is missing: run build."
   sed "s/^Port .*/Port $port/" "$ENVDIR/var/boa.conf" > "$conf"
 
   rm -rf "$ENVDIR/var/web/config.dat"
@@ -392,12 +491,43 @@ cmd_serve() {
     echo "  control FAILED: blank.htm returned $code, expected 302 - the gate is" \
          "not behaving as it does on the device, so nothing measured here transfers" >&2; ok=1; fi
 
+  # And the check that the two above cannot make: is the process answering the
+  # one this function started? A control that cannot tell "my server is up" from
+  # "somebody's server is up" is the failure this whole subcommand exists to
+  # prevent, and it went undetected for a full sweep.
+  # `boa` daemonises. The pid bash hands back is the launcher's; the process
+  # that ends up holding the socket is its child, and after the launcher exits
+  # that child is re-parented to init. So "is the listener the pid I started"
+  # is the wrong question -- it is never true -- and the right one is whether
+  # the listener is running inside THIS environment, which /proc/<pid>/root
+  # answers exactly and which also tells the two profiles apart.
+  #
+  # This is also why orphans accumulated: the pidfile held the launcher's pid,
+  # so `stop` killed a process that had already exited, reported success, and
+  # left the server running. Thirty-two of them by the end of one sweep. The
+  # pidfile now holds the pid that owns the socket.
+  local holder_now holder_root
+  holder_now="$(port_holder "$port")"
+  if [ -z "$holder_now" ]; then
+    die "nothing is listening on $port after $i seconds.
+     The log is $ENVDIR/tmp/boa-emu.log"
+  fi
+  holder_root="$(readlink "/proc/$holder_now/root" 2>/dev/null || true)"
+  if [ "$holder_root" != "$ENVDIR" ]; then
+    die "port $port is held by pid $holder_now, whose root is
+       ${holder_root:-<unreadable>}
+     and this profile's environment is
+       $ENVDIR
+     Everything measured against it would belong to another environment.
+       sudo $0 --profile $PROFILE reap"
+  fi
+
   if [ "$ok" -ne 0 ]; then
-    kill "$pid" 2>/dev/null
+    kill "$holder_now" 2>/dev/null
     die "emulated server did not reproduce the gate; refusing to report it as up"
   fi
-  echo "$pid" > "$ENVDIR/tmp/boa-emu.pid"
-  echo "boa is serving on 127.0.0.1:$port (pid $pid).  Stop it with:"
+  echo "$holder_now" > "$ENVDIR/tmp/boa-emu.pid"
+  echo "boa is serving on 127.0.0.1:$port (pid $holder_now).  Stop it with:"
   echo "  sudo $0 stop"
 }
 
@@ -454,8 +584,9 @@ case "${1:-}" in
   run)   shift; cmd_run   "$@" ;;
   serve) shift; cmd_serve "$@" ;;
   stop)  shift; cmd_stop  "$@" ;;
+  reap)  shift; cmd_reap  "$@" ;;
   *) cat >&2 <<EOF
-usage: sudo $0 [--profile NAME] {build|reset|check|diff|run|serve|stop ...}
+usage: sudo $0 [--profile NAME] {build|reset|check|diff|run|serve|stop|reap ...}
 
   --profile NAME   which firmware to stand up. Default unit-2018.
         unit-2018  the build this unit runs, on this unit's own flash dump.
@@ -480,6 +611,11 @@ usage: sudo $0 [--profile NAME] {build|reset|check|diff|run|serve|stop ...}
             sudo $0 serve 8080
   stop    stop it, by pidfile. Not \`pkill -f\`, which matches the calling
           shell's own command line and kills it
+  reap    kill EVERY guest process still running in this environment, found by
+          /proc/<pid>/root rather than by a command-line pattern. boa does not
+          survive several of its own handlers, and a crashed one leaves the
+          pidfile pointing at a corpse -- so orphans accumulate and an old one
+          keeps the port. Run this between sweeps
 
 Always: reset before a measurement. Restoring the file alone is not a reset.
 EOF

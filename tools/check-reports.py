@@ -83,7 +83,7 @@ def main(argv: list[str]) -> int:
         return 1
 
     errors: list[str] = []
-    counts = {"fwrecon": 0, "ghidra": 0, "rtcase": 0, "mkflash": 0}
+    counts = {"fwrecon": 0, "ghidra": 0, "rtcase": 0, "mkflash": 0, "emulation": 0}
 
     for path in files:
         try:
@@ -145,6 +145,39 @@ def main(argv: list[str]) -> int:
                 errors.append(
                     f"{path.name}: covered {covered} + blank {blank} != flash_size "
                     f"{size}, so the provenance map does not account for every byte")
+
+        # Dynamic sweeps from tools/handler-sweep.py and the static work list
+        # from tools/bughunt.py. Both are emulation-side, and the thing worth
+        # failing on is the same for both: a result set with no working controls
+        # is indistinguishable from a result set where everything behaved the
+        # same way. handler-sweep in particular spent three runs producing
+        # confident nonsense because its controls could not tell "my server" from
+        # "somebody's server".
+        elif str(doc.get("producer", "")) in ("handler-sweep", "bughunt"):
+            counts["emulation"] += 1
+            if doc["producer"] == "handler-sweep":
+                for field in ("profile", "body", "died_under_emulation", "survived",
+                              "controls", "caveat"):
+                    if doc.get(field) in (None, ""):
+                        errors.append(f"{path.name}: missing required field {field!r}")
+                if doc.get("control_problems"):
+                    errors.append(
+                        f"{path.name}: recorded with {len(doc['control_problems'])} failed "
+                        f"control(s) — {doc['control_problems'][0]}")
+                if not doc.get("survived"):
+                    errors.append(
+                        f"{path.name}: nothing survived, so the sweep measured the "
+                        f"emulator rather than the firmware")
+            else:
+                for field in ("known_cve", "builds", "islands", "self_check"):
+                    if doc.get(field) in (None, "", {}):
+                        errors.append(f"{path.name}: missing required field {field!r}")
+                sc = doc.get("self_check", {})
+                if not sc.get("gate_findings_joined_to_a_dispatch_entry"):
+                    errors.append(
+                        f"{path.name}: no gate finding joined to a dispatch entry, so the "
+                        f"two reports disagree about addresses and every cross-reference "
+                        f"in this file is meaningless")
 
         elif "schema_version" in doc:
             counts["fwrecon"] += 1
@@ -297,7 +330,7 @@ def main(argv: list[str]) -> int:
 
     print(f"reports OK — {counts['fwrecon']} fwrecon (schema {expected}), "
           f"{counts['ghidra']} Ghidra, {counts['rtcase']} rtcase, "
-          f"{counts['mkflash']} mkflash")
+          f"{counts['mkflash']} mkflash, {counts['emulation']} emulation")
     return 0
 
 

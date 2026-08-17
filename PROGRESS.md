@@ -2827,3 +2827,213 @@ claim that is true.
     procedure is not in this file". The bench half is checked and the desk half
     is not, and W07 is mostly desk work — so this gets worse before it gets
     better.
+
+---
+
+## W07 Day 1 — the work list, computed — 2026-08-18
+
+W07's premise is that the hunting instruments already exist and what is missing
+is the arithmetic. Two numbers came out of it, and the second is the one worth
+having.
+
+### The residue: 91 sites, and none of them is command execution
+
+`BoaGate` reports 134 findings on this unit's build. Subtract every site a
+published advisory explains and **91 remain — of which zero are R2**, the rule
+that means "reaches `system()`/`popen()`". Every command-execution candidate the
+gate can see on this build is already accounted for by a CVE or by a finding this
+project has itself withdrawn.
+
+That is a negative result and it is worth stating plainly, because the opposite
+would have been the week's headline. The residue is also less interesting than
+its size suggests: **63 of the 91 are `submit-url`**, the class W06 already
+measured and refuted on this build (`P4-1`, `P4-3`), and four more parameters —
+`ifname`, `wlan_id`, `webpage`, `wlan-url` — are named in `P4-4`'s prediction and
+were refuted with it. What is left uncharacterised is roughly a dozen parameters,
+`comment` (5 sites) the most frequent.
+
+> A correction made in the hour it was needed: `webpage` was written up here as a
+> parameter nobody had ever sent, and it is not — `P4-4`'s frozen prediction
+> names it explicitly. **The register caught a claim the analysis had not.**
+
+### Islands, in both directions
+
+A handler in `root_form[]` that no shipped page names. Computed rather than
+hand-picked, and the UI side comes from the docroot the vendor's **own**
+`flash extr` produced — `/web` in the extracted rootfs is a symlink to an empty
+`/var/web`, so a grep over the rootfs finds nothing and would make every handler
+look like an island.
+
+| | unit-2018 | V2.1.2 |
+|---|---|---|
+| handlers in the dispatch table | 57 | 59 |
+| named by no page | **14** | **11** |
+| pages posting to a handler that does not exist | **3** | **7** |
+
+The boring explanations are excluded mechanically: every `action=` in both
+docroots is a literal `/boafrm/...`, so nothing is assembled in JavaScript where
+a grep would miss it.
+
+**W04-2 already found the interesting one by hand** — `syscmd.htm` posts to
+`formSysCmd`, which V2.1.2's dispatch table does not contain
+([`notes/w6cg-web-ui.md`](notes/w6cg-web-ui.md), *"the form the vendor shipped
+posts to a 404"*). What is new is that it is **a pattern rather than an oddity**:
+ten pages across the two builds post to handlers that do not exist, and the 2015
+UI shipped a page for a handler that only appears in 2018.
+
+And the deflation, which matters more than the count: **13 of the 14 islands take
+`submit-url` and nothing else.** An island is a handler with no menu entry, not a
+handler with a secret.
+
+### `P4-7`: 39 of 57 handlers, one request each
+
+The sweep W06 could not afford. On the device nothing respawns `boa` and recovery
+is a power cycle, so 57 endpoints is a session spent almost entirely on power
+cycles; under emulation the state is a file and a restart costs a second. That
+trade was the argument for building the environment, and this is the first thing
+to spend it.
+
+**39 of 57 handlers stop answering after a single well-formed unauthenticated
+POST carrying only `submit-url=/wireless.htm`.** 19 survive; 39 restarts, none
+failed. Controls held throughout: a real handler answered and lived, a fake one
+404'd.
+
+`P4-7` predicted that the four handlers carrying CVE ids are "a sample, not the
+set". Thirty-nine is not four.
+
+> ⚠️ **This is not a claim about the device, and the tool refuses to phrase it as
+> one.** The JSON field is `died_under_emulation`. `qemu-user` raises `SIGBUS` on
+> unaligned accesses that the device's MIPS kernel fixes in its trap handler, so
+> a handler that dies here has not been shown to die on silicon. What this is: a
+> **candidate list** — and W06 measured a one-request outage on the hardware
+> (`docs/disclosure.md` D-11) without being able to say which class of handler it
+> belonged to.
+>
+> Note also that `formSysCmd`, the handler carrying the CVE, is among the
+> **survivors**. "Crashes" and "is the defect" are different sets.
+
+### Instrument bugs 28 through 36
+
+Nine, and six are in code written today. The count is the point: a session that
+builds five new instruments and finds no bugs in them has not looked.
+
+**28. A refuted claim in the register's own header.** Recorded under W07 Day 0.
+
+**29. `rm -rf` through a live procfs mountpoint.** Recorded under W07 Day 0.
+
+**30. The vendor's constant, copied, would have been a heap overflow.** Recorded
+under W07 Day 0.
+
+**31. A checker defeated by its own documentation.** `check-runsheet.py` located
+the `<!-- no-procedure: ... -->` block with `re.search` — first match wins — and
+the appendix paragraph *explaining* that block quotes the marker inline, earlier
+in the file. The real block was never read, two properly exempted cases were
+reported as gaps, and the escape hatch could not be used at all. The guard suite
+went 29 → 30 cases and the new case was watched failing before it was left
+passing.
+
+**32. A tool that read a third of its input and reported a whole answer.**
+`bughunt.py` walked the docroot as an ordinary user, met root-owned
+subdirectories that `flash extr` had created, silently skipped them, and computed
+an island list from **91 of 146 files**. Every handler whose only mention lived in
+an unreadable directory would have been reported as an island — a fabricated
+finding manufactured by a permission error. It refuses now instead of skipping.
+The island count was unchanged once fixed, which is luck rather than a defence.
+
+**33. Nested `sudo` moves the work directory.** `handler-sweep.py` runs as root
+and shelled out to `sudo qemu-env.sh`; `sudo` from root sets `SUDO_USER=root`, so
+`$WORK` resolved to `/root/fwre-work` and every restart failed with *"no
+/var/boa.conf; run build"* — sending the operator to rebuild an environment that
+was perfectly fine. Fifty-five times. Instrument bug 24's lesson exactly: **a
+failure that names the wrong fix is worse than no message at all.**
+
+**34. The pidfile held the wrong pid, and the control could not tell.** `boa`
+daemonises, so the pid the shell returns is the launcher's while the process
+holding the socket is its child. `stop` had **always** killed the launcher,
+reported success, and left the server running — harmless in short sessions, and
+across one 58-handler sweep it produced **32 orphans** with the port held by an
+arbitrary old one. Every probe after the first crash was answered by a server
+carrying state from earlier in the run.
+
+> **And `serve`'s control passed the entire time**, because it verified that
+> *something* on the port served an exempt page and redirected a gated one. That
+> is a property of the port, not of the process it started, and those are
+> different claims. It now checks `/proc/<listener>/root` against the profile's
+> own environment directory, and the pidfile holds the pid that owns the socket.
+
+**35. `reset` is host-global, and a second profile made that matter.** SysV shared
+memory and semaphores have no namespace here, so resetting one profile destroys
+the segments the other profile's running `boa` holds. That process then spins on
+`APMIB Semaphore Lock semop() failed !! [Invalid argument]` and never binds. The
+symptom is a `serve` that times out, which is indistinguishable from a broken
+restart — and that is what it was mistaken for. `reset` now reaps its own
+environment first and **refuses** while another profile still has processes.
+
+**36. A guard that silently killed the thing it guarded.** `port_holder` ends in a
+`grep` that exits non-zero when the port is *free*, which is the ordinary case;
+under `set -euo pipefail` that failed the pipeline, failed the assignment, and
+exited `serve` with status 1 **and no output whatsoever**. Written today to
+prevent bug 34, and for an hour it was the worse bug of the two.
+
+**Thirty-six recorded. Twenty were caught by comparing two things that should
+have agreed, seven by a check written to fail, two by asking what a checker does
+not read, one by an outside advisory, and six by an instrument disagreeing with
+itself between two runs of the same measurement.**
+
+### Three invalid measurements, and why they are named rather than discarded
+
+The `P4-7` sweep ran four times. The first three produced confident,
+well-formatted, entirely worthless output — 1 of 58, then 31 of 58 with five
+handlers returning `404` that had answered `302` an hour earlier, then 18 of 58.
+Only the fourth is real.
+
+They are in the record because **each of them looked exactly like data.** The
+tell was never the numbers, which were plausible throughout; it was that two runs
+of the same measurement disagreed about `formSysCmd`. A result that cannot be
+obtained twice is not a result, and this repository's own rule — no claim from a
+single tool — turns out to have a sibling: no claim from a single *run*.
+
+### Deliberately not done
+
+| Item | Why |
+|---|---|
+| Firing the 39 at the device | Each crash costs a power cycle. A *sample* chosen from the list is the right bench task, and this session was ended before hardware on purpose |
+| The differential harness across five builds | `mkflash` makes it possible now: a V3.4.0 profile is a few lines. It is W07 Day 2 and it wants a clean session |
+| `bughunt.md` | The week's DoD document. Its judgement column is worth writing once the bench results exist, not before |
+| Everything needing RF or an SPI programmer | `P7-*` and `P9-5`…`P9-12`. Rescheduled to W08 with the instrument named against each — see [`docs/lab-inventory.md`](docs/lab-inventory.md) |
+
+### Open, carried forward
+
+47. **Do any of the 39 die on silicon?** The most valuable question this session
+    produced, and it needs the device. `formWsc` is the first pick: it dies under
+    emulation on both profiles, and W06 fired it at the hardware without
+    recording whether the server survived.
+48. **`comment`, five sites, uncharacterised.** The most frequent parameter in the
+    residue that no prediction has ever named.
+49. **Ten pages posting to handlers that do not exist**, across two builds. W04-2
+    explained one. Whether the rest are UI-ahead-of-code, code-removed-under-UI,
+    or shared-across-models has not been asked.
+
+### Where W07 stands, and what the next session does first
+
+The register reads **W07 2 of 56** — `P0-9` and `P4-7`. Fifteen cases moved to
+W08 with the missing instrument named against each; `docs/lab-inventory.md` is
+the shopping list and its recommendation is about US$40 for the two that matter.
+
+Nothing below needs re-deriving. In order:
+
+| Next | Needs the device? | Where it picks up |
+|---|---|---|
+| **1. A sample of the 39 at the device** | ✅ **yes** | `reports/handler-sweep-unit-2018.json` is the candidate list. Pick 3–4, not 39 — each crash is a power cycle. `formWsc` first (open #47). This is what settles whether the sweep transfers, and it answers `D-11` / open #37 |
+| **2. The differential harness, W07 Day 2** | ❌ | `qemu-env.sh` already takes profiles and `mkflash` builds a flash from any container. A V3.4.0 profile is a few lines; then the same input goes to three builds and the divergences are the work list. `reports/bughunt.json` already holds 81 sites present in some builds and not others |
+| **3. `P5-6`, then the `P4`/`P5` block** | ❌ | The reschedule reasons say `P5-6` leads that block because it is the screening tool. The environment it needed now exists on two profiles |
+| **4. The network block** | ✅ **yes** | `P6-*`, `P8` network, `P1-7`, `P1-11`, `P2-10` — about 18 cases, one bench visit, station order per `runsheet.md` Part A |
+| **5. `bughunt.md`** | — | W07's DoD. Deliberately last: its judgement column is worth writing once 1 and 4 have run, not before |
+
+Two things a fresh session should not have to rediscover:
+
+- **`sudo tools/qemu-env.sh --profile <p> reap` between measurements.** `boa`
+  daemonises and does not survive many of its own handlers; without a reap the
+  orphans hold the port and answer for a server that no longer exists.
+- **`FWRE_WORK` explicitly when shelling out under sudo.** Nested `sudo` sets
+  `SUDO_USER=root` and moves the work directory to `/root`.
