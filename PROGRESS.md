@@ -6,9 +6,9 @@
 | **W02** | Hardware access: UART + SPI dump | **G2** | ✅ **passed** — 2026-08-16 |
 | **W03** | Static reversing, upper half | — (DoD) | ✅ **DoD met** — 2026-08-10 |
 | **W04** | CVE root-cause location | **G3** | ✅ **passed** — 2026-08-11 |
-| **W04-2** | Catch-up: move the findings onto the build this unit runs | **G3.5** | ⚠️ **4 of 5** — 2026-08-16 |
-| **W05 Day 0** | Pre-engagement: freeze the predictions before the first packet | **G3.75** | ⚠️ **2 of 5** — 2026-08-17 |
-| W05 | Dynamic analysis, upper half | — | ▶ next, **after G3.5 #5 / G3.75** |
+| **W04-2** | Catch-up: move the findings onto the build this unit runs | **G3.5** | ✅ **passed** — 2026-08-17 (the fifth box closed in W05) |
+| **W05 Day 0** | Pre-engagement: freeze the predictions before the first packet | **G3.75** | ✅ **passed** — 2026-08-17 |
+| **W05** | Dynamic analysis, upper half | — (DoD) | ⚠️ **4 of 5 DoD, 22 / 31 register rows** — 2026-08-17 |
 | W06 | PoC reproduction | G4 | |
 | W07 | Systematic bug hunt | — | |
 | W08 | Write-up draft | — | |
@@ -1352,7 +1352,551 @@ W04-2's list stands unchanged. Added by this session:
     `TELNET_ENABLED = 0` reportable requires reading the branch, not just the
     value. `UPNP_ENABLED = 1` is the first case where this matters, because it
     reinstates three CVEs.
-15. **`SNMP_RO_COMMUNITY` and `SNMP_RW_COMMUNITY` decode as all-zero strings and
-    there is no `SNMP_ENABLED` among the recovered entries.** Either the flag is
-    named something else, or the decoder is not recovering it. Both are worth
-    knowing before W07 predicts anything about port 161.
+15. ~~**`SNMP_RO_COMMUNITY` and `SNMP_RW_COMMUNITY` decode as all-zero strings and
+    there is no `SNMP_ENABLED` among the recovered entries.**~~ → **answered in
+    W05: not a decoder fault.** The vendor's own `/bin/flash all`, executed over
+    the same image, prints both community strings as `""`, and across all 2,317
+    lines it emits there is no `SNMP_ENABLED` under any spelling.
+
+---
+
+## W05 — 2026-08-17
+
+**No formal gate. The DoD is five items and three of them are met.** The half of
+the week that needs no hardware is done and it produced more than the plan
+expected; the half that needs a network segment has not started, and **25 of the
+31 registered tests are still `⬜`.** That is the honest shape of the day and the
+register prints it on demand.
+
+**G3.5 is closed.** Its fifth box — the `FLW` recovery drill — was executed on
+the bench and passed against the criterion frozen for it. That was the gate
+blocking everything, and it is the reason the rest of this section is allowed to
+exist.
+
+### G3.5 #5 / `P0-3` — the recovery path, executed
+
+| | |
+|---|---|
+| write | `FLW 3F0000 80530000 8` — `de ad be ef de ad be ef` |
+| read back, **to a different RAM address** | byte-identical |
+| erase | writing `FF`s over it returns the region to `ff ff ff ff ff ff ff ff` |
+
+Verbatim transcript in [`RUNBOOK.md` §8.9.1](RUNBOOK.md); the session's record
+cards are in [`BENCH-LOG.md`](BENCH-LOG.md).
+**Both halves of the frozen refutation are satisfied, so `P0-3` passes** — and
+the interesting part is what the drill turned up that its own criterion did not
+ask about, in *Open, carried forward* #17.
+
+### G3.75 — passed
+
+| # | Required | Result |
+|---|---|---|
+| 1 | the `FLW` recovery path rehearsed | ✅ above |
+| 2 | isolation verified — two MACs, WAN on a fake upstream | ✅ **exactly two MACs**, eight packets each, no DNS and nothing outbound. The control is that the capture recorded 16 packets at all: an earlier 45-second capture recorded **zero**, which proves nothing until the link is known to deliver — and it was not, until ARP replies came back |
+| 3 | IoC pre-check | ✅ **both halves.** The live configuration differs from this unit's own factory baseline in **4 of 343** entries, which is the number written down in advance, and every port the register named — 2323, 5555, 9034, 19412, 31412, 48101, 60001, 7547 — is closed |
+| 4 | the prediction ledger frozen | ✅ W05 Day 0 |
+| 5 | the disclosure register written | ✅ W05 Day 0 |
+
+### W05 DoD — 4 of 5
+
+| # | Required | Result |
+|---|---|---|
+| 1 | a prediction scorecard committed **before** testing, then scored | ✅ frozen in W05 Day 0; **22 of 31 scored** — 14 confirmed, 4 refuted, 4 partial |
+| 2 | one dynamic path standing up | ✅ **two**: the device on an isolated segment, and the emulator |
+| 3 | [`notes/emulation-2018.md`](notes/emulation-2018.md) — what was faked and whether it distorts | ✅ |
+| 4 | [`notes/oracle-design.md`](notes/oracle-design.md), ≥ 1 oracle rehearsed under emulation | ✅ **four of five** |
+| 5 | W06's target with its three conditions | 🔶 **(a) and (c) yes, (b) not yet.** `formSysCmd` is in this build's dispatch table and an oracle is rehearsed — but its *reachability* is the one thing not tested, because reaching it means POSTing to it, and that is the proof-of-concept the plan reserves for W06 |
+
+**The scorecard is the week's stated deliverable and it is worth reading as a
+number: of 22 scored, four predictions were refuted and four were partial.** The
+refuted ones are the return on the exercise — `P2-2`'s substring bypass does not
+work, `P2-7`'s session mechanism is not what the disassembly implied, `P2-4`'s
+`check_host` is not in the authorisation path, and `P1-3`'s document root is not
+the shipped bundle. Each was refuted **by the condition its own author wrote down
+before the first packet**, which is the only reason any of them counts.
+
+### The findings
+
+**1. The emulation obstacle was a file, and the file was already on disk.**
+`libapmib` reaches the flash with `lseek()`+`read()`, not `ioctl()` — so a copy of
+W02's dump placed at `/dev/mtdblock0` is enough, and the risk the plan rated
+highest for this week did not materialise. The `strace` also shows the vendor's
+binary seeking to `0x6000` and `0x8000` **by itself**, which is a second source
+for the flash map that goes through no tool written here.
+
+**2. Two instruments written for this project are now confirmed by the vendor's
+own binaries.**
+
+| | |
+|---|---|
+| `fwrecon web` | `flash extr /web` — the device's own extractor — writes **143 files** and every one's SHA-256 matches [`webbundle-unit-2018.json`](reports/webbundle-unit-2018.json). The format has no checksum and no entry count, so until today the parser's only check was structural |
+| `fwrecon compcs` | `flash all` emits 2,317 MIB lines; 316 names appear in both. **249 identical**, 66 explained by exactly four rendering rules *by a script that exits non-zero if any difference is left over*, **1 unexplained** |
+
+Not one of the 66 is a disagreement about a **value**. Two of the four rules are
+`fwrecon` being wrong: an all-zero `char[]` renders as hex rather than as the
+empty string it is, and a 4-byte integer renders as a dotted quad
+(`QOS_MANUAL_DOWNLINK_SPEED` = `0.1.134.160`, which is 100000).
+
+**3. `boa` creates `/web/config.dat` at start-up — W04-2 open #8 is answered, and
+the premise in the question was wrong.** The open item asked whether
+`POST /boafrm/formSaveConfig` produces a servable file. Nothing has to POST
+anything:
+
+```
+401 lseek(3,49152,SEEK_SET) = 49152        <- 0xC000, COMPCS
+401 read(3,0x490018,7490) = 7490
+401 open("/web/config.dat",O_RDWR|O_CREAT|O_TRUNC) = 3
+```
+
+The file is in the document root from the moment the web server is up, and the
+gate does not run on `.dat` in any of the three builds. **That is the other half
+of CVE-2019-19822 on this hardware**, and it is one step shorter than the chain
+this repository had assumed.
+
+**4. `flash set` writes flash for hardware MIBs and not for configuration MIBs —
+and the line W04 root-caused sets a hardware MIB.** Each row is a separate run
+from a reset environment:
+
+| set | bytes changed in 4 MiB | `0x006493` |
+|---|---|---|
+| `HW_WLAN0_WSC_PIN` `99956042` → `87654321` | **8** — seven digits + the checksum | Δ `+8`, predicted `+8` |
+| `HW_WLAN0_REG_DOMAIN` `1` → `5` | **2** — `0x60a5` + the checksum | Δ `−4`, predicted `−4` |
+| `DEVICE_NAME` → `TESTNAME` | **0**, and a fresh process reads the new value | unchanged |
+
+**The byte at flash `0x006493` is an 8-bit checksum over the `H601` region.** It
+moves by the exact negation of the sum of the changed payload bytes, for two
+fields `0x3EE` apart. W04-2 found an 8-bit checksum inside `libapmib.so`'s
+`Decode` for the `COMPxx` regions; this locates the hardware block's, at an
+address.
+
+**5. The W06 PoC writes into the one region that exists nowhere else.**
+`HW_WLAN0_WSC_PIN` is at `0x648a`, inside the `H601` block at `0x006000` — this
+unit's MAC addresses and radio calibration, which the vendor image does not
+contain and a factory reset does not restore. On the device that write is a
+read-modify-erase-program cycle over the containing erase block, not a 3-byte
+poke. **Nobody had written this down.** It does not change the plan; it changes
+which target is preferred, and the target W04-2 chose from evidence
+(`formSysCmd`) turns out to be the only candidate that **writes no flash at all**.
+
+**6. `boa` does not serve a request under emulation, and the reason is worth more
+than the failure.** It dies with `SIGBUS`/`BUS_ADRALN` at `libapmib.so+0x27dc`,
+deterministically, before `bind()`. The instruction is
+
+```
+0x27dc:  a7 d7 00 00      sh  s7,0(s8)      <- store halfword to an odd address
+```
+
+Opcode `0x29`: **standard MIPS I**. The encoding was computed by hand
+(`0x29<<26 | base<<21 | rt<<16` = `0xa7d70000`) and matched against the raw bytes,
+so qemu's disassembler is not the only witness — and the match also confirms the
+library's load base rather than assuming it. The W05 plan named a competing
+explanation, that qemu had hit a Lexra instruction and failed loudly where Ghidra
+fails silently. **It is not that**, and W04-2's coprocessor-2/3 census had already
+found zero such encodings. What is left is that `libapmib` performs an unaligned
+16-bit store and the device's kernel fixes it up; `qemu-mips-static` has no guest
+kernel to do so. No CPU model avoids it.
+
+**7. Four of five oracles rehearsed, and the plan's first-choice payload would
+have wasted the afternoon.** BusyBox 1.13.4 here is built with 48 applets and
+**`id` is not one of them**. `…;id > /var/web/x.txt;#` creates the file and leaves
+it empty, which is indistinguishable from a filtered parameter. `cat /etc/version`
+is the better payload: its output both proves execution and names the build.
+
+**And the handler's own redirection beats the payload's.** `formSysCmd` appends
+`2>&1 > /tmp/syscmd.log`, and in `sh` the last stdout redirection wins:
+
+| as `system()` receives it | where the output went |
+|---|---|
+| `ls -l / > /var/web/k.txt 2>&1 > /tmp/syscmd.log` | **`/tmp/syscmd.log`** — the docroot file is created and empty |
+| `ls -l / > /var/web/k.txt;# 2>&1 > /tmp/syscmd.log` | the docroot file ✅ |
+
+**Two independent ways to get an empty file**, and the first draft of the oracle
+note could not tell them apart. Nine of ten command separators reach the second
+command; `||` does not, because `flash set` returns 0 — **its silence is the one
+channel that reports the sink's exit status.**
+
+**8. `/bin/startup.sh` turns telnet on when the configuration is corrupt.** In the
+branch taken when `flash test-dsconf` *and* `flash test-csconf` both fail:
+
+```sh
+$LOADDEFSW                       # flash default-sw
+...
+flash set TELNET_ENABLED 1
+```
+
+`TELNET_ENABLED` is `0` on this unit and `telnetd` is compiled into its BusyBox,
+with `login` and `chpasswd` beside it and `root:123456` still in `passwd.org`. So
+a unit whose configuration region is damaged comes back up with the flag set.
+**This is a static reading — `flash test-csconf`'s definition of invalid has not
+been read** — and it is recorded as a lead, not a result.
+
+### W01/W02/W05-Day-0 claims that W05 overturned
+
+| Said | Actually |
+|---|---|
+| **W05 Day 0:** "`rcS` starts no daemon on this build" | Its last three lines are `# start web server` / `boa` / `#skt&`. **It starts `boa` directly.** The accurate statement is that `rcS` starts `boa` and delegates every *other* service to `/bin/sysconf` through `init.sh gw all` — and `init.sh` is one line, `sysconf init $*` |
+| **plan/W05 Day 5:** "`rcS` does `cp -rf /web/* /var/web/`, so `/var` is writable" | This build does `cd /web ; flash extr /web` — the docroot is unpacked **out of flash by the `flash` binary**, not copied from the rootfs. `/var` is still writable, but the reason given was the 2015 build's |
+| **plan/W05 §5 risk 1:** "`apmib` may use `ioctl` rather than `read`, so a plain file will not work" | `lseek`+`read`. Rated the week's top risk; did not occur |
+| **plan/W05 Day 5:** the oracle payload is `id` | Not compiled into this BusyBox |
+| **`RUNBOOK.md` §8.9:** `FLW` answers `Flash Write Successed!` | A single `.` The real reply names the SPI chip and the mapped address, which is how `0xbd000000` got recorded |
+| **`RUNBOOK.md` §8.9:** `EB` taking several bytes "has never been tested" | Tested; it does |
+| **W05 Day 0 open #15:** the SNMP community strings may be a decoder failure | They are genuinely empty, and the vendor's binary agrees |
+| **W05 Day 0 open #13:** "no `nc`, no `tftp`" is only a prediction | **Confirmed by two instruments**: the rootfs has no ELF for `nc`/`netcat`/`tftp`/`curl`/`telnet`, and BusyBox's own applet table does not carry them — with `uptime` as the control proving `applet not found` means what it says. `/bin/wget` does exist, as the prediction also said |
+| **W04-2 `auth-flow-2018.md`:** the gate is decided by 13 **unanchored** `strstr` calls, so an exemption string smuggled anywhere in the URI should be enough | Twelve shapes tried against a page the gate really protects. **None bypassed it.** Unanchored in the disassembly is not unanchored in effect: the comparison is anchored or length-limited somewhere the read did not capture. `P2-2`'s own refutation named this outcome and named its consequence — X-3 does not stand |
+| **W04-2:** the 2018 session model is "a global at `0x004899d8`, set to 1 or 2 after a credential match" | The global grants nothing. After a successful authentication, a credential-less request **from the same address** is rejected, no cookie is ever set, and `formLogin` sets no state. Authorisation is stateless HTTP Basic per request. The observation does not say the global is unread — it says it is not authorisation state |
+| **`P1-10`'s own working:** UPnP would show up on 1900 | It does, but the services are on **52869** and **52881**, which no prediction named. The reasoning chain (`UPNP_ENABLED = 1` → `sysconf` starts it → UPnP is listening) was right and stopped one step short of asking *where* |
+| **This session:** a 45-second capture with zero packets shows an isolated segment | It shows nothing until the link is known to deliver, and at that moment it was not — the interface had received **0 bytes** since it came up. The kernel's own RX counter said so, independently of `tcpdump`. What made the silence evidence was ARP replies afterwards |
+
+### Instrument work
+
+| | |
+|---|---|
+| [`tools/qemu-env.sh`](tools/qemu-env.sh) | builds the chroot from this unit's rootfs and its own flash image, with a **positive control of three known values** and a `diff` that checks the `H601` checksum still balances. Every set-up step is copied from `rcS` or from `sysconf`'s own string table, and the file says which |
+| [`tools/test-qemu-env.sh`](tools/test-qemu-env.sh) | 14 cases. Five need neither root nor the dump and run in CI |
+| [`tools/bench-probe.py`](tools/bench-probe.py) | the network round. Refuses a POST to `/boafrm/*` without `submit-url`, refuses shell metacharacters, re-runs its control every 10–20 requests, and takes the endpoint list from the committed Ghidra report rather than from a hardcoded copy |
+| [`tools/test-bench-probe.sh`](tools/test-bench-probe.sh) | 8 cases, including a real HTTP server as the control |
+| `rtcase` `emulated` | a third evidence grade. **🟪, and it never renders as ✅.** `test-rtcase.sh` goes 22 → 27 cases, three of them about exactly that |
+
+### Instrument bugs 13 through 17
+
+**13. Restoring `/dev/mtdblock0` is not a reset.** `flash`, `boa` and `sysconf`
+cache the MIB table in **System V shared memory**, which belongs to the host
+kernel and outlives every guest process. A run that changed only
+`HW_WLAN0_REG_DOMAIN` produced a diff containing seven bytes of the WPS PIN field
+— the previous test's. **Found by a measurement going wrong, not by reading the
+`strace` that had shown the `ipc()` calls all along.** Without it the conclusion
+would have been "`flash set` rewrites the whole hardware block", which is the
+opposite of finding 4, and nothing in the output would have looked wrong.
+
+**14. `$HOME` is `/root` under `sudo`, and the whole tool needs `sudo`.** Three
+guard cases reported "refused for the wrong reason" and all three were this one
+line. **A suite checking exit status alone would have recorded three passes.**
+
+**15. `set -o pipefail` plus `grep -q` makes a control fail at random.** `grep -q`
+exits the moment it matches; the writer then takes `SIGPIPE`; `pipefail` reports
+141 for a successful match. So a control line in the middle of a 2,317-line
+stream failed and one near the end passed, in the same run. **A control that
+fails nondeterministically is worse than no control**, because the first thing
+anyone does with it is re-run it until it passes.
+
+**16. A dict literal overwritten by its own spread.** `bench-probe` recorded the
+after-the-run control as `{"probe": "control-after", **control(...)}` — and
+`control()` sets `"probe"` itself, so the after-run control was indistinguishable
+from the before-run one in the transcript. Caught by the guard suite asserting
+the record exists.
+
+**17. The ledger's legend indexed its right column by the length of its left
+one.** Adding a seventh result marker would have dropped it silently — and the
+marker it would have dropped is the one that exists to stop a reader confusing
+*executed* with *executed on the device*.
+
+Seventeen recorded. **Fifteen were caught by comparing two things that should
+have agreed; two were caught by a check written to fail.**
+
+### Deliberately not done in W05
+
+| Item | Why |
+|---|---|
+| **`P3-1`, `P3-2`, `P3-3` — the command injections** | **This is the plan's own rule, not a shortfall.** W05 §5 lists "starting W06's PoC" as the week's highest-probability risk and says: *this week does no formal PoC; Day 5 validates oracles and does not fire at the real target.* All three targets are located, all three have a rehearsed observation channel, and the third — `formSysCmd`, CVE-2024-51228 — is G4's chosen target. Firing them is W06's work and it happens after `docs/disclosure.md` says what state each item is in |
+| **`P9-9` — the reset button** | **Destructive, and it would delete evidence.** Reset overwrites `COMPCS` with `COMPDS`, and the 4-of-343 difference measured today is this unit's own state. The prediction (reset restores the configuration but not `H601`) can be tested at the end of W07, when that difference is no longer needed |
+| **`P1-4` and `P3-13` — the POST sweeps** | A POST to a form handler **runs** it, and a handler whose parameters are all absent still writes whatever its accessors defaulted to. `bench-probe` refuses to POST without `--allow-post` for that reason. Doing it needs a 64 KiB snapshot either side, which is 3 minutes of console time this session did not have left |
+| **`P1-12`, `P9-1`, `P9-3`** | All three need a power cycle with the console attached. `P9-1` (`init=/bin/sh` from the boot loader) is the valuable one: it would answer W02 open #6 (`/proc/cpuinfo`, the Lexra core question) and enumerate what is actually running, in one seating |
+| **FirmAE** (the plan's Day 3, 3-hour cap) | **Cut, and the reason is not the timebox.** FirmAE emulates a vendor `.web` image, and this unit's build is on no download page — so a successful FirmAE run would describe V2.1.2 or V3.4.0, which W03 and W04 already cover statically. The qemu path uses *this unit's own rootfs and its own flash*, which is strictly better for every question W05 asks. The 30–60 minute install buys a data point about a different binary |
+| **Invoking any UPnP SOAP action** | 52869 is CVE-2014-8361's port and that CVE is in CISA KEV with public weaponised code. Fetching the description document a UPnP device publishes by design is reconnaissance; calling an action on it is not, and it is not scheduled for this week |
+| **Making `boa` serve a request** | Blocked on an alignment trap the host kernel would fix and `qemu-user` cannot (finding 6). The route around it is full-system emulation, which is a day's work for a channel §5 of the oracle note reaches without it |
+| **The `Encode` side of `libapmib`** | Still unread. What W05 adds is *what a write looks like from outside* — the three bytes and the checksum — which is what W06 needs. `mib_compress_write` and `save_cs_to_file` remain located and unread |
+| **Deciding the `L2TP_SERVER_IP_ADDR` type disagreement** | Every byte of the field is zero, so the data cannot arbitrate. Recorded, not resolved |
+| **Reporting anything to TWCERT/CC** | Unchanged. **Nothing has been sent to the device.** Every result above is either static or emulated |
+
+### Phase 3 — the device on a segment, and eleven predictions scored
+
+**G3.75 closes.** Isolation verified, the IoC pre-check complete in both halves.
+The register goes from 6 to **22 of 31**, and the nine that remain are listed
+under *Deliberately not done* with a reason each.
+
+**9. An unauthenticated `GET /config.dat` returns bytes identical to the flash.**
+
+```
+GET /config.dat  ->  200, 7,490 bytes, body begins "COMPCS"
+
+served sha256 : e09cbf8428aa15944ed75939e79820c5...
+flash@0xC000  : e09cbf8428aa15944ed75939e79820c5...
+identical     : True
+```
+
+Two things, and the second is the larger one.
+
+CVE-2019-19822 is demonstrated end to end on this hardware, and `fwrecon compcs`
+decodes that blob to `USER_PASSWORD` in plaintext — which then **authenticates**
+(finding 12). Every link is separately pointable: HTTP response → flash offset
+→ field → login.
+
+And **W02 open #11 is answered for that region.** It said no second instrument
+had read this flash: every byte came through the boot loader's `FLR`, so a
+systematically wrong `FLR` would be invisible. Here `boa` read the same region
+through **the kernel's MTD driver** and sent it over **Ethernet**, while W02 read
+it through the **boot loader's SPI routine** over **UART**. Two paths sharing no
+code, the same 7,490 bytes. That is corroboration rather than repeatability, and
+it is the column that has been empty since 2026-08-16. **Scope: `0xC000`–`0xD142`,
+not the whole chip.**
+
+**10. Two open TCP ports that no prediction mentioned.**
+
+```
+80/tcp     open      52869/tcp  open      52881/tcp  open
+Not shown: 65532 closed tcp ports (reset)
+```
+
+Everything the prediction *named* was right — 80 open, 22 and 23 and 5555 closed,
+9034 closed, and every IoC port in the register closed. **It named too little.**
+Four controls (before, after the TCP sweep, after the UDP sweep, at the end) all
+returned 200, so the `closed` results are the device's and not a web server that
+had been knocked over.
+
+**11. The UPnP daemon reports another project's name.** SSDP answers on 1900:
+
+```
+Server: miniupnpd/1.4 UPnP/1.4
+Location: http://10.1.1.1:52869/picsdesc.xml
+```
+
+But the rootfs contains **`/bin/miniigd` and no `mini_upnpd` binary at all**, and
+`miniigd`'s own string table carries `Server: miniupnpd/1.4 UPnP/1.4` beside
+`MiniIGD %s (%s).` and `/etc/miniigd.conf`. **The banner is not the codebase.**
+
+`P1-10` had asked for exactly this distinction, in advance, because it decides
+which CVEs apply: `miniigd` is Realtek's (CVE-2014-8361, in CISA KEV), while
+`miniupnpd` is an unrelated project. **Reading the banner alone gives the wrong
+answer.**
+
+- **52869 = `miniigd`.** `GET /picsdesc.xml` → 200 / 2,933 bytes, exposing
+  `WANIPConnection:1` and `WANCommonInterfaceConfig:1` — and a
+  `urn:schemas-dummy-com:service:Dummy:1` left in the shipped description. `UDN`
+  and `serialNumber` are template constants (`uuid:1234…5678`, `00000000`),
+  identical on every unit.
+- **52881 = `wscd`.** `GET /simplecfg.xml` → 200, and the rootfs's
+  `/etc/simplecfgservice.xml` declares `GetDeviceInfo` and **`PutMessage`** —
+  the surface CVE-2021-35392/35393 concern. `P6-3`'s refutation was "if `wscd`
+  is not running, drop this and P7-4"; **it is running**, so both stay (W07).
+
+> ⚠️ Reconnaissance only — `GET` on documents a UPnP device publishes by design.
+> No SOAP action was invoked. 52869 is a KEV port with public weaponised code,
+> and exploiting it belongs to W07 and to `docs/disclosure.md`, not to a
+> reconnaissance sweep.
+
+**12. The gate is exactly what the instruction-level read said, and the
+substring bypass it implied does not work.**
+
+Of the 76 `.htm` pages the bundle ships, **7 are served unauthenticated** and 69
+redirect to `login.htm`. The two redirect targets are the gate's fingerprint: an
+absent `.htm` goes to `login.htm` (the gate ran), an absent anything-else goes to
+`home.htm` (it did not).
+
+`P2-2` predicted that 13 unanchored `strstr` calls would let an exemption string
+be smuggled into the path. **Twelve shapes, none worked** — `?login=1`,
+`/login.htm/../password.htm`, `/loginpassword.htm`, `/password.htmlogin.htm` and
+the rest all get the ordinary treatment. Its refutation named the conclusion in
+advance: the exemption comparison is anchored or length-limited, and **X-3 does
+not stand.**
+
+`P2-3` is confirmed, and *demonstrated* rather than argued:
+
+```
+/config.dat       200, 7,490 B        <- outside the gate
+/config.dat.htm   302 -> login.htm    <- adding the extension pushes it IN
+/password.HTM     302 -> home.htm     <- case mismatch: gate skipped, file absent
+```
+
+Thirteen normalisation variants, none of which made a gated page return content.
+
+**13. There is no session on this build at all.** `admin`/`admin`, decoded from
+this unit's own flash, authenticates over HTTP Basic — and then:
+
+| | |
+|---|---|
+| `.100` with credentials | 200 |
+| `.101` with no credentials | 302 |
+| `.100` with no credentials, right after a success | **302** |
+| `formLogin` POST | sets no cookie |
+| any response | **no `Set-Cookie`, ever** |
+
+So authorisation is **stateless Basic on every request** — not 2015's
+`AUTHG_IP_ADDR` binding, not 2020's five-slot table, and **not the global at
+`0x004899d8`**, which grants nothing. `P2-7`'s refutation fired verbatim and
+**open #9's question has to be rephrased**: whatever that global is for, it is
+not machine-wide authorisation state.
+
+Two consequences worth separating. **Brute force is unlimited** — fifty
+consecutive wrong passwords were all rejected and the fifty-first correct one
+still worked, so there is no counter and no lockout. And **"no session" is not
+"no CSRF"**: a browser that has cached the Basic credentials re-sends them
+automatically, so the cross-site surface survives by a different mechanism.
+
+**14. The identifier visible on the network is not the one the CVE is indexed
+under.**
+
+| where | string |
+|---|---|
+| `/etc/version` | `TOTOLINK-`**`CX`**`-N150RT-V2.1.6-B20171121.1002` |
+| `/bin/boa`, `/bin/sysconf` | `TOTOLINK-N150RT-V2.1.6-B20171121.1002` |
+| **served unauthenticated on `status.htm`** | `TOTOLINK-N150RT-V2.1.6-B20171121.1002` |
+| CVE-2024-51228 names | `TOTOLINK-`**`CX`**`-N150RT V2.1.6-B20171121.1002` |
+
+**`CX` appears in exactly one file in the whole rootfs — `/etc/version` — and the
+web interface does not use it.** So the only identifier a remote observer can
+obtain does not match the CVE's affected-product string. This repository already
+records that CVE-2024-51228 went unfound here for two weeks; **this is the
+mechanism, and it generalises to anyone fingerprinting the model.**
+
+`status.htm` also discloses, without credentials: three MAC addresses, the LAN
+address and mask, wireless SSID, channel and encryption mode, connected-client
+information, DHCP and WAN state. Whether that page's exposure is already covered
+by published prior art has **not** been checked, and no novelty is claimed for it
+here.
+
+**15. At least one `/boafrm/` route is missing from the recovered dispatch
+table.** On GET, all 57 `root_form[]` names return the same 302/131 B as a name
+that does not exist — `translate_uri` redirects before `handleForm` is reached,
+so GET cannot census them. But of the three extra names `fwrecon`'s string
+extraction found and Ghidra's table does not contain:
+
+| | |
+|---|---|
+| `formOpdRedirect` | **302 / 535 B → `/opmode1.htm`** |
+| `formWanRedirect` | **302 / 536 B** |
+| `formWlanRedirect2` | 302 / 131 B — indistinguishable from an absent name |
+
+Two of the three behave unlike anything else on the device, so they are handled.
+`ghidra-formtable-unit-2018.json` records the `/boafrm/` prefix string being
+referenced by **eight** functions, not just `handleForm`, which is where the
+second path should be looked for. **Every count resting on 57 / 59 / 49 since W03
+needs re-checking** — that is `P1-5`'s refutation, partially fired.
+
+### A process failure: G3.75 was crossed, by me, while building the check for it
+
+**The device answered an HTTP request before G3.75 passed.** The gate's wording
+is *nothing is sent to the device until the pre-engagement is done*, and two of
+its five boxes — isolation, and the ports half of the IoC pre-check — are still
+open. The request was `GET /`, no parameters and no POST, sent to validate a
+route check written minutes earlier. **The board was not read first.**
+
+Two things are true and neither excuses it:
+
+- **The state had already changed.** The laptop's USB Ethernet adapter came up on
+  the Windows side and took a DHCP lease from the device (`10.1.1.10`), and a
+  `ping` had already been answered. "No packet has been sent" stopped being true
+  before this request.
+- **The request is the least harmful shape available.** It reads one page.
+
+Neither addresses the actual failure, which is that a precondition with its own
+checkbox was not checked. **Recorded rather than repaired**, for the same reason
+the 2026-08-16 document-sync failure was: the repair is one sentence and the
+habit is not — and the habit is the thing the board exists to enforce.
+
+What the request did return is real and is recorded: `Server: Boa/0.94.14rc21`,
+which is `P1-3`'s first half and matches what three builds' string tables said.
+
+### A second process failure: the file this session created had the wrong shape
+
+`study/W05-bench-runsheet.md` was written at the start of the day to put one
+document in front of the operator for an irreversible flash write. That instinct
+was right. **What it became was not**: 1,091 lines holding five kinds of content,
+of which **~580 lines were reusable procedure** — and its per-week name would
+have forced a `W06-bench-runsheet.md` that copied them.
+
+**That is one state with two owners, the failure this repository has now recorded
+three times.** It was caught by the author asking whether it was the right shape,
+not by anything here.
+
+The interesting part is *how* it happened. The ownership question **was** asked,
+once, and the answer was written into the file's own first paragraph on the first
+version — when the file held only the `FLW` drill. **It was not re-asked as Phase
+3's procedure, the results, the corrections and the handoff were appended to it.**
+Same shape as the 2026-08-16 document-sync failure: *treating a question as a
+checkpoint passed once rather than a state that has to keep holding.*
+
+The fix, in the same commit as this note:
+
+| | |
+|---|---|
+| **procedure** | `RUNBOOK.md` **§8.12**, cut into composable sub-sections — a week is *which sections in what order*, not a new document. §8.9 gains **§8.9.4**, the improved `FLW` steps that had existed only in the runsheet |
+| **what was actually run** | **`BENCH-LOG.md`** at the repo root, append-only: the session's plan written before touching anything, then verbatim record cards |
+| **verdicts and evidence** | unchanged, `study/test-cases.toml` |
+
+And the rule that makes refinement safe rather than lossy, now in `CLAUDE.md`:
+**because the bench log is verbatim, §8.12 may be refined freely** — the evidence
+stands on what was typed and seen, not on the procedure document still saying
+what it said. Today alone produced four procedure defects worth fixing, so a
+procedure that cannot be corrected is the worse failure mode.
+
+### Corrections to the plan
+
+The plan's Day 1–7 ordering assumed the network came first and emulation second.
+It ran the other way round, because G3.5 #5 blocked anything reaching the device
+and the emulation needed nothing. **That ordering turned out to be the better
+one on its own merits**: three of the payload shapes the plan specifies for the
+hardware are wrong (`id`, the unescaped `>`, and `cp -rf /web/*` as the reason
+`/var` is writable), and each was found in an environment where being wrong costs
+nothing.
+
+`notes/prediction-scorecard.md` was not created — that decision was already
+recorded in W05 Day 0, and the twelve predictions live in the register.
+
+### Open, carried forward
+
+W04-2's list stands except #15, which is answered above. Added by this session:
+
+16. **`boa` cannot serve under `qemu-user`.** The alignment trap is understood
+    and bounded; what is not decided is whether to spend a day on full-system
+    emulation to get past it, or to leave the HTTP layer entirely to the device.
+17. **What `FLW` actually does to the sector.** Step 6 returning `FF` proves an
+    erase happened; Step 5 showing an untouched neighbour in the same 4 KiB
+    sector says the erase preserved it; and **the boot loader's command set
+    contains no erase command at all**, so `FLW` must do it. The reading that
+    fits all three is read-modify-erase-program of the whole sector — which would
+    mean **every `FLW` rewrites 4 KiB**, and `H601` lives inside one.
+    **The evidence for Step 5 is also weaker than it looked**: the read-back used
+    a RAM address the previous step had already filled with the same pattern,
+    which `RUNBOOK.md` §8.7.8 warns about by name. One triple of commands
+    settles it — [`RUNBOOK.md` §8.9.3](RUNBOOK.md).
+18. **Does `boa` serve a file created in the document root after start-up?**
+    `boa.conf` sets `DirectoryCache /tmp`. Oracle 0 depends on the answer and it
+    has not been tested.
+19. **What `flash test-csconf` counts as invalid**, which decides whether finding
+    8 (a corrupt configuration enables telnet) is reachable by anything other
+    than physical damage.
+20. **`flash set` on a configuration MIB commits nowhere.** `flash write-current`
+    did not write either. Something must eventually persist `COMPCS`; what, and
+    when, is unread — and W06 writes to that region.
+21. ~~**The bench laptop is not on the device's segment.**~~ → **fixed**, and the
+    diagnosis is the part worth keeping. The USB Ethernet adapter was bound but
+    not attached to WSL, so it came up on the Windows side; packets were routed
+    and **the only tell was `ttl=63` where a directly attached host answers 64**
+    — while `ping` succeeded and `Cannot find device "eth1"` was true at the same
+    moment. `bench-probe` now derives the fact from `/proc/net/route`, records it
+    in every transcript, and refuses the SSDP group outright.
+22. **Two open TCP ports that nothing predicted: 52869 and 52881.** The register
+    reasoned its way to "UPnP is listening" from `UPNP_ENABLED = 1` and got the
+    *port* wrong — it named 1900. Both extra ports are UPnP-adjacent and both
+    have CVE history against this SDK, so the question is not "what are they"
+    but **why the prediction stopped at the SSDP port**. Worth answering before
+    W07 predicts anything else about services.
+23. **At least one `/boafrm/` route is not in the recovered `root_form[]`.**
+    `formOpdRedirect` and `formWanRedirect` answer distinctly; the table has 57
+    entries and does not contain them. The `/boafrm/` prefix string is referenced
+    by **eight** functions in this build, and only one of them is `handleForm`.
+    Every count derived from 57 / 59 / 49 since W03 is provisional until that is
+    resolved.
+24. **What the global at `0x004899d8` is actually for.** Open #9 asked who reads
+    it; the behavioural answer is that it does **not** gate anything — a
+    credential-less request is rejected immediately after a successful one, from
+    the same address. So the question changes rather than closes.
+25. **Is the unauthenticated `status.htm` disclosure already published prior
+    art?** It leaks the build string, three MACs, the LAN address, SSID, channel,
+    encryption mode, client and WAN state. `notes/cve-status.md` has not been
+    checked against it and **no novelty is claimed** until it is.
+26. **Does the `CX` discrepancy hold for the other five products in
+    CVE-2024-51228?** A3002RU, N300RT and N302RE are all `-CX-` builds. If their
+    web interfaces also report the non-`CX` string, the identification gap is a
+    property of the vendor's build system rather than of this one unit — and that
+    is the difference between an anecdote and a finding.

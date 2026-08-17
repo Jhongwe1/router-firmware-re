@@ -23,7 +23,7 @@ UNIT_DUMP  := $(FWRE_WORK)/dumps/flash-n150rt-console-1.bin
 
 .DEFAULT_GOAL := help
 .PHONY: help setup verify fetch unpack venv test lint recon recon-unit diff check-reports \
-        rtcase rtcase-test todo ledger shellcheck ci clean-work
+        rtcase rtcase-test todo ledger shellcheck ci clean-work qemu-env qemu-test probe-test
 
 help: ## Show this help
 	@grep -hE '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) \
@@ -121,6 +121,19 @@ ledger: ## Regenerate study/test-ledger.md from the register + results
 shellcheck: ## Lint the shell scripts, exactly as CI does
 	shellcheck --severity=warning tools/*.sh tools/setup/*.sh
 
+# Like recon-unit, this needs the flash dump read off my own unit, so it is not
+# something a reader can reproduce. It is here because the alternative is a
+# sequence of chroot invocations typed from memory, and one of them - `reset` -
+# has to do two things that look like one.
+qemu-env: ## Build the qemu-user environment for the build this unit runs (needs the flash dump + root)
+	sudo bash tools/qemu-env.sh build
+
+qemu-test: ## Prove the emulation environment's positive control can fail
+	bash tools/test-qemu-env.sh
+
+probe-test: ## Prove the bench prober's refusals fire (needs no device)
+	bash tools/test-bench-probe.sh
+
 # Exists because on 2026-08-15 a push went out green on `make lint test
 # check-reports` and CI failed anyway: there are four jobs and that covers two of
 # them. Knowing which subset to run by heart is not a check, it is a habit that
@@ -130,7 +143,7 @@ shellcheck: ## Lint the shell scripts, exactly as CI does
 # `rtcase-test` is in here and not optional. It is the only thing proving the
 # register gate can fail; without it `make rtcase` going green means nothing,
 # which is the exact shape of instrument bug 12.
-ci: lint test shellcheck check-reports rtcase rtcase-test ## Everything CI checks, except the container build
+ci: lint test shellcheck check-reports rtcase rtcase-test qemu-test probe-test ## Everything CI checks, except the container build
 	@echo "  ok   local CI equivalents passed (container build not included)"
 
 diff: venv ## Diff the two builds

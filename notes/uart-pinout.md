@@ -132,9 +132,32 @@ returns `Unknown command !`):
 | `J <addr>` | jump |
 | `IPCONFIG` · `LOADADDR` | TFTP recovery |
 | `MDIOR` · `MDIOW` · `PHYR` · `PHYW` | PHY registers |
-| ⚠️ `EB` · `EW` | **write memory** |
-| ⚠️ `FLW <dst_flash> <src_ram> <len>` | **write flash** |
+| ⚠️ `EB <addr> <v1> <v2>…` · `EW` | **write memory.** Several values in one command: **measured 2026-08-17**, eight bytes accepted |
+| ⚠️ `FLW <dst_flash> <src_ram> <len> [SPI#]` | **write flash. Executed 2026-08-17** — see below |
 | ⚠️ `AUTOBURN 0/1` | |
+
+> ### `FLW`, executed 2026-08-17
+>
+> Write → read back → erase, at `0x3F0000` (erased in the whole tail from
+> `0x350000`, so nothing reads it). Verbatim transcript in
+> [`RUNBOOK.md` §8.9.1](../RUNBOOK.md); it closed G3.5's fifth box.
+>
+> **Three things the command set alone does not tell you:**
+>
+> 1. **`FLW` answers with a single `.`**, not a success message. What it *does*
+>    print first is `Write 0x00000008 Bytes to SPI flash#1, offset
+>    0x003f0000<0xbd3f0000>, from RAM 0x80530000 to 0x80530008` — so **the SPI
+>    flash is memory-mapped at `0xbd000000`** (KSEG1, uncached), which is not
+>    recorded anywhere else in this repository.
+> 2. **`FLW`'s confirmation prompt is `(Y)es, (N)o->`**, while `FLR`'s is
+>    `(Y)es , (N)o ? -->`. Two adjacent commands, two punctuations — the same
+>    shape of trap as the two radices below.
+> 3. **There is no erase command in the set at all**, and writing `FF`s over a
+>    written region *does* return it to `FF`. On NOR flash a program can only
+>    clear bits, so `FLW` must be erasing for itself — which points at a
+>    read-modify-erase-program cycle over the whole 4 KiB sector. Not settled;
+>    `PROGRESS.md` open #17 and [`RUNBOOK.md` §8.9.3](../RUNBOOK.md) have the one
+>    command triple that decides it.
 
 **`FLR` + `DB` is a complete flash read path that needs no SOIC-8 clip** — the
 plan listed this only as a Day 6 "if both worked" bonus. See

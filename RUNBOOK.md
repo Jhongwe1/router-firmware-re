@@ -1339,7 +1339,10 @@ python -m fwrecon web <image> --json -o reports/...
 
 ---
 
-## 8.9 ⚠️ G3.5 最後一格:`FLW` 回復路徑演練(**還沒做,而且要你親手做**)
+## 8.9 G3.5 最後一格:`FLW` 回復路徑演練(**2026-08-17 已執行**)
+
+> ✅ **做過了。逐字 transcript 在 §8.9.1,實測推翻本節三處寫法。**
+> 下面的步驟保留原樣,因為 §8.9.1 的更正只有對照著原文才讀得懂。
 
 **W05 不准在這一格完成之前開始。** 理由不是儀式:W06 的 PoC 必然寫 flash
 (`flash set` 寫的就是 `COMPCS`),而這台機器的回復路徑**從來沒有被執行過**。
@@ -1413,6 +1416,147 @@ DB 80550000 8
 bootloader 指令表補上「`FLW` 已實測,日期」。** 這份文件是操作紀錄,它的
 transcript 是逐字的 —— W02 Day 4 的第 8 號 bug 就是因為有人去讀了 `notes/`
 裡被排版修剪過的引用,而不是讀這裡。
+
+---
+
+### 8.9.1 逐字 transcript(2026-08-17 07:38–07:47)
+
+原始檔:`$FWRE_WORK/dumps/w05-flw-20260817-0738.log`。這一場的紀錄卡在
+[`BENCH-LOG.md`](BENCH-LOG.md)。
+
+```
+<RealTek>FLR 80520000 3F0000 100
+Flash read from 003F0000 to 80520000 with 00000100 bytes	?
+(Y)es , (N)o ? --> Y
+Flash Read Successed!
+<RealTek>DB 80520000 256
+ [Addr]   .0 .1 .2 .3 .4 .5 .6 .7 .8 .9 .A .B .C .D .E .F
+80520000: ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff     ................
+   (16 行全部 ff,此處省略 15 行 —— 完整內容見 log 檔)
+<RealTek>EB 80530000 DE AD BE EF DE AD BE EF
+<RealTek>DB 80530000 8
+ [Addr]   .0 .1 .2 .3 .4 .5 .6 .7 .8 .9 .A .B .C .D .E .F
+80530000: de ad be ef de ad be ef                             ........
+<RealTek>FLW 3F0000 80530000 8
+Write 0x00000008 Bytes to SPI flash#1, offset 0x003f0000<0xbd3f0000>, from RAM 0x80530000 to 0x80530008
+(Y)es, (N)o->Y
+.<RealTek>FLR 80540000 3F0000 8
+Flash read from 003F0000 to 80540000 with 00000008 bytes	?
+(Y)es , (N)o ? --> Y
+Flash Read Successed!
+<RealTek>DB 80540000 8
+ [Addr]   .0 .1 .2 .3 .4 .5 .6 .7 .8 .9 .A .B .C .D .E .F
+80540000: de ad be ef de ad be ef                             ........
+<RealTek>EB 80530100 CA FE BA BE CA FE BA BE
+<RealTek>DB 80530100 8
+ [Addr]   .0 .1 .2 .3 .4 .5 .6 .7 .8 .9 .A .B .C .D .E .F
+80530100: ca fe ba be ca fe ba be                             ........
+<RealTek>FLW 3F0100 80530100 8
+Write 0x00000008 Bytes to SPI flash#1, offset 0x003f0100<0xbd3f0100>, from RAM 0x80530100 to 0x80530108
+(Y)es, (N)o->Y
+.<RealTek>FLR 80540000 3F0000 8
+Flash read from 003F0000 to 80540000 with 00000008 bytes	?
+(Y)es , (N)o ? --> T Y
+Flash Read Successed!
+<RealTek>DB 80540000 8
+ [Addr]   .0 .1 .2 .3 .4 .5 .6 .7 .8 .9 .A .B .C .D .E .F
+80540000: de ad be ef de ad be ef                             ........
+<RealTek>EB 80530200 FF FF FF FF FF FF FF FF
+<RealTek>DB 80530200 8
+ [Addr]   .0 .1 .2 .3 .4 .5 .6 .7 .8 .9 .A .B .C .D .E .F
+80530200: ff ff ff ff ff ff ff ff                             ........
+<RealTek>FLW 3F0000 80530200 8
+Write 0x00000008 Bytes to SPI flash#1, offset 0x003f0000<0xbd3f0000>, from RAM 0x80530200 to 0x80530208
+(Y)es, (N)o->Y
+.<RealTek>FLR 80550000 3F0000 8
+Flash read from 003F0000 to 80550000 with 00000008 bytes	?
+(Y)es , (N)o ? --> Y
+Flash Read Successed!
+<RealTek>DB 80550000 8
+ [Addr]   .0 .1 .2 .3 .4 .5 .6 .7 .8 .9 .A .B .C .D .E .F
+80550000: ff ff ff ff ff ff ff ff                             ........
+<RealTek>
+```
+
+**判定:寫入 → 讀回逐 byte 一致,抹除後回到全 FF。§8.9 事先凍結的兩個條件都滿足,
+`P0-3` 通過,G3.5 補齊。**
+
+### 8.9.2 這一次實測推翻的四處
+
+| 上面寫的 | 實際 |
+|---|---|
+| 「`Flash Write Successed!`(或等價字樣)」 | **一個句點 `.`**。真正的回應是 `Write 0x… Bytes to SPI flash#1, offset 0x003f0000<0xbd3f0000>, from RAM 0x… to 0x…` |
+| `FLR` 的提示是 `(Y)es , (N)o ? -->` | **`FLW` 的是 `(Y)es, (N)o->`**。兩個相鄰指令,兩種標點 —— 跟「兩種進位制」是同一種毛病 |
+| 「`EB` 一次吃多個 byte 沒有被實測過」 | **測過了,可以。** `?` 的說明本身也寫 `EB <Address> <Value1> <Value2>...` |
+| 「抹回去:`FLW 3F0000 <一塊全 FF 的 RAM> 8`」 | **會回到 FF,但理由不是這份文件想的那個。** NOR flash 的程式化只能把 `1` 變 `0`,`FF` 寫在 `DE` 上面應該還是 `DE`。它回到 `FF` 代表**`FLW` 自己做了抹除** —— 見 §8.9.3 |
+
+**額外情報:`FLW` 的回應洩漏 flash 的記憶體映射位址** —— `offset 0x003f0000<0xbd3f0000>`,
+所以 SPI flash 映射在 **`0xbd000000`**(KSEG1 非快取區)。`notes/flash-layout.md` 沒有這個。
+
+### 8.9.3 未結:`FLW` 的磁區語意,以及作業單這一格設計錯了
+
+**Step 5 與 Step 6 的結果在 NOR flash 的物理上互相矛盾。**
+抹除的最小單位是磁區(這顆 EN25QH32B 是 4 KiB),所以 Step 5 在 `0x3F0100` 的寫入
+本應把 `0x3F0000` 一起抹掉,但它讀起來還在。三條證據指向同一個機制:
+
+| | |
+|---|---|
+| Step 6 回到 `FF` | 一定有抹除 |
+| Step 5 同磁區另一段沒被清掉 | 抹除前先把磁區內容讀出來了 |
+| **`?` 的完整指令集裡沒有任何抹除指令** | 所以抹除只能由 `FLW` 自己做 |
+
+**推定:`FLW` 是「讀出整個磁區 → 改指定 byte → 抹除磁區 → 整段寫回」。**
+如果成立,**每一次 `FLW` 都會重寫整個 4 KiB 磁區**,而 `H601`(這台的 MAC 與
+射頻校準)整個住在一個磁區裡 —— 寫入中途斷電失去的不是 8 個 byte,是那個磁區。
+
+> ⚠️ **而且這一格的證據本來就不夠,原因在作業單:**
+> Step 5 的讀回用了 `80540000`,**那是 Step 4 已經用過、而且裡面就是 `de ad be ef` 的位址**。
+> §8.7.8 早就警告過「內容沒變就是 `FLR` 沒生效」,而作業單自己踩了進去。
+
+分辨它只要一組指令(`80560000` 是全新的 RAM 位址,第一個 `DB` 是對照組):
+
+```
+DB 80560000 8
+FLR 80560000 3F0100 8
+Y
+DB 80560000 8
+```
+
+讀到 `ca fe ba be …` → 讀-改-抹-寫回成立;讀到 `ff ff …` → `FLW` 抹掉整個磁區,
+**寫 flash 的風險等級要全部上調**。
+
+### 8.9.4 改良後的步驟(下次寫 flash 用這一版)
+
+上面 §8.9 的六步是 2026-08-17 實際跑的那一版。**它有一個設計缺陷,而缺陷
+不在指令,在讀回的位址**:
+
+> 🔴 **每一次讀回都要用一個從來沒用過的 RAM 位址。**
+> 原版的 Step 5 讀回用了 `80540000`,而 Step 4 已經把同一個樣式放進那裡 ——
+> 所以「值沒變」和「`FLR` 沒生效」分不開。§8.7.8 早就用名字警告過這個坑,
+> 而作業單自己踩了進去。
+
+**下次的順序,每一步換一個 RAM 位址,而且每次 `FLR` 之前先 `DB` 一次當對照組:**
+
+```
+# 對照:讀之前那塊 RAM 是什麼
+DB 80560000 8
+FLR 80560000 <flash 位移> 8
+Y
+DB 80560000 8          ← 內容有變 = FLR 生效了
+```
+
+**判別 `FLW` 是否抹整個磁區**(這一項在 2026-08-17 之後仍然未決,見 §8.9.3):
+
+```
+DB 80560000 8 ; FLR 80560000 3F0100 8 ; Y ; DB 80560000 8
+```
+
+`ca fe ba be …` → 讀-改-抹-寫回,**每次 `FLW` 重寫整個 4 KiB 磁區**;
+`ff ff …` → `FLW` 抹掉整個磁區而不保留,**寫 flash 的風險等級全部上調**。
+
+**W06 為什麼非知道不可**:`HW_WLAN0_WSC_PIN` 在 `0x648a`,住在 `H601`
+(`0x006000`)那個磁區裡 —— 那是這台的 MAC 和射頻校準值,全世界只有這一份。
+如果 `FLW` 是整磁區重寫,寫入中途斷電失去的不是幾個 byte,是那個磁區。
 
 ---
 
@@ -1533,6 +1677,375 @@ UART console 當下輸出:
 > 沒有對照組的守衛套件會在整個系統壞掉的情況下全綠 —— 2026-08-14
 > `tools/test-photo-tools.sh` 就是 5/5 通過而每一次呼叫都死在 `import PIL`。
 > 這 22 個案例第一次跑就抓到 `rtcase record` 的一個真 bug。
+> **2026-08-17 增至 27 個**,新的五個裡有三個在測「執行過 ≠ 在矽上執行過」的
+> 渲染規則(§8.11.5)。
+
+---
+
+## 8.11 W05:把這台的韌體跑起來(qemu-user + 真 flash)
+
+**W01 就證明過 2015 的 MIPS 執行檔能在 x86 上跑,唯一被點名的阻礙是
+`libapmib` 要讀 `/dev/mtd*`。W02 之後那個檔案在手上了。**
+
+### 8.11.1 三個指令
+
+```bash
+sudo make qemu-env                      # 建環境(約 30 秒)
+sudo bash tools/qemu-env.sh check       # 陽性對照
+bash tools/test-qemu-env.sh             # 守衛套件(不需要 root 的那半也會跑)
+```
+
+`build` 做的每一步都抄自這台自己的開機:`/etc/init.d/rcS` 的 `mkdir /var/*`、
+`/bin/sysconf` 字串表裡的 `cp -a /etc/boa/boa.conf.bak /var/boa.conf`、
+以及 `flash extr /web`(**用廠商自己的解壓工具灌 docroot,不是我們的**)。
+**唯一不是這台自己的,是把 flash dump 放成 `/dev/mtdblock0`。**
+
+### 8.11.2 陽性對照為什麼是三個值而不是一個
+
+```bash
+sudo bash tools/qemu-env.sh check
+#   control ok: TELNET_ENABLED=0
+#   control ok: IP_ADDR=10.1.1.1
+#   control ok: USER_NAME="admin"
+#   MIB lines from the vendor binary: 2317
+#   positive control passed
+```
+
+三個值都是 W04-2 用**不共用程式碼的解碼器**讀出來的。錯的映像、空的裝置檔、
+留在共享記憶體裡的舊值,每一種都會打掉其中至少一個。守衛套件證明它們真的會掉。
+
+### 8.11.3 ⚠️ 復原檔案不等於復原狀態
+
+`flash` / `boa` / `sysconf` 把 MIB 表快取在 **System V 共享記憶體**裡。
+那段記憶體屬於**主機**核心,活得比 guest 行程久,而且 `cp` 回 `/dev/mtdblock0`
+碰不到它。
+
+```bash
+sudo bash tools/qemu-env.sh run /bin/flash set HW_WLAN0_WSC_PIN 11111111
+sudo cp <pristine> ~/fwre-work/qemu-env-2018/dev/mtdblock0     # 只復原檔案
+sudo bash tools/qemu-env.sh run /bin/flash get HW_WLAN0_WSC_PIN
+#   HW_WLAN0_WSC_PIN="11111111"      ← 值是從 shm 來的,不是從檔案
+```
+
+**每次量測之前跑 `reset`,不要自己 `cp`。**
+
+```bash
+sudo bash tools/qemu-env.sh reset       # 檔案 + shm/sem 一起
+```
+
+這一坑不是從 strace 推出來的,是**一次量錯的結果**:只改了 `HW_WLAN0_REG_DOMAIN`
+的那一輪,diff 裡冒出七個 WPS PIN 欄位的 byte —— 上一個測試留下的。
+
+### 8.11.4 一個指令,兩個 oracle
+
+```bash
+sudo bash tools/qemu-env.sh reset
+sudo bash tools/qemu-env.sh run /bin/sh -c \
+     'flash set HW_WLAN0_WSC_PIN 1;ls -l / > /var/web/x.txt 2>&1;#'
+sudo bash tools/qemu-env.sh diff
+#   3 bytes changed
+#     0x00648a  0x39 -> 0x31
+#     0x00648b  0x39 -> 0x00
+#     0x006493  0x0d -> 0x4e   <- H601 checksum
+#   checksum: delta 65, expected 65 -> balances
+```
+
+上面那一行 `sh -c` 的字串,就是 `boa` 的 `sprintf` 會組出來的東西。
+輸出落在 docroot(oracle 0),flash 上被改掉的三個 byte 是 oracle 4。
+完整設計在 [`notes/oracle-design.md`](notes/oracle-design.md)。
+
+> **`boa` 本身在這裡起不來** —— 它在 `libapmib.so+0x27dc` 的一個**未對齊半字存取**
+> 上吃 SIGBUS,而真機的 kernel 會靜靜幫它修好。這不是韌體的缺陷也不是指令集問題
+> (那條指令是 opcode `0x29`,標準 MIPS I,手算編碼對過原始 bytes)。
+> 經過在 [`notes/emulation-2018.md` §4](notes/emulation-2018.md)。
+
+### 8.11.5 登記簿多了第三種證據等級
+
+模擬環境裡跑出來的結果**既不是靜態、也不是動態**。記成 `static` 低估了它
+(東西真的執行了),記成 `dynamic` 就是登記簿存在要防的那種灌水。
+
+```bash
+python3 tools/rtcase.py record --id P3-6 --date 2026-08-17 \
+    --verdict confirmed --evidence emulated \
+    --artefact notes/oracle-design.md --note "..."
+```
+
+`emulated` 渲染成 **🟪,永遠不會變成 ✅**,而 `tools/test-rtcase.sh` 有三個案例
+在測這條規則。順帶修掉一個潛伏的 bug:圖例原本用左欄的長度去索引右欄,
+**第七個結果標記會被靜靜丟掉** —— 而那正好是新加的這一個。
+
+### 8.11.6 網路那一輪:`tools/bench-probe.py`
+
+```bash
+python3 tools/bench-probe.py control     --host 10.1.1.1
+python3 tools/bench-probe.py fingerprint --host 10.1.1.1 -o $D/w05-fingerprint.json
+python3 tools/bench-probe.py gate        --host 10.1.1.1 -o $D/w05-gate.json
+python3 tools/bench-probe.py endpoints   --host 10.1.1.1 -o $D/w05-endpoints.json
+python3 tools/bench-probe.py ssdp        --host 10.1.1.1 -o $D/w05-ssdp.json
+bash tools/test-bench-probe.sh           # 8 個案例,不需要裝置
+```
+
+**它擋掉的那件事**:POST 到 `/boafrm/*` 少帶 `submit-url` 會讓 handler
+`strcpy("/status.htm")` 寫進唯讀段,照程式碼讀那會打掛 web server ——
+然後**後面每一個端點都會回「連不上」,看起來就跟「端點不存在」一模一樣**。
+一次打錯,57 個端點的普查變成 57 個偽陰性。
+
+它還做兩件事:**每 10–20 個請求重跑一次對照組**(否則「後半段全失敗」無從得知
+從哪裡開始壞的),以及**參數裡有 shell 元字元就拒絕送**(注入是 W06 的,而且
+在回復演練之後)。端點清單從 `reports/ghidra-formtable-unit-2018.json` 讀,
+不是寫死的。
+
+> ⚠️ `endpoints` **預設走 GET**。`--allow-post` 會真的執行 handler ——
+> `formWlanSetup` 收到只有 `submit-url` 的 POST,其他參數全取預設值,
+> 那可能就是把無線設定清掉。要跑就前後各抓一次 64 KiB 快照。
+
+---
+
+## 8.12 實機場次:可組合的程序庫
+
+**W05 之後每一週都有實機場次,而三週的流程不一樣**:W05 是偵察,W06 會**寫
+flash**,W07 是大量迭代。共用的只有前綴。所以這一節不是一份流程,是**幾個
+可以單獨讀、單獨跑的小節**;一週的作業 = 「跑哪幾節,加哪幾步」。
+
+> **不要為某一週開一份 `W0N-bench-runsheet.md`。** W05 開過一份,1,091 行裡
+> 580 行是跨週可重用的規程 —— 第二份就是同一份狀態兩個擁有者,而這個 repo
+> 已經因為那件事失敗過兩次。
+>
+> **實際跑了什麼寫進 [`BENCH-LOG.md`](BENCH-LOG.md)**(根目錄,只追加):
+> 這一場的計畫寫在動手之前,下面接逐字節錄。
+> **因為那份紀錄是逐字的,本節可以自由精煉** —— 證據站在紀錄上,不站在這裡。
+
+### 8.12.0 組合表
+
+| 週 | 跑哪幾節 | 這一週特有的 |
+|---|---|---|
+| **W05** 偵察 | 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 | §8.9 的 `FLW` 演練(一次性,已完成) |
+| **W06** PoC | 1 → 2 → 3 → 4 → 8 | 開火、flash 差異比對、**還原** |
+| **W07** Bug hunt | 1 → 3 → 4 → 6 → 7 → 8 | 大量迭代;每 N 次回到 §8.12.3 |
+
+**§8.12.3(快照)在每一節之前都要跑一次,而且它便宜到沒有藉口不做**:64 KiB,
+約 90 秒,而完整的 4 MiB 是 105 分鐘。
+
+---
+
+### 8.12.1 開工前(還沒碰裝置)
+
+```bash
+cd ~/fwre-work/dumps && sha256sum -c <<'EOF'
+a800059a9b8c414df026a22b8423a5939d0f9bb793109d0f7ce086f6810f37ea  flash-n150rt-console-1.bin
+a800059a9b8c414df026a22b8423a5939d0f9bb793109d0f7ce086f6810f37ea  flash-n150rt-console-2.bin
+EOF
+```
+
+兩行都要 `OK`。**那是這台的唯一備份,備份壞了就沒有安全網。**
+
+**用眼睛檢查:**
+
+- [ ] 網路線插在 **LAN** 埠,**WAN 埠什麼都沒插**
+- [ ] CP2102 接 pin 2/3/4(`TX`/`RX`/`GND`),**pin 1 的 `VCC` 不要接** —— 板子自己有電
+- [ ] **不要按 reset 鍵**(它會用 `COMPDS` 蓋掉 `COMPCS`,毀掉這台的現況證據)
+
+**把 USB 轉序列器交給 WSL**(PowerShell,不需管理員):
+
+```powershell
+usbipd list                          # 找 10c4:ea60,記下 BUSID
+usbipd attach --wsl --busid <id>
+```
+
+> ⚠️ **attachment 不會活過 WSL 這個 VM。** 另開一個視窗貼
+> `wsl -d Ubuntu-24.04 -- sleep 14400` 放著不要關。
+
+---
+
+### 8.12.2 抓 bootloader
+
+```bash
+cd /mnt/c/Users/Key20/Desktop/router
+python3 -u tools/console-dump.py catch --port /dev/ttyUSB0 --window 300 -v \
+        2>&1 | tee ~/fwre-work/dumps/w0N-console-$(date +%Y%m%d-%H%M).log
+```
+
+**看到 `>>> POWER THE ROUTER ON NOW <<<` 才插電。** 預期停在 `<RealTek>`,
+banner 是 `---RealTek(RTL8196E)at 2014.04.22-16:22+0800 v1.3 [16bit](400MHz)`。
+
+> ⚠️ ESC 是連續送的,bootloader 只吃一個,**其餘排在輸入緩衝區** ——
+> 手打時先按一次 Enter 清掉(§8.7.9 的第 7 號 bug)。
+> 抓不到不要重試超過三次,每次都是一次完整開機。
+
+**要讓它正常開機進 Linux:拔電、插電、不送 ESC。**
+
+---
+
+### 8.12.3 64 KiB 設定區快照 —— 每次動手前
+
+板子停在 `<RealTek>`:
+
+```bash
+SNAP=~/fwre-work/dumps/config-region-$(date +%Y%m%d-%H%M).bin
+python3 -u tools/console-dump.py dump --at-prompt \
+        --flash 0x0 --length 0x10000 --ram 0x81000000 --chunk 16384 -o "$SNAP"
+cmp <(head -c 65536 ~/fwre-work/dumps/flash-n150rt-console-1.bin) "$SNAP" \
+  && echo "IDENTICAL"
+```
+
+**這一份同時是三件事**:還原點、IoC 預檢的輸入、以及「上一場到現在沒被動過」的證明。
+`0x6000` 的 `H601`、`0x8000` 的 `COMPDS`、`0xC000` 的 `COMPCS` 全在裡面。
+
+**IoC 預檢**(事先寫下的成功條件:**差異維持在 4 / 343**):
+
+```bash
+LIB=~/fwre-work/extracted/unit-2018/squashfs-root/lib/libapmib.so
+for off in 0xC000 0x8000; do
+  ~/fwre-work/venv/bin/python -m fwrecon compcs "$SNAP" --offset $off \
+      --mib "$LIB" --disclosure protect -f json -o /tmp/cs-$off.json
+done
+```
+
+> ❌ **出現第 5 筆差異 → 停手,走事件處理程序。** 這型號在公開的殭屍網路工具裡被點名過。
+
+> ⚠️ 工具的規則是「拼不完整就不吐檔案」。有 `.partial` 沒有 `.bin` = 有一塊重讀三次都沒過。**那要查,不要繞過。**
+
+---
+
+### 8.12.4 網段:把網路卡交給 WSL,並且**證明**是直連
+
+```powershell
+usbipd bind --busid <id>              # 系統管理員,一次就好
+usbipd attach --wsl --busid <id>      # 一般 PowerShell
+```
+
+```bash
+ip -br link                           # 介面名是 enx<mac>,不是 eth1
+IF=$(ip -br link | awk '/^enx/{print $1; exit}')
+sudo ip link set "$IF" up && sleep 2
+ip -br link show "$IF"                # ★ 要 LOWER_UP
+sudo nmap --script broadcast-dhcp-discover -e "$IF"   # 先測 DHCP
+sudo ip addr add 10.1.1.100/24 dev "$IF"
+ping -c 2 10.1.1.1
+```
+
+> 🔴 **看 TTL,那是這一步唯一的對照組。**
+> 直連的 Linux 主機回 **`ttl=64`**;**`ttl=63` 代表中間有一台路由器** ——
+> 也就是網路卡還在 Windows 側,你是繞過去的。
+>
+> **2026-08-17 實測踩過**:`ping` 三個全通、而 `eth1` 這個介面**不存在**,
+> 兩件事同時為真。在那個狀態下隔離做不了、SSDP 一定失敗得像「服務沒開」、
+> 兩個來源 IP 會被 NAT 成同一個、`nmap -sS/-sU` 不可信。
+>
+> `tools/bench-probe.py` 的對照組現在自己從 `/proc/net/route` 判定這件事,
+> 記進每一份 transcript,並對 `ssdp` 那一組直接拒絕執行。
+
+---
+
+### 8.12.5 隔離確認 —— 而且要帶對照組
+
+```bash
+PCAP=~/fwre-work/dumps/w0N-lab-$(date +%Y%m%d-%H%M).pcap
+sudo tcpdump -ni "$IF" -w "$PCAP" & TD=$!
+sleep 1; ping -c 3 -i 0.3 10.1.1.1 >/dev/null; curl -s -o /dev/null http://10.1.1.1/
+sleep 12; sudo kill $TD
+tshark -r "$PCAP" 2>/dev/null | wc -l                      # ★ 對照組:必須 > 0
+tshark -r "$PCAP" -T fields -e eth.src 2>/dev/null | sort | uniq -c
+tshark -r "$PCAP" -Y 'dns' 2>/dev/null | head              # 必須是空的
+```
+
+**成功條件:剛好兩個 MAC,沒有 DNS,沒有對外連線。**
+
+> 🔴 **「抓到零個封包」不是證據。** 2026-08-17 第一次抓 45 秒得到零,
+> 差點寫成「網段乾淨」—— 而那一刻 kernel 的計數器是 `RX: 0 packets / TX: 12`,
+> **送得出去、收不回來**。所以這一節**主動製造已知流量**,
+> 而「封包數 > 0」就是那次擷取的對照組。
+>
+> 懷疑鏈路的時候,用一個不共用程式碼的第二來源:
+> `cat /sys/class/net/$IF/statistics/rx_packets`。
+
+---
+
+### 8.12.6 埠與服務偵察
+
+```bash
+D=~/fwre-work/dumps
+sudo nmap -sS -p- --reason -T3 --max-retries 2 -oA "$D/w0N-tcp" 10.1.1.1
+sudo nmap -sU -p 53,67,69,123,161,162,1900,5353,5555 --reason -T3 -oA "$D/w0N-udp" 10.1.1.1
+sudo nmap -sT -Pn -p 19412,31412,48101,2323,60001,5555,9034,7547 --reason 10.1.1.1
+```
+
+> ⚠️ **不要 `-T4`。** 這是 400 MHz MIPS、32 MiB RAM。
+> **掃描前後各確認一次 web 還活著** —— 一次把 `boa` 打掛的掃描,
+> 結果看起來會跟「埠都關著」一模一樣:
+> ```bash
+> curl -s -o /dev/null -m 4 -w '%{http_code}\n' http://10.1.1.1/
+> ```
+
+**這台已知的答案(2026-08-17)**:`80` / `52869`(`miniigd` UPnP SOAP)/
+`52881`(`wscd` WPS)開,其餘 65,532 個 TCP 埠 closed。
+`53` / `67` / `1900` UDP 有回應。**IoC 埠全部 closed。**
+
+> 🔴 **服務的 banner 不等於它的 codebase。** 這台的 UPnP 送
+> `Server: miniupnpd/1.4`,而 rootfs 裡**只有 `/bin/miniigd`、沒有 `mini_upnpd`** ——
+> 那個 banner 字串就在 `miniigd` 自己的字串表裡。**只讀 banner 會查錯一整組 CVE。**
+> 判定方法:`strings` 那支 binary,以及 `find` 整個 rootfs。
+
+---
+
+### 8.12.7 HTTP 那幾輪 —— 用工具,不要手打
+
+```bash
+D=~/fwre-work/dumps
+python3 tools/bench-probe.py control     --host 10.1.1.1
+python3 tools/bench-probe.py fingerprint --host 10.1.1.1 -o $D/w0N-fingerprint.json
+python3 tools/bench-probe.py gate        --host 10.1.1.1 -o $D/w0N-gate.json
+python3 tools/bench-probe.py endpoints   --host 10.1.1.1 -o $D/w0N-endpoints.json
+python3 tools/bench-probe.py ssdp        --host 10.1.1.1 -o $D/w0N-ssdp.json
+```
+
+**為什麼是工具**:少帶 `submit-url` 的 POST 會讓 handler `strcpy("/status.htm")`
+寫進唯讀段,照程式碼讀那會打掛 web server —— 然後**後面每一個端點都會回
+「連不上」,看起來就跟「端點不存在」一模一樣**。一次打錯,57 個端點的普查
+變成 57 個偽陰性。工具擋掉這件事,每 10–20 個請求重跑對照組,
+端點清單從 `reports/ghidra-formtable-unit-2018.json` 讀。
+
+> ⚠️ `endpoints` **預設 GET**。`--allow-post` 會真的執行 handler ——
+> 前後各跑一次 §8.12.3。
+
+> 🔴 **測繞過的時候,目標必須是真的被擋的頁面。**
+> 2026-08-17 第一輪把十三種變形全打在 `/status.htm` 上,
+> 而**它在豁免清單上、本來就回 200** —— 等於拿沒鎖的門測開鎖技巧。
+> 這台真的被擋的:`/password.htm`、`/tcpiplan.htm`、`/upload.htm`(→ 302 `login.htm`)。
+> 未認證可取的只有 7 個:`status` / `Connect_status` / `login` / `index` /
+> `wan_status` / `countDownPage` / `countDownPageWizard`。
+
+---
+
+### 8.12.8 收尾與紀錄
+
+```bash
+python3 tools/rtcase.py record --id <ID> --date <YYYY-MM-DD> \
+    --verdict confirmed|refuted|partial|na \
+    --evidence dynamic|emulated|static \
+    --artefact <repo 相對路徑> --note "..."
+make ledger && make todo WEEK=W0N
+```
+
+然後往 [`BENCH-LOG.md`](BENCH-LOG.md) **追加**這一場:計畫(動手前寫的)、
+紀錄卡、逐字節錄、燒掉了什麼、下一步。**只追加,不修改既有段落。**
+
+**per-unit 識別碼(MAC、SSID、`config.dat` 內容、射頻校準)不進 repo** ——
+跟 W02 把 PCB 條碼塗掉是同一條規則。原始 transcript 留在 `$FWRE_WORK/dumps/`。
+
+---
+
+### 8.12.9 這一段會踩到的
+
+| 症狀 | 原因 |
+|---|---|
+| `Cannot find device "eth1"` 而 `ping` 卻通 | 網路卡起在 Windows 側,你繞過去了。**看 TTL** |
+| 抓不到任何封包 | 先看 `/sys/class/net/$IF/statistics/rx_packets`。`RX: 0` = 鏈路沒在送東西給你 |
+| `Speed: Unknown!` `Duplex: Half` | 協商沒完成,或對端沒起來(例如板子還停在 bootloader) |
+| 所有端點都「不存在」 | 你可能把 `boa` 打掛了。跑對照組 `curl http://10.1.1.1/` |
+| 打錯 `FLW` 參數 | **不要再送任何指令。** 拍下整個畫面再說 |
+| `DB` 印出來跟上一次一樣 | `FLR` 沒生效(多半是 `Y` 被下一個指令吃掉)。那是 RAM 舊值 |
+| `rtcase check` 說 artefact 不存在 | 證據連結要指到 **repo 裡**存在的檔;`~/fwre-work/dumps/` 不在 repo 裡 |
 
 ---
 
@@ -2080,8 +2593,29 @@ make ledger                                      # 重生成 study/test-ledger.m
 python3 tools/rtcase.py record --id P3-3 --date 2026-08-20 \
     --verdict confirmed --evidence dynamic --artefact poc/formSysCmd/README.md
 python3 tools/rtcase.py freeze                   # 改過預測之後,把新雜湊貼回登記簿
-#   --evidence dynamic 才會印 ✅;static 印 🟥。真的送過封包才叫 dynamic
+#   --evidence dynamic 才會印 ✅;static 印 🟥;emulated 印 🟪
+#   真的對這台送過封包才叫 dynamic。在 qemu 裡跑起來的叫 emulated
 #   沒寫反證條件的項目,record 會直接拒絕 —— 這是刻意的
+
+# ── W05 模擬環境:這台自己的韌體 + 這顆 flash 的副本(§8.11)──
+sudo make qemu-env                               # 建環境(~30 秒),結尾自動跑陽性對照
+sudo bash tools/qemu-env.sh check                # 三個已知值 + MIB 行數
+sudo bash tools/qemu-env.sh reset                # ★ 每次量測前:檔案 **和** shm 一起
+sudo bash tools/qemu-env.sh run /bin/flash get TELNET_ENABLED
+sudo bash tools/qemu-env.sh run /bin/sh -c \
+     'flash set HW_WLAN0_WSC_PIN 1;ls -l / > /var/web/x.txt 2>&1;#'
+sudo bash tools/qemu-env.sh diff                 # 改了哪幾個 byte,校驗和平不平
+make qemu-test                                   # 守衛套件(不需 root 的那半也會跑)
+#   ⚠️ 只 cp 回 /dev/mtdblock0 不算復原 —— MIB 表快取在主機的 SysV 共享記憶體裡
+
+# ── W05 網路那一輪(§8.11.6)──────────────────────
+python3 tools/bench-probe.py control     --host 10.1.1.1
+python3 tools/bench-probe.py fingerprint --host 10.1.1.1 -o ~/fwre-work/dumps/w05-fp.json
+python3 tools/bench-probe.py gate        --host 10.1.1.1 -o ~/fwre-work/dumps/w05-gate.json
+python3 tools/bench-probe.py endpoints   --host 10.1.1.1 -o ~/fwre-work/dumps/w05-ep.json
+python3 tools/bench-probe.py ssdp        --host 10.1.1.1 -o ~/fwre-work/dumps/w05-ssdp.json
+make probe-test                                  # 8 個案例,不需要裝置
+#   endpoints 預設 GET。--allow-post 會真的執行 handler,前後各抓一次 64 KiB 快照
 ```
 
 > ⚠️ **看報告先看 `self_check`,但不要只看 `self_check`。**
@@ -2265,6 +2799,14 @@ cd FirmAE && ./install.sh      # 30–60 分鐘
 | 2026-08-16 | W04-2 補課 | 新增 §8.8.4:廠商映像重抓、從 `Zone.Identifier` 讀 provenance、`tools/zipprefix.py`,以及一份 40% 殘檔**撐得到哪裡**(兩個 section 完整,截斷的是 rootfs)。§12 速查表補上 `zipprefix`。 |
 | 2026-08-16 | W04-2 補課 | 新增 §8.8.5:`fwrecon web` —— 把 W01 留下的 `w6cg` 格式做完(64B header,長度欄在 `+0x3c` 且是 big-endian)。§12 速查表補上。兩個坑寫在該節:**`self_check` 不是 `exact` 就不要用它的數字**;以及 **`--grep` 逐筆搜內容,不是搜整塊** —— 用整塊 grep 會在 2018 那份裡「找到」一個不存在的 `syscmd.htm`。 |
 | 2026-08-16 | W04-2 補課 | `make lint` 與 CI 補掃 `tools/*.py`。**那幾支獨立腳本一直不在任何 lint 範圍內** —— 它們不在 `fwrecon` 套件裡,ruff 往上找設定檔永遠找不到 `tools/fwrecon/pyproject.toml`,所以是用預設規則掃的,等於幾乎沒掃。改成用 `--config` 指同一份設定(不另開一份會漂移的),掃出 `console-dump.py` 一個 `B007`,已修。 |
+| 2026-08-17 | W05 | **§8.9 從「還沒做」改成已執行**,補上 §8.9.1 逐字 transcript、§8.9.2 **本節被實測推翻的四處**(回應字樣不是 `Flash Write Successed!` 是一個句點;`FLW` 的 Y 提示與 `FLR` 標點不同;`EB` 一次吃多個 byte 已證;「寫 FF 抹回去」會成功但理由跟文件想的不一樣),以及 §8.9.3 **未結的 `FLW` 磁區語意**。 |
+| 2026-08-17 | W05 | 新增 **§8.11**:qemu-user + 真 flash 當 `/dev/mtdblock0`。含 §8.11.3 **「復原檔案不等於復原狀態」** —— MIB 表快取在主機的 System V 共享記憶體裡,`cp` 回裝置檔碰不到它。這一坑是一次量錯的結果,不是推理出來的。 |
+| 2026-08-17 | W05 | §8.11.5:登記簿新增第三種證據等級 **`emulated`(🟪,永遠不會變成 ✅)**。`tools/test-rtcase.sh` 22 → 27 個案例。順帶修掉圖例用左欄長度索引右欄的潛伏 bug —— 第七個結果標記會被靜靜丟掉,而那正好是新加的這一個。 |
+| 2026-08-17 | W05 | §8.11.6:`tools/bench-probe.py` + 8 個案例的守衛套件。**它存在的理由是一個無聲的失敗模式**:POST 少帶 `submit-url` 會打掛 boa,而之後每個端點都長得像「不存在」。 |
+| 2026-08-17 | W05 | §12 速查表新增 `make qemu-env` / `qemu-test` / `probe-test`;`make ci` 從 6 個目標變 8 個。作業單與紀錄卡在 [`BENCH-LOG.md`](BENCH-LOG.md)(**新檔,它擁有的是「這一場照什麼順序做」,規程仍然歸 §8.9**)。`study/QA.md` 新增 §14。 |
+| 2026-08-17 | W05 Phase 3 | §8.11.6 補上實測:`bench-probe` 的對照組現在也判「**是不是真的直連在這個網段上**」（從 `/proc/net/route`），因為 `ping` 成功而 `ttl=63` 這件事在 HTTP 回應裡完全看不見。守衛套件 8 → 9 個案例,**新的那個第一次跑就抓到實作是錯的**（`/proc/net/route` 只有 main 表,loopback 掉進預設路由）。 |
+| 2026-08-17 | W05 Phase 3 | 作業單 [`BENCH-LOG.md`](BENCH-LOG.md) 補 §3.-1（重開機**之前**要先做完的三件事）與 §3.R1–R7（Phase 3 的逐項實測結果）。介面名寫死 `eth1` 全部改掉 —— WSL 用 MAC 衍生的可預測命名。 |
+| 2026-08-17 | W05 收工重構 | 新增 **§8.12 實機場次:可組合的程序庫**(0–9),以及 **§8.9.4 改良後的 `FLW` 步驟**。起因是當天建的 `study/W05-bench-runsheet.md` 長成 1,091 行、裝了五種東西,其中約 580 行是跨週可重用的規程 —— **再為 W06 開一份就是同一份狀態兩個擁有者**。規程進 §8.12,實際跑了什麼進根目錄的 [`BENCH-LOG.md`](BENCH-LOG.md)(只追加),舊檔刪除。規則寫進 `CLAUDE.md`。 |
 
 > **上面三列裡的前兩列是補登的,而漏登的方式值得記一筆。** §8.8 和 §8.9 是
 > 2026-08-16 的「document sync」commit 加進這份文件的,那個 commit **改了

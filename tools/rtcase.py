@@ -44,6 +44,15 @@ What the gate enforces, and why each one exists
                   "static != dynamic" stops being a habit and becomes a column
                   that cannot be left ambiguous.
 
+                  There is a third grade, `emulated`, added in W05 when the
+                  qemu-user environment made it possible to *run* this unit's
+                  own binaries against this unit's own flash image without the
+                  device. That is neither reading nor the silicon, and forcing
+                  it into either was the choice this file used to impose:
+                  `static` understates it, `dynamic` is the laundering the
+                  register exists to prevent. It has its own marker and it never
+                  becomes the tick.
+
   cut-with-reason A case may be dropped, but `cut_reason` must say why, and a
                   cut case may not carry a result. Six months later, a removed
                   row and an overlooked row are indistinguishable; a row with a
@@ -121,8 +130,16 @@ TODO_MARK = "⬜"
 # place a skimming reader sees the difference, so it gets its own mark rather
 # than a footnote.
 STATIC_CONFIRMED_MARK = EXIT_MARKS["static"]
+# Neither is a result produced by *running* the firmware somewhere that is not
+# the silicon. W05 built a qemu-user environment around this unit's own rootfs
+# and its own flash image, so a claim can now be executed without a device --
+# and the two grades this file started with could not say that. Recording such a
+# result as `static` understates it (something ran); as `dynamic` it would be
+# the exact laundering the register exists to prevent. It gets its own mark and
+# it never becomes the tick.
+EMULATED_CONFIRMED_MARK = "\U0001f7ea"
 
-EVIDENCE_KINDS = ("static", "dynamic")
+EVIDENCE_KINDS = ("static", "dynamic", "emulated")
 
 REQUIRED_CASE_FIELDS = ("id", "phase", "section", "title", "feasibility", "exit_evidence", "week")
 
@@ -136,6 +153,7 @@ DEFAULT_TEXT = {
     "stats_frozen_value": "**{frozen}** / {live}",
     "stats_executed": "executed",
     "stats_dynamic": "closed on dynamic evidence",
+    "stats_emulated": "closed under emulation (not the silicon)",
     "stats_verdicts": "confirmed / refuted",
     "stats_freeze": "freeze hash",
     "schedule_heading": "Schedule",
@@ -410,8 +428,11 @@ def verdict_cell(ledger: dict[str, Any], res: dict[str, Any] | None, runs: int) 
     if res is None:
         return TODO_MARK
     mark = VERDICT_MARKS.get(res.get("verdict", ""), "?")
-    if res.get("verdict") == "confirmed" and res.get("evidence_kind") == "static":
-        mark = STATIC_CONFIRMED_MARK
+    if res.get("verdict") == "confirmed":
+        if res.get("evidence_kind") == "static":
+            mark = STATIC_CONFIRMED_MARK
+        elif res.get("evidence_kind") == "emulated":
+            mark = EMULATED_CONFIRMED_MARK
     suffix = text(ledger, "runs_suffix").format(n=runs) if runs > 1 else ""
     return f"{mark}{suffix}"
 
@@ -439,6 +460,7 @@ def render(register_path: Path, results_path: Path) -> int:
     confirmed = sum(1 for r, _ in latest.values() if r.get("verdict") == "confirmed")
     refuted = sum(1 for r, _ in latest.values() if r.get("verdict") == "refuted")
     dynamic = sum(1 for r, _ in latest.values() if r.get("evidence_kind") == "dynamic")
+    emulated = sum(1 for r, _ in latest.values() if r.get("evidence_kind") == "emulated")
 
     out: list[str] = []
     add = out.append
@@ -467,6 +489,7 @@ def render(register_path: Path, results_path: Path) -> int:
     )
     add(f"| {text(ledger, 'stats_executed')} | **{executed}** |")
     add(f"| {text(ledger, 'stats_dynamic')} | **{dynamic}** |")
+    add(f"| {text(ledger, 'stats_emulated')} | **{emulated}** |")
     add(f"| {text(ledger, 'stats_verdicts')} | **{confirmed}** / **{refuted}** |")
     add(f"| {text(ledger, 'stats_freeze')} | `{freeze_hash(cases)}` |")
     add("")
@@ -505,15 +528,22 @@ def render(register_path: Path, results_path: Path) -> int:
     right = [
         (TODO_MARK, vd_labels.get("todo", text(ledger, "todo"))),
         (VERDICT_MARKS["confirmed"], vd_labels.get("confirmed", "")),
+        (EMULATED_CONFIRMED_MARK, vd_labels.get("emulated_confirmed", "")),
         (STATIC_CONFIRMED_MARK, vd_labels.get("static_confirmed", "")),
         (VERDICT_MARKS["refuted"], vd_labels.get("refuted", "")),
         (VERDICT_MARKS["partial"], vd_labels.get("partial", "")),
         (VERDICT_MARKS["na"], vd_labels.get("na", "")),
-        ("", ""),
     ]
-    for i, (key, mark) in enumerate(EXIT_MARKS.items()):
+    # Both columns, not whichever is shorter. The first version indexed `right`
+    # by the position of an EXIT_MARKS entry, so adding a seventh result mark
+    # would have dropped it off the legend without any error - and the mark it
+    # would have dropped is the one that exists to stop a reader confusing
+    # "executed" with "executed on the device".
+    left = list(EXIT_MARKS.items())
+    for i in range(max(len(left), len(right))):
+        key, mark = left[i] if i < len(left) else ("", "")
         r_mark, r_label = right[i] if i < len(right) else ("", "")
-        add(f"| {mark} | {ev_labels.get(key, key)} | | {r_mark} | {r_label} |")
+        add(f"| {mark} | {ev_labels.get(key, key) if key else ''} | | {r_mark} | {r_label} |")
     add("")
 
     for phase in sorted(phase_titles, key=lambda p: (len(p), p)):
