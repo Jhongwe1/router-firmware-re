@@ -176,6 +176,29 @@ No CPU model avoids it: `4Kc` and `24Kf` both trap, and `mips32r6-generic` —
 where unaligned access is architectural — refuses the binary outright
 (`ELF binary's NaN mode not supported by CPU`).
 
+**And no configuration avoids it either — which is measured, not reasoned.**
+The store's address is `s2 + s8`, where `s8` accumulates record lengths, so the
+obvious hope is that different data lands it on an even address. Five runs, each
+from a reset environment:
+
+| run | `si_addr` |
+|---|---|
+| pristine | `0x00492b41` |
+| pristine again (determinism control) | `0x00492b41` |
+| after `flash set HW_WLAN0_WSC_PIN 1` (8 characters → 1) | `0x00492b41` |
+| after a 25-character `DEVICE_NAME` | `0x00492b41` |
+| after a 32-character `SSID` | `0x00492b41` |
+
+**Invariant.** The offset comes from the record layout in `libapmib`'s own table,
+which is fixed in the library, not from the values in flash. So "use a different
+configuration" is not a route around this, and the note says so with five numbers
+rather than with an argument about which register holds what.
+
+One by-product: copying the factory `COMPDS` region over the live `COMPCS` one —
+the same table, as shipped — makes `apmib` refuse outright with
+`Initialize AP MIB failed!`. The regions carry different magic and their own
+checksums, and both are checked.
+
 So this is a property of the emulator's scope, **not a defect in the firmware**
 and not a limit of the instruction set. It also says something about the device:
 this code path takes a kernel trap per store on every boot. `/proc/cpu/alignment`

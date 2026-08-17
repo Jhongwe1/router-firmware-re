@@ -627,8 +627,9 @@ Phase 2 結束時板子停在 `<RealTek>`，**Linux 從來沒有起來過** —�
 ```
 1. （還在 bootloader）跑 §8.9.3 的四行
 2. 網路卡：usbipd bind --busid 2-4  →  usbipd attach --wsl --busid 2-4
-3. sudo ip link set eth1 up          （先不要給位址，DHCP 是 P1-1 要測的）
-4. sudo tcpdump -ni eth1 -w ~/fwre-work/dumps/w05-boot-$(date +%H%M).pcap &
+3. IF=$(ip -br link | awk '/^enx/{print $1; exit}')   ← 名字不是 eth1，見 §3.1
+   sudo ip link set "$IF" up          （先不要給位址，DHCP 是 P1-1 要測的）
+4. sudo tcpdump -ni "$IF" -w ~/fwre-work/dumps/w05-boot-$(date +%H%M).pcap &
 5. 貼上 §3.4 的計時器
 6. picocom 留著不要關 —— 這台沒有 shell，console 是唯一的崩潰觀測管道
 7. 拔電、插電，★ 這次不要送 ESC
@@ -641,8 +642,8 @@ Phase 2 結束時板子停在 `<RealTek>`，**Linux 從來沒有起來過** —�
 直接設靜態位址就跳過了它事先寫下的反證條件（「DHCP 沒派到 10.1.1.0/24 的位址」）：
 
 ```bash
-sudo nmap --script broadcast-dhcp-discover -e eth1    # 它派的是什麼位址？
-sudo ip addr add 10.1.1.100/24 dev eth1               # 量完才固定
+sudo nmap --script broadcast-dhcp-discover -e "$IF"   # 它派的是什麼位址？
+sudo ip addr add 10.1.1.100/24 dev "$IF"              # 量完才固定
 ping -c 3 10.1.1.1
 ```
 
@@ -678,20 +679,40 @@ usbipd attach --wsl --busid 2-4
 usbipd list          # 2-4 應該變成 Attached
 ```
 
-WSL 裡確認，並手動指定位址（**不要靠 DHCP**——`P1-1` 要測的正是它派不派得出來）：
+WSL 裡確認。**介面名不是 `eth1`** —— WSL 用 MAC 衍生的可預測命名，
+所以它長得像 `enxfc19286184c9`。實測 2026-08-17：假設 `eth1` 會得到
+`Cannot find device "eth1"`，而 `ping` 在那個時點還會成功（繞經 Windows），
+**所以「介面不存在」和「網路通了」可以同時為真**。
 
 ```bash
-ip -br link                     # 找新出現的介面，通常是 eth1
-sudo ip link set eth1 up
-sudo ip addr flush dev eth1
-sudo ip addr add 10.1.1.100/24 dev eth1
-ip -br addr show eth1
+ip -br link                          # 找 enx… 開頭的那一個
+IF=enxfc19286184c9                   # ← 換成你看到的名字
+sudo ip link set "$IF" up
+sleep 2
+ip -br link show "$IF"               # ★ 要看到 LOWER_UP,那才代表網路線那端通了
 ```
+
+**先測 DHCP,再固定位址** —— `P1-1` 的反證條件裡有「DHCP 沒派到 10.1.1.0/24 的位址」,
+直接設靜態就跳過了那一半:
+
+```bash
+sudo nmap --script broadcast-dhcp-discover -e "$IF"
+sudo ip addr flush dev "$IF"
+sudo ip addr add 10.1.1.100/24 dev "$IF"
+ping -c 2 10.1.1.1
+```
+
+> 🔴 **看 TTL,那是這一步的對照組。**
+> 直連的 Linux 主機回 **`ttl=64`**;**`ttl=63` 代表中間有一台路由器**,
+> 也就是網路卡還在 Windows 側而你是繞過去的。
+> 在那個狀態下 `P0-4` 做不了、`P1-10` 一定失敗得像「UPnP 沒開」、
+> `P2-7` 的兩個來源 IP 會被 NAT 成同一個、`nmap -sS/-sU` 不可信。
+> `tools/bench-probe.py` 的對照組現在會自己從 `/proc/net/route` 判定這件事並拒絕跑 `ssdp`。
 
 ## 3.2 `P0-4` — 隔離確認，在送任何東西之前
 
 ```bash
-sudo tcpdump -ni eth1 -w ~/fwre-work/dumps/w05-lab-$(date +%H%M).pcap &
+sudo tcpdump -ni "$IF" -w ~/fwre-work/dumps/w05-lab-$(date +%H%M).pcap &
 sleep 20
 sudo kill %1
 tshark -r ~/fwre-work/dumps/w05-lab-*.pcap -T fields -e eth.src 2>/dev/null | sort -u
@@ -785,7 +806,7 @@ python3 tools/bench-probe.py ssdp        --host 10.1.1.1 -o $D/w05-ssdp.json
 session 模型（`P2-7`）用兩個 IP 測：登入之後，**從第二個位址**帶同一組 cookie 打管理頁。
 
 ```bash
-sudo ip addr add 10.1.1.101/24 dev eth1        # 第二個來源位址
+sudo ip addr add 10.1.1.101/24 dev "$IF"       # 第二個來源位址
 curl -sD- --interface 10.1.1.101 -b cookies.txt http://10.1.1.1/status.htm -o /dev/null
 ```
 
