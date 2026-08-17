@@ -26,6 +26,12 @@ What it will not do
     its accessors defaulted to. Existence can be probed with GET; changing the
     device's configuration to find out whether a route exists is not a trade
     this tool makes for you.
+  * POST to thirteen named handlers even then. Configuration change is
+    recoverable and attributable with a snapshot either side; losing the LAN
+    address mid-sweep, losing the admin password, or entering the firmware
+    upload path is not. See HAZARDOUS below -- each entry carries its reason,
+    the skipped names go into the transcript's first record, and overriding
+    them takes a second flag.
   * send shell metacharacters in any parameter. Injection is W06's job and it
     happens after the recovery drill, not inside a reconnaissance sweep.
   * write anything unless every response it recorded is in the transcript.
@@ -52,6 +58,61 @@ from typing import Any
 
 REPO = Path(__file__).resolve().parent.parent
 FORMTABLE = REPO / "reports/ghidra-formtable-unit-2018.json"
+SINKS = REPO / "reports/ghidra-sinks-unit-2018.json"
+
+# --------------------------------------------------------------------------
+# Handlers a parameter-less POST must not reach.
+#
+# `--allow-post` was written for P1-4, whose whole shape is "POST all 57 names
+# and see which answer". What that sentence hides is that on this build 23 of
+# the 57 call system() and 13 call execl() (reports/ghidra-sinks-unit-2018.json),
+# and a handler whose parameters are all absent still writes whatever its
+# accessors defaulted to. A blind sweep therefore runs 36 process-spawning
+# handlers on the only unit there is.
+#
+# Four of the outcomes are not "the configuration changed", which a snapshot
+# pair can attribute and undo. They destroy the run or the evidence:
+#
+#   * losing the address the sweep is being driven over turns every remaining
+#     endpoint into "connection refused" -- the exact false-negative shape this
+#     file was written to prevent, wearing different clothes;
+#   * losing the admin password destroys the CVE-2019-19823 chain, which is the
+#     hardest evidence this project has;
+#   * the firmware and configuration upload paths are the ones that brick;
+#   * an operating-mode change reboots into a different network.
+#
+# So they are refused by name, each with its reason, and the refusal is
+# recorded in the transcript rather than being a quiet gap. A future week that
+# genuinely wants one has to pass --allow-destructive and say so on the record.
+# --------------------------------------------------------------------------
+HAZARDOUS: dict[str, str] = {
+    "formTcpipSetup": "LAN addressing. Losing it mid-sweep makes every "
+                      "remaining endpoint read as absent",
+    "formWanTcpipSetup": "WAN addressing; same class, and it can restart the "
+                         "network stack",
+    "formVlan": "VLAN membership. Can remove the bench port from the segment",
+    "formPasswordSetup": "the admin credential. Changing it destroys the "
+                         "end-to-end CVE-2019-19823 demonstration, which "
+                         "depends on admin/admin being the value decoded from "
+                         "this unit's own flash",
+    "formUpload": "firmware upload; boa carries DownloadRFW. This is the one "
+                  "that bricks",
+    "formUploadConfig": "configuration restore; sscanf over an uploaded file",
+    "formSaveConfig": "commits the configuration, so anything the sweep "
+                      "changed earlier would be made durable by it",
+    "formOpMode": "operating mode (router/AP/bridge) and a reboot with it",
+    "formOpMode1": "operating mode; same",
+    "formOpMode2": "operating mode; same",
+    "formWizard": "the setup wizard writes many fields at once and calls "
+                  "system()",
+    "formRebootCheck": "reboot",
+    "formRebootSchedule": "reboot scheduling",
+}
+
+# The three endpoints P3-13's own prediction names as "write" ones. Probing the
+# set the test names, rather than a set this file invented, is the difference
+# between answering the registered question and answering a nearby one.
+NAMED_WRITE_ENDPOINTS = {"formUpload", "formPasswordSetup", "formSaveConfig"}
 
 # Anything that would turn a parameter into a second command. A reconnaissance
 # sweep has no business carrying one, and the check is here rather than in the
@@ -154,7 +215,8 @@ def check_params(params: dict[str, str]) -> None:
             )
 
 
-def check_post(target: str, params: dict[str, str]) -> None:
+def check_post(target: str, params: dict[str, str],
+               allow_destructive: bool = False) -> None:
     if "/boafrm/" in target and "submit-url" not in params:
         raise ProbeError(
             f"refusing POST {target} without submit-url. When the parameter is "
@@ -162,6 +224,17 @@ def check_post(target: str, params: dict[str, str]) -> None:
             "segment (notes/submit-url-overflow.md); as the code reads that is "
             "a one-request crash of the web server, and every endpoint probed "
             "afterwards would answer as if it did not exist"
+        )
+    name = target.rsplit("/", 1)[-1]
+    if name in HAZARDOUS and not allow_destructive:
+        raise ProbeError(
+            f"refusing POST {target}: {HAZARDOUS[name]}.\n"
+            "  A POST runs the handler, and absent parameters do not mean the "
+            "handler does nothing -- the accessors return their defaults and it "
+            "writes those.\n"
+            "  This is not the configuration-changes-and-a-snapshot-attributes-it "
+            "case. Pass --allow-destructive if that is genuinely the decision, "
+            "and take a 64 KiB snapshot either side first (RUNBOOK 8.12.3)."
         )
 
 
@@ -305,7 +378,8 @@ def group_fingerprint(host: str, port: int) -> list[dict[str, Any]]:
     return out
 
 
-def group_endpoints(host: str, port: int, allow_post: bool) -> list[dict[str, Any]]:
+def group_endpoints(host: str, port: int, allow_post: bool,
+                    allow_destructive: bool = False) -> list[dict[str, Any]]:
     """P1-4 / P1-5 / P1-6.
 
     P1-5 is the interesting one and it is a test of the tools, not the device:
@@ -327,20 +401,147 @@ def group_endpoints(host: str, port: int, allow_post: bool) -> list[dict[str, An
             + [(n, "CVE text spelling") for n in cve_spellings]
             + [(n, "dispatch-table spelling") for n in real_spellings])
 
+    skipped = [n for n, _ in plan if n in HAZARDOUS] if allow_post else []
+    out[0]["hazardous_skipped"] = skipped
+    out[0]["hazardous_reasons"] = {n: HAZARDOUS[n] for n in skipped}
+    # A sweep that silently covers 44 of 57 reads as a complete census. The
+    # count and the names go in the transcript's first record, before any
+    # result, so a reader meets the gap before they meet the findings.
+    if skipped:
+        print(f"  note  {len(skipped)} of {len(plan)} endpoints will not be "
+              f"POSTed: {', '.join(skipped)}", file=sys.stderr)
+
     for i, (name, origin) in enumerate(plan):
         if i and i % 20 == 0:
             require_control(host, port, f"before endpoint {i} of {len(plan)}")
         target = f"/boafrm/{name}"
+        if allow_post and name in HAZARDOUS and not allow_destructive:
+            out.append({"probe": "endpoint", "name": name, "origin": origin,
+                        "skipped": "hazardous", "reason": HAZARDOUS[name],
+                        "method_note": "not sent; see RUNBOOK 8.12.12"})
+            continue
         if allow_post:
             params = {"submit-url": "/status.htm"}
             check_params(params)
-            check_post(target, params)
+            check_post(target, params, allow_destructive)
             r = raw_request(host, port, "POST", target, body=urlencode(params))
             r["method_note"] = "POST with submit-url only; the handler ran"
         else:
             r = raw_request(host, port, "GET", target)
             r["method_note"] = "GET; the handler's parameter processing may not run"
         out.append({"probe": "endpoint", "name": name, "origin": origin, **r})
+    return out
+
+
+def handler_sink_profile() -> dict[str, list[str]]:
+    """Which sinks each `/boafrm/` handler reaches, from the committed report.
+
+    Used to split the endpoint list into "reconfigures the device" and "does
+    not" on evidence rather than on whether the name contains the word `Setup`.
+    A handler that calls system() or execl() is running ifconfig / route /
+    iptables / flash; one that calls neither is not.
+    """
+    doc = json.loads(SINKS.read_text("utf-8"))
+    sinks = doc.get("sinks")
+    if not isinstance(sinks, dict):
+        raise ProbeError(f"{SINKS} has no 'sinks' object; its shape changed")
+    prof: dict[str, list[str]] = {}
+    for sink_name, d in sinks.items():
+        for cs in d.get("call_sites") or []:
+            if cs.get("is_handler") and cs.get("caller"):
+                prof.setdefault(cs["caller"], []).append(sink_name)
+    if not prof:
+        raise ProbeError(
+            f"{SINKS} lists no handler call sites at all. Either the report was "
+            "generated before BoaFormTable named the handlers, or the "
+            "'is_handler' field moved -- and a classification built on an empty "
+            "profile would call every endpoint read-only")
+    return {k: sorted(set(v)) for k, v in prof.items()}
+
+
+def group_writes(host: str, port: int) -> list[dict[str, Any]]:
+    """P3-13 -- are the *write* endpoints outside the gate, like the read ones?
+
+    The prediction is that the gate only looks for `.htm` / `.asp` in the URI,
+    so write-class handlers sit outside it exactly as read-class ones do. Its
+    refutation is "write endpoints blocked while read ones are not -> the gate
+    is not a plain URI string test".
+
+    The obvious way to test that is to POST the write handlers, and it is the
+    wrong way: it runs them. But the claim is about the *gate*, and the gate
+    decides in process_header_end from the URI alone, before handleForm is ever
+    reached. So each name is probed in two URI shapes with GET:
+
+        /boafrm/formX        -- no `.htm` anywhere -> the gate should not run
+        /boafrm/formX.htm    -- contains `.htm`    -> the gate should run
+
+    If the second flips to `302 -> login.htm` while the first does not, the gate
+    is a URI string test and the endpoint's write-ness had no bearing on it --
+    which is exactly the demonstration `/config.dat` versus `/config.dat.htm`
+    already gave for a non-form path.
+
+    GET never reaches handleForm on this build (every `/boafrm/` GET redirects
+    in translate_uri), so **not one handler runs in this group**.
+    """
+    names, meta = load_endpoints()
+    prof = handler_sink_profile()
+
+    def classify(n: str) -> str:
+        sinks = prof.get(f"form_{n}") or prof.get(n) or []
+        spawns = [s for s in sinks if s in ("system", "popen", "execl", "execlp",
+                                            "execle", "execv", "execvp", "execve")]
+        return "spawns" if spawns else "quiet"
+
+    groups = {n: classify(n) for n in names}
+    n_spawn = sum(1 for v in groups.values() if v == "spawns")
+    out: list[dict[str, Any]] = [{
+        "probe": "writes-meta", **meta,
+        # Two groupings, and the difference between them matters more than
+        # either. The first is what the register's own text names; the second is
+        # what a committed report can actually measure.
+        "named_by_P3_13": sorted(NAMED_WRITE_ENDPOINTS & set(names)),
+        "classifier": "handler reaches a process-spawning sink in "
+                      + str(SINKS.relative_to(REPO)),
+        "classifier_measures": "spawning a process, NOT writing configuration",
+        "classifier_limit":
+            "A handler can persist configuration through apmib_set without "
+            "spawning anything, and formPasswordSetup is exactly that case: its "
+            "only tracked sink is strcpy, so this classifier calls it 'quiet' "
+            "while it plainly writes the admin credential. The split is a proxy "
+            "and it is reported as one. Naming which handlers write MIB needs an "
+            "apmib_set caller census, which no committed report carries -- "
+            "PROGRESS carried-forward.",
+        "spawns": sorted(n for n, v in groups.items() if v == "spawns"),
+        "quiet": sorted(n for n, v in groups.items() if v == "quiet"),
+        "counts": {"spawns": n_spawn, "quiet": len(names) - n_spawn,
+                   "no_sink_profile": sum(
+                       1 for n in names
+                       if not (prof.get(f"form_{n}") or prof.get(n)))},
+        "method_note": "GET only. GET never reaches handleForm on this build, "
+                       "so no handler runs in this group",
+    }]
+    missing = NAMED_WRITE_ENDPOINTS - set(names)
+    if missing:
+        raise ProbeError(
+            f"P3-13's prediction names {sorted(missing)}, which the recovered "
+            "root_form[] does not contain. Either the register means a different "
+            "build or the table is short -- and comparing 'write endpoints' "
+            "against a set missing the ones the test names proves nothing")
+    if n_spawn == 0 or n_spawn == len(names):
+        raise ProbeError(
+            f"the classifier put all {len(names)} endpoints in one class, so it "
+            "separates nothing and the comparison it exists to make cannot be "
+            "made")
+
+    for i, name in enumerate(names):
+        if i and i % 20 == 0:
+            require_control(host, port, f"before write-probe {i} of {len(names)}")
+        for suffix in ("", ".htm"):
+            r = raw_request(host, port, "GET", f"/boafrm/{name}{suffix}")
+            out.append({"probe": "write-endpoint", "name": name,
+                        "klass": groups[name],
+                        "named_by_test": name in NAMED_WRITE_ENDPOINTS,
+                        "uri_shape": "bare" if not suffix else "with .htm", **r})
     return out
 
 
@@ -437,11 +638,13 @@ def group_ssdp(host: str, port: int) -> list[dict[str, Any]]:
 
 
 GROUPS = {
-    "control": lambda h, p, _: [control(h, p)],
-    "fingerprint": lambda h, p, _: group_fingerprint(h, p),
-    "endpoints": group_endpoints,
-    "gate": lambda h, p, _: group_gate(h, p),
-    "ssdp": lambda h, p, _: group_ssdp(h, p),
+    "control": lambda h, p, a: [control(h, p)],
+    "fingerprint": lambda h, p, a: group_fingerprint(h, p),
+    "endpoints": lambda h, p, a: group_endpoints(h, p, a.allow_post,
+                                                 a.allow_destructive),
+    "gate": lambda h, p, a: group_gate(h, p),
+    "writes": lambda h, p, a: group_writes(h, p),
+    "ssdp": lambda h, p, a: group_ssdp(h, p),
 }
 
 
@@ -456,8 +659,19 @@ def main(argv: list[str] | None = None) -> int:
                          "change this unit's configuration. Take a 64 KiB config "
                          "snapshot before and after; tools/qemu-env.sh diff shows "
                          "what a write looks like")
+    ap.add_argument("--allow-destructive", action="store_true",
+                    help="also POST the handlers on the refusal list -- LAN "
+                         "addressing, the admin password, firmware and config "
+                         "upload, operating mode, reboot. Each is refused by "
+                         "name with its reason; this overrides all of them at "
+                         "once, which is why it is a separate flag from "
+                         "--allow-post and why the transcript records it")
     ap.add_argument("-o", "--output", help="JSON transcript (recommended)")
     args = ap.parse_args(argv)
+    if args.allow_destructive and not args.allow_post:
+        print("bench-probe: --allow-destructive without --allow-post does "
+              "nothing; the refusal list only applies to POSTs", file=sys.stderr)
+        return 2
 
     try:
         if args.group != "control":
@@ -466,7 +680,7 @@ def main(argv: list[str] | None = None) -> int:
             # worse than one that is read.
             require_control(args.host, args.port, "before the run",
                             need_direct=(args.group == "ssdp"))
-        records = GROUPS[args.group](args.host, args.port, args.allow_post)
+        records = GROUPS[args.group](args.host, args.port, args)
         if args.group not in ("control", "ssdp"):
             # The spread goes first: `control()` sets "probe" itself, so putting
             # the literal first lets it be overwritten and the after-run control
@@ -484,6 +698,7 @@ def main(argv: list[str] | None = None) -> int:
         "host": args.host,
         "port": args.port,
         "allow_post": args.allow_post,
+        "allow_destructive": args.allow_destructive,
         "records": records,
     }
     for r in records:

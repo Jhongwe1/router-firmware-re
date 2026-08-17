@@ -44,6 +44,8 @@ mkreg() {
 schema_version = "1"
 [freeze]
 sha256 = "REPLACED"
+[schedule]
+sha256 = "REPLACED"
 [ledger]
 output = "study/.rtcase-selftest.md"
 [ledger.phase_titles]
@@ -69,14 +71,25 @@ week = "W06"
 TOML
 }
 
-# Rewrites [freeze].sha256 in $1 to whatever the current predictions hash to.
+# Rewrites [freeze].sha256 AND [schedule].sha256 in $1 to their current values,
+# each into its own section. A single global re.sub would put the freeze hash in
+# both, and then every schedule case below would fail for the wrong reason.
 refreeze() {
-  local h
-  h="$($PY tools/rtcase.py freeze "$1")"
-  "$PY" - "$1" "$h" <<'PYEOF'
+  local hf hs
+  hf="$($PY tools/rtcase.py freeze "$1")"
+  hs="$($PY tools/rtcase.py schedule "$1")"
+  "$PY" - "$1" "$hf" "$hs" <<'PYEOF'
 import pathlib, re, sys
 p = pathlib.Path(sys.argv[1])
-p.write_text(re.sub(r'sha256 = "[^"]*"', f'sha256 = "{sys.argv[2]}"', p.read_text("utf-8")), "utf-8")
+text, section = [], None
+for line in p.read_text("utf-8").splitlines(keepends=True):
+    m = re.match(r"\[(\w+)\]", line)
+    if m:
+        section = m.group(1)
+    if section in ("freeze", "schedule") and line.startswith("sha256 = "):
+        line = f'sha256 = "{sys.argv[2 if section == "freeze" else 3]}"\n'
+    text.append(line)
+p.write_text("".join(text), "utf-8")
 PYEOF
 }
 
@@ -129,6 +142,51 @@ if run; then ok "a correctly frozen register passes"; else bad "a correctly froz
 
 sed -i 's/refute = "something else"/refute = "something QUIETLY EDITED"/' "$TMP/reg.toml"
 reject "editing a refutation without updating the hash" "freeze mismatch"
+
+# --- 2b. the schedule -------------------------------------------------------
+#
+# Added 2026-08-17. Four cases sat in W05 that W05's own plan forbids running,
+# so its closure command could never reach zero. Moving them is right; moving
+# them quietly is the same act as editing a prediction after the result, which
+# this file already refuses. So a week may move and it must show.
+
+echo "=== the schedule ==="
+mkreg "$TMP/reg.toml"; refreeze "$TMP/reg.toml"
+sed -i '0,/^week = "W05"$/s//week = "W06"/' "$TMP/reg.toml"
+reject "moving a case to another week without updating the hash" "schedule mismatch"
+
+# The hash alone is not enough: it can be re-declared as easily as it can be
+# broken. What makes the move auditable is that the case has to say what it
+# moved from and why.
+mkreg "$TMP/reg.toml"
+sed -i '0,/^week = "W05"$/s//week = "W06"\nrescheduled_from = "W05"\nreschedule_date = "2026-08-17"/' "$TMP/reg.toml"
+refreeze "$TMP/reg.toml"
+reject "rescheduling with no reason on the record" "no reschedule_reason"
+
+mkreg "$TMP/reg.toml"
+sed -i '0,/^week = "W05"$/s//week = "W06"\nrescheduled_from = "W05"\nreschedule_reason = "because"/' "$TMP/reg.toml"
+refreeze "$TMP/reg.toml"
+reject "rescheduling with no date" "no reschedule_date"
+
+mkreg "$TMP/reg.toml"
+sed -i '0,/^week = "W05"$/s//week = "W05"\nrescheduled_from = "W05"\nreschedule_reason = "x"\nreschedule_date = "2026-08-17"/' "$TMP/reg.toml"
+refreeze "$TMP/reg.toml"
+reject "a reschedule record whose from and to are the same week" "the same"
+
+mkreg "$TMP/reg.toml"
+sed -i '0,/^week = "W05"$/s//week = "W05"\nreschedule_reason = "moved, honest"/' "$TMP/reg.toml"
+refreeze "$TMP/reg.toml"
+reject "a reason with no rescheduled_from" "does not say what it moved from"
+
+# And the positive control for this block: a complete, honest reschedule passes.
+mkreg "$TMP/reg.toml"
+sed -i '0,/^week = "W05"$/s//week = "W06"\nrescheduled_from = "W05"\nreschedule_reason = "the week plan forbids it"\nreschedule_date = "2026-08-17"/' "$TMP/reg.toml"
+refreeze "$TMP/reg.toml"
+if run; then
+  ok "a reschedule with from, reason, date and a re-declared hash passes"
+else
+  bad "a complete reschedule was rejected"; sed 's/^/          /' "$TMP/err"
+fi
 
 # --- 3. an empty freeze set must not pass vacuously ------------------------
 

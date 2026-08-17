@@ -68,9 +68,9 @@ W05 週計畫原本要另外建一份 `notes/prediction-scorecard.md`（12 條�
 | **W01** | Phase 0 | 1 / 1 | `▰▰▰▰▰▰▰▰▰▰` |
 | **W02** | Phase 0, 9 | 2 / 2 | `▰▰▰▰▰▰▰▰▰▰` |
 | **W04-2** | Phase 0 | 2 / 2 | `▰▰▰▰▰▰▰▰▰▰` |
-| **W05** | Phase 0, 1, 2, 3, 6, 9 | 22 / 31 | `▰▰▰▰▰▰▰▱▱▱` |
-| **W06** | Phase 0, 2, 3, 4, 5, 10 | 1 / 25 | `▱▱▱▱▱▱▱▱▱▱` |
-| **W07** | Phase 1, 2, 3, 5, 6, 7, 8, 9, 10 | 1 / 60 | `▱▱▱▱▱▱▱▱▱▱` |
+| **W05** | Phase 0, 1, 2, 3, 6, 9 | 22 / 27 | `▰▰▰▰▰▰▰▰▱▱` |
+| **W06** | Phase 0, 2, 3, 4, 5, 10 | 1 / 28 | `▱▱▱▱▱▱▱▱▱▱` |
+| **W07** | Phase 1, 2, 3, 5, 6, 7, 8, 9, 10 | 1 / 61 | `▱▱▱▱▱▱▱▱▱▱` |
 
 ## 圖例
 
@@ -311,9 +311,9 @@ W05 週計畫原本要另外建一份 `notes/prediction-scorecard.md`（12 條�
 | ID | 項目 | § | 可行性 | 出場證據 | 排程 | 結果 | 證據 |
 |---|---|---|---|---|---|---|---|
 | **P3-0** | 建立回顯通道（docroot 回寫 + 帶外） | 6.0 | ★★★★★ | 🟥 | W05 | 🔶 docroot 確認為 /var/web（ramfs，143 檔，每一檔 sha256 與 webbundle 報告相同）且可寫入；ICMP 通道亦驗過。GET 回來那一半未測——boa 在 qemu 下服務不了請求 | [oracle-design.md](../notes/oracle-design.md) · [emulation-2018.md](../notes/emulation-2018.md) |
-| **P3-1** | A2 formWsc / peerPin → system() | 6.1 | ★★★★★ | 🟥 | W05 | ⬜ | — |
-| **P3-2** | A3 formRoute / subnet → system()（本專案獨家，無 CVE） | 6.1 | ★★★★★ | 🟥 | W05 | ⬜ | — |
-| **P3-3** | A1 formSysCmd / sysCmd（CVE-2024-51228，解 X-8） | 6.1 | ★★★★★ | 🟥 | W05 | ⬜ | — |
+| **P3-1** | A2 formWsc / peerPin → system() | 6.1 | ★★★★★ | 🟥 | W06 | ⬜ | — |
+| **P3-2** | A3 formRoute / subnet → system()（本專案獨家，無 CVE） | 6.1 | ★★★★★ | 🟥 | W06 | ⬜ | — |
+| **P3-3** | A1 formSysCmd / sysCmd（CVE-2024-51228，解 X-8） | 6.1 | ★★★★★ | 🟥 | W06 | ⬜ | — |
 | P3-4 | A4 targetAPSsid（Playbook v1 誤植，實際在 R1 不在 R2） | 6.1 | ★★★☆☆ | 🟨 | W06 | ⬜ | — |
 | P3-5 | A2b formWsc / localPin（寫 flash） | 6.1 | ★★★★★ | 🟥 | W06 | ⬜ | — |
 | P3-6 | 分隔符輪替（10 種語法） | 6.1 / 6.2 | ★★★★☆ | 🟦 | W05 | 🟪 十種分隔符九種在這台自己的 /bin/sh 上有效；|| 短路是因為 flash set 回傳 0，不是被過濾。handler 尾巴的 2>&1 > /tmp/syscmd.log 確實會蓋掉 payload 的 >，必須用 ;# 截斷 | [oracle-design.md](../notes/oracle-design.md) |
@@ -753,7 +753,7 @@ W05 週計畫原本要另外建一份 `notes/prediction-scorecard.md`（12 條�
 | P9-6 | SPI 直寫植入 | 12.4 | ★★☆☆☆ | 🟨 | W07 | ⬜ | — |
 | **P9-7** | 讀 JEDEC ID（flash 型號的第二來源） | 12.4 | ★★☆☆☆ | 🟨 | W07 | ⬜ | — |
 | P9-8 | EJTAG | 12.5 | ★☆☆☆☆ | 🟦 | W07 | ⬜ | — |
-| P9-9 | Reset 按鈕行為 | 12.6 | ★★★★★ | 🟥 | W05 | ⬜ | — |
+| P9-9 | Reset 按鈕行為 | 12.6 | ★★★★★ | 🟥 | W07 | ⬜ | — |
 | P9-10 | 改造韌體回刷 / implant | 12.7 | ★★★☆☆ | 🟨 | W07 | ⬜ | — |
 | P9-11 | 短接 SPI 強制落回 bootloader（HW-a） | 12.8 | ★★★☆☆ | 🟦 | W07 | ⬜ | — |
 | P9-12 | 換自製 flash / tftpboot RAM kernel（HW-b/c） | 12.8 | ★★★☆☆ | 🟦 | W07 | ⬜ | — |

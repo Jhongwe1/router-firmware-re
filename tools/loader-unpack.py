@@ -240,12 +240,12 @@ def build(dump: Path, region_end: int) -> tuple[dict[str, Any], bytes]:
             "open17_flash_write": {
                 "asks": "which path prints 'Flash Write Successed!', and does the "
                         "loader name an erase unit",
-                "hits": hits_for(table, ERASE_NEEDLES + ["Flash Write", "Flash Read",
-                                                        "Write 0x", "SPI"]),
+                "hits": hits_for(table, [*ERASE_NEEDLES, "Flash Write",
+                                         "Flash Read", "Write 0x", "SPI"]),
             },
         },
         "help_text": [{"offset": f"0x{o:05x}", "string": s} for o, s in table
-                      if 12 <= len(s) and re.search(
+                      if len(s) >= 12 and re.search(
                           r"(COMMAND MODE|Print this help|<Address>|<Len>|"
                           r"<Value1>|<TargetAddress>|<Load Address>|"
                           r"<dst_ROM_offset>|Jump to)", s)],

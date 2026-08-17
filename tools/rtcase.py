@@ -220,6 +220,30 @@ def freeze_hash(cases: list[dict[str, Any]]) -> str:
     return hashlib.sha256(freeze_payload(cases)).hexdigest()
 
 
+def schedule_payload(cases: list[dict[str, Any]]) -> bytes:
+    """Canonical bytes over (id, week) for every live case.
+
+    The freeze stops a *prediction* moving after a result. Nothing stopped a
+    *week* moving, and on 2026-08-17 that gap had teeth: four cases scheduled
+    W05 were ones the week's own plan forbids running (the three command
+    injections, which W05 defers to W06, and the reset button, which is
+    destructive). `make todo WEEK=W05` could therefore never reach zero without
+    either breaking the plan or editing the field -- and editing the field
+    quietly is indistinguishable from moving the goalposts.
+
+    So weeks may move, and they hash. A schedule change now has to appear in the
+    diff beside its reason, exactly as a prediction change does. `week` stays out
+    of the *freeze* hash on purpose: rescheduling is legitimate and re-freezing
+    for it would make the freeze mean two things.
+    """
+    live = sorted((c["id"], str(c.get("week", ""))) for c in cases if not is_cut(c))
+    return json.dumps(live, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+
+
+def schedule_hash(cases: list[dict[str, Any]]) -> str:
+    return hashlib.sha256(schedule_payload(cases)).hexdigest()
+
+
 def case_freeze(case: dict[str, Any]) -> str:
     """Per-case hash of the frozen fields, stamped onto each result.
 
@@ -288,6 +312,27 @@ def check(register_path: Path, results_path: Path) -> int:
         if "cut_reason" in case and not is_cut(case):
             errors.append(f"{cid}: cut_reason is present but empty")
 
+        # Rescheduling. Legitimate, and it must never be quiet.
+        rf = str(case.get("rescheduled_from", "")).strip()
+        if rf:
+            if rf == str(case.get("week", "")):
+                errors.append(
+                    f"{cid}: rescheduled_from is {rf!r} and week is the same. "
+                    "Either the move did not happen or the field is stale")
+            if not str(case.get("reschedule_reason", "")).strip():
+                errors.append(
+                    f"{cid}: moved from {rf} to {case.get('week')} with no "
+                    "reschedule_reason. A week that moves without a reason on "
+                    "the record is the same act as a target that moves after "
+                    "the shot")
+            if not str(case.get("reschedule_date", "")).strip():
+                errors.append(f"{cid}: rescheduled with no reschedule_date")
+        for f in ("reschedule_reason", "reschedule_date"):
+            if case.get(f) and not rf:
+                errors.append(
+                    f"{cid}: has {f!r} but no rescheduled_from, so the record "
+                    "does not say what it moved from")
+
     # The control. If nothing is frozen the freeze check below compares two
     # hashes of an empty list and passes, which is instrument bug 12 exactly: a
     # check that only fires when it has something to work on, reporting success
@@ -308,6 +353,27 @@ def check(register_path: Path, results_path: Path) -> int:
             "       If you changed a prediction on purpose, put the new hash in "
             "[freeze].sha256 in the same commit - `python3 tools/rtcase.py freeze` "
             "prints it - so the change shows up in the diff instead of passing quietly."
+        )
+
+    # The same control the freeze needs, for the same reason: hashing an empty
+    # list would pass while proving nothing.
+    live_count = sum(1 for c in cases if not is_cut(c))
+    if cases and live_count == 0:
+        errors.append("every case is cut, so the schedule check hashes nothing")
+
+    declared_sched = str(doc.get("schedule", {}).get("sha256", ""))
+    actual_sched = schedule_hash(cases)
+    if declared_sched != actual_sched:
+        moved = [c["id"] for c in cases if str(c.get("rescheduled_from", "")).strip()]
+        errors.append(
+            f"schedule mismatch: register declares {declared_sched[:16] or '<empty>'}..., "
+            f"the (id, week) pairs hash to {actual_sched[:16]}...\n"
+            "       A week moved. That is allowed, and it is not allowed to be "
+            "quiet: set `rescheduled_from`, `reschedule_reason` and "
+            "`reschedule_date` on each case that moved, then put the new hash in "
+            "[schedule].sha256 in the same commit - `python3 tools/rtcase.py "
+            "schedule` prints it.\n"
+            f"       Cases currently carrying a reschedule record: {moved or 'none'}"
         )
 
     results_doc = load_results(results_path)
@@ -389,10 +455,13 @@ def check(register_path: Path, results_path: Path) -> int:
         return 1
 
     executed = len({r["id"] for r in results_doc.get("results", [])})
+    moved = [c["id"] for c in cases if str(c.get("rescheduled_from", "")).strip()]
     print(
         f"register OK - {len(cases)} cases, {frozen_count} frozen, {executed} executed, "
         f"freeze {actual[:16]}..."
     )
+    print(f"  schedule {actual_sched[:16]}..."
+          + (f", {len(moved)} rescheduled: {', '.join(moved)}" if moved else ""))
     # Printed on every `make ci`, so the schedule is in front of whoever is
     # working rather than in a file they have to remember to open.
     summary = week_summary(cases, latest_results(results_doc))
@@ -723,7 +792,7 @@ def main(argv: list[str]) -> int:
     ap = argparse.ArgumentParser(description=(__doc__ or "").splitlines()[0])
     sub = ap.add_subparsers(dest="cmd", required=True)
 
-    for name in ("check", "render", "freeze", "stats"):
+    for name in ("check", "render", "freeze", "schedule", "stats"):
         p = sub.add_parser(name)
         p.add_argument("register", nargs="?", default=str(DEFAULT_REGISTER))
         p.add_argument("--results", default=str(DEFAULT_RESULTS))
@@ -755,6 +824,9 @@ def main(argv: list[str]) -> int:
         return render(Path(args.register), Path(args.results))
     if args.cmd == "freeze":
         print(freeze_hash(load_register(Path(args.register)).get("case", [])))
+        return 0
+    if args.cmd == "schedule":
+        print(schedule_hash(load_register(Path(args.register)).get("case", [])))
         return 0
     if args.cmd == "stats":
         doc = load_register(Path(args.register))

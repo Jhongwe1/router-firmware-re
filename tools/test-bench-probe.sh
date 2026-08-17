@@ -62,6 +62,54 @@ must_refuse "a shell metacharacter in a parameter" "reconnaissance" \
 must_refuse "a backtick in a parameter" "reconnaissance" \
   'bp.check_params({"localPin": "1`id`"})'
 
+# The refusal list added on 2026-08-17. `--allow-post` reads as "yes, I accept
+# that this changes the configuration"; it must not also read as "yes, take the
+# LAN address away from me half way through the sweep".
+must_refuse "POST to the handler that owns the LAN address" "LAN addressing" \
+  'bp.check_post("/boafrm/formTcpipSetup", {"submit-url": "/status.htm"})'
+
+must_refuse "POST to the handler that owns the admin password" "CVE-2019-19823" \
+  'bp.check_post("/boafrm/formPasswordSetup", {"submit-url": "/status.htm"})'
+
+must_refuse "POST to the firmware upload handler" "This is the one" \
+  'bp.check_post("/boafrm/formUpload", {"submit-url": "/status.htm"})'
+
+# And the flag that overrides them has to actually override them, or the
+# refusals above are a wall with no door and a future week edits the tool.
+"$PY" - <<'PYEOF'
+import importlib.util, pathlib
+spec = importlib.util.spec_from_file_location("bp", pathlib.Path("tools/bench-probe.py"))
+bp = importlib.util.module_from_spec(spec); spec.loader.exec_module(bp)
+bp.check_post("/boafrm/formTcpipSetup", {"submit-url": "/x"}, allow_destructive=True)
+assert len(bp.HAZARDOUS) >= 13, len(bp.HAZARDOUS)
+assert all(v.strip() for v in bp.HAZARDOUS.values()), "an entry with no reason"
+PYEOF
+if [ $? -eq 0 ]; then
+  ok "--allow-destructive opens the door, and every entry carries a reason"
+else
+  bad "--allow-destructive did not override, or an entry has no reason"
+fi
+
+echo
+echo "=== the write/read split is made from evidence, and it splits ==="
+"$PY" - <<'PYEOF'
+import importlib.util, pathlib
+spec = importlib.util.spec_from_file_location("bp", pathlib.Path("tools/bench-probe.py"))
+bp = importlib.util.module_from_spec(spec); spec.loader.exec_module(bp)
+prof = bp.handler_sink_profile()
+# The classifier is only meaningful if the report it reads really does name
+# handlers. An empty profile would silently call every endpoint read-only, and
+# P3-13's comparison would then be between a set and itself.
+assert len(prof) > 20, f"only {len(prof)} handlers have a sink profile"
+assert "form_formSysCmd" in prof, "the G4 target has no sink profile"
+assert "system" in prof["form_formSysCmd"], prof["form_formSysCmd"]
+spawn = {k for k, v in prof.items() if "system" in v or "execl" in v}
+assert 10 < len(spawn) < len(prof), f"{len(spawn)} of {len(prof)} spawn"
+print(f"  ok    {len(prof)} handlers profiled, {len(spawn)} reach a "
+      f"process-spawning sink")
+PYEOF
+if [ $? -eq 0 ]; then pass=$((pass + 1)); else bad "handler sink profile"; fi
+
 echo
 echo "=== the endpoint list comes from the committed report, not from memory ==="
 "$PY" - <<'PYEOF'
