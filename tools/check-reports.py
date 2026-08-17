@@ -26,6 +26,15 @@ Several producers write into reports/, on purpose:
                                            checks are all about the positive
                                            control, because the report is mostly
                                            a claim about what is *absent*)
+  tools/failopen-probe.sh              -> carries "producer": "failopen-probe"
+                                          (what /bin/startup.sh does when the
+                                           settings regions are damaged. Every
+                                           check here is about a control: the
+                                           probe's first working run reported
+                                           seven states in which nothing
+                                           happened, because the boot script was
+                                           being handed to qemu-user as if it
+                                           were an ELF and had never executed)
   tools/rtcase.py `rtcase record`      -> carries "producer": "rtcase"
                                           (shape only here; admissibility is
                                            `rtcase check`, which needs the
@@ -178,6 +187,37 @@ def main(argv: list[str]) -> int:
                         f"{path.name}: no gate finding joined to a dispatch entry, so the "
                         f"two reports disagree about addresses and every cross-reference "
                         f"in this file is meaningless")
+
+        # tools/failopen-probe.sh. Same failure mode as handler-sweep and worse:
+        # this probe damages the flash image and then asks the vendor's own boot
+        # script what it does about it, so *every* interesting reading is a
+        # difference from the control. If the controls did not run, a table
+        # showing "nothing happened in any state" is exactly what a probe that
+        # never executed the boot script produces - and that is not a
+        # hypothetical, it is what the first working run of this tool committed
+        # to the screen.
+        elif str(doc.get("producer", "")) == "failopen-probe":
+            counts["emulation"] += 1
+            for field in ("profile", "source_sha256", "case", "caveat", "measurements"):
+                if doc.get(field) in (None, "", [], {}):
+                    errors.append(f"{path.name}: missing required field {field!r}")
+            ctl = doc.get("controls") or {}
+            for name in ("shell_runs", "plain_write_takes",
+                         "healthy_image_passes_both_tests_and_telnet_off"):
+                if ctl.get(name) != "pass":
+                    errors.append(
+                        f"{path.name}: control {name!r} is {ctl.get(name)!r}, not 'pass' - "
+                        f"without it every row in this table could equally be a probe that "
+                        f"never ran")
+            # The whole point is a state that differs from the control. A run in
+            # which the boot script took no branch anywhere measured nothing.
+            branched = [m for m in doc.get("measurements", [])
+                        if m.get("branch_message", "").strip()
+                        and "no branch message" not in m.get("branch_message", "")]
+            if not branched:
+                errors.append(
+                    f"{path.name}: no damage state made the boot script take any branch, "
+                    f"so this run measured the harness rather than the firmware")
 
         elif "schema_version" in doc:
             counts["fwrecon"] += 1

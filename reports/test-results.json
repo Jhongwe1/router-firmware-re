@@ -644,8 +644,33 @@
       ],
       "note": "全 58 個端點掃過（57 個分派表 handler + 一個不存在的負對照），每一發之前 reap + reset + serve，所以每一發都從同一份 flash 開始。結果：39 個在模擬下讓 boa 消失，19 個存活，39 次重啟 0 次失敗。對照成立：formLogin 200 且存活、formNotARealHandler 404。預測說「四個有 CVE 編號的是取樣不是集合」—— 39 不是四。反證條件（只有那四個有反應）沒有觸發。**這不是對實機的主張**：qemu-user 對未對齊存取丟 SIGBUS，而實機的 MIPS kernel 會在 trap handler 裡修掉，所以報告裡的欄位叫 died_under_emulation。它是一份要拿去實機驗的候選清單，而 W06 在實機上量到的一發請求斷線（docs/disclosure.md D-11）本來就說不出是哪一類 handler。存活的 19 個裡包含 formSysCmd（CVE 那一個）本身，所以「會死」跟「有缺陷」不是同一件事。這一輪之前有三次無效的量測：治具讓 32 個孤兒 boa 累積、port 被任意一個舊的持有，而 serve 的對照通過了，因為它驗的是 port 的性質而不是它自己啟動的那個 process。",
       "case_freeze_sha256": "dd3dd6cc0f2295b9ec8c2412701d5960e4d7a507bd9d9b3380f4b7673e284ec0"
+    },
+    {
+      "id": "P8-24",
+      "date": "2026-08-18",
+      "verdict": "partial",
+      "evidence_kind": "emulated",
+      "artefacts": [
+        "reports/failopen-unit-2018.json",
+        "notes/config-failopen.md",
+        "tools/failopen-probe.sh"
+      ],
+      "note": "The branch is reached, the write is not observable. With both region signatures zeroed startup.sh printed its own line 23 verbatim - Default configuration invalid, reset default! - which is the branch whose line 43 is flash set TELNET_ENABLED 1. What it then writes cannot be measured here: flash default-sw and flash reset1 both die on qemu-user SIGBUS, so the image is byte-identical before and after in all seven damage states. The control that makes that a statement about the recovery path rather than about the environment: a plain flash set WAN_DHCP 7 writes and reads back in the same environment. Two refinements the prediction did not have. (1) The two validity tests differ: test-dsconf checks the DECOMPRESSED header (sig=6G ver=3 len=31878) and tolerates a flipped payload byte, test-csconf additionally runs mib_tlv_init and does not - so reaching the fail-open branch requires damaging COMPDS header specifically, not just corrupting the settings area. (2) startup.sh line 25 eval flash get WLAN_BAND2G5G_SELECT executed and the shell reported Invalid: not found, i.e. flash error text became a command - the P8-8 sink is live on the boot path even though nothing attacker-controlled reaches it.",
+      "case_freeze_sha256": "8f0202e6dbfdf12f0ef2749197b1dfd56cff171f9170975683dc661203174336"
+    },
+    {
+      "id": "P8-8",
+      "date": "2026-08-18",
+      "verdict": "refuted",
+      "evidence_kind": "emulated",
+      "artefacts": [
+        "notes/config-failopen.md",
+        "reports/mib-table-unit-2018.json"
+      ],
+      "note": "Refuted at all three sites the prediction named, each for a different reason, and the complete inventory is nine flash get sites of which only two are eval. snmpd.sh:36-44 is the strongest sink - eval, not interpolation, and flash get quotes string values with double quotes where a backtick still executes - but none of its nine SNMP_ names exists in this build MIB table. Two instruments: the table recovered from libapmib.so has SNMP_RO_COMMUNITY and SNMP_RW_COMMUNITY only, and the vendor own /bin/flash answers flash get SNMP_NAME with a usage dump and rc=255. The script asks SNMP_ROCOMMUNITY - one underscore apart, scripts and MIB table from different SDK vintages, which is also why snmpd smbd smbpasswd nmbd are all absent from /bin while three scripts driving them ship. smb.sh and smbbak.sh capture MIB values with backticks but feed a config file and argv after word-splitting, no eval so no execution. The one live eval is startup.sh:25 over WLAN_BAND2G5G_SELECT and it DOES run at boot - see P8-24, where the transcript shows the shell reporting Invalid: not found from flash error text. So the class exists on this device and no attacker-controlled value currently reaches it.",
+      "case_freeze_sha256": "dd2ca263be6f90e62c80d05583bba6810e07c6aba42f1e8debe56c1ef51aeb00"
     }
   ],
   "register": "test-cases.toml",
-  "register_freeze_sha256": "121550712670996a7c1e20816932c10a063a1a7b9804cb631199b050a8e76ef8"
+  "register_freeze_sha256": "a9bd2761074e0b349726ec0ee96f3280e30a81e13a034643c1c3581dfc7f10be"
 }

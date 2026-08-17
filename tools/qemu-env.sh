@@ -312,7 +312,19 @@ cmd_reset() {
   for id in $(ipcs -s | awk 'NR>3 && $2 ~ /^[0-9]+$/ {print $2}'); do
     ipcrm -s "$id" 2>/dev/null || true
   done
-  rm -f "$ENVDIR/var/web/config.dat"
+  # -rf, not -f. `serve` deliberately makes this path a DIRECTORY so that boa's
+  # start-up open(O_RDWR|O_CREAT|O_TRUNC) returns EISDIR instead of taking the
+  # unaligned path that kills it under qemu-user -- see the comment above
+  # cmd_serve. `rm -f` cannot remove a directory, so after any `serve` this line
+  # failed, and because it is the last command in the function it made `reset`
+  # return non-zero while every restore above it had in fact succeeded. A caller
+  # that trusted the exit status saw "reset failed" and stopped; a caller that
+  # did not would have carried the previous run's docroot into the next
+  # measurement. Found 2026-08-18 by failopen-probe.sh, which is the first
+  # caller to check reset's exit status at all.
+  rm -rf "$ENVDIR/var/web/config.dat"
+  [ -e "$ENVDIR/var/web/config.dat" ] && die "could not clear $ENVDIR/var/web/config.dat"
+  return 0
 }
 
 # ---------------------------------------------------------------- check ----

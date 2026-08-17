@@ -53,10 +53,10 @@ W05 週計畫原本要另外建一份 `notes/prediction-scorecard.md`（12 條�
 |---|---|
 | 登記項目 | **134**（排入 125，砍掉 9） |
 | 已寫反證條件（凍結） | **117** / 125 |
-| 已執行 | **54** |
+| 已執行 | **56** |
 | 其中以真機動態證據收掉 | **43** |
-| 其中以模擬環境執行收掉（**不是矽上**） | **7** |
-| 判定成立 / 判定不成立 | **31** / **11** |
+| 其中以模擬環境執行收掉（**不是矽上**） | **9** |
+| 判定成立 / 判定不成立 | **31** / **12** |
 | 凍結雜湊 | `a9bd2761074e0b349726ec0ee96f3280e30a81e13a034643c1c3581dfc7f10be` |
 
 ## 排程：哪一週要打掉哪些
@@ -70,7 +70,7 @@ W05 週計畫原本要另外建一份 `notes/prediction-scorecard.md`（12 條�
 | **W04-2** | Phase 0 | 2 / 2 | `▰▰▰▰▰▰▰▰▰▰` |
 | **W05** | Phase 0, 1, 2, 3, 6, 9 | 27 / 27 | `▰▰▰▰▰▰▰▰▰▰` |
 | **W06** | Phase 0, 2, 3, 4, 5, 10 | 20 / 20 | `▰▰▰▰▰▰▰▰▰▰` |
-| **W07** | Phase 1, 2, 3, 4, 5, 6, 8, 9, 10 | 2 / 57 | `▱▱▱▱▱▱▱▱▱▱` |
+| **W07** | Phase 1, 2, 3, 4, 5, 6, 8, 9, 10 | 4 / 57 | `▰▱▱▱▱▱▱▱▱▱` |
 | **W08** | Phase 7, 9 | 0 / 16 | `▱▱▱▱▱▱▱▱▱▱` |
 
 ## 圖例
@@ -671,7 +671,7 @@ W05 週計畫原本要另外建一份 `notes/prediction-scorecard.md`（12 條�
 | **P8-5** | check_host 到底檢查什麼（rebinding 的前提） | 11.3 | ★★★☆☆ | 🟦 | W07 | ⬜ | — |
 | P8-6 | DNS rebinding 完整鏈 | 11.3 | ★★★☆☆ | 🟦 | W07 | ⬜ | — |
 | P8-7 | UPnP 自曝：把 LAN-only 升級成 WAN 可達 | 11.4 | ★★★☆☆ | 🟨 | W07 | ⬜ | — |
-| **P8-8** | MIB 值被拼進開機腳本的 shell 命令（白盒定位） | 11.5 | ★★★☆☆ | 🟨 | W07 | ⬜ | — |
+| **P8-8** | MIB 值被拼進開機腳本的 shell 命令（白盒定位） | 11.5 | ★★★☆☆ | 🟨 | W07 | ❌ Refuted at all three sites the prediction named, each for a different reason, and the complete inventory is nine flash get sites of which only two are eval. snmpd.sh:36-44 is the strongest sink - eval, not interpolation, and flash get quotes string values with double quotes where a backtick still executes - but none of its nine SNMP_ names exists in this build MIB table. Two instruments: the table recovered from libapmib.so has SNMP_RO_COMMUNITY and SNMP_RW_COMMUNITY only, and the vendor own /bin/flash answers flash get SNMP_NAME with a usage dump and rc=255. The script asks SNMP_ROCOMMUNITY - one underscore apart, scripts and MIB table from different SDK vintages, which is also why snmpd smbd smbpasswd nmbd are all absent from /bin while three scripts driving them ship. smb.sh and smbbak.sh capture MIB values with backticks but feed a config file and argv after word-splitting, no eval so no execution. The one live eval is startup.sh:25 over WLAN_BAND2G5G_SELECT and it DOES run at boot - see P8-24, where the transcript shows the shell reporting Invalid: not found from flash error text. So the class exists on this device and no attacker-controlled value currently reaches it. | [config-failopen.md](notes/config-failopen.md) · [mib-table-unit-2018.json](reports/mib-table-unit-2018.json) |
 | **P8-10** | batchRemoteUpgrade 的對外連線（白盒未讀） | 11.7 | ★★★☆☆ | 🟦 | W07 | ⬜ | — |
 | P8-11 | 假 NTP / 假 DDNS / 假 DNS 回應（SSRF 類） | 11.7 | ★★★☆☆ | 🟦 | W07 | ⬜ | — |
 | **P8-12** | 上傳 config 開 telnet（卡在 fwrecon 缺 encoder） | 11.8 | ★★☆☆☆ | 🟨 | W07 | ⬜ | — |
@@ -683,7 +683,7 @@ W05 週計畫原本要另外建一份 `notes/prediction-scorecard.md`（12 條�
 | P8-19 | WAN 側 DHCP / PPPoE 攻擊（S-7 / S-8） | 11.12 | ★★★☆☆ | 🟦 | W07 | ⬜ | — |
 | P8-20 | iwpriv 隱藏 ioctl + 暫存器 peek/poke（S-6） | 11.12 | ★★★☆☆ | 🟥 | W07 | ⬜ | — |
 | **P8-21** | 同型號橫向抄襲（S-15：A3002RU / N300RT / N302RE） | 11.12 | ★★★★★ | 🟨 | W07 | ⬜ | — |
-| **P8-24** | 設定區失效時開機腳本自己開 telnet（fail-open，本專案獨家） | 11.5 | ★★★★☆ | 🟥 | W07 | ⬜ | — |
+| **P8-24** | 設定區失效時開機腳本自己開 telnet（fail-open，本專案獨家） | 11.5 | ★★★★☆ | 🟥 | W07 | 🔶 The branch is reached, the write is not observable. With both region signatures zeroed startup.sh printed its own line 23 verbatim - Default configuration invalid, reset default! - which is the branch whose line 43 is flash set TELNET_ENABLED 1. What it then writes cannot be measured here: flash default-sw and flash reset1 both die on qemu-user SIGBUS, so the image is byte-identical before and after in all seven damage states. The control that makes that a statement about the recovery path rather than about the environment: a plain flash set WAN_DHCP 7 writes and reads back in the same environment. Two refinements the prediction did not have. (1) The two validity tests differ: test-dsconf checks the DECOMPRESSED header (sig=6G ver=3 len=31878) and tolerates a flipped payload byte, test-csconf additionally runs mib_tlv_init and does not - so reaching the fail-open branch requires damaging COMPDS header specifically, not just corrupting the settings area. (2) startup.sh line 25 eval flash get WLAN_BAND2G5G_SELECT executed and the shell reported Invalid: not found, i.e. flash error text became a command - the P8-8 sink is live on the boot path even though nothing attacker-controlled reaches it. | [failopen-unit-2018.json](reports/failopen-unit-2018.json) · [config-failopen.md](notes/config-failopen.md) · [failopen-probe.sh](tools/failopen-probe.sh) |
 | P8-23 | 從 config.dat 反推 MIB 結構（差分法） | 11.14 | ★★★☆☆ | 🟥 | W07 | ⬜ | — |
 
 <details><summary>Phase 8 的預測與反證條件（21/21 項已凍結）</summary>
