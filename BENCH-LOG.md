@@ -386,3 +386,49 @@ CVE-2019-19823 的端到端鏈）、`formUpload` / `formUploadConfig`、
 | TFTP 上傳任何檔案 | §8.12.11 的上限 |
 | 呼叫任何 UPnP SOAP action | 與上午同一條 |
 
+## 上機之前多出來的一條預測（Ghidra，寫在送出之前）
+
+跑 `BoaXref` 追 `formOpdRedirect` / `formWanRedirect` / `formWlanRedirect2`
+（外加一個不存在的名字當負對照組）之後，掉出兩件不在計畫裡的事。
+
+**① 開放 #23 有答案了。** 那三個名字**不是** `handleForm` 的 handler：
+
+| | |
+|---|---|
+| 引用者 | `init_get` (`0x00407b7c`) 與 `process_header_end` (`0x0040bb1c`) |
+| `init_get` 的字串 | `formWlanRedirect` · `formWanRedirect` · `tcpipwan.htm` · `formOpdRedirect` · `opmode1.htm` · `redirect-url=` · `&wlan_id=` |
+| `formWlanRedirect2` | **unresolved —— 沒有任何函式引用它**。字串在 `.rodata` 裡，但是死的 |
+
+所以 `root_form[]` 的 57 不是錯的，**它對 `handleForm` 是完整的**；另有一條更早的
+路徑在 `init_get` 裡特判三個 `*Redirect`。而 `formWlanRedirect2` 早上實測「與不存在
+的名字無法區分」——**三個來源一致：字串在、無人引用、裝置當它不存在。**
+
+**② 早上關於閘門的結論是錯的，而這裡有一條可以否證新說法的測試。**
+
+`process_header_end` 引用 10 個 `.htm` 名字，其中 **5 個 (`notice` `notice_frame`
+`iLogin` `iReboot` `iLink`) 根本不在出貨的 143 檔裡**。若比對是**未錨定子字串**，
+`status.htm` 會同時豁免 `wan_status.htm` 與 `Connect_status.htm`：
+
+```
+模型預測豁免 : Connect_status countDownPage countDownPageWizard index login status wan_status
+早上實測豁免 : Connect_status countDownPage countDownPageWizard index login status wan_status
+差集（兩向） : 空
+```
+
+**76 個出貨的 `.htm`，7 豁免 / 69 擋，逐一相符。**
+早上寫的「comparison is anchored or length-limited somewhere」不成立。
+十二種形狀失敗的真正原因是**路徑在閘門看到之前就被正規化了** ——
+`/login.htm/../password.htm` 到那時候已經是 `/password.htm`，子字串沒了。
+
+> ⚠️ **但以上是拿模型去配已有的資料。** 下面兩條是它沒看過的，任一條都能殺死它：
+>
+> | 請求 | 模型預測 | 反證 |
+> |---|---|---|
+> | `GET /zzqq.htm`（不存在，無豁免子字串） | `302 → login.htm`（門跑了） | 回 `home.htm` → 門根本沒在跑 |
+> | `GET /zzqq_status.htm`（不存在，含 `status.htm`） | `302 → home.htm`（豁免） | **回 `login.htm` → 模型死，早上的讀法成立** |
+
+**③ 而閘門也點名了五個 `/boafrm/` 端點** —— `formUpload`、`formUploadConfig`
+以及三個 `*Redirect`。**`P3-13` 的預測點名的三個裡有兩個就在這張表上。**
+所以本場對 `P3-13` 的問題比登記時更尖銳：不是「寫入類在不在門外」，而是
+**「閘門為什麼特地點名這兩個」**。用 GET 探（不執行 handler）。
+

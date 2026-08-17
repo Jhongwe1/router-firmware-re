@@ -577,6 +577,64 @@ def group_gate(host: str, port: int) -> list[dict[str, Any]]:
          "/boafrm/formSysCmd?submit-url=/status.htm"),
         ("P2-5: GET a form handler, no parameters", "GET", "/boafrm/formWsc"),
     ]
+    # --------------------------------------------------------------------
+    # The unanchored-exemption test, added 2026-08-17 after the morning round.
+    #
+    # The morning tried twelve shapes that smuggle an exemption string into the
+    # path of a *protected* page. All twelve failed, and the conclusion drawn
+    # was "the comparison must be anchored or length-limited somewhere". That
+    # conclusion is wrong, and the reason the shapes failed is different: the
+    # path is normalised before the gate sees it, so `/login.htm/../password.htm`
+    # is already `/password.htm` by then and the substring is gone.
+    #
+    # BoaXref on process_header_end lists ten .htm names. Five of the ten
+    # (notice, notice_frame, iLogin, iReboot, iLink) are not shipped in the
+    # 143-file bundle at all. If the remaining five are matched UNANCHORED, then
+    # `status.htm` also exempts `wan_status.htm` and `Connect_status.htm` --
+    # which is exactly the seven pages the morning found served without
+    # credentials, and exactly the sixty-nine it found blocked. Seventy-six
+    # shipped pages, no error in either direction.
+    #
+    # That is a fit to existing data. These two requests are the part it did not
+    # see, and either one can refute it:
+    #
+    #   an absent .htm with no exemption substring -> the gate runs -> login.htm
+    #   an absent .htm CONTAINING one              -> exempt -> home.htm
+    #
+    # If the second answers login.htm, the model is dead and the morning's
+    # reading stands.
+    cases += [
+        ("UNANCHORED: absent .htm, no exemption substring (expect login.htm)",
+         "GET", "/zzqq.htm"),
+        ("UNANCHORED: absent .htm containing 'status.htm' (expect home.htm)",
+         "GET", "/zzqq_status.htm"),
+        ("UNANCHORED: absent .htm containing 'login.htm'",
+         "GET", "/zzqq_login.htm"),
+        ("UNANCHORED: absent .htm containing 'index.htm'",
+         "GET", "/zzqq_index.htm"),
+        ("control for the pair: a shipped page that IS exempt",
+         "GET", "/wan_status.htm"),
+        ("control for the pair: a shipped page that is NOT",
+         "GET", "/password.htm"),
+        # Five names the gate references that the bundle does not ship. If one
+        # of them answers unlike an ordinary absent page, the bundle is not the
+        # whole document root.
+        ("gate names it, bundle does not ship it", "GET", "/notice.htm"),
+        ("gate names it, bundle does not ship it", "GET", "/iLogin.htm"),
+        ("gate names it, bundle does not ship it", "GET", "/iReboot.htm"),
+        # process_header_end also references five /boafrm/ names -- formUpload,
+        # formUploadConfig and the three *Redirect ones. Whatever it does with
+        # them happens before handleForm, so a GET is enough to see whether the
+        # gate treats them unlike the other 52.
+        ("gate names this handler: formUpload", "GET", "/boafrm/formUpload"),
+        ("gate names this handler: formUploadConfig", "GET",
+         "/boafrm/formUploadConfig"),
+        ("gate names this handler: formOpdRedirect", "GET",
+         "/boafrm/formOpdRedirect"),
+        ("a handler the gate does NOT name, for comparison", "GET",
+         "/boafrm/formWsc"),
+    ]
+
     out = []
     for i, (label, method, target) in enumerate(cases):
         if i and i % 10 == 0:
