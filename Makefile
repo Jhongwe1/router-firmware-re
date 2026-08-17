@@ -24,7 +24,7 @@ UNIT_DUMP  := $(FWRE_WORK)/dumps/flash-n150rt-console-1.bin
 .DEFAULT_GOAL := help
 .PHONY: help setup verify fetch unpack venv test lint recon recon-unit diff check-reports \
         rtcase rtcase-test todo ledger shellcheck ci clean-work qemu-env qemu-test probe-test \
-        loader-test loader-report
+        loader-test loader-report doctor check-runsheet runsheet-test
 
 help: ## Show this help
 	@grep -hE '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) \
@@ -106,6 +106,22 @@ recon-partial: venv ## Report for the partially-downloaded published V2.1.6 (see
 check-reports: ## Verify the committed reports still match the tooling
 	python3 tools/check-reports.py
 
+# The first command of any session, and the only one that is allowed to be run
+# without having read anything. Every failure names the command that fixes it.
+# TIER=1 clone only · TIER=2 adds a flash dump · TIER=3 adds the device.
+doctor: ## Is this machine ready? `make doctor` or `make doctor TIER=1`
+	@bash tools/bench-doctor.sh $(if $(TIER),$(TIER),all)
+
+# runsheet.md is hand-written on purpose - it is the one document a stranger
+# follows front to back, and generating it from RUNBOOK.md would make it exactly
+# as terse as a reference. The cost of hand-writing is drift, and this narrows
+# that cost to the part that matters: a command that no longer resolves.
+check-runsheet: ## Verify every command in runsheet.md still resolves
+	python3 tools/check-runsheet.py
+
+runsheet-test: ## Prove the runsheet checker can fail (15 cases)
+	bash tools/test-check-runsheet.sh
+
 rtcase: ## G3.75: the test register is frozen and every result carries evidence
 	python3 tools/rtcase.py check
 
@@ -154,7 +170,7 @@ loader-report: ## Unpack the boot loader's LZMA stage 2 (needs the flash dump)
 # `rtcase-test` is in here and not optional. It is the only thing proving the
 # register gate can fail; without it `make rtcase` going green means nothing,
 # which is the exact shape of instrument bug 12.
-ci: lint test shellcheck check-reports rtcase rtcase-test qemu-test probe-test loader-test ## Everything CI checks, except the container build
+ci: lint test shellcheck check-reports check-runsheet rtcase rtcase-test qemu-test probe-test loader-test runsheet-test ## Everything CI checks, except the container build
 	@echo "  ok   local CI equivalents passed (container build not included)"
 
 diff: venv ## Diff the two builds

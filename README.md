@@ -478,7 +478,9 @@ that is not backed by a command someone else can re-run.
 
 | Path | |
 |---|---|
-| [`RUNBOOK.md`](RUNBOOK.md) | **Start here to reproduce this.** Step-by-step from a bare Windows machine, written for someone with no reverse-engineering background. Every command carries its real expected output. (Traditional Chinese) |
+| [`REPRODUCE.md`](REPRODUCE.md) | **Start here.** Which claims you can verify with a clone alone, which need an N150RT of your own, and **which are not reproducible by anyone but the author — and why.** Also: the one five-minute check worth running first |
+| [`runsheet.md`](runsheet.md) | **The commands.** One section per step, front to back: what to paste, the **verbatim** output to compare against, a stop condition, and the gotcha that bites at that step. Physical actions marked. `make ci` verifies every command in it still resolves (Traditional Chinese) |
+| [`RUNBOOK.md`](RUNBOOK.md) | **Why each step exists**, and how it went wrong the first time. The reference behind the runsheet — it holds the reasoning, the runsheet holds the commands, and neither repeats the other (Traditional Chinese) |
 | [`PROGRESS.md`](PROGRESS.md) | Gate status — the evidence behind every box above |
 | [`notes/anatomy-n150rt.md`](notes/anatomy-n150rt.md) | How the firmware is built: container format, flash map, binaries, mitigations |
 | [`notes/hardware-inspection.md`](notes/hardware-inspection.md) | **What the board actually is** — five ICs, the 4 MiB flash that W01 predicted, and a column of second sources that is still empty |
@@ -518,19 +520,36 @@ that is not backed by a command someone else can re-run.
 
 ## Reproducing
 
-[`RUNBOOK.md`](RUNBOOK.md) walks through this from a bare Windows machine,
-assuming no prior reverse-engineering knowledge. The short version:
+**[`REPRODUCE.md`](REPRODUCE.md) first** — it says which of the claims above you
+can verify with a clone alone, which need an N150RT of your own, and which are
+not reproducible by anyone but the author. The commands themselves, one section
+per step with its expected output and its stop conditions, are in
+[`runsheet.md`](runsheet.md); the reasoning behind each is in
+[`RUNBOOK.md`](RUNBOOK.md).
 
 ```bash
+make doctor    # is this machine ready? every failure names the command that fixes it
 make setup     # install the toolchain (Linux side)
 make verify    # G0: every tool answers when called
 make fetch     # download + hash-verify the firmware (not redistributed here)
 make unpack    # carve and extract the root filesystems
 make recon     # regenerate everything under reports/
-make test      # fwrecon test suite
+make ci        # 205 checks — and 95 of them exist to prove the tools can refuse
 make rtcase    # G3.75: the test register is frozen, every result carries evidence
 make ledger    # regenerate test-ledger.md from the register
 ```
+
+**If you have five minutes and no hardware**, run this one:
+
+```bash
+bash tools/test-loader-unpack.sh
+```
+
+Seven cases, no device and no downloads. It builds five deliberately broken
+synthetic boot-loader images and checks the unpacker refuses each **for the right
+reason**, then unpacks a good one as the positive control — because a tool that
+always refuses and a tool that refuses correctly are indistinguishable in a suite
+made only of refusals.
 
 ```powershell
 # Windows side: pinned JDK 21 + Ghidra 12.1.2, no admin rights needed
