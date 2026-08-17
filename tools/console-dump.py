@@ -73,6 +73,7 @@ import random
 import re
 import select
 import sys
+import textwrap
 import time
 
 PROMPT = b"<RealTek>"
@@ -483,6 +484,117 @@ def cmd_cmd(args) -> int:
     return 0
 
 
+def cmd_rescue(args) -> int:
+    """P9-3: bring up the boot loader's network side, and nothing else.
+
+    `AUTOBURN` is on FORBIDDEN above and that is right for `cmd`, which exists to
+    read. It is wrong for this one operation, and the reason is worth writing
+    down because it inverts the usual argument for a guard:
+
+        `AUTOBURN: 0` is the command that makes every later command safe. It is
+        the switch deciding whether a file arriving over TFTP gets written to
+        flash. Refusing to send it does not prevent a dangerous action -- it
+        pushes the dangerous action onto a human typing `AUTOBURN: 0` into
+        picocom, one keystroke away from the opposite value, on the only unit
+        there is.
+
+    So this subcommand exists and it is deliberately narrow:
+
+      * the only autoburn value it can emit is `0`. There is no flag for 1, and
+        adding one would be a change to this file that shows up in a diff.
+      * it asserts the loader echoed `AutoBurning=0`. If the reply says 1, the
+        run stops -- the command did the opposite of what was asked and nothing
+        else should be sent.
+      * it never sends LOADADDR, never sends J, and uploads nothing. Entering
+        rescue and confirming its network answers is the whole of what P9-3's
+        frozen refutation asks ("if rescue mode cannot be entered..."), and an
+        upload is not part of that question.
+
+    The expected replies are not folklore: they are the format strings recovered
+    from the loader's own LZMA second stage by tools/loader-unpack.py --
+        0x0b430  AutoBurning=%d
+        0x0b374   Target Address=%d.%d.%d.%d
+        0x0b394  Now your Target IP is %d.%d.%d.%d
+    """
+    try:
+        octets = [int(p) for p in args.ip.split(".")]
+        if len(octets) != 4 or not all(0 <= o <= 255 for o in octets):
+            raise ValueError
+    except ValueError:
+        fail(f"--ip {args.ip!r} is not a dotted quad")
+
+    con = Console(args.port, args.baud, args.verbose)
+    report: dict = {"ip": args.ip, "steps": []}
+    try:
+        if not args.at_prompt:
+            catch_prompt(con, args.window)
+        if not settle(con):
+            raise DumpError("could not get a clean prompt")
+
+        # The help prints `AUTOBURN: 0/1`, and that is not the syntax. The
+        # loader's own string table holds `AUTOBURN` and `AUTOBURN: 0/1` as two
+        # separate strings -- a command token and a help line -- and the same is
+        # true of IPCONFIG and LOADADDR. This is the third time this loader's
+        # documentation disagrees with its parser: `HELP` is rejected while `?`
+        # works, and FLR and FLW punctuate their confirmation prompts
+        # differently.
+        #
+        # So the forms are tried in order, and EVERY one of them carries 0.
+        # There is no arrangement of these candidates that turns autoburn on.
+        print("  ==>   autoburn off   (the switch that decides whether an upload "
+              "reaches flash)")
+        out = ""
+        for form in ("AUTOBURN: 0", "AUTOBURN 0", "AUTOBURN=0", "AUTOBURN:0"):
+            out = con.command(form.encode(), args.timeout).decode(errors="replace")
+            report["steps"].append({"sent": form, "reply": out})
+            if "Unknown command" not in out:
+                print(f"  ok    the form this loader accepts is {form!r}")
+                break
+            print(f"        {form!r} -> Unknown command !")
+        print(textwrap.indent(out.strip(), "        "))
+        if "AutoBurning=1" in out:
+            raise DumpError(
+                "the loader replied AutoBurning=1. It did the opposite of what "
+                "was asked, and with autoburn on, anything arriving over TFTP "
+                "is written to flash. Sending nothing further.")
+        if "AutoBurning=0" not in out:
+            raise DumpError(
+                "the loader did not echo AutoBurning=0, so the state of the "
+                "switch is unknown. That is not a state to bring a network up in."
+            )
+        print("  ok    autoburn is off")
+
+        print(f"  ==>   IPCONFIG {args.ip}")
+        out = ""
+        for form in (f"IPCONFIG:{args.ip}", f"IPCONFIG {args.ip}",
+                     f"IPCONFIG={args.ip}"):
+            out = con.command(form.encode(), args.timeout).decode(errors="replace")
+            report["steps"].append({"sent": form, "reply": out})
+            if "Unknown command" not in out:
+                print(f"  ok    the form this loader accepts is {form!r}")
+                break
+            print(f"        {form!r} -> Unknown command !")
+        print(textwrap.indent(out.strip(), "        "))
+        if args.ip not in out:
+            raise DumpError(
+                f"the loader did not echo {args.ip}. Its network is not "
+                "configured, so a ping failing afterwards would prove nothing")
+        print(f"  ok    the loader reports {args.ip}")
+        print()
+        print("  Now, from a host on that segment:  ping -c 3 " + args.ip)
+        print("  A reply from a board sitting at <RealTek> with no kernel loaded")
+        print("  is the whole of what P9-3 asks. Nothing is uploaded.")
+    except DumpError as e:
+        fail(str(e))
+    finally:
+        con.close()
+    if args.output:
+        with open(args.output, "w", encoding="utf-8") as fh:
+            json.dump(report, fh, indent=2)
+        print(f"  ok    transcript -> {args.output}")
+    return 0
+
+
 def cmd_dump(args) -> int:
     if os.path.exists(args.output) and not args.force:
         fail(f"{args.output} exists.  Refusing to overwrite a dump - pass --force "
@@ -677,6 +789,19 @@ def main(argv: list[str] | None = None) -> int:
     px.add_argument("--at-prompt", action="store_true")
     px.add_argument("-v", "--verbose", action="store_true")
     px.set_defaults(func=cmd_cmd)
+
+    pr = sub.add_parser("rescue",
+                        help="P9-3: autoburn OFF, then bring up the loader's IP. "
+                             "Uploads nothing, writes no flash")
+    pr.add_argument("--ip", required=True, help="the address the loader answers on")
+    pr.add_argument("--port", default="/dev/ttyUSB0")
+    pr.add_argument("--baud", type=int, default=38400)
+    pr.add_argument("--window", type=float, default=120.0)
+    pr.add_argument("--timeout", type=float, default=15.0)
+    pr.add_argument("--at-prompt", action="store_true")
+    pr.add_argument("-o", "--output", help="JSON transcript")
+    pr.add_argument("-v", "--verbose", action="store_true")
+    pr.set_defaults(func=cmd_rescue)
 
     pd = sub.add_parser("dump", help="FLR + DB a flash range into a file")
     pd.add_argument("--port", default="/dev/ttyUSB0")

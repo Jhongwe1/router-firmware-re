@@ -209,5 +209,37 @@ else
 fi
 
 echo
+echo "=== a run that stops must still write what it saw ==="
+# On 2026-08-17 a sweep stopped at endpoint 60 of 64 because the web server
+# stopped accepting, and wrote nothing at all -- so the fifty-nine responses
+# before it, and the elapsed_ms that would have named the slow one, were gone.
+# Detecting the interesting event and destroying the evidence of it are not
+# supposed to be the same action.
+rm -f "$TMP/stopped.json"
+out="$("$PY" tools/bench-probe.py endpoints --host 127.0.0.1 --port 19999 \
+        -o "$TMP/stopped.json" 2>&1)"; rc=$?
+if [ "$rc" -eq 0 ]; then
+  bad "a stopped run reported success"
+elif [ ! -s "$TMP/stopped.json" ]; then
+  bad "a stopped run wrote no transcript"
+elif "$PY" -c '
+import json, sys
+d = json.load(open(sys.argv[1], encoding="utf-8"))
+assert d.get("stopped"), "no stopped block"
+assert "control failed" in d["stopped"]["reason"], d["stopped"]["reason"]
+assert isinstance(d.get("journal"), list), "no journal"
+assert len(d["journal"]) >= 1, "journal is empty"
+# And the *records* -- the group annotations, not just the raw requests. On the
+# 2026-08-17 run these were still lost, because the group built its list locally
+# and the exception unwound past the return, so the per-endpoint stall
+# measurement written to describe the stall did not survive the stall.
+assert isinstance(d.get("records"), list), "no records"
+' "$TMP/stopped.json"; then
+  ok "a stopped run writes a transcript naming why it stopped, with its journal"
+else
+  bad "the stopped transcript is not shaped right"
+fi
+
+echo
 echo "  $pass passed, $fail failed"
 [ "$fail" -eq 0 ]

@@ -127,6 +127,31 @@ class ProbeError(Exception):
     pass
 
 
+# Every request and response, appended as it happens, independently of whichever
+# group is running.
+#
+# Added 2026-08-17 after a run that stopped mid-sweep wrote NOTHING. The web
+# server stopped accepting at endpoint 60 of 64, the control caught it and the
+# run halted -- correctly -- and then `main` returned on the exception before
+# reaching the line that writes the transcript. So the tool detected the
+# interesting event and destroyed the evidence of it in the same breath: fifty-
+# nine responses, each with its elapsed_ms, and the one that had taken seconds
+# was in there.
+#
+# A run that stops is exactly the run whose transcript matters most.
+JOURNAL: list[dict[str, Any]] = []
+
+# And the same argument one level up. JOURNAL holds raw requests; the *records*
+# are the raw request plus what the group knew about it -- which endpoint name,
+# where it came from, and how long the server then took to answer again. Those
+# annotations were still being thrown away on a stopped run, because the group
+# built its list locally and the exception unwound past the return.
+#
+# So the list lives here and the groups append into it as they go. The
+# measurement that exists to describe a stall must survive the stall.
+RECORDS: list[dict[str, Any]] = []
+
+
 # --------------------------------------------------------------------------
 # HTTP, by hand.
 #
@@ -143,6 +168,7 @@ def raw_request(
     headers: dict[str, str] | None = None,
     body: bytes = b"",
     timeout: float = CONNECT_TIMEOUT,
+    record: bool = True,
 ) -> dict[str, Any]:
     hdr = {"Host": f"{host}:{port}" if port != 80 else host,
            "User-Agent": "fwre-bench-probe/1",
@@ -183,6 +209,8 @@ def raw_request(
     except OSError as e:
         out["error"] = f"{type(e).__name__}: {e}"
         out["elapsed_ms"] = round((time.monotonic() - t0) * 1000)
+        if record:
+            JOURNAL.append(out)
         return out
 
     out["elapsed_ms"] = round((time.monotonic() - t0) * 1000)
@@ -198,6 +226,8 @@ def raw_request(
             out["response_headers"][k.strip()] = v.strip()
     out["body_bytes"] = len(rest)
     out["body_head"] = rest[:BODY_KEEP].decode("latin-1", "replace")
+    if record:
+        JOURNAL.append(out)
     return out
 
 
@@ -301,6 +331,34 @@ def route_to(host: str) -> dict[str, Any]:
     return out
 
 
+def wait_ready(host: str, port: int, budget: float = 45.0) -> dict[str, Any]:
+    """Poll until the web server answers again, and report how long that took.
+
+    `boa` here is one process. A handler that calls system() or execl() does not
+    return to the accept loop until the child does, so for that whole interval
+    the server answers nobody -- and with the backlog full, new connections are
+    refused outright. A sweep that fires the next POST immediately therefore
+    measures its own impatience.
+
+    Sleeping a fixed two seconds between POSTs would work around that. Waiting
+    for readiness instead *measures* it: the number this returns is how long
+    that endpoint occupied the only web server the device has, from an
+    unauthenticated request carrying no parameters. That is the finding, not the
+    obstacle.
+    """
+    t0 = time.monotonic()
+    tries = 0
+    while time.monotonic() - t0 < budget:
+        tries += 1
+        r = raw_request(host, port, "GET", "/", timeout=2.0, record=False)
+        if r.get("status") is not None:
+            return {"ready": True, "stall_s": round(time.monotonic() - t0, 2),
+                    "polls": tries}
+        time.sleep(0.5)
+    return {"ready": False, "stall_s": round(time.monotonic() - t0, 2),
+            "polls": tries, "budget_s": budget}
+
+
 def control(host: str, port: int) -> dict[str, Any]:
     """The device answers, answers as the thing we think it is, and is on our
     segment.
@@ -317,11 +375,40 @@ def control(host: str, port: int) -> dict[str, Any]:
 
 
 def require_control(host: str, port: int, where: str,
-                    need_direct: bool = False) -> dict[str, Any]:
-    c = control(host, port)
+                    need_direct: bool = False, tries: int = 3,
+                    gap: float = 6.0) -> dict[str, Any]:
+    # Retried, and every attempt kept. `boa` on this unit is ONE process
+    # (`boa: starting server pid=350, port 80`), so a handler that calls
+    # system() blocks the accept loop for as long as the command runs; the
+    # listen backlog fills and new connections are refused. To a single-shot
+    # control that is indistinguishable from a web server that has died.
+    #
+    # Seen on 2026-08-17: the sweep stopped at endpoint 60 of 64 with
+    # ConnectionRefusedError, and the device was answering 200 again a minute
+    # later. Both readings are worth recording and they are not the same
+    # finding, so the retry is not a loosening of the check -- it is the check
+    # learning to tell them apart. If every attempt fails it still stops.
+    attempts: list[dict[str, Any]] = []
+    c: dict[str, Any] = {}
+    for i in range(max(1, tries)):
+        if i:
+            time.sleep(gap)
+        c = control(host, port)
+        attempts.append({"attempt": i + 1, "reachable": c["reachable"],
+                         "error": c.get("error", ""),
+                         "elapsed_ms": c.get("elapsed_ms")})
+        if c["reachable"]:
+            break
+    c["attempts"] = attempts
+    if len(attempts) > 1 and c["reachable"]:
+        c["recovered_after"] = len(attempts)
+        print(f"  note  control {where}: refused, then answered on attempt "
+              f"{len(attempts)}. The server was BUSY, not dead - and a "
+              f"single-shot control would have called it dead", file=sys.stderr)
     if not c["reachable"]:
         raise ProbeError(
-            f"control failed {where}: {c.get('error') or 'no HTTP status line'}.\n"
+            f"control failed {where} on all {len(attempts)} attempts "
+            f"{gap:.0f}s apart: {c.get('error') or 'no HTTP status line'}.\n"
             "  Stopping. Results recorded after an unreachable control describe "
             "the state of the web server, not the state of the endpoint."
         )
@@ -357,7 +444,7 @@ def load_endpoints() -> tuple[list[str], dict[str, Any]]:
 
 def group_fingerprint(host: str, port: int) -> list[dict[str, Any]]:
     """P1-3 (Boa fingerprint, 404 shape) and P1-8 (/boafrm/ vs /goform/)."""
-    out = []
+    out = RECORDS
     for label, method, target in [
         ("root", "GET", "/"),
         ("login page", "GET", "/login.htm"),
@@ -393,9 +480,10 @@ def group_endpoints(host: str, port: int, allow_post: bool,
     cve_spellings = ["formWlwds", "fromStaticDHCP"]
     real_spellings = ["formWlWds", "formStaticDHCP"]
 
-    out: list[dict[str, Any]] = [{"probe": "endpoints-meta", **meta,
-                                  "extra_from_string_extraction": extra,
-                                  "cve_spellings": cve_spellings}]
+    out = RECORDS
+    out.append({"probe": "endpoints-meta", **meta,
+                "extra_from_string_extraction": extra,
+                "cve_spellings": cve_spellings})
     plan = ([(n, "root_form") for n in names]
             + [(n, "string-extraction-only") for n in extra]
             + [(n, "CVE text spelling") for n in cve_spellings]
@@ -411,8 +499,12 @@ def group_endpoints(host: str, port: int, allow_post: bool,
         print(f"  note  {len(skipped)} of {len(plan)} endpoints will not be "
               f"POSTed: {', '.join(skipped)}", file=sys.stderr)
 
+    # Every 5 when POSTing, every 20 when not. A POST runs the handler, so the
+    # window in which the device can stop answering is a window this sweep
+    # opened; 20 requests of it is 20 results that have to be re-run.
+    step = 5 if allow_post else 20
     for i, (name, origin) in enumerate(plan):
-        if i and i % 20 == 0:
+        if i and i % step == 0:
             require_control(host, port, f"before endpoint {i} of {len(plan)}")
         target = f"/boafrm/{name}"
         if allow_post and name in HAZARDOUS and not allow_destructive:
@@ -426,6 +518,17 @@ def group_endpoints(host: str, port: int, allow_post: bool,
             check_post(target, params, allow_destructive)
             r = raw_request(host, port, "POST", target, body=urlencode(params))
             r["method_note"] = "POST with submit-url only; the handler ran"
+            # How long this one endpoint kept the device's only web server to
+            # itself. Recorded per endpoint, in the same run, unauthenticated
+            # and with no parameters beyond submit-url.
+            r["server"] = wait_ready(host, port)
+            if not r["server"]["ready"]:
+                raise ProbeError(
+                    f"after POST {target} the web server did not answer within "
+                    f"{r['server']['budget_s']:.0f}s. Stopping: that is either a "
+                    "handler that does not return or a server that has gone, and "
+                    "either way nothing measured after it is about the next "
+                    "endpoint")
         else:
             r = raw_request(host, port, "GET", target)
             r["method_note"] = "GET; the handler's parameter processing may not run"
@@ -494,7 +597,8 @@ def group_writes(host: str, port: int) -> list[dict[str, Any]]:
 
     groups = {n: classify(n) for n in names}
     n_spawn = sum(1 for v in groups.values() if v == "spawns")
-    out: list[dict[str, Any]] = [{
+    out = RECORDS
+    out.append({
         "probe": "writes-meta", **meta,
         # Two groupings, and the difference between them matters more than
         # either. The first is what the register's own text names; the second is
@@ -519,7 +623,7 @@ def group_writes(host: str, port: int) -> list[dict[str, Any]]:
                        if not (prof.get(f"form_{n}") or prof.get(n)))},
         "method_note": "GET only. GET never reaches handleForm on this build, "
                        "so no handler runs in this group",
-    }]
+    })
     missing = NAMED_WRITE_ENDPOINTS - set(names)
     if missing:
         raise ProbeError(
@@ -635,7 +739,41 @@ def group_gate(host: str, port: int) -> list[dict[str, Any]]:
          "/boafrm/formWsc"),
     ]
 
-    out = []
+    # --------------------------------------------------------------------
+    # The question the unanchored result raises, and the one the morning round
+    # could not ask because it used the wrong strings.
+    #
+    # On 2026-08-17 morning, P2-2 tried `/password.htm?login=1`. The exemption
+    # tokens carry the extension -- `login.htm`, not `login` -- so that request
+    # contained no exemption string and its 302 proved nothing about the query.
+    #
+    # If the gate tests the URI *before* the query is split off, then appending
+    # `?x=status.htm` to a protected page is an authorisation bypass, and it
+    # needs no traversal, no encoding and no normalisation trick. If it tests
+    # the path only, every one of these stays 302 -> login.htm.
+    #
+    # These are GETs against pages the morning confirmed are gated
+    # (/password.htm, /tcpiplan.htm, /upload.htm all answered 302 -> login.htm).
+    # Nothing is written and no handler runs.
+    for page in ("/password.htm", "/tcpiplan.htm", "/upload.htm"):
+        cases += [
+            (f"BYPASS?: {page} with an exemption string in the query",
+             "GET", f"{page}?x=status.htm"),
+            (f"BYPASS?: {page} with a bare exemption string in the query",
+             "GET", f"{page}?status.htm"),
+            (f"BYPASS?: {page} with an exemption string in a fragment",
+             "GET", f"{page}#status.htm"),
+            (f"BYPASS?: {page} with an exemption string after a semicolon",
+             "GET", f"{page};status.htm"),
+            (f"BYPASS?: {page} with an exemption string as a path suffix",
+             "GET", f"{page}/status.htm"),
+        ]
+    cases += [
+        ("BYPASS control: the gated page, untouched", "GET", "/password.htm"),
+        ("BYPASS control: an exempt page, untouched", "GET", "/status.htm"),
+    ]
+
+    out = RECORDS
     for i, (label, method, target) in enumerate(cases):
         if i and i % 10 == 0:
             require_control(host, port, f"before gate case {i}")
@@ -668,7 +806,7 @@ def group_ssdp(host: str, port: int) -> list[dict[str, Any]]:
            'MAN: "ssdp:discover"\r\n'
            "MX: 2\r\n"
            "ST: upnp:rootdevice\r\n\r\n").encode("latin-1")
-    out = []
+    out = RECORDS
     for label, dest in [("unicast to the device", host),
                         ("multicast", "239.255.255.250")]:
         rec: dict[str, Any] = {"probe": "ssdp", "label": label,
@@ -731,6 +869,8 @@ def main(argv: list[str] | None = None) -> int:
               "nothing; the refusal list only applies to POSTs", file=sys.stderr)
         return 2
 
+    records: list[dict[str, Any]] = RECORDS
+    stopped: dict[str, Any] | None = None
     try:
         if args.group != "control":
             # SSDP is the group that cannot survive a router in the path at all,
@@ -747,8 +887,12 @@ def main(argv: list[str] | None = None) -> int:
             records.append({**require_control(args.host, args.port, "after the run"),
                             "probe": "control-after"})
     except ProbeError as e:
+        # Falls through to write the transcript. The run that stopped is the run
+        # whose transcript matters most, and until 2026-08-17 this branch
+        # returned before reaching the writer, discarding fifty-nine responses
+        # and the elapsed_ms that would have named the slow one.
+        stopped = {"reason": str(e), "requests_before_stopping": len(JOURNAL)}
         print(f"bench-probe: {e}", file=sys.stderr)
-        return 1
 
     doc = {
         "producer": "bench-probe/1",
@@ -757,7 +901,11 @@ def main(argv: list[str] | None = None) -> int:
         "port": args.port,
         "allow_post": args.allow_post,
         "allow_destructive": args.allow_destructive,
+        "stopped": stopped,
         "records": records,
+        # Every request this process made, in order, whether or not the group
+        # that made it finished. Duplicates `records` on a clean run, on purpose.
+        "journal": JOURNAL,
     }
     for r in records:
         st = r.get("status")
@@ -785,10 +933,23 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.output:
         Path(args.output).write_text(json.dumps(doc, indent=1, ensure_ascii=False), "utf-8")
-        print(f"wrote {args.output}")
+        print(f"wrote {args.output}"
+              + (f"  ({len(JOURNAL)} requests, run STOPPED)" if stopped else ""))
     else:
         print("  (no --output: nothing was recorded. A probe whose response is "
               "not kept is not evidence)", file=sys.stderr)
+
+    if stopped:
+        # The slowest requests before the stop, because on a single-process
+        # server the thing that stopped it is usually the thing that took the
+        # longest just before.
+        slow = sorted((r for r in JOURNAL if r.get("elapsed_ms") is not None),
+                      key=lambda r: -r["elapsed_ms"])[:5]
+        print("\n  slowest requests before the stop:", file=sys.stderr)
+        for r in slow:
+            print(f"    {r['elapsed_ms']:>7} ms  {r['method']} {r['target']}",
+                  file=sys.stderr)
+        return 1
     return 0
 
 

@@ -156,6 +156,49 @@ else
   bad "no output file was written"
 fi
 echo
+echo "=== rescue: the one write this tool is allowed to make ==="
+
+# `rescue` sends AUTOBURN: 0, which FORBIDDEN blocks for `cmd`. The exception is
+# argued in cmd_rescue's docstring, and it is only defensible while the value it
+# can emit is fixed. These cases are about that, and they need no device.
+
+# NOT `cmd 2>&1 | grep -q ...`. This file runs under `set -o pipefail`, and
+# `grep -q` exits the instant it matches, so the writer takes SIGPIPE and the
+# pipeline reports 141 for a SUCCESSFUL match. That is instrument bug 15,
+# already recorded in PROGRESS.md -- and it was reintroduced here on
+# 2026-08-17, in the guard suite, which is the one place it is least visible.
+# Capture first, test second.
+out="$("$PY" tools/console-dump.py rescue --ip 999.1.1.1 2>&1)"
+case "$out" in
+  *"not a dotted quad"*) ok "rescue refuses an address that is not a dotted quad" ;;
+  *) bad "rescue accepted 999.1.1.1: $out" ;;
+esac
+
+out="$("$PY" tools/console-dump.py rescue --ip 10.1.1.1 --autoburn 1 2>&1)"
+case "$out" in
+  *"unrecognized arguments"*|*"invalid choice"*)
+    ok "there is no flag that turns autoburn ON" ;;
+  *) bad "rescue took an --autoburn flag; the exception to FORBIDDEN is no longer narrow" ;;
+esac
+
+# The source itself must contain no way to emit the dangerous value. A flag is
+# not the only way one could appear.
+if grep -q 'AUTOBURN: 1' tools/console-dump.py; then
+  bad "the literal 'AUTOBURN: 1' appears in the source"
+else
+  ok "the string 'AUTOBURN: 1' does not exist anywhere in the tool"
+fi
+
+# And the reply assertions, which are what make a silent no-op impossible.
+for needle in 'AutoBurning=1' 'AutoBurning=0' 'Sending nothing further'; do
+  if grep -q "$needle" tools/console-dump.py; then
+    ok "rescue checks the loader's reply for '$needle'"
+  else
+    bad "rescue does not mention '$needle'"
+  fi
+done
+
+echo
 
 echo "  $pass passed, $fail failed"
 [ "$fail" -eq 0 ] || exit 1
