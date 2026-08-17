@@ -793,3 +793,211 @@ pre 快照:  dumps/config-region-20260817-1102-pre.bin   (與 8/16 完整 dump �
 
 **`A3.12` 排最後**，因為它會讓 `boa` 消失，而之後每一項的結果都會變成
 「連不上」——那跟「端點不存在」長得一模一樣。
+
+## 紀錄卡（2026-08-17 夜，逐項）
+
+### 卡 1 — `A2.6` 還原 `COMPDS`（本檔第一次寫 flash 到真實位址）
+
+| | |
+|---|---|
+| 事先寫下的成功條件 | 三段判據：`0+32768` 相同、`32768+16384` 相同、`49152+16384` **不同** |
+| 實際 | **三段全中。** `H601` 與 bootloader 未動；`COMPDS` 同時對上 8/17 快照與 8/16 完整 dump |
+| 判定 | 通過 |
+
+`EB` 一行的容量是**量出來的，不是猜的**：8 → 8/8，16 → 16/16，**32 → 17/32**。
+
+```text
+  ok      8 bytes on one line: 8/8 landed
+  ok     16 bytes on one line: 16/16 landed
+  fail   32 bytes on one line: 17/32 landed
+  ok    EB takes 16 bytes on one line on this unit
+```
+
+**17 這個數字比 16 有用。** `EB ` + 8 位元組位址 + 空白 = 12 字元，之後每個 byte
+3 字元，17 個剛好 63 —— **這個 loader 的命令列緩衝區是 64 bytes，靜靜截斷、不報錯。**
+
+工具自己的演練（`0x3F0000`）六步全過，第五步 `the first pattern survived ->
+FLW preserves the sector`，與 8/17 上午手打的結果一致。
+
+寫入：四個磁區，每一個都 `staged and verified in RAM (4096 bytes)` 之後才 `FLW ok`，
+最後整段讀回第三個位址：`16384 bytes match`。
+
+> ⚠️ **本檔 `A2.6` 原本寫「還原後回到 4 / 343」。錯了，實測是 23 / 343。**
+> 差異是**兩個區域之間**的，而這一節只還原其中一個：`4`（本來就不同的）
+> `+ 19`（8/17 POST 輪改掉 `COMPCS` 的）。那個 `19` 在 W05 是比對兩份快照得到的，
+> 這裡是在同一份快照裡比對兩個區域得到的 —— **兩條不共用的計算路徑，同一個數字。**
+
+### 卡 2 — `A3.6` `GET /config.dat`，以及一個 W05 沒有的對照
+
+```text
+HTTP/1.1 200 OK
+Date: Wed, 10 Jan 2018 06:52:28 GMT
+Server: Boa/0.94.14rc21
+bytes: 7507      COMPCS
+
+served (HTTP over Ethernet) : 9318d1acdb04b58eba22f948ed3c36cc
+flash  (FLR+DB over UART)   : 9318d1acdb04b58eba22f948ed3c36cc      IDENTICAL
+vs 8/16 完整 dump            : differs
+```
+
+**第三行是今晚新增的那一分。** W05 比對的是 8/16 的 dump，兩者相同 —— 但那排除不掉
+「`boa` 服務的是一份固定副本」。今晚它**對上今晚讀的**、**對不上上週讀的**，
+而差異正是 8/17 POST 輪改掉的欄位。
+
+`A3.6.4`（`P10-2`）：156 條路徑，13 個疑犯裡**只有 `config.dat` 回 200**，
+而它也是整份掃描裡唯一不在 bundle 143 個檔名內的 200。
+
+> ⚠️ 原始輸出有 3 個 `000`，而那是**我自己的存活對照行** —— 為了讓欄位對齊，
+> 我把它排版成 `000` 開頭，於是它跟「請求失敗」在統計裡完全一樣。沒查的話會變成
+> 「三次失敗」進紀錄。**156 個 GET 實際上零失敗。**
+
+### 卡 3 — `A3.9` 未認證命令注入（`P3-3`，CVE-2024-51228）
+
+| | |
+|---|---|
+| 事先寫下的成功條件 | **不帶憑證**，抓到來源 `10.1.1.1` 的 **ICMP type 8**（request，不是 reply）×3 |
+| 實際 | 4 個，seq 0..3，間隔 1 秒 |
+| 判定 | 通過 |
+
+```text
+控制組  10.1.1.100 -> 10.1.1.1  type 8      (我送的 request)
+        10.1.1.1 -> 10.1.1.100  type 0      (它的 reply)
+注入後  10.1.1.1 -> 10.1.1.100  type 8  x4  (它替我跑 ping)
+```
+
+**要 3 個卻看到 4 個**，而序號 0/1/2/3 一秒一個，證明那是 BusyBox 1.13.4 的
+`ping -c 3` 送四個，**不是 handler 跑了兩次**。四捨五入成「三個」就會漏掉這個問題。
+
+帶憑證那一發：**行為完全相同**。那才是排除「其實我不小心帶了什麼」的那一步。
+
+docroot oracle：`GET /w06.txt` → `TOTOLINK-CX-N150RT-V2.1.6-B20171121.1002`。
+**同一發拿掉 `;#` → HTTP 204、0 bytes** —— 檔案建立了、內容是空的，
+先從 `/bin/boa` 的格式字串 `%s 2>&1 > %s` 推出來、在模擬看到、在實機看到。
+
+`P5-5`：`/proc/cpuinfo` 拿到了，`cpu model : 52481` —— **一個數字，不是核心名。**
+`/proc/cpu` 不存在（沒有對齊修正計數器），`dmesg` 0 bytes。
+但同一條路拿到 `Linux 2.6.30.9 … #1526 Wed Jan 10 14:50:54 CST 2018`，
+**比 `boa` 早七分鐘**，以及 `MemTotal: 26052 kB`。
+
+### 卡 4 — 另外三個標的，以及那個能區辨的對照
+
+```text
+P3-1 formWsc/peerPin         HTTP 302   echo requests: 0
+P3-4 formWsc/targetAPSsid    HTTP 302   echo requests: 0
+P3-2 formRoute/subnet        HTTP 302   echo requests: 0
+--- 對照 ---
+     formWsc/localPin        HTTP 000   echo requests: 4
+```
+
+**最後那一行是整張卡的價值。** 同一個 handler、換一個參數就有四個封包，
+所以不是「handler 沒被走到」。`BoaGate` R2 在 `formWsc` 指認六個 site，
+至少 `peerPin` 是誤報；`formRoute`/`subnet` 那個，**Talos 的 advisory 在測試之前
+就用機制預測了**（`sprintf` 不是 `system`）。
+
+### 卡 5 — `A3.10` 第 ⑤ 環
+
+```text
+region                     before             after              same
+boot loader 0x0-0x6000     8d305a9afd226084   8d305a9afd226084   same
+H601 0x6000-0x8000         6e2d3233d809ae4c   cf5af09374706898   DIFF
+
+0x00648a  71 -> 61     …     0x006491  62 -> 70
+0x006493  15 -> 25                        <- checksum，裝置自己重算
+
+before: 99956042      after: 13572468
+```
+
+**`flash set HW_WLAN0_WSC_PIN` 寫的是 `H601` 不是 `COMPCS`** —— `plan/W06` §二寫錯了，
+而證據早就在 W05 的模擬輸出裡（同一行既印了 `0x648a` 也印了「H601 checksum」）。
+**我在動手前沒有把那兩句話接起來，所以第一發對照組就寫進了 `H601`。**
+
+還原：`H601` 對 S2 **0 個差異 byte**，對 8/16 完整 dump **byte-identical**。
+
+### 卡 6 — `A3.11` 未認證接管（`P10-3` / `P10-4`）
+
+參數名從**這台自己的 `password.htm`** 抓出來，不是從別的機型抄：
+`Cusername` / `Cpassword`（現行）+ `username` / `newpass` / `confpass`。
+
+```text
+baseline                          old:200  new:302
+T1 未認證、且完全不帶現行密碼欄位   old:302  new:200      <- 第一發就成立
+```
+
+**handler 不檢查 `Cusername`/`Cpassword`。** 密碼設空之後：
+
+```text
+無任何 Authorization  password.htm 200 / 5322 bytes 真實 HTML
+                     home.htm / wlbasic.htm / ddns.htm / status.htm 全 200
+帶錯誤密碼            password.htm 200        <- 比對整段被跳過，不是空對空
+```
+
+> ⚠️ **第一次跑這一格，四個 URL 是用迴圈變數組的，而 WSL 派送會把 `$p` 剝掉** ——
+> 四個請求全部打在 `/` 上，四個 200 差一點變成頭條。用寫死路徑重做才是上面這份。
+
+還原：第一次還原**沒生效**，查下去發現 `USER_NAME` 與 `USER_PASSWORD` 長度**都是 0**
+—— 那次還原的變數也被剝掉，把使用者名稱也清空了。改用腳本檔重做之後：
+`correct 200 / no creds 302 / wrong pw 302`，**兩個方向都驗**。
+
+### 卡 7 — `A3.12`，以及三次打錯目標
+
+| 輪 | 打在哪 | 結果 | 為什麼作廢 |
+|---|---|---|---|
+| 1 | `formWlanRedirect` | 全部 200/302、活著 | 它在 `root_form[]` 裡，**但不在 43 個碰 `lastUrl` 的函式裡** |
+| 2 | `formSelLang` | 全部 302、活著 | 它**完全不看 `submit-url`**，永遠跳 `countDownPage.htm` |
+| 3 | `formNtp` | 見下 | 它把 `submit-url` **原樣回顯進 `Location`** ✅ |
+
+```text
+sent    8  HTTP 302  echoed    7 A
+sent  100  HTTP 302  echoed   99 A
+sent  400  HTTP 302  echoed  399 A
+sent  800  HTTP 302  echoed  799 A      <- 完整回顯，100 處沒有截斷
+```
+
+**這才是反證**：值確實抵達了使用它的程式碼，然後什麼都沒發生。
+`P4-1`（缺席）、`P4-2`（空值）也一樣：200、活著。
+
+### 卡 8 — 一個請求殺掉 web server（`D-11`）
+
+乾淨開機之後：
+
+```text
+formNtp  #1  HTTP 302  alive
+formNtp  #2  HTTP 302  alive
+formNtp  #3  HTTP 302  alive
+formSchedule HTTP 000  DEAD      5 秒 DEAD   30 秒 DEAD
+device ping                      1.6 ms 正常
+```
+
+**三發同形狀的控制、第四發死。** `curl` 連回應都沒收到，所以 `boa` 是在處理那個
+請求當中死的。`rcS` 起它一次，沒有東西重起它。
+
+### 卡 9 — 收工（`P10-10`）
+
+```text
+S2 (注入前) vs S4 (最後)
+boot loader   same        H601   same（0 個差異 byte）
+COMPDS        DIFF        COMPCS DIFF
+```
+
+`COMPCS` 只動了 **2 欄**（`SYSCMD_SELECT`、`WPS_FIRST`）；`COMPDS` 動了 25 欄，
+**全部收斂到 `COMPCS` 的值** —— `D-10`，**今晚稍早那次還原被本場自己的 POST 蓋回去了。**
+
+> 🔴 **程序修正：`A2.6` 的還原應該排在一場的最後，不是開頭。**
+> `runsheet` Part B 的 `B-W06` 寫的是「開場三件事」，那個順序在這台上是無效的。
+
+`USER_PASSWORD` 沒有淨變動 —— 那本身就是密碼還原成功的第三個證據。
+新基準：**`COMPCS` vs `COMPDS` 差 0 / 343**。
+
+## 這一場燒掉了什麼
+
+- 開機循環 **8 次**（第 2 站 4 次、第 3 站 4 次），其中 3 次是 `boa` 被打掛之後的復原。
+- `H601` 被寫了 **3 次**（`1` → `99956042` → `13572468` → `99956042`），最終逐 byte 還原。
+- `COMPDS` 被還原一次，然後被本場的 POST 蓋回去。
+- 管理密碼被改 **4 次**（含一次意外清空使用者名稱），最終還原並雙向驗證。
+
+## 下一場從哪裡開始
+
+1. **G4 第三條**：用**下載得到的** V2.1.2 建 `qemu-env`，跑 `localPin` 那條鏈
+   （那一行在 2015 與 2020 完全相同）。桌面工作，不需要裝置。
+2. **`D-4` / `D-11` 的逐 handler prior-art 搜尋**，然後才談通報。
+3. **開放 #35**：其他 `HW_*` id 是不是也這樣寫得進去 —— MAC 在同一張表裡。

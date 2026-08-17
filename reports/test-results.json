@@ -427,6 +427,186 @@
       ],
       "note": "boa serves under qemu-user after all, and W05 finding 6 was too strong. The alignment trap is real but confined to one path: -strace shows SIGBUS at an odd address (si_addr=0x00492b41) immediately after open(\"/web/config.dat\",O_RDWR|O_CREAT|O_TRUNC) at start-up, i.e. while GENERATING config.dat, not while serving. Make that one open() fail (config.dat is a directory) and boa prints Create config file error!, binds, and answers: login.htm 200 (exempt), blank.htm 302 (gated), status.htm 200/30087B - the gate model W04-2 read at instruction level, reproduced with no device attached. POST /boafrm/formSysCmd with sysCmd=cat /etc/version > /var/web/w06emu.txt;# returns the build string through the docroot oracle, and the same POST without the ;# idiom yields HTTP 204 0 bytes - the empty-file trap predicted from the format string %s 2>&1 > %s. Controls: /bin/flash get IP_ADDR works, guest /bin/wget completes HTTP against a host server, the target file 302s before the test, and a POST carrying no sysCmd creates nothing. Desktop fuzz route is open. Cost, stated: /config.dat cannot be fetched from the emulated server because the file standing in for it is the directory that keeps boa alive, so chain links 1-2 stay device-only. tools/qemu-env.sh serve refuses to report success unless both gate controls hold.",
       "case_freeze_sha256": "5e3a2779e7a92c7f13026af519412b0df299c01b84c939eca834b751bd313252"
+    },
+    {
+      "id": "P3-3",
+      "date": "2026-08-17",
+      "verdict": "confirmed",
+      "evidence_kind": "dynamic",
+      "artefacts": [
+        "BENCH-LOG.md",
+        "runsheet.md"
+      ],
+      "note": "Unauthenticated command execution on this hardware, three independent channels. (1) ICMP: POST /boafrm/formSysCmd with sysCmd=ping -c 3 <bench> and NO credentials produced echo REQUESTS sourced from 10.1.1.1 — the reverse direction from the control, where the router sends type 0 replies. seq 0..3 one second apart, so four packets from one run of BusyBox ping -c 3, not two executions. (2) docroot: sysCmd=cat /etc/version > /var/web/w06.txt;# then GET /w06.txt returns TOTOLINK-CX-N150RT-V2.1.6-B20171121.1002. (3) the same request WITH credentials behaves identically, which is what rules out \"I accidentally sent something\". NVD scores CVE-2024-51228 PR:H; this is PR:N. Reproduced first in emulation (P0-9) and then on the device.",
+      "case_freeze_sha256": "ce714556e3ca49300738b957655cbd4e08228d48748b85f1c8f04d96fb7b0d91"
+    },
+    {
+      "id": "P3-1",
+      "date": "2026-08-17",
+      "verdict": "refuted",
+      "evidence_kind": "dynamic",
+      "artefacts": [
+        "BENCH-LOG.md"
+      ],
+      "note": "peerPin produced zero echo requests. The discriminating control is the same handler through a different parameter: formWsc via localPin, the sprintf/system line W04 root-caused, produced four. So the handler IS reached and DOES call system(); peerPin specifically does not get there. BoaGate R2 named six sites in formWsc and at least this one is a false positive.",
+      "case_freeze_sha256": "148709f98272b40e0fbae53d90c1dc5a7c2eab71abd4a84227e24f9c8cc8f48d"
+    },
+    {
+      "id": "P3-2",
+      "date": "2026-08-17",
+      "verdict": "refuted",
+      "evidence_kind": "dynamic",
+      "artefacts": [
+        "notes/prior-art.md",
+        "BENCH-LOG.md"
+      ],
+      "note": "formRoute/subnet produced zero echo requests, and the refutation was predicted with a mechanism BEFORE the test by prior art found the same evening: Cisco Talos TALOS-2023-1894 / CVE-2023-41251 reports this exact parameter in the same Realtek rtl819x SDK family as a 100-byte sprintf stack overflow with no system() anywhere. BoaGate R2 mis-classified an sprintf site as a system() site. That rule feeds conclusions about all three builds and has to be re-evaluated. D-1 in docs/disclosure.md loses its \"no CVE\" status: the parameter has had one since 2023, for a different defect class.",
+      "case_freeze_sha256": "7c5643078aaa984080a223a3972ba6d172a9cbc6de31dee475aa639c71037ed7"
+    },
+    {
+      "id": "P3-4",
+      "date": "2026-08-17",
+      "verdict": "confirmed",
+      "evidence_kind": "dynamic",
+      "artefacts": [
+        "BENCH-LOG.md"
+      ],
+      "note": "Predicted NOT to be command injection, and it is not: targetAPSsid produced zero echo requests while localPin on the same handler produced four. R2 six-site count did not include it, and the behaviour agrees.",
+      "case_freeze_sha256": "4acc6f2ff7135331d093c81f9d8cf727bb334191cd02e6898933e4f3d13c0d64"
+    },
+    {
+      "id": "P3-5",
+      "date": "2026-08-17",
+      "verdict": "confirmed",
+      "evidence_kind": "dynamic",
+      "artefacts": [
+        "BENCH-LOG.md",
+        "runsheet.md"
+      ],
+      "note": "localPin=13572468 through formWsc set HW_WLAN0_WSC_PIN to that value, read back through the device own flash get. The request took 14.0 s, the longest well-formed request measured on this device so far. IMPORTANT correction to plan/W06 section 2: flash set HW_WLAN0_WSC_PIN writes H601 (0x6000-0x8000), NOT COMPCS — HW_* ids live in the hardware MIB. W05 emulation output already showed the offsets 0x648a/0x648b/0x6493 inside H601 and nobody connected the two. So an unauthenticated HTTP request writes the region holding this unit MAC addresses and radio calibration, which a factory reset does not restore.",
+      "case_freeze_sha256": "8aecd66902366164bab2b269fbd50dc882ee4337d9c11d3fdd177f4993098e5e"
+    },
+    {
+      "id": "P3-7",
+      "date": "2026-08-17",
+      "verdict": "partial",
+      "evidence_kind": "dynamic",
+      "artefacts": [
+        "BENCH-LOG.md"
+      ],
+      "note": "Two halves, opposite outcomes. GET with the parameters in the query string does NOT execute: 302 and the target file is never created, because translate_uri redirects before handleForm. The submit button name is irrelevant: submit-url, Apply, save and no button field at all each executed, each with its own output file to prove which one did it, and the server survived every one. The first attempt used one shared filename and could not attribute the result.",
+      "case_freeze_sha256": "6be4d4fa1c419aef454b37cf1a59b4f4a809d51fe7adc0549894ec7bc263dbef"
+    },
+    {
+      "id": "P10-2",
+      "date": "2026-08-17",
+      "verdict": "confirmed",
+      "evidence_kind": "dynamic",
+      "artefacts": [
+        "BENCH-LOG.md"
+      ],
+      "note": "156 paths: the 143 names in this unit own w6cg bundle plus 13 suspects that are not in it. Of the 13, only config.dat answers 200, and it is the only 200 in the whole scan that is not a bundle name — boa creates it at start-up. Distribution 83x302 / 73x200. The three 000 in the raw output were the scan own liveness-control lines, which had been formatted with a leading 000 to align the columns and were therefore indistinguishable from failures.",
+      "case_freeze_sha256": "c0403ee684fef56dbadabc51df4095b02d2558ae5f89d739f80e378bf9933494"
+    },
+    {
+      "id": "P10-3",
+      "date": "2026-08-17",
+      "verdict": "confirmed",
+      "evidence_kind": "dynamic",
+      "artefacts": [
+        "BENCH-LOG.md"
+      ],
+      "note": "Confirmed in its strongest form and at the first attempt. The form carries Cusername/Cpassword fields for the CURRENT credentials; the handler does not check them. An unauthenticated POST to /boafrm/formPasswordSetup carrying no current-password field at all changed the administrator password: old credentials went 200 to 302 and the new ones 302 to 200. So the chain is shorter than planned — reading the password out of config.dat first is not necessary.",
+      "case_freeze_sha256": "2bfccb224a046b7ea21860ba673ae6fe04d483a8876d01b42a1bd177c8e6f37f"
+    },
+    {
+      "id": "P10-4",
+      "date": "2026-08-17",
+      "verdict": "confirmed",
+      "evidence_kind": "dynamic",
+      "artefacts": [
+        "BENCH-LOG.md"
+      ],
+      "note": "With USER_PASSWORD empty, password.htm returns 200 and 5322 bytes of real HTML with no Authorization header at all, and home.htm, wlbasic.htm, ddns.htm and status.htm likewise. A WRONG password also returns 200, so the comparison is skipped entirely rather than matching empty against empty. That is the beq at 0x0040bd18 as W04-2 read it. With P10-3 this is a complete unauthenticated takeover: docs/disclosure.md D-4 says reachability matters more than the branch, and the path exists. First run of this test built its URLs from a loop variable the WSL dispatch strips, so four requests all went to / and four 200s nearly became a headline.",
+      "case_freeze_sha256": "10afe0acd2c5efaa3c2cbfb40d7f07c03c8c65e8d8673e84d5e774bb66fbd8c8"
+    },
+    {
+      "id": "P4-1",
+      "date": "2026-08-17",
+      "verdict": "refuted",
+      "evidence_kind": "dynamic",
+      "artefacts": [
+        "BENCH-LOG.md"
+      ],
+      "note": "Does not reproduce on the 2018 build. A POST body omitting submit-url returns 200 on formNtp and formWlanSetup and 302 on formSelLang, and the server survives every time. Two false starts worth recording: the first used formWlanRedirect, which is in root_form[] but is NOT one of the 43 functions referencing lastUrl, so it exercised a different path; the second used `curl -X POST` with no body at all and got 400, which measures the parser rather than the missing parameter. D-2 was measured on V2.1.2 and its own text says that if it does not reproduce here it is a V2.1.2 finding and nothing more.",
+      "case_freeze_sha256": "4c068aabcf3fbb5819a0854c4981bff12b0c04c35d465b036af7d16a7c653382"
+    },
+    {
+      "id": "P4-2",
+      "date": "2026-08-17",
+      "verdict": "refuted",
+      "evidence_kind": "dynamic",
+      "artefacts": [
+        "BENCH-LOG.md"
+      ],
+      "note": "Empty and absent are indistinguishable on this build: submit-url= and a body without submit-url both return the same status on the same handler and both leave the server running. The prediction was that they are different paths with different damage; they are neither.",
+      "case_freeze_sha256": "c7c41f4bb139ba29901136e971bb6d5c85c2b3d2a127447500543249af657fd6"
+    },
+    {
+      "id": "P4-3",
+      "date": "2026-08-17",
+      "verdict": "refuted",
+      "evidence_kind": "dynamic",
+      "artefacts": [
+        "BENCH-LOG.md"
+      ],
+      "note": "Refuted with a positive witness rather than with an absence. formNtp echoes submit-url into its Location header, so the value is provably reaching the code that consumes it: 8 bytes echo 7 As, 800 bytes echo 799 As, with no truncation at 100 and no crash, no reboot and no observable change at any length. So on this build submit-url is not the lastUrl[100] idiom W04 measured on V2.1.2. formSelLang was the wrong witness — it redirects to a hardcoded countDownPage.htm whatever you send, which is why an earlier round measured nothing.",
+      "case_freeze_sha256": "0f73e53513178a89cc684ab3ccf5280dcc8c27d602a2ffc6cffb608eb3f33ee3"
+    },
+    {
+      "id": "P4-4",
+      "date": "2026-08-17",
+      "verdict": "refuted",
+      "evidence_kind": "dynamic",
+      "artefacts": [
+        "BENCH-LOG.md"
+      ],
+      "note": "ifname and wlan_id at 16, 20, 24, 40, 80, 120 and 160 bytes on formWlanSetup: 200 every time, server alive every time. The 20-byte buffer class R3 separates from the 100-byte one produces no observable difference here either.",
+      "case_freeze_sha256": "d3bf58c137f0a671426efe6fc628d1ba425a60e4ca5607743577340d9d7c985c"
+    },
+    {
+      "id": "P2-6",
+      "date": "2026-08-17",
+      "verdict": "confirmed",
+      "evidence_kind": "dynamic",
+      "artefacts": [
+        "BENCH-LOG.md"
+      ],
+      "note": "Boa 0.94 answers malformed requests with 400 rather than mis-parsing them, which is what the prediction said. GET / with no version returns a bare HTTP/0.9 body with no status line; HTTP/9.9 returns 400; a chunked POST returns 400; and an HTTP/1.1 request with no Host header returns 200 where RFC 2616 requires 400 — a spec deviation, not a memory-safety one. The server survived all four.",
+      "case_freeze_sha256": "0f62a9eebdb3b380c8dc23e1bcde2fbdeae3b6bf738e928309c6bb3e324ba59c"
+    },
+    {
+      "id": "P5-5",
+      "date": "2026-08-17",
+      "verdict": "partial",
+      "evidence_kind": "dynamic",
+      "artefacts": [
+        "BENCH-LOG.md"
+      ],
+      "note": "Retrieved, and it does not answer the question. /proc/cpuinfo on this unit reads: system type RTL819xD, cpu model 52481, BogoMIPS 398.95, tlb_entries 32, mips16 implemented yes, hardware watchpoint no. \"cpu model\" is a decimal NUMBER, not a core name, so neither RLX4181 nor RLX5281 is confirmed or excluded and W02 open #6 stays open — but it is now open for a different reason: the device does not expose a core name at all, rather than nobody having looked. Two follow-ups were tried and both failed usefully: /proc/cpu does not exist on this kernel, so there is no unaligned-access fixup counter to read, and dmesg returns zero bytes. What the same access DID produce is the kernel banner: Linux 2.6.30.9, gcc 4.4.5-1.5.5p2, built Wed Jan 10 14:50:54 CST 2018 by admin@office.hopeiot — seven minutes before boa is stamped, so kernel and userland come from one build session, which corroborates the W02 timestamp argument from a source W02 never read. And MemTotal is 26052 kB, which refines W02 claim that fitted and usable agree at 32 MiB: 32 MiB is what the boot loader detects, 25.4 MiB is what Linux has. The decisive test for the Lexra question is now a string scan of the decompressed kernel, which needs no device.",
+      "case_freeze_sha256": "f9816083bcd3ecfae456ffdf8a388309ae6e13c90916457f8f6ea1a4e69872f9"
+    },
+    {
+      "id": "P10-10",
+      "date": "2026-08-17",
+      "verdict": "confirmed",
+      "evidence_kind": "dynamic",
+      "artefacts": [
+        "BENCH-LOG.md",
+        "runsheet.md"
+      ],
+      "note": "Not one unattributable byte. Four 64 KiB snapshots were taken through the boot loader across the session. H601 (0x6000-0x8000): nine bytes moved and all nine came back — the eight ASCII digits of HW_WLAN0_WSC_PIN plus the region checksum at 0x006493, which the device recomputed itself. The final read is byte-identical BOTH to the pre-injection snapshot AND to the 2026-08-16 full dump, taken before this project had ever written to the device. The boot loader region never moved at all. COMPDS and COMPCS differ, and every field is named: COMPCS moved in exactly two, SYSCMD_SELECT and WPS_FIRST, which are the two handlers that were fired; COMPDS moved in twenty-five, all converging on COMPCS values, which is D-10 and not a side effect of any single test. New baseline for the next session: COMPCS vs COMPDS differ in 0 of 343. And a procedure correction that cost nothing to learn but would have cost a session to guess: restoring COMPDS at the START of a bench session is pointless, because any POST rewrites it from COMPCS before the session ends. It belongs at the end.",
+      "case_freeze_sha256": "7f1a5d3a229dc909ba81d7eda712f68dba3d19f38a150bb97ab9fc2259e6cc7a"
     }
   ],
   "register": "test-cases.toml",
