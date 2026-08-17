@@ -23,7 +23,8 @@ UNIT_DUMP  := $(FWRE_WORK)/dumps/flash-n150rt-console-1.bin
 
 .DEFAULT_GOAL := help
 .PHONY: help setup verify fetch unpack venv test lint recon recon-unit diff check-reports \
-        rtcase rtcase-test todo ledger shellcheck ci clean-work qemu-env qemu-test probe-test
+        rtcase rtcase-test todo ledger shellcheck ci clean-work qemu-env qemu-test probe-test \
+        loader-test loader-report
 
 help: ## Show this help
 	@grep -hE '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) \
@@ -134,6 +135,16 @@ qemu-test: ## Prove the emulation environment's positive control can fail
 probe-test: ## Prove the bench prober's refusals fire (needs no device)
 	bash tools/test-bench-probe.sh
 
+loader-test: ## Prove the boot-loader unpacker's refusals fire (needs no dump)
+	bash tools/test-loader-unpack.sh
+
+# Like recon-unit and qemu-env: needs the flash dump read off my own unit, so it
+# is not in `recon`. The report it writes is mostly a claim about what the boot
+# loader does *not* contain, which is why its committed form carries a positive
+# control and `check-reports.py` fails without one.
+loader-report: ## Unpack the boot loader's LZMA stage 2 (needs the flash dump)
+	python3 tools/loader-unpack.py "$(UNIT_DUMP)" -o $(REPORTS)/bootloader-unit-2018.json
+
 # Exists because on 2026-08-15 a push went out green on `make lint test
 # check-reports` and CI failed anyway: there are four jobs and that covers two of
 # them. Knowing which subset to run by heart is not a check, it is a habit that
@@ -143,7 +154,7 @@ probe-test: ## Prove the bench prober's refusals fire (needs no device)
 # `rtcase-test` is in here and not optional. It is the only thing proving the
 # register gate can fail; without it `make rtcase` going green means nothing,
 # which is the exact shape of instrument bug 12.
-ci: lint test shellcheck check-reports rtcase rtcase-test qemu-test probe-test ## Everything CI checks, except the container build
+ci: lint test shellcheck check-reports rtcase rtcase-test qemu-test probe-test loader-test ## Everything CI checks, except the container build
 	@echo "  ok   local CI equivalents passed (container build not included)"
 
 diff: venv ## Diff the two builds

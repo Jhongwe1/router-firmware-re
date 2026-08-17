@@ -1,0 +1,274 @@
+{
+  "producer": "loader-unpack",
+  "schema": "1",
+  "source": "flash-n150rt-console-1.bin",
+  "source_sha256": "a800059a9b8c414df026a22b8423a5939d0f9bb793109d0f7ce086f6810f37ea",
+  "source_bytes": 4194304,
+  "loader_region_end": "0x006000",
+  "stage1": {
+    "range": "0x000000-0x0012f0",
+    "bytes": 4848,
+    "strings": [
+      {
+        "offset": "0x003de",
+        "string": "Booting..."
+      },
+      {
+        "offset": "0x003eb",
+        "string": "T\\R| 0 1 2 3 4 5 6 7 8 9 a b c d e f 0 1 2 3 4 5 6 7 8 9 a b c d e f"
+      },
+      {
+        "offset": "0x00432",
+        "string": "---+-----------------------------------------------------------------"
+      },
+      {
+        "offset": "0x0047a",
+        "string": "abcdefghijk"
+      },
+      {
+        "offset": "0x00486",
+        "string": "0123456789abcdef"
+      },
+      {
+        "offset": "0x004a2",
+        "string": "DTR Done."
+      },
+      {
+        "offset": "0x004b0",
+        "string": "DCR Done."
+      },
+      {
+        "offset": "0x004be",
+        "string": "DDCR Done."
+      }
+    ]
+  },
+  "stage2": {
+    "offset": "0x0012f0",
+    "lzma_props": "0x5d",
+    "dict_size": 8388608,
+    "compressed_bytes": 17334,
+    "uncompressed_bytes": 56592,
+    "declared_uncompressed_bytes": 56592,
+    "ends_at": "0x0056a6",
+    "sha256": "f88869d108cdafdfcff5d9461b0ead5c061a6725effb0314bb954572c9c1b4ee",
+    "string_count": 328
+  },
+  "self_check": "OK",
+  "controls": {
+    "help_banner_present": true,
+    "documented_commands_found": [
+      "HELP",
+      "DB",
+      "DW",
+      "EB",
+      "EW",
+      "CMP",
+      "IPCONFIG",
+      "AUTOBURN",
+      "LOADADDR",
+      "J",
+      "FLR",
+      "FLW",
+      "MDIOR",
+      "MDIOW",
+      "PHYR",
+      "PHYW",
+      "PORT1"
+    ],
+    "documented_commands_missing": []
+  },
+  "questions": {
+    "P9-1_kernel_cmdline": {
+      "asks": "can the boot loader hand Linux a command line",
+      "needles": [
+        "cmdline",
+        "bootargs",
+        "bootcmd",
+        "console=",
+        "root=",
+        "init=",
+        "mem=",
+        "rootfstype",
+        "setenv",
+        "printenv",
+        "env ",
+        "ethaddr",
+        "bootdelay"
+      ],
+      "hits": []
+    },
+    "P9-3_rescue_path": {
+      "asks": "what the TFTP rescue flow is and which knob writes flash",
+      "hits": [
+        {
+          "offset": "0x0a655",
+          "string": "**TFTP GET File %s,Size %X Byte"
+        },
+        {
+          "offset": "0x0a679",
+          "string": "**TFTP Client Upload, File Name: %s"
+        },
+        {
+          "offset": "0x0a7f8",
+          "string": "burn Addr =0x%x! srcAddr=0x%x len =0x%x "
+        },
+        {
+          "offset": "0x0a824",
+          "string": "it's special wrt image need add 4 byte to burnlen =%8x!"
+        },
+        {
+          "offset": "0x0a8a8",
+          "string": "TFTP #"
+        },
+        {
+          "offset": "0x0a8b1",
+          "string": "**TFTP Client Upload File Size = %X Bytes at %X"
+        },
+        {
+          "offset": "0x0a905",
+          "string": "**TFTP #"
+        },
+        {
+          "offset": "0x0a911",
+          "string": "*TFTP Client Download Success! File Size = %X Bytes"
+        },
+        {
+          "offset": "0x0b140",
+          "string": "IPCONFIG"
+        },
+        {
+          "offset": "0x0b14c",
+          "string": "IPCONFIG:<TargetAddress>"
+        },
+        {
+          "offset": "0x0b168",
+          "string": "AUTOBURN"
+        },
+        {
+          "offset": "0x0b174",
+          "string": "AUTOBURN: 0/1"
+        },
+        {
+          "offset": "0x0b184",
+          "string": "LOADADDR"
+        },
+        {
+          "offset": "0x0b190",
+          "string": "LOADADDR: <Load Address>"
+        },
+        {
+          "offset": "0x0b374",
+          "string": " Target Address=%d.%d.%d.%d"
+        },
+        {
+          "offset": "0x0b394",
+          "string": "Now your Target IP is %d.%d.%d.%d"
+        },
+        {
+          "offset": "0x0b430",
+          "string": "AutoBurning=%d"
+        },
+        {
+          "offset": "0x0b440",
+          "string": "Set TFTP Load Addr 0x%x"
+        }
+      ]
+    },
+    "open17_flash_write": {
+      "asks": "which path prints 'Flash Write Successed!', and does the loader name an erase unit",
+      "hits": [
+        {
+          "offset": "0x0a861",
+          "string": "Flash Write Successed!"
+        },
+        {
+          "offset": "0x0a87d",
+          "string": "Flash Write Failed!"
+        },
+        {
+          "offset": "0x0ade4",
+          "string": "chipName: %s"
+        },
+        {
+          "offset": "0x0b1f0",
+          "string": "FLW <dst_ROM_offset><src_RAM_addr><length_Byte> <SPI cnt#>: Write offset-data to SPI from RAM"
+        },
+        {
+          "offset": "0x0b4a4",
+          "string": "Flash Read Successed!"
+        },
+        {
+          "offset": "0x0b4bc",
+          "string": "Flash Read Failed!"
+        },
+        {
+          "offset": "0x0b50c",
+          "string": "Write 0x%x Bytes to SPI flash#%d, offset 0x%x<0x%x>, from RAM 0x%x to 0x%x"
+        },
+        {
+          "offset": "0x0b5b8",
+          "string": "PHYID=0x%x, regID=0x%x ,Find PHY Chip! UID=0x%x"
+        },
+        {
+          "offset": "0x0b5ec",
+          "string": "PHYID=0x%x ,regID=0x%x, Find PHY Chip! UID=0x%x"
+        }
+      ]
+    }
+  },
+  "help_text": [
+    {
+      "offset": "0x0a8f4",
+      "string": "Jump to 0x%x"
+    },
+    {
+      "offset": "0x0af8c",
+      "string": "Jump to image start=0x%x..."
+    },
+    {
+      "offset": "0x0b080",
+      "string": "    : Print this help message"
+    },
+    {
+      "offset": "0x0b0a4",
+      "string": "DB <Address> <Len>"
+    },
+    {
+      "offset": "0x0b0bc",
+      "string": "DW <Address> <Len>"
+    },
+    {
+      "offset": "0x0b0d4",
+      "string": "EB <Address> <Value1> <Value2>..."
+    },
+    {
+      "offset": "0x0b0fc",
+      "string": "EW <Address> <Value1> <Value2>..."
+    },
+    {
+      "offset": "0x0b14c",
+      "string": "IPCONFIG:<TargetAddress>"
+    },
+    {
+      "offset": "0x0b190",
+      "string": "LOADADDR: <Load Address>"
+    },
+    {
+      "offset": "0x0b1b0",
+      "string": "J: Jump to <TargetAddress>"
+    },
+    {
+      "offset": "0x0b1f0",
+      "string": "FLW <dst_ROM_offset><src_RAM_addr><length_Byte> <SPI cnt#>: Write offset-data to SPI from RAM"
+    },
+    {
+      "offset": "0x0b35c",
+      "string": "---Jump to address=%X"
+    },
+    {
+      "offset": "0x0b4d0",
+      "string": "----------------- COMMAND MODE HELP ------------------"
+    }
+  ]
+}

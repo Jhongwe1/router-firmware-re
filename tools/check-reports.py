@@ -20,6 +20,12 @@ Several producers write into reports/, on purpose:
                                        -> carry "producer": "ghidra:<Script>"
   Ghidra script  BoaStringXrefs.java   -> carries "program" and "matches"
                                           (W01, predates the "producer" field)
+  tools/loader-unpack.py               -> carries "producer": "loader-unpack"
+                                          (the boot loader's LZMA second stage,
+                                           unpacked from a flash dump. Its
+                                           checks are all about the positive
+                                           control, because the report is mostly
+                                           a claim about what is *absent*)
   tools/rtcase.py `rtcase record`      -> carries "producer": "rtcase"
                                           (shape only here; admissibility is
                                            `rtcase check`, which needs the
@@ -187,6 +193,37 @@ def main(argv: list[str]) -> int:
                     "committed as evidence")
             if not doc.get("checks"):
                 errors.append(f"{path.name}: no checks were run")
+
+        elif str(doc.get("producer", "")) == "loader-unpack":
+            counts["fwrecon"] += 1
+            if not doc.get("source_sha256"):
+                errors.append(
+                    f"{path.name}: no source_sha256 - the report cannot name the "
+                    "flash image it describes")
+            # This report's value is its *absences*: it says the boot loader has
+            # no kernel command line anywhere in it. An absence is only evidence
+            # if the same scan is shown to find things that are there, so the
+            # positive control is not optional and a report that shipped without
+            # it must not sit in reports/ looking like a result.
+            ctl = doc.get("controls", {})
+            if not ctl.get("help_banner_present"):
+                errors.append(
+                    f"{path.name}: the unpacked stage does not contain the "
+                    "console help banner, so it is not the command interpreter")
+            if ctl.get("documented_commands_missing"):
+                errors.append(
+                    f"{path.name}: the string scan missed "
+                    f"{ctl['documented_commands_missing']} - commands the console's "
+                    "own `?` prints. Its absence claims are worthless until it "
+                    "finds all of them")
+            if len(ctl.get("documented_commands_found") or []) < 17:
+                errors.append(
+                    f"{path.name}: only "
+                    f"{len(ctl.get('documented_commands_found') or [])} of the 17 "
+                    "documented commands were found")
+            if doc.get("self_check") != "OK":
+                errors.append(
+                    f"{path.name}: self_check is {doc.get('self_check')!r}")
 
         elif str(doc.get("producer", "")).startswith("ghidra:") or (
             "program" in doc and "matches" in doc

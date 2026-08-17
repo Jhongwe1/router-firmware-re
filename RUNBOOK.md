@@ -1485,13 +1485,48 @@ Flash Read Successed!
 
 | 上面寫的 | 實際 |
 |---|---|
-| 「`Flash Write Successed!`(或等價字樣)」 | **一個句點 `.`**。真正的回應是 `Write 0x… Bytes to SPI flash#1, offset 0x003f0000<0xbd3f0000>, from RAM 0x… to 0x…` |
+| 「`Flash Write Successed!`(或等價字樣)」 | **一個句點 `.`**。真正的回應是 `Write 0x… Bytes to SPI flash#1, offset 0x003f0000<0xbd3f0000>, from RAM 0x… to 0x…`。**這一列 2026-08-17 下午再修一次 —— 見下面的方框:那句話存在,只是屬於另一條路徑** |
 | `FLR` 的提示是 `(Y)es , (N)o ? -->` | **`FLW` 的是 `(Y)es, (N)o->`**。兩個相鄰指令,兩種標點 —— 跟「兩種進位制」是同一種毛病 |
 | 「`EB` 一次吃多個 byte 沒有被實測過」 | **測過了,可以。** `?` 的說明本身也寫 `EB <Address> <Value1> <Value2>...` |
 | 「抹回去:`FLW 3F0000 <一塊全 FF 的 RAM> 8`」 | **會回到 FF,但理由不是這份文件想的那個。** NOR flash 的程式化只能把 `1` 變 `0`,`FF` 寫在 `DE` 上面應該還是 `DE`。它回到 `FF` 代表**`FLW` 自己做了抹除** —— 見 §8.9.3 |
 
 **額外情報:`FLW` 的回應洩漏 flash 的記憶體映射位址** —— `offset 0x003f0000<0xbd3f0000>`,
 所以 SPI flash 映射在 **`0xbd000000`**(KSEG1 非快取區)。`notes/flash-layout.md` 沒有這個。
+
+> ### 📌 2026-08-17 下午:第一列的更正本身也不夠準
+>
+> 上表第一列說「`Flash Write Successed!` 是錯的」。**那句話存在於這台的
+> bootloader 裡**,位址 stage2 `0x0a861` —— 它只是**不屬於互動式 `FLW`**。
+>
+> 上午沒找到它的原因是:**整顆 4 MiB 裡沒有任何一個 bootloader 字串是明文的。**
+> `grep FLR`、`grep IPCONFIG`、`grep "COMMAND MODE HELP"` 全部落空,而那三個字
+> 每天都在 console 上看得到。真相是 `0x000000`–`0x0012F0` 只是第一階段
+> (DRAM 訓練:`Booting...` / `DTR Done.` / `DCR Done.` / `DDCR Done.`),
+> **`0x0012F0` 起是一段 LZMA:17,334 → 56,592 bytes**,指令直譯器整個在裡面。
+>
+> 解開之後,兩句話分屬兩叢,相距 2.7 KiB:
+>
+> | 位址(stage2) | 字串 | 屬於 |
+> |---|---|---|
+> | `0x0a7f8` | `burn Addr =0x%x! srcAddr=0x%x len =0x%x ` | TFTP 自動燒錄 |
+> | `0x0a824` | `it's special wrt image need add 4 byte to burnlen =%8x!` | 同上 |
+> | **`0x0a861`** | **`Flash Write Successed!`** | **同上** |
+> | `0x0a87d` | `Flash Write Failed!` | 同上 |
+> | `0x0a8b1` | `**TFTP Client Upload File Size = %X Bytes at %X` | 同上 |
+> | **`0x0b4a4`** | **`Flash Read Successed!`** | **互動式指令** |
+> | `0x0b4d0` | `----------------- COMMAND MODE HELP ---…` | 同上 |
+> | **`0x0b50c`** | **`Write 0x%x Bytes to SPI flash#%d, offset 0x%x<0x%x>, from RAM 0x%x to 0x%x`** | **同上** |
+>
+> **這個分群自帶對照組**:`Flash Read Successed!` 是互動式 `FLR` 真的會印的那一句,
+> 而它落在互動叢裡;看不到的那一句落在 TFTP 叢裡。所以正確的說法不是
+> 「作業單抄錯了字串」,是 **「作業單抄的是同一顆 binary 裡另一條路徑的訊息」**,
+> 而現在兩條路徑各自指得出位址。
+>
+> 產生方式(可重跑,而且拒絕在對照組沒過時出報告):
+> ```bash
+> make loader-report        # -> reports/bootloader-unit-2018.json
+> python3 tools/loader-unpack.py <dump> --strings | less
+> ```
 
 ### 8.9.3 未結:`FLW` 的磁區語意,以及作業單這一格設計錯了
 
@@ -1524,6 +1559,40 @@ DB 80560000 8
 
 讀到 `ca fe ba be …` → 讀-改-抹-寫回成立;讀到 `ff ff …` → `FLW` 抹掉整個磁區,
 **寫 flash 的風險等級要全部上調**。
+
+> **2026-08-17 下午補充:靜態這一側查過了,而它答不出來。**
+> bootloader 第二階段解開之後(`make loader-report`),整個 56,592 bytes 裡
+> **一個 `erase` / `sector` / `block` 字串都沒有**。有的是 `chipName: %s` 和
+> 一張 SPI 型號表(`MX25L…` / `EN25…` / `W25Q…` / `GD25Q…`)。
+> 也就是說 loader 認得晶片,但從不宣告它抹了什麼 ——
+> **這一格只能用上面那四行指令在機器上分辨,靜態繞不過去。**
+>
+> **而它順手關掉 `notes/uart-findings.md` 裡一個標著「Not confirmed」的問題,
+> 但只關掉一半。** 那份筆記記過 console 上印 `chipName: UNKNOWN`,並推測
+> 「boot ROM 的 flash ID 表裡沒有 EN25QH32B」——同時明寫**未追到來源、不主張是哪顆晶片**。
+> 現在來源在手上:
+>
+> ```
+> 0x0acb0  MX25L1605D  MX25L3205D  MX25L6405D  MX25L12805D  MX25L256
+>          MX25L1635D  MX25L3235D  S25FL016A   S25FL032A    S25FL064P
+>          S25FL128P   EN25F16     EN25F32     EN25Q16      EN25Q32
+>          GD25Q8      GD25Q16     GD25Q32     GD25Q64      GD25Q128
+>          W25Q16      W25Q32      W25Q64      W25Q128      W25X16
+>          W25X32      W25X64      AT25DF161
+> 0x0adcc  UNKNOWN          ← 表的最後一格,就是 console 印出來的那個字
+> 0x0ade4  chipName: %s     ← 印它的那一行
+> ```
+>
+> | 那份筆記的假設 | 現在的狀態 |
+> |---|---|
+> | 表裡沒有這顆晶片 | ✅ **成立** —— Eon 只有 `F` 和 `Q` 兩系,**沒有任何 `QH`**,而 `UNKNOWN` 是表的成員 |
+> | 「所以它退回通用 SPI 指令」 | ❌ **仍未確認** —— 這是行為主張,我手上是字串不是程式碼 |
+> | 它認不出來的是哪一顆 | ❌ **仍未確認,而且刻意不主張** —— **JEDEC ID 到今天還沒讀過**
+>   (`notes/hardware-inspection.md` 第 26/341 行),晶片身分目前只有絲印一個來源 |
+>
+> **對開放 #17 的影響是壞消息**:loader 認不得這顆晶片,所以 `FLW` 走的是它的
+> 通用路徑,而通用路徑的抹除語意**更沒有理由用別顆晶片的行為去推**。
+> 那四行指令因此更該跑,不是更不該。
 
 ### 8.9.4 改良後的步驟(下次寫 flash 用這一版)
 
@@ -1819,9 +1888,19 @@ flash**,W07 是大量迭代。共用的只有前綴。所以這一節不是一�
 
 | 週 | 跑哪幾節 | 這一週特有的 |
 |---|---|---|
-| **W05** 偵察 | 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 | §8.9 的 `FLW` 演練(一次性,已完成) |
+| **W05** 偵察(上半,已完成) | 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 | §8.9 的 `FLW` 演練(一次性,已完成) |
+| **W05** 收尾(下半) | 1 → 2 → **§8.9.3 四行** → 3 → **10** → **11** → **9** → 4 → 5 → **12** → 7 → 3 → 8 | console 那半場先跑,不需要網段 |
 | **W06** PoC | 1 → 2 → 3 → 4 → 8 | 開火、flash 差異比對、**還原** |
 | **W07** Bug hunt | 1 → 3 → 4 → 6 → 7 → 8 | 大量迭代;每 N 次回到 §8.12.3 |
+
+**W05 下半的順序有兩個理由,而第一個比看起來重要:**
+
+1. **§8.9.3 那四行排第一。** 它是純讀(`DB`/`FLR`,四行,約 20 秒),而它答的是
+   **W06 非知道不可**的那一格 —— `HW_WLAN0_WSC_PIN` 在 `0x648a`,住在 `H601` 的磁區裡。
+   排第一不是因為它有時效,是因為**一場只要提早結束,最不能掉的就是它**。
+   (§8.12.3 的快照也是純讀,兩者誰先都不會互相污染。)
+2. **console 那半場整段排在網段之前**,因為 §8.12.10 / 8.12.11 / 8.12.9 一個都不需要
+   網路卡交給 WSL,而 `usbipd attach` 不會活過 WSL 重啟 —— 少一個會在中途壞掉的相依。
 
 **§8.12.3(快照)在每一節之前都要跑一次,而且它便宜到沒有藉口不做**:64 KiB,
 約 90 秒,而完整的 4 MiB 是 105 分鐘。
@@ -2035,7 +2114,161 @@ make ledger && make todo WEEK=W0N
 
 ---
 
-### 8.12.9 這一段會踩到的
+### 8.12.9 冷開機那一輪 —— 一次上電同時餵三項
+
+**一次完整的上電開機能同時交付 `P1-12`、`P9-1` 的動態半、以及一份 bootlog。**
+分三次開機做完全一樣的事,只是多燒兩次開機循環。
+
+**前置**:console 已擷取中(§8.12.2 的 `catch` 或一支純 `cat`),板子**斷電**。
+
+```bash
+# 帶時間戳的擷取 —— P1-12 量的是牆鐘時間,沒有時間戳就沒有這一項
+python3 -u tools/console-dump.py catch --port /dev/ttyUSB0 --window 0 -v \
+  2>&1 | ts '[%Y-%m-%d %H:%M:%.S]' \
+  | tee ~/fwre-work/dumps/w05-coldboot-$(date +%Y%m%d-%H%M).log
+```
+
+> ⚠️ `ts` 來自 `moreutils`。沒有就用
+> `| while IFS= read -r l; do printf '%s %s\n' "$(date +%H:%M:%S.%3N)" "$l"; done`。
+> **不要靠 picocom 的行內時間** —— 它沒有。
+
+**上電,不送 ESC。** 同時在另一個視窗開始輪詢:
+
+```bash
+S=$(date +%s.%N)
+until curl -s -o /dev/null -m 1 -w '' http://10.1.1.1/ 2>/dev/null; do sleep 0.25; done
+echo "web up after $(echo "$(date +%s.%N) - $S" | bc) s"
+```
+
+> 🔴 **輪詢要在按下電源鍵之前就開始跑**,否則量到的是「我多久之後想起來要量」。
+> 而且 `$S` 要在**上電那一刻**歸零 —— 實務上:先讓 `until` 迴圈空轉,
+> 上電後看 console 第一行的時間戳,用那個當 t=0 重算。**console 的時間戳才是基準,
+> 不是你的手。**
+
+**這一輪要從 log 裡撈的三樣東西:**
+
+| 撈什麼 | 為什麼 |
+|---|---|
+| 第一行 bootloader banner 的時間戳 | `P1-12` 的 t=0 |
+| `boa: starting server pid=…, port 80` | `P1-12` 的 t=1,而 web 可服務比這更晚一點 |
+| **`Kernel command line: …`** | **`P9-1` 的動態證據** —— 見 §8.12.10 |
+
+---
+
+### 8.12.10 `P9-1`:bootloader 能不能傳 kernel command line
+
+**先讀這一段再決定要不要花開機循環。靜態那一側已經答完了。**
+
+`make loader-report` 解開 bootloader 第二階段之後,對 13 個 cmdline 形狀的字串
+掃描(`cmdline` / `bootargs` / `bootcmd` / `console=` / `root=` / `init=` /
+`mem=` / `rootfstype` / `setenv` / `printenv` / `env ` / `ethaddr` / `bootdelay`)
+得到 **0 個命中**,而**同一次掃描找到 `?` 印的全部 17 個指令**
+—— 找不到全部 17 個,工具就拒絕出報告,所以那個 0 是有對照組的 0。
+
+**結論:這台的 bootloader 沒有環境變數機制,沒有地方放 kernel command line,
+也沒有任何指令可以設定它。**`?` 列的 16 條指令(`DB DW EB EW CMP IPCONFIG
+AUTOBURN LOADADDR J FLR FLW MDIOR MDIOW PHYR PHYW PORT1`)現在**對得上 binary
+自己的字串表**,所以「`?` 有沒有漏印指令」這個疑慮也一起解掉。
+
+> 🔴 **cmdline 也不在 flash 裡可改的地方。** 整顆 4 MiB 找不到
+> `console=ttyS0` 明文;它在 `cr6c`(`0x060000`)的 **LZMA 壓縮酬載**裡,
+> 而酬載前面那段是自解壓 stub(`0x060030` 起:`3c 10 80 5f` = `lui s0,0x805f`)。
+> 所以 `FLR` 到 RAM 用 `EB` 戳一戳就改掉 —— **這條路不存在。**
+
+**動態那一側只要一行,而且搭在 §8.12.9 那次開機上,不用額外上電:**
+
+```bash
+grep -i 'command line' ~/fwre-work/dumps/w05-coldboot-*.log
+```
+
+Linux 一定會印 `Kernel command line: …`。**印出來的內容如果就是編進 kernel 的
+那一份、沒有多任何東西,就是第二個獨立來源** —— 一個看 bootloader 的字串空間,
+一個看 kernel 自己報告收到什麼,兩者不共用任何程式碼。
+
+> **可以做但不在 W05 範圍**:`AUTOBURN: 0` + `LOADADDR:` + TFTP 上傳一份
+> **cmdline 已改過的 kernel 到 RAM**,再 `J` 過去 —— **一個 byte 都不寫 flash**。
+> loader 的字串證實這條路存在(`Set TFTP Load Addr 0x%x`、`Jump to 0x%x`)。
+> 成本是要能重壓一份 kernel,那是一天的事,排 W07 之後。
+
+---
+
+### 8.12.11 `P9-3`:救援路徑,而且不上傳任何東西
+
+**`P9-3` 凍結的反證條件只問「救援模式進不進得去」,沒有要求上傳。**
+所以這一節到「loader 的網路堆疊活著」為止,**零 flash 寫入、零上傳**。
+
+從 `make loader-report` 讀出來的流程(每一步都有對應的字串):
+
+| 指令 | loader 會印 | 作用 |
+|---|---|---|
+| `AUTOBURN: 0` | `AutoBurning=0` | **先做這一步。**收到檔案要不要燒進 flash 的開關 |
+| `IPCONFIG:<ip>` | ` Target Address=%d.%d.%d.%d` → `Now your Target IP is …` | 設板子的 IP 並起網路 |
+| `LOADADDR: <addr>` | `Set TFTP Load Addr 0x%x` | 上傳的檔案落在 RAM 哪裡 |
+| (客戶端上傳) | `**TFTP Client Upload, File Name: %s` → `**TFTP Client Upload File Size = %X Bytes at %X` | **不做** |
+| (autoburn=1 才會) | `burn Addr =0x%x!…` → `Flash Write Successed!` | **不做** |
+
+**板子停在 `<RealTek>`:**
+
+```
+AUTOBURN: 0
+IPCONFIG:10.1.1.1
+```
+
+**主機端(WSL,網路卡已 attach,§8.12.4 那一套):**
+
+```bash
+sudo ip addr add 10.1.1.100/24 dev "$IF" 2>/dev/null
+ping -c 3 10.1.1.1
+ip neigh show 10.1.1.1          # ★ 回應的 MAC 要是這台的
+```
+
+**成功條件(測前寫下):板子停在 bootloader、kernel 一行都沒跑,而 `ping` 有回應。**
+那就是救援模式的網路堆疊活著。
+**`ttl` 這裡不看**(loader 的 TTL 不保證是 64);看的是「有沒有回應」加上
+「回應的 MAC 是不是這台」。
+
+> ⚠️ **`AUTOBURN: 0` 一定要在 `IPCONFIG` 之前。** 順序反過來的話,
+> 網路一起來就有一個 autoburn 狀態未知的 TFTP 伺服器在聽。
+> 這一步同時把「autoburn 預設是什麼」印出來 —— 那本身是情報,記進紀錄卡。
+
+> ⚠️ 這一節結束後**拔電重開**,不要從 `IPCONFIG` 過的狀態直接 `J` 或繼續開機。
+
+---
+
+### 8.12.12 POST 掃描:哪些 handler 不准打,以及為什麼
+
+**`P1-4` / `P3-13` 要求 POST,而 POST 會真的執行 handler。**
+`reports/ghidra-sinks-unit-2018.json` 說這台的 57 個 handler 裡:
+
+```
+system()  23 個      execl()  13 個      strcpy()  45 個
+```
+
+**盲掃 57 個 = 在全世界唯一一台上跑 36 個會 spawn process 的 handler。**
+而參數全部缺席的 handler 仍然會把 accessor 的預設值寫進去。最壞的四種:
+
+| handler | 打下去可能發生 |
+|---|---|
+| `formTcpipSetup` / `formWanTcpipSetup` / `formVlan` | **LAN 位址或 VLAN 被改 → 掃到一半失去這台**,而後面每個端點都會回「連不上」,看起來跟「端點不存在」一模一樣 —— 正是 `bench-probe` 當初為了 `submit-url` 而生的那個失效模式,換一件衣服 |
+| `formPasswordSetup` | 管理密碼被改成空的或垃圾 → **CVE-2019-19823 的端到端鏈當場毀掉**,而那是這個專案最硬的一條證據 |
+| `formUpload` / `formUploadConfig` | 韌體 / 設定上傳路徑。`boa` 裡有 `DownloadRFW` |
+| `formOpMode` / `formOpMode1` / `formOpMode2` / `formWizard` | 運作模式變更,多半接重開機 |
+
+**所以 `bench-probe endpoints --allow-post` 現在硬性拒絕這一類**,而且
+`formSysCmd` **從迴圈裡拿出來單獨打**(它是 W05 DoD 第 5 項那一格,見 §8.12.13)。
+
+> 🔴 **而且要先寫下來:這一輪一定會改設定。**
+> IoC 預檢凍結的成功條件是「COMPCS vs COMPDS 差異 = 4 / 343」。
+> POST 掃完之後那個數字**會變**,而且應該變。所以:
+>
+> 1. 掃描**前後各抓一份 64 KiB 快照**(§8.12.3),
+> 2. 掃完之後把新的差異**逐欄位列出來並歸因到哪一輪**,
+> 3. **新的數字成為新基準**,舊的 4/343 連同「是這一場的哪一步造成的」一起留在紀錄裡。
+>
+> 這比守住 4/343 強:守住只證明沒動到,**歸因證明了動了什麼、被誰動的**。
+> 反過來,沒有前後快照就掃,等於把基準洗掉而且說不出被誰洗的。
+
+### 8.12.13 這一段會踩到的
 
 | 症狀 | 原因 |
 |---|---|
