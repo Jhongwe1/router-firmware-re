@@ -2601,3 +2601,48 @@ W05's list stands except #16, answered above. Added or changed by W06:
     `countDownPage.htm`, while `formNtp` echoes it back in full. Both reference
     `lastUrl`. So "references `lastUrl`" and "uses `submit-url`" are different
     sets, and the 34-handler count from W04 describes the first.
+
+### A gap found while auditing the close-out, not by any check
+
+The question was whether the disclosure rule had cost this session any *record*.
+It has not: for the three held findings the verdict, the frozen refutation
+condition, every observation channel and the list of what was burned are all in
+public files — `BENCH-LOG.md` cards `T-32`, `T-33` and `T-36`, and the register
+rows for `P10-3` and `P10-4`. **The only thing withheld anywhere is the
+copy-pasteable request**, which is what the rule says to withhold.
+
+Checking that turned up something else.
+
+**`D-11` has no row in the register at all.** Not because of disclosure —
+because of the *freeze*. It came out of a handler census rather than a question
+somebody wrote down first, so no prediction was ever frozen for it, and
+`rtcase record` correctly refuses a case with no pre-written refutation
+condition. The same is true of the Boa `HEAD`-method test, which is recorded only
+in [`notes/prior-art.md`](notes/prior-art.md).
+
+So:
+
+> **The register holds only what was predicted. Anything found by looking rather
+> than by asking falls outside it** — and the two most interesting results of
+> this week, the single-request denial of service and the discovery that
+> `flash set` writes `H601` rather than `COMPCS`, were both found by looking.
+
+The concrete break is a missing cross-check: `docs/disclosure.md` carries `D-11`,
+`test-cases.toml` has no corresponding row, and **nothing notices**.
+`tools/check-runsheet.py` enforces the equivalent rule in one direction — every
+executed register item must have a procedure that reaches it — and there is no
+checker at all for the direction that runs between the disclosure register and
+the test register.
+
+41. **Every `D-*` entry should name either a register id or an explicit reason
+    for having none**, checked mechanically, in the same shape as the runsheet's
+    `<!-- no-procedure: … -->` blocks. Until that exists, a finding can live in
+    the disclosure register with no test behind it and no count that would show
+    the absence.
+42. **And the deeper question that one exposes:** the freeze makes the register
+    trustworthy by refusing unpredicted results, which also makes it structurally
+    blind to discovery. A second class — recorded, counted, and *never* renderable
+    as a confirmed prediction — would close it, but it has to be designed so that
+    it cannot become a back door for filling in predictions afterwards. That is
+    the whole reason the freeze exists, so this is not a small change and it is
+    not being made at one in the morning.
