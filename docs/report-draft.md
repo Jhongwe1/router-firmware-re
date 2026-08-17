@@ -102,7 +102,7 @@ they exist on the record, and so that anyone still running the model can be told
 
 | | |
 |---|---|
-| attached | the three request bodies, the response transcripts, and the before/after 64 KiB flash snapshots with per-field attribution |
+| attached | the three request bodies — `$FWRE_WORK/disclosure/{A,B,C}-*.txt`, created 2026-08-17, mode 600, one file per finding with its control — plus the response transcripts and the before/after 64 KiB flash snapshots with per-field attribution |
 | attached | the decoded configuration structure showing where the credential is stored, **with this unit's own values removed** |
 | **not attached** | the flash image. It contains this unit's MAC addresses and radio calibration, which identify one physical device |
 | **not attached** | anything about the four items in `docs/disclosure.md` that are static readings only |
