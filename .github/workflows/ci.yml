@@ -139,7 +139,7 @@ jobs:
       - name: bench-log checker — prove it can fail, and that it sees every card
         run: bash tools/test-check-benchlog.sh
 
-      # The four below were outside every CI list until 2026-08-18. Three of
+      # The four below were outside every CI list until 2026-08-17. Three of
       # them predate this job and were simply never added — 35 cases, none
       # needing hardware, recorded as PROGRESS open #33 when the guard-case
       # totals were recounted and did not add up. The flash reader's suite is
@@ -149,8 +149,24 @@ jobs:
         run: bash tools/test-console-dump.sh
       - name: CH341A path — the ways a clip lies
         run: bash tools/test-flash-tools.sh
+
+      # The photo suite needs Pillow, and it REFUSES to run without it rather
+      # than reporting green — which is the fix for instrument bug 1, where the
+      # reject-only half of this same suite reported 5/5 passing while every
+      # invocation was dying on `import PIL`. So the runner installs it: making
+      # the suite skip instead would reintroduce exactly the defect it was
+      # rewritten to catch.
+      #
+      # Adding these three suites without checking the runner could run them is
+      # the divergence RUNBOOK 10.21 is about, committed in the file that
+      # carries the warning. It cost one red build, and it also hid a step: a
+      # job stops at its first failure, so `flash writer` never ran at all and
+      # the tool with the largest blast radius in this repository had still not
+      # been exercised by CI. The two checkers earlier in the list did run.
       - name: photo tools — redaction and annotation guards
-        run: bash tools/test-photo-tools.sh
+        run: |
+          python -m pip install --quiet Pillow
+          FWRE_PY="$(command -v python)" bash tools/test-photo-tools.sh
       # And the new one. This is the only tool in the repository that can
       # destroy the unit, so its refusals are the ones that most need a machine
       # checking them on every push rather than a habit checking them sometimes.
