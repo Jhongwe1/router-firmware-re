@@ -1029,6 +1029,57 @@ identical     : True
 
 ---
 
+# 下一場從這裡開始（2026-08-17 收工於此）
+
+**W05 = DoD 4/5、登記簿 22/31。** 剩下九項,分四類:
+
+| 類別 | 項目 | 開工要什麼 |
+|---|---|---|
+| **W06 的,不准提前做** | `P3-1` `P3-2` `P3-3` | 計畫 §五:「本週不做正式 PoC」。三個目標都定位了、oracle 都驗過了 |
+| **破壞性,要等** | `P9-9` reset 按鈕 | 它會用 `COMPDS` 蓋掉 `COMPCS`,毀掉今天量到的 4/343 差異。等 W07 那份證據不再需要 |
+| **要 console + 一次冷開機** | `P9-1` `P9-3` `P1-12` | 見下面的開工清單 |
+| **要 POST（會執行 handler）** | `P1-4` `P3-13` | 前後各抓一次 64 KiB 快照當安全網 |
+
+## 下一場的開工順序
+
+```bash
+# 0. 這週還欠什麼（每次第一條）
+make todo WEEK=W05
+
+# 1. 網路卡：attach 沒有持久性，VM 重啟就掉回 Windows
+usbipd attach --wsl --busid 2-4                 # PowerShell，不需管理員
+IF=$(ip -br link | awk '/^enx/{print $1; exit}')
+sudo ip link set "$IF" up && sudo ip addr add 10.1.1.100/24 dev "$IF"
+ping -c 2 10.1.1.1                              # ★ 要 ttl=64，63 就是繞路了
+
+# 2. 動任何東西之前：快照（P0-10，90 秒）
+python3 -u tools/console-dump.py dump --at-prompt \
+        --flash 0x0 --length 0x10000 --ram 0x81000000 --chunk 16384 \
+        -o ~/fwre-work/dumps/config-region-$(date +%Y%m%d-%H%M).bin
+```
+
+**`P1-12` 要在上電之前就開始計時**（§3.4 的計時器），所以它跟 `P9-1` 綁在同一次冷開機:
+先貼計時器 → 拔插電不送 ESC（拿到 `P1-12`）→ 再拔插電送 ESC 搶 bootloader（做 `P9-1`）。
+
+**`P9-1` 是這五項裡回報最高的一項** —— 一個 shell 一次解掉三件事:
+`/proc/cpuinfo`（W02 開放 #6,Lexra 核心那題）、`ps`（誰真的在跑,而不是從
+`sysconf` 的字串表推論）、以及 `flash test-csconf` 到底判什麼叫「無效」
+（`PROGRESS.md` 開放 #19,而那條決定「設定壞掉會開 telnet」是不是可達的）。
+
+## 還沒做完的一件小事:`FLW` 的磁區語意
+
+板子重開之前,`RUNBOOK.md` §8.9.3 那四行還是懸著的（見本檔「未結」一節）。
+**它只要一次 bootloader 停留,四行指令**,而答案會決定 W06 寫 flash 的風險等級:
+
+```
+DB 80560000 8
+FLR 80560000 3F0100 8
+Y
+DB 80560000 8
+```
+
+---
+
 ## 出事的時候
 
 | 症狀 | 怎麼辦 |
