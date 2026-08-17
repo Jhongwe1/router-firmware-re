@@ -7,8 +7,8 @@
 | **W03** | Static reversing, upper half | — (DoD) | ✅ **DoD met** — 2026-08-10 |
 | **W04** | CVE root-cause location | **G3** | ✅ **passed** — 2026-08-11 |
 | **W04-2** | Catch-up: move the findings onto the build this unit runs | **G3.5** | ✅ **passed** — 2026-08-17 (the fifth box closed in W05) |
-| **W05 Day 0** | Pre-engagement: freeze the predictions before the first packet | **G3.75** | ⚠️ **3 of 5** — 2026-08-17 |
-| **W05** | Dynamic analysis, upper half | — (DoD) | ⚠️ **in progress** — 2026-08-17. Emulation half done, network half not. **6 / 31** register rows |
+| **W05 Day 0** | Pre-engagement: freeze the predictions before the first packet | **G3.75** | ✅ **passed** — 2026-08-17 |
+| **W05** | Dynamic analysis, upper half | — (DoD) | ⚠️ **4 of 5 DoD, 22 / 31 register rows** — 2026-08-17 |
 | W06 | PoC reproduction | G4 | |
 | W07 | Systematic bug hunt | — | |
 | W08 | Write-up draft | — | |
@@ -1387,25 +1387,33 @@ and record cards are [`study/W05-bench-runsheet.md`](study/W05-bench-runsheet.md
 the interesting part is what the drill turned up that its own criterion did not
 ask about, in *Open, carried forward* #17.
 
-### G3.75 — 3 of 5
+### G3.75 — passed
 
 | # | Required | Result |
 |---|---|---|
 | 1 | the `FLW` recovery path rehearsed | ✅ above |
-| 2 | isolation verified — two MACs, WAN on a fake upstream | ❌ the segment does not exist yet: **this laptop has no built-in Ethernet**, and the USB adapter is not attached to WSL |
-| 3 | IoC pre-check | 🔶 **half.** Live config against this unit's own factory baseline: **4 of 343 entries differ**, exactly the number written down in advance. The ports half needs the segment |
+| 2 | isolation verified — two MACs, WAN on a fake upstream | ✅ **exactly two MACs**, eight packets each, no DNS and nothing outbound. The control is that the capture recorded 16 packets at all: an earlier 45-second capture recorded **zero**, which proves nothing until the link is known to deliver — and it was not, until ARP replies came back |
+| 3 | IoC pre-check | ✅ **both halves.** The live configuration differs from this unit's own factory baseline in **4 of 343** entries, which is the number written down in advance, and every port the register named — 2323, 5555, 9034, 19412, 31412, 48101, 60001, 7547 — is closed |
 | 4 | the prediction ledger frozen | ✅ W05 Day 0 |
 | 5 | the disclosure register written | ✅ W05 Day 0 |
 
-### W05 DoD
+### W05 DoD — 4 of 5
 
 | # | Required | Result |
 |---|---|---|
-| 1 | a prediction scorecard committed **before** testing, then scored | ✅ frozen in W05 Day 0; **6 of 31 scored**, and the ledger prints which |
-| 2 | one dynamic path standing up | 🔶 **the emulated path stands; the device has served nothing.** No packet has been sent to it |
+| 1 | a prediction scorecard committed **before** testing, then scored | ✅ frozen in W05 Day 0; **22 of 31 scored** — 14 confirmed, 4 refuted, 4 partial |
+| 2 | one dynamic path standing up | ✅ **two**: the device on an isolated segment, and the emulator |
 | 3 | [`notes/emulation-2018.md`](notes/emulation-2018.md) — what was faked and whether it distorts | ✅ |
 | 4 | [`notes/oracle-design.md`](notes/oracle-design.md), ≥ 1 oracle rehearsed under emulation | ✅ **four of five** |
-| 5 | W06's target with its three conditions | 🔶 (a) and (c) are met; (b) reachability is a network test |
+| 5 | W06's target with its three conditions | 🔶 **(a) and (c) yes, (b) not yet.** `formSysCmd` is in this build's dispatch table and an oracle is rehearsed — but its *reachability* is the one thing not tested, because reaching it means POSTing to it, and that is the proof-of-concept the plan reserves for W06 |
+
+**The scorecard is the week's stated deliverable and it is worth reading as a
+number: of 22 scored, four predictions were refuted and four were partial.** The
+refuted ones are the return on the exercise — `P2-2`'s substring bypass does not
+work, `P2-7`'s session mechanism is not what the disassembly implied, `P2-4`'s
+`check_host` is not in the authorisation path, and `P1-3`'s document root is not
+the shipped bundle. Each was refuted **by the condition its own author wrote down
+before the first packet**, which is the only reason any of them counts.
 
 ### The findings
 
@@ -1534,6 +1542,10 @@ been read** — and it is recorded as a lead, not a result.
 | **`RUNBOOK.md` §8.9:** `EB` taking several bytes "has never been tested" | Tested; it does |
 | **W05 Day 0 open #15:** the SNMP community strings may be a decoder failure | They are genuinely empty, and the vendor's binary agrees |
 | **W05 Day 0 open #13:** "no `nc`, no `tftp`" is only a prediction | **Confirmed by two instruments**: the rootfs has no ELF for `nc`/`netcat`/`tftp`/`curl`/`telnet`, and BusyBox's own applet table does not carry them — with `uptime` as the control proving `applet not found` means what it says. `/bin/wget` does exist, as the prediction also said |
+| **W04-2 `auth-flow-2018.md`:** the gate is decided by 13 **unanchored** `strstr` calls, so an exemption string smuggled anywhere in the URI should be enough | Twelve shapes tried against a page the gate really protects. **None bypassed it.** Unanchored in the disassembly is not unanchored in effect: the comparison is anchored or length-limited somewhere the read did not capture. `P2-2`'s own refutation named this outcome and named its consequence — X-3 does not stand |
+| **W04-2:** the 2018 session model is "a global at `0x004899d8`, set to 1 or 2 after a credential match" | The global grants nothing. After a successful authentication, a credential-less request **from the same address** is rejected, no cookie is ever set, and `formLogin` sets no state. Authorisation is stateless HTTP Basic per request. The observation does not say the global is unread — it says it is not authorisation state |
+| **`P1-10`'s own working:** UPnP would show up on 1900 | It does, but the services are on **52869** and **52881**, which no prediction named. The reasoning chain (`UPNP_ENABLED = 1` → `sysconf` starts it → UPnP is listening) was right and stopped one step short of asking *where* |
+| **This session:** a 45-second capture with zero packets shows an isolated segment | It shows nothing until the link is known to deliver, and at that moment it was not — the interface had received **0 bytes** since it came up. The kernel's own RX counter said so, independently of `tcpdump`. What made the silence evidence was ARP replies afterwards |
 
 ### Instrument work
 
@@ -1585,12 +1597,180 @@ have agreed; two were caught by a check written to fail.**
 
 | Item | Why |
 |---|---|
-| **The whole network half** — 25 of the 31 registered tests | The segment does not exist: this laptop has no built-in Ethernet and the USB adapter is not bound to WSL yet. Recorded rather than attempted, because a scan run through the wrong interface would produce results about the wrong network |
+| **`P3-1`, `P3-2`, `P3-3` — the command injections** | **This is the plan's own rule, not a shortfall.** W05 §5 lists "starting W06's PoC" as the week's highest-probability risk and says: *this week does no formal PoC; Day 5 validates oracles and does not fire at the real target.* All three targets are located, all three have a rehearsed observation channel, and the third — `formSysCmd`, CVE-2024-51228 — is G4's chosen target. Firing them is W06's work and it happens after `docs/disclosure.md` says what state each item is in |
+| **`P9-9` — the reset button** | **Destructive, and it would delete evidence.** Reset overwrites `COMPCS` with `COMPDS`, and the 4-of-343 difference measured today is this unit's own state. The prediction (reset restores the configuration but not `H601`) can be tested at the end of W07, when that difference is no longer needed |
+| **`P1-4` and `P3-13` — the POST sweeps** | A POST to a form handler **runs** it, and a handler whose parameters are all absent still writes whatever its accessors defaulted to. `bench-probe` refuses to POST without `--allow-post` for that reason. Doing it needs a 64 KiB snapshot either side, which is 3 minutes of console time this session did not have left |
+| **`P1-12`, `P9-1`, `P9-3`** | All three need a power cycle with the console attached. `P9-1` (`init=/bin/sh` from the boot loader) is the valuable one: it would answer W02 open #6 (`/proc/cpuinfo`, the Lexra core question) and enumerate what is actually running, in one seating |
 | **FirmAE** (the plan's Day 3, 3-hour cap) | **Cut, and the reason is not the timebox.** FirmAE emulates a vendor `.web` image, and this unit's build is on no download page — so a successful FirmAE run would describe V2.1.2 or V3.4.0, which W03 and W04 already cover statically. The qemu path uses *this unit's own rootfs and its own flash*, which is strictly better for every question W05 asks. The 30–60 minute install buys a data point about a different binary |
+| **Invoking any UPnP SOAP action** | 52869 is CVE-2014-8361's port and that CVE is in CISA KEV with public weaponised code. Fetching the description document a UPnP device publishes by design is reconnaissance; calling an action on it is not, and it is not scheduled for this week |
 | **Making `boa` serve a request** | Blocked on an alignment trap the host kernel would fix and `qemu-user` cannot (finding 6). The route around it is full-system emulation, which is a day's work for a channel §5 of the oracle note reaches without it |
 | **The `Encode` side of `libapmib`** | Still unread. What W05 adds is *what a write looks like from outside* — the three bytes and the checksum — which is what W06 needs. `mib_compress_write` and `save_cs_to_file` remain located and unread |
 | **Deciding the `L2TP_SERVER_IP_ADDR` type disagreement** | Every byte of the field is zero, so the data cannot arbitrate. Recorded, not resolved |
 | **Reporting anything to TWCERT/CC** | Unchanged. **Nothing has been sent to the device.** Every result above is either static or emulated |
+
+### Phase 3 — the device on a segment, and eleven predictions scored
+
+**G3.75 closes.** Isolation verified, the IoC pre-check complete in both halves.
+The register goes from 6 to **22 of 31**, and the nine that remain are listed
+under *Deliberately not done* with a reason each.
+
+**9. An unauthenticated `GET /config.dat` returns bytes identical to the flash.**
+
+```
+GET /config.dat  ->  200, 7,490 bytes, body begins "COMPCS"
+
+served sha256 : e09cbf8428aa15944ed75939e79820c5...
+flash@0xC000  : e09cbf8428aa15944ed75939e79820c5...
+identical     : True
+```
+
+Two things, and the second is the larger one.
+
+CVE-2019-19822 is demonstrated end to end on this hardware, and `fwrecon compcs`
+decodes that blob to `USER_PASSWORD` in plaintext — which then **authenticates**
+(finding 12). Every link is separately pointable: HTTP response → flash offset
+→ field → login.
+
+And **W02 open #11 is answered for that region.** It said no second instrument
+had read this flash: every byte came through the boot loader's `FLR`, so a
+systematically wrong `FLR` would be invisible. Here `boa` read the same region
+through **the kernel's MTD driver** and sent it over **Ethernet**, while W02 read
+it through the **boot loader's SPI routine** over **UART**. Two paths sharing no
+code, the same 7,490 bytes. That is corroboration rather than repeatability, and
+it is the column that has been empty since 2026-08-16. **Scope: `0xC000`–`0xD142`,
+not the whole chip.**
+
+**10. Two open TCP ports that no prediction mentioned.**
+
+```
+80/tcp     open      52869/tcp  open      52881/tcp  open
+Not shown: 65532 closed tcp ports (reset)
+```
+
+Everything the prediction *named* was right — 80 open, 22 and 23 and 5555 closed,
+9034 closed, and every IoC port in the register closed. **It named too little.**
+Four controls (before, after the TCP sweep, after the UDP sweep, at the end) all
+returned 200, so the `closed` results are the device's and not a web server that
+had been knocked over.
+
+**11. The UPnP daemon reports another project's name.** SSDP answers on 1900:
+
+```
+Server: miniupnpd/1.4 UPnP/1.4
+Location: http://10.1.1.1:52869/picsdesc.xml
+```
+
+But the rootfs contains **`/bin/miniigd` and no `mini_upnpd` binary at all**, and
+`miniigd`'s own string table carries `Server: miniupnpd/1.4 UPnP/1.4` beside
+`MiniIGD %s (%s).` and `/etc/miniigd.conf`. **The banner is not the codebase.**
+
+`P1-10` had asked for exactly this distinction, in advance, because it decides
+which CVEs apply: `miniigd` is Realtek's (CVE-2014-8361, in CISA KEV), while
+`miniupnpd` is an unrelated project. **Reading the banner alone gives the wrong
+answer.**
+
+- **52869 = `miniigd`.** `GET /picsdesc.xml` → 200 / 2,933 bytes, exposing
+  `WANIPConnection:1` and `WANCommonInterfaceConfig:1` — and a
+  `urn:schemas-dummy-com:service:Dummy:1` left in the shipped description. `UDN`
+  and `serialNumber` are template constants (`uuid:1234…5678`, `00000000`),
+  identical on every unit.
+- **52881 = `wscd`.** `GET /simplecfg.xml` → 200, and the rootfs's
+  `/etc/simplecfgservice.xml` declares `GetDeviceInfo` and **`PutMessage`** —
+  the surface CVE-2021-35392/35393 concern. `P6-3`'s refutation was "if `wscd`
+  is not running, drop this and P7-4"; **it is running**, so both stay (W07).
+
+> ⚠️ Reconnaissance only — `GET` on documents a UPnP device publishes by design.
+> No SOAP action was invoked. 52869 is a KEV port with public weaponised code,
+> and exploiting it belongs to W07 and to `docs/disclosure.md`, not to a
+> reconnaissance sweep.
+
+**12. The gate is exactly what the instruction-level read said, and the
+substring bypass it implied does not work.**
+
+Of the 76 `.htm` pages the bundle ships, **7 are served unauthenticated** and 69
+redirect to `login.htm`. The two redirect targets are the gate's fingerprint: an
+absent `.htm` goes to `login.htm` (the gate ran), an absent anything-else goes to
+`home.htm` (it did not).
+
+`P2-2` predicted that 13 unanchored `strstr` calls would let an exemption string
+be smuggled into the path. **Twelve shapes, none worked** — `?login=1`,
+`/login.htm/../password.htm`, `/loginpassword.htm`, `/password.htmlogin.htm` and
+the rest all get the ordinary treatment. Its refutation named the conclusion in
+advance: the exemption comparison is anchored or length-limited, and **X-3 does
+not stand.**
+
+`P2-3` is confirmed, and *demonstrated* rather than argued:
+
+```
+/config.dat       200, 7,490 B        <- outside the gate
+/config.dat.htm   302 -> login.htm    <- adding the extension pushes it IN
+/password.HTM     302 -> home.htm     <- case mismatch: gate skipped, file absent
+```
+
+Thirteen normalisation variants, none of which made a gated page return content.
+
+**13. There is no session on this build at all.** `admin`/`admin`, decoded from
+this unit's own flash, authenticates over HTTP Basic — and then:
+
+| | |
+|---|---|
+| `.100` with credentials | 200 |
+| `.101` with no credentials | 302 |
+| `.100` with no credentials, right after a success | **302** |
+| `formLogin` POST | sets no cookie |
+| any response | **no `Set-Cookie`, ever** |
+
+So authorisation is **stateless Basic on every request** — not 2015's
+`AUTHG_IP_ADDR` binding, not 2020's five-slot table, and **not the global at
+`0x004899d8`**, which grants nothing. `P2-7`'s refutation fired verbatim and
+**open #9's question has to be rephrased**: whatever that global is for, it is
+not machine-wide authorisation state.
+
+Two consequences worth separating. **Brute force is unlimited** — fifty
+consecutive wrong passwords were all rejected and the fifty-first correct one
+still worked, so there is no counter and no lockout. And **"no session" is not
+"no CSRF"**: a browser that has cached the Basic credentials re-sends them
+automatically, so the cross-site surface survives by a different mechanism.
+
+**14. The identifier visible on the network is not the one the CVE is indexed
+under.**
+
+| where | string |
+|---|---|
+| `/etc/version` | `TOTOLINK-`**`CX`**`-N150RT-V2.1.6-B20171121.1002` |
+| `/bin/boa`, `/bin/sysconf` | `TOTOLINK-N150RT-V2.1.6-B20171121.1002` |
+| **served unauthenticated on `status.htm`** | `TOTOLINK-N150RT-V2.1.6-B20171121.1002` |
+| CVE-2024-51228 names | `TOTOLINK-`**`CX`**`-N150RT V2.1.6-B20171121.1002` |
+
+**`CX` appears in exactly one file in the whole rootfs — `/etc/version` — and the
+web interface does not use it.** So the only identifier a remote observer can
+obtain does not match the CVE's affected-product string. This repository already
+records that CVE-2024-51228 went unfound here for two weeks; **this is the
+mechanism, and it generalises to anyone fingerprinting the model.**
+
+`status.htm` also discloses, without credentials: three MAC addresses, the LAN
+address and mask, wireless SSID, channel and encryption mode, connected-client
+information, DHCP and WAN state. Whether that page's exposure is already covered
+by published prior art has **not** been checked, and no novelty is claimed for it
+here.
+
+**15. At least one `/boafrm/` route is missing from the recovered dispatch
+table.** On GET, all 57 `root_form[]` names return the same 302/131 B as a name
+that does not exist — `translate_uri` redirects before `handleForm` is reached,
+so GET cannot census them. But of the three extra names `fwrecon`'s string
+extraction found and Ghidra's table does not contain:
+
+| | |
+|---|---|
+| `formOpdRedirect` | **302 / 535 B → `/opmode1.htm`** |
+| `formWanRedirect` | **302 / 536 B** |
+| `formWlanRedirect2` | 302 / 131 B — indistinguishable from an absent name |
+
+Two of the three behave unlike anything else on the device, so they are handled.
+`ghidra-formtable-unit-2018.json` records the `/boafrm/` prefix string being
+referenced by **eight** functions, not just `handleForm`, which is where the
+second path should be looked for. **Every count resting on 57 / 59 / 49 since W03
+needs re-checking** — that is `P1-5`'s refutation, partially fired.
 
 ### A process failure: G3.75 was crossed, by me, while building the check for it
 
@@ -1655,14 +1835,35 @@ W04-2's list stands except #15, which is answered above. Added by this session:
 20. **`flash set` on a configuration MIB commits nowhere.** `flash write-current`
     did not write either. Something must eventually persist `COMPCS`; what, and
     when, is unread — and W06 writes to that region.
-21. **The bench laptop is not on the device's segment.** Its USB Ethernet
-    adapter is bound but not attached to WSL, so it came up on the Windows side
-    and took a DHCP lease (`10.1.1.10` — which incidentally confirms `P1-1`: the
-    predicted pool starts at `.10`). Packets from the test host are therefore
-    routed, and **the only tell was `ttl=63` where a directly attached host
-    answers 64.** Through that path SSDP cannot work at all, two source
-    addresses collapse into one, and a raw-socket scan measures the path.
-    `bench-probe` now derives this from `/proc/net/route` and refuses the SSDP
-    group outright — but **Windows also holds addresses on the Wi-Fi network and
-    a VirtualBox host-only network while sitting on the lab segment**, which is
-    a second reason `P0-4` cannot pass until the adapter moves.
+21. ~~**The bench laptop is not on the device's segment.**~~ → **fixed**, and the
+    diagnosis is the part worth keeping. The USB Ethernet adapter was bound but
+    not attached to WSL, so it came up on the Windows side; packets were routed
+    and **the only tell was `ttl=63` where a directly attached host answers 64**
+    — while `ping` succeeded and `Cannot find device "eth1"` was true at the same
+    moment. `bench-probe` now derives the fact from `/proc/net/route`, records it
+    in every transcript, and refuses the SSDP group outright.
+22. **Two open TCP ports that nothing predicted: 52869 and 52881.** The register
+    reasoned its way to "UPnP is listening" from `UPNP_ENABLED = 1` and got the
+    *port* wrong — it named 1900. Both extra ports are UPnP-adjacent and both
+    have CVE history against this SDK, so the question is not "what are they"
+    but **why the prediction stopped at the SSDP port**. Worth answering before
+    W07 predicts anything else about services.
+23. **At least one `/boafrm/` route is not in the recovered `root_form[]`.**
+    `formOpdRedirect` and `formWanRedirect` answer distinctly; the table has 57
+    entries and does not contain them. The `/boafrm/` prefix string is referenced
+    by **eight** functions in this build, and only one of them is `handleForm`.
+    Every count derived from 57 / 59 / 49 since W03 is provisional until that is
+    resolved.
+24. **What the global at `0x004899d8` is actually for.** Open #9 asked who reads
+    it; the behavioural answer is that it does **not** gate anything — a
+    credential-less request is rejected immediately after a successful one, from
+    the same address. So the question changes rather than closes.
+25. **Is the unauthenticated `status.htm` disclosure already published prior
+    art?** It leaks the build string, three MACs, the LAN address, SSID, channel,
+    encryption mode, client and WAN state. `notes/cve-status.md` has not been
+    checked against it and **no novelty is claimed** until it is.
+26. **Does the `CX` discrepancy hold for the other five products in
+    CVE-2024-51228?** A3002RU, N300RT and N302RE are all `-CX-` builds. If their
+    web interfaces also report the non-`CX` string, the identification gap is a
+    property of the vendor's build system rather than of this one unit — and that
+    is the difference between an anecdote and a finding.

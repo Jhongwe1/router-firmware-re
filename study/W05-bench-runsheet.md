@@ -830,6 +830,205 @@ make ledger
 
 ---
 
+---
+
+# Phase 3 結果 — 2026-08-17 08:15–09:0x
+
+**逐字紀錄**在 `$FWRE_WORK/dumps/`：`w05-tcp.*` · `w05-udp.*` ·
+`w05-fingerprint.json` · `w05-gate.json` · `w05-endpoints.json` · `w05-ssdp.json` ·
+`w05-lab-*.pcap` · `w05-picsdesc.xml`。
+**per-unit 識別碼（MAC、SSID、`config.dat` 內容）不進 repo**，與 W02 把 PCB 條碼塗掉同一條規則。
+
+## 3.R1 `P0-4` 隔離 —— 這次帶對照組
+
+第一次抓 45 秒得到**零封包**，而「零」在鏈路未經證實之前什麼都不代表。
+ARP 有回應之後重抓，**主動製造已知流量**再數：
+
+```
+packets: 16                    ← 對照組，必須 > 0
+      8  fc:19:28:61:84:c9     （我們）
+      8  14:4d:67:2e:01:ec     （裝置）
+DNS / 對外 HTTP: 無
+```
+
+**網段上剛好兩個 MAC。** 而且回頭看，第一次那 45 秒的沉默現在是有效證據：
+鏈路是通的（ARP 證明了），所以零封包代表**沒有第三方在講話**。
+
+## 3.R2 `P1-2` / `P6-11` / `P0-5` 埠 —— 點名的每一項都對，而它點名得太少
+
+```
+80/tcp     open   syn-ack ttl 64
+52869/tcp  open   syn-ack ttl 64        ★ 沒有任何預測提到它
+52881/tcp  open   syn-ack ttl 64        ★ 沒有任何預測提到它
+Not shown: 65532 closed tcp ports (reset)
+
+53/udp     open|filtered      67/udp   open|filtered     1900/udp open|filtered
+161/udp    closed             162/udp  closed            其餘 closed
+
+IoC 埠（測前寫進登記簿的）：2323 · 5555 · 9034 · 19412 · 31412 · 48101 · 60001 · 7547
+  → 全部 closed
+```
+
+**四次對照組（掃描前 / TCP 後 / UDP 後 / 最後）全部 200**，所以那些 `closed` 是真的，
+不是 `boa` 被掃掛之後的假象。
+
+| 預測 | 結果 |
+|---|---|
+| 80 開 | ✅ |
+| 22、23 都關 | ✅ 兩個都 closed |
+| 5555 關（`skt` 已刪） | ✅ |
+| 反證：9034 有回應 | 沒發生 |
+| **沒有預測到的** | **52869、52881** |
+
+## 3.R3 `P1-10` UPnP —— banner 說的和 binary 說的不一樣
+
+SSDP 單播 M-SEARCH 有回應（多播沒有）：
+
+```
+Server: miniupnpd/1.4 UPnP/1.4
+Location: http://10.1.1.1:52869/picsdesc.xml
+USN: uuid:12342409-1234-1234-5678-ee1234cc5678
+```
+
+**但 rootfs 裡只有 `/bin/miniigd`（97,100 bytes）；`mini_upnpd` / `miniupnpd`
+這兩個 binary 不存在。** 而 `strings /bin/miniigd` 逐字含有：
+
+```
+Server: miniupnpd/1.4 UPnP/1.4          ← 它送出去的
+MiniIGD %s (%s).                        ← 它自己是誰
+Location: http://%s:%u/picsdesc.xml
+/etc/miniigd.conf
+```
+
+**跑的是 Realtek 的 `miniigd`，banner 報的是 `miniupnpd`。**
+`P1-10` 事先就寫了要分辨這件事，理由正是「不同 codebase，不同 CVE」——
+**只讀 banner 會換掉整組適用的 CVE。**
+
+- **52869** = `miniigd`。`GET /picsdesc.xml` → 200 / 2,933 bytes。
+  暴露 `WANIPConnection:1`（`/upnp/control/WANIPConnection`）與
+  `WANCommonInterfaceConfig:1`，外加一個出貨時忘了拔的
+  `urn:schemas-dummy-com:service:Dummy:1`（控制 URL `/dummy`）。
+  `UDN` 與 `serialNumber` 是寫死的樣板值（`uuid:1234…5678` / `00000000`），**每台相同**。
+- **52881** = `wscd`（WPS）。`GET /simplecfg.xml` → 200 / 1,130 bytes，
+  而 rootfs 的 `/etc/simplecfgservice.xml` 有 `GetDeviceInfo` 與 **`PutMessage`** ——
+  正是 CVE-2021-35392 / 35393 的那個面。**登記簿 `P6-3` 的反證條件是
+  「`wscd` 沒在跑就收掉這條」——它在跑，所以那條留著（W07）。**
+- 線上的 `picsdesc.xml`（2,933 B）與 rootfs 的 `/etc/tmp/picsdesc.xml`（2,941 B）
+  只差在 `<presentationURL>` 被填了 IP。靜態檔與線上服務對得起來。
+
+> ⚠️ **只做偵察。** 52869 是 CVE-2014-8361 的埠，那條在 CISA KEV 上、有公開武器化程式碼。
+> 沒有呼叫任何 SOAP action。利用是 W07 與揭露程序的事。
+
+## 3.R4 `/config.dat` —— 而它同時關掉 W02 的最大缺口
+
+```
+GET /config.dat   →   200,  7,490 bytes,  body 開頭是 "COMPCS"
+
+served sha256 : e09cbf8428aa15944ed75939e79820c5...
+flash@0xC000  : e09cbf8428aa15944ed75939e79820c5...
+identical     : True
+```
+
+**未認證的一個 HTTP GET 拿到的 7,490 bytes，與 W02 用 bootloader `FLR`+`DB`
+從 SPI flash `0xC000` 讀出來的逐 byte 相同。** 兩件事：
+
+1. **CVE-2019-19822 在這台硬體上端到端成立**，而且 `fwrecon compcs` 解那份 blob
+   得到 `USER_PASSWORD` 明文（CVE-2019-19823）。從 HTTP 回應到 flash 位移到欄位，
+   每一環都指得出來。
+2. **`PROGRESS.md` W02 開放 #11 —— 「沒有第二個儀器讀過這顆 flash」** ——
+   在這個區段上關掉了。`boa` 經 **kernel MTD 驅動**讀、經**乙太網路**送；
+   `FLR`+`DB` 經 **bootloader SPI 常式**讀、經 **UART** 送。
+   **兩條不共用程式碼的路徑，同一組 bytes。**
+   （範圍：`0xC000`–`0xD142` 這 7,490 bytes，不是整顆。）
+
+## 3.R5 閘門的實際涵蓋範圍 —— 靜態讀法是對的
+
+**76 個出貨的 `.htm`，7 個未認證可取，69 個 302 到 `login.htm`：**
+
+| 未認證可取 | bytes |
+|---|---|
+| `status.htm` | **30,447** |
+| `Connect_status.htm` | 5,965 |
+| `login.htm` | 2,896 |
+| `countDownPage.htm` | 1,960 |
+| `countDownPageWizard.htm` | 1,832 |
+| `index.htm` | 1,198 |
+| `wan_status.htm` | 2 |
+
+**兩個不同的 302 目標就是閘門的指紋**：不存在的 `.htm` → `login.htm`（門跑了，
+沒憑證）；不存在的其他路徑 → `home.htm`（門沒跑，檔案不在）。
+
+**`P2-2` 反證成立（十二種豁免字串注入全部失敗）**：
+
+```
+/password.htm?login=1          302 → login.htm
+/password.htm?status=1         302 → login.htm
+/login.htm/../password.htm     302 → login.htm
+/status.htm/../password.htm    302 → login.htm
+/loginpassword.htm             302 → login.htm
+/password.htmlogin.htm         404
+/login.htm/password.htm        400
+```
+
+所以豁免比對**有錨定或有長度限制**，不是天真的整串 `strstr`。`X-3` 不成立。
+
+**`P2-3` 確認，而且被示範出來**：
+
+```
+/config.dat        200  7,490B        ← 沒門
+/config.dat.htm    302 → login.htm    ★ 加副檔名把它推進門裡
+/password.HTM      302 → home.htm     ← 大小寫不匹配：門不跑，檔案也找不到
+/password.htm%00   400                ← Boa 自己擋掉
+```
+
+十三種正規化變形，**沒有一種讓被擋的頁面吐出內容**。
+
+**`P2-4` 反證成立**：`Host:` 任意值、空值、`X-Forwarded-For`、`Referer`、
+`Authorization: Basic admin:admin` —— 五個都回同一個 30,447 B 的頁面。
+**`check_host` 不在授權路徑上**，所以 `P8-5` 的 DNS rebinding 前提直接成立（W07）。
+
+> ⚠️ **第一次跑這組我打錯目標了。** 全部變形都送到 `/status.htm`，
+> 而它**在豁免清單上**——等於拿一扇沒鎖的門去測開鎖技巧。
+> 換成真的被擋的 `/password.htm` 重跑，上面才是有效的結果。
+
+## 3.R6 `P1-5` E-0 —— 57 還是 60，答案是「至少 58」
+
+57 個 `root_form[]` 端點的 GET **全部回 302 / 131B → `home.htm`**，
+跟一個不存在的名字**完全無法區分**（GET 走不到 `handleForm`）。
+但 `fwrecon` 抽字串多出來的那三個裡：
+
+| 名字 | GET 的回應 |
+|---|---|
+| **`formOpdRedirect`** | **302 / 535B → `/opmode1.htm`** |
+| **`formWanRedirect`** | **302 / 536B** |
+| `formWlanRedirect2` | 302 / 131B（與其他無異） |
+
+**兩個回應與所有其他路徑都不同 → 它們是真的、會做事的端點，
+而 Ghidra 讀出來的 `root_form[]` 57 筆不含它們。**
+`W03` 以來所有基於 57 / 59 / 49 的計數都要重驗，而且要找出第二條分派路徑
+——`ghidra-formtable-unit-2018.json` 記錄 `/boafrm/` 這個前綴字串**被八個函式引用**，
+不只 `handleForm`。
+
+## 3.R7 一個新的、可檢驗的發現：網路上看得到的版本字串對不上 CVE 的
+
+`status.htm` 未認證吐出韌體版本、3 個 MAC、LAN 位址與遮罩、SSID、頻道、
+加密方式、連線客戶端與 WAN 狀態。**其中版本字串是這樣的：**
+
+| 在哪 | 字串 |
+|---|---|
+| `/etc/version`（檔案系統） | `TOTOLINK-`**`CX`**`-N150RT-V2.1.6-B20171121.1002` |
+| `/bin/boa` 字串表 | `TOTOLINK-N150RT-V2.1.6-B20171121.1002` |
+| `/bin/sysconf` | `TOTOLINK-N150RT-V2.1.6` |
+| **線上未認證取得** | `TOTOLINK-N150RT-V2.1.6-B20171121.1002` |
+| CVE-2024-51228 點名 | `TOTOLINK-`**`CX`**`-N150RT V2.1.6-B20171121.1002` |
+
+**整個 rootfs 裡帶 `CX` 的只有 `/etc/version` 一個檔，而網頁介面不用它。**
+所以**遠端指紋這台裝置能拿到的唯一識別字串，跟那個 CVE 索引用的不一樣**——
+這正是 `CLAUDE.md` 記的「CVE-2024-51228 兩週沒被找到」的機制，
+而且它可以推廣到任何掃描這個型號的人。
+
+---
+
 ## 出事的時候
 
 | 症狀 | 怎麼辦 |

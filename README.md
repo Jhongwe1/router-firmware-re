@@ -35,15 +35,31 @@ function in the binary.
 > radio calibration, which exist nowhere else — is inside one such sector, and
 > so is the `HW_WLAN0_WSC_PIN` that W06's proof-of-concept writes.
 >
-> **The device has now answered its first HTTP request** — `Server:
-> Boa/0.94.14rc21`, which is what three builds' string tables said it would be.
-> That is one line of one test. **24 of W05's 31 registered tests are still
-> outstanding**, because the laptop driving them is not on the device's segment:
-> its USB Ethernet adapter came up on the Windows side, so the packets are
-> routed rather than local. The tell was `ttl=63` where a directly attached host
-> answers 64, and the prober now derives the same fact from `/proc/net/route`
-> and says so — see [Open, carried forward](PROGRESS.md#w05--2026-08-17).
+> **And then it was put on an isolated segment and asked 22 of the 31 questions
+> that were frozen before the first packet.** An unauthenticated
+> `GET /config.dat` returns 7,490 bytes whose SHA-256 is **identical to flash
+> offset `0xC000` in W02's dump** — so CVE-2019-19822 is demonstrated end to end,
+> the credentials it contains authenticate, and, incidentally, **this flash has
+> now been read by a second instrument**: the kernel's MTD driver over Ethernet,
+> against the boot loader's SPI routine over UART. That column has been empty
+> since W02.
 >
+> **Four predictions were refuted, which is the return on writing them down
+> first.** The substring bypass the disassembly implied does not work — twelve
+> shapes, none bypassed. The session model is not the global the disassembly
+> pointed at: there is no session at all, only stateless HTTP Basic, with no
+> lockout after fifty wrong passwords. And two open TCP ports — **52869 and
+> 52881, both UPnP** — appear in no prediction at all, on a device whose UPnP
+> daemon answers `Server: miniupnpd/1.4` while being `/bin/miniigd`, which is a
+> different project with a different CVE history.
+>
+> **The identifier the device publishes is not the one its CVE is indexed
+> under.** `/etc/version` says `TOTOLINK-CX-N150RT-…`; `boa` says
+> `TOTOLINK-N150RT-…` and that is what an unauthenticated `status.htm` returns.
+> `CX` appears in exactly one file in the rootfs. This project lost two weeks to
+> that string; **this is the mechanism.**
+>
+
 > **Latest (W04-2, 2026-08-16): the build this device actually runs has been
 > read, and it has a command-execution handler that neither downloadable image
 > has.** `formSysCmd` is entry `0x004838a8` of this unit's dispatch table —
@@ -368,10 +384,10 @@ that is not backed by a command someone else can re-run.
   > ⚠️ **Still entirely static.** Nothing has been sent to the device, no port
   > has been touched, and the phrase used throughout is *the code reads as*.
 
-- [ ] **G3.75 — nothing is sent to the device until the pre-engagement is done** (W05 Day 0) ⚠️ **3 of 5, 2026-08-17** ← [PROGRESS.md](PROGRESS.md#w05--2026-08-17)
+- [x] **G3.75 — nothing is sent to the device until the pre-engagement is done** (W05 Day 0) ✅ **passed 2026-08-17** ← [PROGRESS.md](PROGRESS.md#w05--2026-08-17)
   - [x] **the `FLW` recovery path rehearsed** — this is G3.5 #5, cited and not restated. Closed 2026-08-17
-  - [ ] isolation verified — two MAC addresses on the segment and no third, WAN on a fake upstream. **The segment does not exist yet**: this laptop has no built-in Ethernet
-  - [ ] **IoC pre-check** — half. The success criterion was written before the check and the configuration half met it exactly: **the live config differs from this unit's own factory baseline in 4 of 343 entries**, no fifth. The ports half needs the segment
+  - [x] **isolation verified** — exactly two MAC addresses on the segment, eight packets each, no DNS and nothing outbound. The control is that the capture recorded 16 packets at all: an earlier one recorded **zero**, and zero proves nothing until the link is known to deliver
+  - [x] **IoC pre-check** — both halves, against criteria written before the check: **the live config differs from this unit's own factory baseline in 4 of 343 entries**, no fifth, and every port the register named is closed
   - [x] **the prediction ledger is frozen** ← [`study/test-ledger.md`](study/test-ledger.md) — 128 registered tests, 98 carrying a written refutation condition, hashed and committed **before any request is served**
   - [x] **the disclosure register is written** ← [`docs/disclosure.md`](docs/disclosure.md) — eight candidate originals, what each is worth, and the rule that decides what gets published
 

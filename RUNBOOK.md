@@ -2523,6 +2523,8 @@ cd FirmAE && ./install.sh      # 30–60 分鐘
 | 2026-08-17 | W05 | §8.11.5:登記簿新增第三種證據等級 **`emulated`(🟪,永遠不會變成 ✅)**。`tools/test-rtcase.sh` 22 → 27 個案例。順帶修掉圖例用左欄長度索引右欄的潛伏 bug —— 第七個結果標記會被靜靜丟掉,而那正好是新加的這一個。 |
 | 2026-08-17 | W05 | §8.11.6:`tools/bench-probe.py` + 8 個案例的守衛套件。**它存在的理由是一個無聲的失敗模式**:POST 少帶 `submit-url` 會打掛 boa,而之後每個端點都長得像「不存在」。 |
 | 2026-08-17 | W05 | §12 速查表新增 `make qemu-env` / `qemu-test` / `probe-test`;`make ci` 從 6 個目標變 8 個。作業單與紀錄卡在 [`study/W05-bench-runsheet.md`](study/W05-bench-runsheet.md)(**新檔,它擁有的是「這一場照什麼順序做」,規程仍然歸 §8.9**)。`study/QA.md` 新增 §14。 |
+| 2026-08-17 | W05 Phase 3 | §8.11.6 補上實測:`bench-probe` 的對照組現在也判「**是不是真的直連在這個網段上**」（從 `/proc/net/route`），因為 `ping` 成功而 `ttl=63` 這件事在 HTTP 回應裡完全看不見。守衛套件 8 → 9 個案例,**新的那個第一次跑就抓到實作是錯的**（`/proc/net/route` 只有 main 表,loopback 掉進預設路由）。 |
+| 2026-08-17 | W05 Phase 3 | 作業單 [`study/W05-bench-runsheet.md`](study/W05-bench-runsheet.md) 補 §3.-1（重開機**之前**要先做完的三件事）與 §3.R1–R7（Phase 3 的逐項實測結果）。介面名寫死 `eth1` 全部改掉 —— WSL 用 MAC 衍生的可預測命名。 |
 
 > **上面三列裡的前兩列是補登的,而漏登的方式值得記一筆。** §8.8 和 §8.9 是
 > 2026-08-16 的「document sync」commit 加進這份文件的,那個 commit **改了
