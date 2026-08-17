@@ -179,6 +179,87 @@ cmd_check() {
 # ------------------------------------------------------------------ run ----
 cmd_run() { need_root; exec chroot "$ENVDIR" ./qemu-mips-static "$@"; }
 
+# ----------------------------------------------------------------- serve ---
+# Stand `boa` up under qemu-user and prove it is answering before saying so.
+#
+# W05 recorded that this was impossible: "boa cannot serve under qemu-user,
+# blocked on an alignment trap the host kernel would fix" (PROGRESS open #16).
+# The trap is real and it is an unaligned halfword store, but it is not where
+# that sentence puts it. Measured 2026-08-17 with `-strace`:
+#
+#   open("/dev/mtdblock0") lseek(49152) read(7490)      <- COMPCS
+#   open("/web/config.dat", O_RDWR|O_CREAT|O_TRUNC) = 3
+#   --- SIGBUS si_addr=0x00492b41 ---                   <- odd address
+#
+# It dies *generating /web/config.dat at start-up*, not serving. Make that one
+# open() fail - config.dat is a directory here, so it returns EISDIR - and boa
+# prints `Create config file error!`, carries on, binds, and answers.
+#
+# The irony is worth keeping: the line that produces this project's best
+# evidence chain (an unauthenticated GET of config.dat, CVE-2019-19822) is the
+# exact line that makes the emulation route look impossible.
+#
+# What this costs, stated rather than discovered later: /config.dat cannot be
+# fetched from the emulated server, because the file it would serve is the
+# directory standing in the way. Links 1 and 2 of the chain stay device-only;
+# links 3, 4 and the gate reproduce here.
+cmd_serve() {
+  need_root
+  local port="${1:-8080}" conf="$ENVDIR/var/boa-emu.conf"
+  [ -f "$ENVDIR/var/boa.conf" ] || die "no /var/boa.conf in the environment; run build"
+  sed "s/^Port .*/Port $port/" "$ENVDIR/var/boa.conf" > "$conf"
+
+  rm -rf "$ENVDIR/var/web/config.dat"
+  mkdir -p "$ENVDIR/var/web/config.dat"
+
+  chroot "$ENVDIR" ./qemu-mips-static /bin/boa -f /var/boa-emu.conf \
+      >"$ENVDIR/tmp/boa-emu.log" 2>&1 &
+  local pid=$!
+  local i=0
+  while [ "$i" -lt 20 ]; do
+    sleep 1; i=$((i + 1))
+    curl -sf -m 2 -o /dev/null "http://127.0.0.1:$port/login.htm" && break
+  done
+
+  # Two controls, and the second is the one that matters. "It answered" is not
+  # "it is this firmware answering the way this firmware answers": an exempt
+  # page must come back 200 and a gated one must be redirected, which is the
+  # gate model read at instruction level in W04-2 and measured on the device in
+  # W05. If only the first held, something else is on the port.
+  local ok=0 code
+  code="$(curl -s -m 5 -o /dev/null -w '%{http_code}' "http://127.0.0.1:$port/login.htm")"
+  if [ "$code" = "200" ]; then note "control ok: login.htm 200 (exempt page served)"; else
+    echo "  control FAILED: login.htm returned $code, expected 200" >&2; ok=1; fi
+  code="$(curl -s -m 5 -o /dev/null -w '%{http_code}' "http://127.0.0.1:$port/blank.htm")"
+  if [ "$code" = "302" ]; then note "control ok: blank.htm 302 (gated page redirected)"; else
+    echo "  control FAILED: blank.htm returned $code, expected 302 - the gate is" \
+         "not behaving as it does on the device, so nothing measured here transfers" >&2; ok=1; fi
+
+  if [ "$ok" -ne 0 ]; then
+    kill "$pid" 2>/dev/null
+    die "emulated server did not reproduce the gate; refusing to report it as up"
+  fi
+  echo "$pid" > "$ENVDIR/tmp/boa-emu.pid"
+  echo "boa is serving on 127.0.0.1:$port (pid $pid).  Stop it with:"
+  echo "  sudo $0 stop"
+}
+
+# `pkill -f 'qemu-mips-static /bin/boa'` is the obvious way to stop it and it is
+# a trap: pkill -f matches whole command lines, so a shell invoked as
+# `bash -lc '... pkill -f "qemu-mips-static /bin/boa" ...'` has the pattern in
+# its own cmdline and kills itself. That happened the first time this
+# subcommand was tested, and the exit status was 15 with no other explanation.
+# A pidfile costs one line and cannot match the wrong thing.
+cmd_stop() {
+  need_root
+  local pf="$ENVDIR/tmp/boa-emu.pid"
+  [ -f "$pf" ] || { echo "no pidfile - nothing recorded as running"; return 0; }
+  local pid; pid="$(cat "$pf")"
+  if kill "$pid" 2>/dev/null; then echo "stopped pid $pid"; else
+    echo "pid $pid was not running"; fi
+  rm -f "$pf"
+}
+
 # ----------------------------------------------------------------- diff ----
 # What did a guest command change in the flash image, and does the H601
 # checksum at 0x6493 still balance?
@@ -213,8 +294,10 @@ case "${1:-}" in
   check) shift; cmd_check "$@" ;;
   diff)  shift; cmd_diff  "$@" ;;
   run)   shift; cmd_run   "$@" ;;
+  serve) shift; cmd_serve "$@" ;;
+  stop)  shift; cmd_stop  "$@" ;;
   *) cat >&2 <<EOF
-usage: sudo $0 {build|reset|check|diff|run ...}
+usage: sudo $0 {build|reset|check|diff|run|serve|stop ...}
 
   build   create $ENVDIR from the unit-2018 rootfs + this unit's flash dump
   reset   restore the flash image AND drop the SysV shm/sem the MIB cache uses
@@ -223,6 +306,11 @@ usage: sudo $0 {build|reset|check|diff|run ...}
   run     run a command inside the environment, e.g.
             sudo $0 run /bin/flash get TELNET_ENABLED
             sudo $0 run /bin/sh -c 'flash set HW_WLAN0_WSC_PIN 1;ls -l / > /var/web/x.txt'
+  serve   stand boa up on 127.0.0.1 and prove the gate behaves as it does on
+          the device before saying it is up, e.g.
+            sudo $0 serve 8080
+  stop    stop it, by pidfile. Not \`pkill -f\`, which matches the calling
+          shell's own command line and kills it
 
 Always: reset before a measurement. Restoring the file alone is not a reset.
 EOF

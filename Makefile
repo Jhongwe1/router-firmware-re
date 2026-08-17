@@ -24,7 +24,8 @@ UNIT_DUMP  := $(FWRE_WORK)/dumps/flash-n150rt-console-1.bin
 .DEFAULT_GOAL := help
 .PHONY: help setup verify fetch unpack venv test lint recon recon-unit diff check-reports \
         rtcase rtcase-test todo ledger shellcheck ci clean-work qemu-env qemu-test probe-test \
-        loader-test loader-report doctor check-runsheet runsheet-test
+        loader-test loader-report doctor check-runsheet runsheet-test \
+        dump-test flash-tools-test photo-test write-test check-benchlog benchlog-test
 
 help: ## Show this help
 	@grep -hE '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) \
@@ -122,13 +123,22 @@ check-runsheet: ## Verify every command in runsheet.md still resolves
 runsheet-test: ## Prove the runsheet checker can fail (29 cases)
 	bash tools/test-check-runsheet.sh
 
+# The record-card template lived only in plan/, which is gitignored and which
+# committed files may not quote - so the format BENCH-LOG.md must follow lived
+# where BENCH-LOG.md could not cite it, and drifted out within a week.
+check-benchlog: ## Every bench record card carries a refutation condition
+	python3 tools/check-benchlog.py
+
+benchlog-test: ## Prove the bench-log checker can fail (13 cases)
+	bash tools/test-check-benchlog.sh
+
 rtcase: ## G3.75: the test register is frozen and every result carries evidence
 	python3 tools/rtcase.py check
 
 todo: ## What this week still owes: `make todo WEEK=W05`
 	python3 tools/rtcase.py todo $(if $(WEEK),--week $(WEEK),)
 
-rtcase-test: ## Prove the register gate can actually fail (33 cases)
+rtcase-test: ## Prove the register gate can actually fail (34 cases)
 	bash tools/test-rtcase.sh
 
 ledger: ## Regenerate test-ledger.md from the register + results
@@ -154,6 +164,25 @@ probe-test: ## Prove the bench prober's refusals fire (needs no device)
 loader-test: ## Prove the boot-loader unpacker's refusals fire (needs no dump)
 	bash tools/test-loader-unpack.sh
 
+# The three suites below were written before `ci` existed as a single list and
+# were never added to it -- 35 cases, none needing hardware, recorded as
+# PROGRESS open #33 when the totals were recounted on 2026-08-17. The largest of
+# them guards the flash parser, which is the code path every byte of this unit's
+# dump came through. Found by counting, not by anything checking.
+dump-test: ## Prove the flash reader's refusals fire (needs no device)
+	bash tools/test-console-dump.sh
+
+flash-tools-test: ## Prove the CH341A path's refusals fire (needs no programmer)
+	bash tools/test-flash-tools.sh
+
+photo-test: ## Prove the redaction and annotation guards fire (needs no photograph)
+	bash tools/test-photo-tools.sh
+
+# The write path is the only tool here that can destroy the unit, so its guard
+# suite is the one that most needs to be in CI rather than in a habit.
+write-test: ## Prove the flash writer refuses every range it must not touch
+	bash tools/test-console-write.sh
+
 # Like recon-unit and qemu-env: needs the flash dump read off my own unit, so it
 # is not in `recon`. The report it writes is mostly a claim about what the boot
 # loader does *not* contain, which is why its committed form carries a positive
@@ -170,7 +199,7 @@ loader-report: ## Unpack the boot loader's LZMA stage 2 (needs the flash dump)
 # `rtcase-test` is in here and not optional. It is the only thing proving the
 # register gate can fail; without it `make rtcase` going green means nothing,
 # which is the exact shape of instrument bug 12.
-ci: lint test shellcheck check-reports check-runsheet rtcase rtcase-test qemu-test probe-test loader-test runsheet-test ## Everything CI checks, except the container build
+ci: lint test shellcheck check-reports check-runsheet check-benchlog benchlog-test rtcase rtcase-test qemu-test probe-test loader-test runsheet-test dump-test flash-tools-test photo-test write-test ## Everything CI checks, except the container build
 	@echo "  ok   local CI equivalents passed (container build not included)"
 
 diff: venv ## Diff the two builds

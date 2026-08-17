@@ -227,8 +227,22 @@ fi
 # side this always says "routed", which is the same fact reported twice and sends
 # the reader chasing a second cause that does not exist.
 if [ -r /proc/net/route ] && [ -n "$IFACE" ]; then
+  # The default route matches every destination, so "is there a route to
+  # 10.1.1.1" is always yes and the `none` branch below was unreachable — dead
+  # code that had the only correct message in it. The state it was written for
+  # is the state every session starts in (adapter attached to WSL, segment not
+  # configured yet), and in that state this check FAILED and told the operator
+  # to attach the adapter they had just attached.
+  #
+  # A check whose failure names the wrong fix is worse than no check: it sends
+  # you to re-do something that is already right, and the real cause goes on
+  # looking like the one you just ruled out. Instrument bug 24.
+  #
+  # So the mask width is now part of the answer, not just the tiebreak: a
+  # default route (mask 0) matching is "no route to this segment", and only a
+  # more specific route can be direct or genuinely gatewayed.
   direct="$(python3 - <<'PY' 2>/dev/null
-import socket, sys
+import socket
 t = int.from_bytes(socket.inet_aton("10.1.1.1"), "big")
 best, gw = -1, None
 with open("/proc/net/route", encoding="ascii") as fh:
@@ -242,14 +256,17 @@ with open("/proc/net/route", encoding="ascii") as fh:
         m = int.from_bytes(bytes.fromhex(f[7]), "little")
         if (t & m) == d and bin(m).count("1") > best:
             best, gw = bin(m).count("1"), g
-print("none" if best < 0 else ("direct" if gw == 0 else "routed"))
+if best <= 0:                     # nothing, or only the default route
+    print("unconfigured")
+else:
+    print("direct" if gw == 0 else "routed")
 PY
 )"
   case "$direct" in
     direct) ok "10.1.1.1 resolves to a directly attached subnet — not through a gateway" ;;
     routed) bad "10.1.1.1 is reachable only through a gateway" \
-                "The adapter is on the Windows side. ping will still succeed and ttl will be 63. Attach it to WSL, then runsheet.md A3.1" ;;
-    *)      skip "no route to 10.1.1.1 yet — runsheet.md A3.1 adds one" ;;
+                "A specific route sends it via a gateway, so a reply would come back ttl=63 and prove nothing. Check which interface owns it: ip route get 10.1.1.1" ;;
+    *)      skip "no route to the 10.1.1.0/24 segment yet (only the default route matches) — runsheet.md A3.1 adds one" ;;
   esac
 fi
 fi

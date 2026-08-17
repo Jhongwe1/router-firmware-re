@@ -53,10 +53,10 @@ W05 週計畫原本要另外建一份 `notes/prediction-scorecard.md`（12 條�
 |---|---|
 | 登記項目 | **130**（排入 121，砍掉 9） |
 | 已寫反證條件（凍結） | **102** / 121 |
-| 已執行 | **34** |
-| 其中以真機動態證據收掉 | **27** |
-| 其中以模擬環境執行收掉（**不是矽上**） | **3** |
-| 判定成立 / 判定不成立 | **19** / **5** |
+| 已執行 | **51** |
+| 其中以真機動態證據收掉 | **43** |
+| 其中以模擬環境執行收掉（**不是矽上**） | **4** |
+| 判定成立 / 判定不成立 | **28** / **11** |
 | 凍結雜湊 | `69c342dce863dcc7d2450d3f45f97ad2b3753296a2c8756a54ec27604caffc55` |
 
 ## 排程：哪一週要打掉哪些
@@ -69,8 +69,8 @@ W05 週計畫原本要另外建一份 `notes/prediction-scorecard.md`（12 條�
 | **W02** | Phase 0, 9 | 2 / 2 | `▰▰▰▰▰▰▰▰▰▰` |
 | **W04-2** | Phase 0 | 2 / 2 | `▰▰▰▰▰▰▰▰▰▰` |
 | **W05** | Phase 0, 1, 2, 3, 6, 9 | 27 / 27 | `▰▰▰▰▰▰▰▰▰▰` |
-| **W06** | Phase 0, 2, 3, 4, 5, 10 | 1 / 28 | `▱▱▱▱▱▱▱▱▱▱` |
-| **W07** | Phase 1, 2, 3, 5, 6, 7, 8, 9, 10 | 1 / 61 | `▱▱▱▱▱▱▱▱▱▱` |
+| **W06** | Phase 0, 2, 3, 4, 5, 10 | 18 / 18 | `▰▰▰▰▰▰▰▰▰▰` |
+| **W07** | Phase 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 | 1 / 71 | `▱▱▱▱▱▱▱▱▱▱` |
 
 ## 圖例
 
@@ -96,7 +96,7 @@ W05 週計畫原本要另外建一份 `notes/prediction-scorecard.md`（12 條�
 | P0-6 | 抽 form handler 函式表（交叉驗證用） | 3.8.3 | ★★★★☆ | 🟥 | W04-2 | 🟥 兩支獨立工具得出 57 與 60；不一致本身就是 P1-5 | [ghidra-formtable-unit-2018.json](reports/ghidra-formtable-unit-2018.json) · [n150rt-unit-2018.json](reports/n150rt-unit-2018.json) |
 | P0-7 | 抽韌體升級 magic（偽造 header 用） | 3.8.4 | ★★★☆☆ | 🟥 | W01 | 🟥 IMG_HEADER_T 欄位順序在 tools/fwrecon/src/fwrecon/rtlimage.py | [anatomy-n150rt.md](notes/anatomy-n150rt.md) · [flash-layout.md](notes/flash-layout.md) |
 | P0-8 | 開機腳本審閱：找 MIB 值被拼進 shell 的地方 | 3.8.5 | ★★★★☆ | 🟥 | W04-2 | 🔶 rcS 已審；但 /bin/*.sh 的 MIB→shell 內插普查沒有寫進任何 committed note，P8-8 目前無可引用證據 | [skt-analysis.md](notes/skt-analysis.md) · [credentials.md](notes/credentials.md) |
-| P0-9 | qemu / FirmAE 模擬環境（桌機 fuzz 用） | 3.8.6 | ★★☆☆☆ | 🟧 | W06 | ⬜ | — |
+| P0-9 | qemu / FirmAE 模擬環境（桌機 fuzz 用） | 3.8.6 | ★★☆☆☆ | 🟧 | W06 | 🟪 boa serves under qemu-user after all, and W05 finding 6 was too strong. The alignment trap is real but confined to one path: -strace shows SIGBUS at an odd address (si_addr=0x00492b41) immediately after open("/web/config.dat",O_RDWR|O_CREAT|O_TRUNC) at start-up, i.e. while GENERATING config.dat, not while serving. Make that one open() fail (config.dat is a directory) and boa prints Create config file error!, binds, and answers: login.htm 200 (exempt), blank.htm 302 (gated), status.htm 200/30087B - the gate model W04-2 read at instruction level, reproduced with no device attached. POST /boafrm/formSysCmd with sysCmd=cat /etc/version > /var/web/w06emu.txt;# returns the build string through the docroot oracle, and the same POST without the ;# idiom yields HTTP 204 0 bytes - the empty-file trap predicted from the format string %s 2>&1 > %s. Controls: /bin/flash get IP_ADDR works, guest /bin/wget completes HTTP against a host server, the target file 302s before the test, and a POST carrying no sysCmd creates nothing. Desktop fuzz route is open. Cost, stated: /config.dat cannot be fetched from the emulated server because the file standing in for it is the directory that keeps boa alive, so chain links 1-2 stay device-only. tools/qemu-env.sh serve refuses to report success unless both gate controls hold. | [qemu-env.sh](tools/qemu-env.sh) · [emulation-2018.md](notes/emulation-2018.md) |
 | **P0-10** | 每次動手前抓 64 KiB 設定區快照（0x0–0x10000） | 3.2 | ★★★★★ | 🟥 | W05 | 🔶 基準快照已取，與 8/16 完整 dump 的前 64 KiB 逐 byte 相同。反證條件要一次寫入後的差分，那是 W06 | [BENCH-LOG.md](BENCH-LOG.md) |
 
 <details><summary>Phase 0 的預測與反證條件（10/10 項已凍結）</summary>
@@ -245,7 +245,7 @@ W05 週計畫原本要另外建一份 `notes/prediction-scorecard.md`（12 條�
 | P2-3 | 路徑正規化繞過（約 30 種變形） | 5.4 | ★★☆☆☆ | 🟦 | W05 | ✅ 十三種正規化變形，沒有一種讓被擋的頁面吐出內容。而極性被示範出來了：/config.dat 回 200，/config.dat.htm 回 302→login.htm——**加副檔名把沒門的路徑推進門裡**。/password.HTM 回 302→home.htm，門不跑但檔案也找不到（大小寫敏感） | [BENCH-LOG.md](BENCH-LOG.md) |
 | P2-4 | 標頭層繞過（Referer / XFF / Host / 方法變化） | 5.5 | ★★☆☆☆ | 🟦 | W05 | ❌ Host 任意值、Host 空、X-Forwarded-For、Referer、Authorization: Basic admin:admin——五個都回同一個 30447B 頁面。check_host 不在授權路徑上，所以 P8-5 的 DNS rebinding 前提直接成立 | [BENCH-LOG.md](BENCH-LOG.md) |
 | P2-5 | GET /boafrm/*（走 translate_uri 的另一分支） | 5.5 | ★★★☆☆ | 🟥 | W05 | ✅ GET /boafrm/* 帶不帶 query string 都是 302/131B→home.htm，與 POST 的行為不同——GET 走不到 handleForm。所以參數來源分方法，Phase 3 的 POST 不能改用 GET，CSRF 面沒有因此變大 | [BENCH-LOG.md](BENCH-LOG.md) |
-| P2-6 | HTTP 協定層畸形（0.9 風格 / 版本號 / chunked） | 5.6 | ★★★☆☆ | 🟦 | W06 | ⬜ | — |
+| P2-6 | HTTP 協定層畸形（0.9 風格 / 版本號 / chunked） | 5.6 | ★★★☆☆ | 🟦 | W06 | ✅ Boa 0.94 answers malformed requests with 400 rather than mis-parsing them, which is what the prediction said. GET / with no version returns a bare HTTP/0.9 body with no status line; HTTP/9.9 returns 400; a chunked POST returns 400; and an HTTP/1.1 request with no Host header returns 200 where RFC 2616 requires 400 — a spec deviation, not a memory-safety one. The server survived all four. | [BENCH-LOG.md](BENCH-LOG.md) |
 | P2-7 | 認證狀態的邏輯繞過（session 模型 T-1~T-4） | 5.7 | ★★★☆☆ | 🟨 | W05 | ❌ 預測的『這台沒有 session』那半是對的，但**它指名的機制是錯的**，而反證條件逐字成立。10.1.1.100 認證成功之後：.101 不帶憑證 302、.100 不帶憑證 302、.101 帶憑證 200。formLogin 一個 cookie 都沒設，而且裝置從來不送 Set-Cookie。所以授權是**每個請求各自的 HTTP Basic**，0x004899d8 不是全機共用的授權狀態 —— PROGRESS 開放 #9 的問法要改 | [BENCH-LOG.md](BENCH-LOG.md) |
 | P2-8 | 憑證直闖：admin/admin 與 Basic Auth | 5.8 | ★★★★★ | 🟥 | W05 | ✅ admin/admin —— 從這台自己 flash 的 COMPCS 解出來的明文，經 HTTP Basic 直接認證成功（/password.htm 302→200），並開啟其餘 68 個被擋頁面。CVE-2019-19823 端到端。反證條件（連續 50 次錯誤後被鎖）沒有觸發：50 次全部拒絕，第 51 次用正確密碼仍然 200，無鎖定、無失敗計數 | [BENCH-LOG.md](BENCH-LOG.md) |
 | P2-9 | 未初始化的第二對憑證緩衝區（sp+0x18 / sp+0x38） | 5.8 | ★☆☆☆☆ | 🟥 | W07 | ⬜ | — |
@@ -311,13 +311,13 @@ W05 週計畫原本要另外建一份 `notes/prediction-scorecard.md`（12 條�
 | ID | 項目 | § | 可行性 | 出場證據 | 排程 | 結果 | 證據 |
 |---|---|---|---|---|---|---|---|
 | **P3-0** | 建立回顯通道（docroot 回寫 + 帶外） | 6.0 | ★★★★★ | 🟥 | W05 | 🔶 docroot 確認為 /var/web（ramfs，143 檔，每一檔 sha256 與 webbundle 報告相同）且可寫入；ICMP 通道亦驗過。GET 回來那一半未測——boa 在 qemu 下服務不了請求 | [oracle-design.md](notes/oracle-design.md) · [emulation-2018.md](notes/emulation-2018.md) |
-| **P3-1** | A2 formWsc / peerPin → system() | 6.1 | ★★★★★ | 🟥 | W06 | ⬜ | — |
-| **P3-2** | A3 formRoute / subnet → system()（本專案獨家，無 CVE） | 6.1 | ★★★★★ | 🟥 | W06 | ⬜ | — |
-| **P3-3** | A1 formSysCmd / sysCmd（CVE-2024-51228，解 X-8） | 6.1 | ★★★★★ | 🟥 | W06 | ⬜ | — |
-| P3-4 | A4 targetAPSsid（Playbook v1 誤植，實際在 R1 不在 R2） | 6.1 | ★★★☆☆ | 🟨 | W06 | ⬜ | — |
-| P3-5 | A2b formWsc / localPin（寫 flash） | 6.1 | ★★★★★ | 🟥 | W06 | ⬜ | — |
+| **P3-1** | A2 formWsc / peerPin → system() | 6.1 | ★★★★★ | 🟥 | W06 | ❌ peerPin produced zero echo requests. The discriminating control is the same handler through a different parameter: formWsc via localPin, the sprintf/system line W04 root-caused, produced four. So the handler IS reached and DOES call system(); peerPin specifically does not get there. BoaGate R2 named six sites in formWsc and at least this one is a false positive. | [BENCH-LOG.md](BENCH-LOG.md) |
+| **P3-2** | A3 formRoute / subnet → system()（本專案獨家，無 CVE） | 6.1 | ★★★★★ | 🟥 | W06 | ❌ formRoute/subnet produced zero echo requests, and the refutation was predicted with a mechanism BEFORE the test by prior art found the same evening: Cisco Talos TALOS-2023-1894 / CVE-2023-41251 reports this exact parameter in the same Realtek rtl819x SDK family as a 100-byte sprintf stack overflow with no system() anywhere. BoaGate R2 mis-classified an sprintf site as a system() site. That rule feeds conclusions about all three builds and has to be re-evaluated. D-1 in docs/disclosure.md loses its "no CVE" status: the parameter has had one since 2023, for a different defect class. | [prior-art.md](notes/prior-art.md) · [BENCH-LOG.md](BENCH-LOG.md) |
+| **P3-3** | A1 formSysCmd / sysCmd（CVE-2024-51228，解 X-8） | 6.1 | ★★★★★ | 🟥 | W06 | ✅ Unauthenticated command execution on this hardware, three independent channels. (1) ICMP: POST /boafrm/formSysCmd with sysCmd=ping -c 3 <bench> and NO credentials produced echo REQUESTS sourced from 10.1.1.1 — the reverse direction from the control, where the router sends type 0 replies. seq 0..3 one second apart, so four packets from one run of BusyBox ping -c 3, not two executions. (2) docroot: sysCmd=cat /etc/version > /var/web/w06.txt;# then GET /w06.txt returns TOTOLINK-CX-N150RT-V2.1.6-B20171121.1002. (3) the same request WITH credentials behaves identically, which is what rules out "I accidentally sent something". NVD scores CVE-2024-51228 PR:H; this is PR:N. Reproduced first in emulation (P0-9) and then on the device. | [BENCH-LOG.md](BENCH-LOG.md) · [runsheet.md](runsheet.md) |
+| P3-4 | A4 targetAPSsid（Playbook v1 誤植，實際在 R1 不在 R2） | 6.1 | ★★★☆☆ | 🟨 | W06 | ✅ Predicted NOT to be command injection, and it is not: targetAPSsid produced zero echo requests while localPin on the same handler produced four. R2 six-site count did not include it, and the behaviour agrees. | [BENCH-LOG.md](BENCH-LOG.md) |
+| P3-5 | A2b formWsc / localPin（寫 flash） | 6.1 | ★★★★★ | 🟥 | W06 | ✅ localPin=13572468 through formWsc set HW_WLAN0_WSC_PIN to that value, read back through the device own flash get. The request took 14.0 s, the longest well-formed request measured on this device so far. IMPORTANT correction to plan/W06 section 2: flash set HW_WLAN0_WSC_PIN writes H601 (0x6000-0x8000), NOT COMPCS — HW_* ids live in the hardware MIB. W05 emulation output already showed the offsets 0x648a/0x648b/0x6493 inside H601 and nobody connected the two. So an unauthenticated HTTP request writes the region holding this unit MAC addresses and radio calibration, which a factory reset does not restore. | [BENCH-LOG.md](BENCH-LOG.md) · [runsheet.md](runsheet.md) |
 | P3-6 | 分隔符輪替（10 種語法） | 6.1 / 6.2 | ★★★★☆ | 🟦 | W05 | 🟪 十種分隔符九種在這台自己的 /bin/sh 上有效；|| 短路是因為 flash set 回傳 0，不是被過濾。handler 尾巴的 2>&1 > /tmp/syscmd.log 確實會蓋掉 payload 的 >，必須用 ;# 截斷 | [oracle-design.md](notes/oracle-design.md) |
-| P3-7 | 改用 GET / 換 submit 按鈕名稱 | 6.1 | ★★★☆☆ | 🟦 | W06 | ⬜ | — |
+| P3-7 | 改用 GET / 換 submit 按鈕名稱 | 6.1 | ★★★☆☆ | 🟦 | W06 | 🔶 Two halves, opposite outcomes. GET with the parameters in the query string does NOT execute: 302 and the target file is never created, because translate_uri redirects before handleForm. The submit button name is irrelevant: submit-url, Apply, save and no button field at all each executed, each with its own output file to prove which one did it, and the server survived every one. The first attempt used one shared filename and could not attribute the result. | [BENCH-LOG.md](BENCH-LOG.md) |
 | P3-8 | 診斷頁命令注入字典探測 | 6.3 | ★★☆☆☆ | ❌ | W07 | ⬜ | — |
 | P3-9 | formLogin topicurl JSON API 列舉 | 6.4 | ★★☆☆☆ | 🟨 | W07 | ⬜ | — |
 | P3-10 | cstecgi.cgi 探測 | 6.5 | ★☆☆☆☆ | 🟨 | W07 | ⬜ | — |
@@ -405,15 +405,15 @@ W05 週計畫原本要另外建一份 `notes/prediction-scorecard.md`（12 條�
 
 | ID | 項目 | § | 可行性 | 出場證據 | 排程 | 結果 | 證據 |
 |---|---|---|---|---|---|---|---|
-| **P4-1** | 不帶 submit-url → 往唯讀頁 strcpy（本專案獨家，無 CVE） | 7.1 | ★★★★☆ | 🟧 | W06 | ⬜ | — |
-| P4-2 | submit-url= 空值 → 1-byte heap 寫入 | 7.1 | ★★★★☆ | 🟧 | W06 | ⬜ | — |
-| P4-3 | submit-url 100-byte 階梯掃描 | 7.2 | ★★★★★ | 🟥 | W06 | ⬜ | — |
-| **P4-4** | ifname / wlan_id 的 20-byte 階梯（偏移與 100 那組完全不同） | 7.2 | ★★★★★ | 🟥 | W06 | ⬜ | — |
-| P4-5 | stack 溢位群（12 個函式、20+ 參數） | 7.3 | ★★★★☆ | 🟥 | W06 | ⬜ | — |
-| P4-6 | 已知 CVE 溢位端點逐一驗（12 條） | 7.4 | ★★★☆☆ | 🟨 | W06 | ⬜ | — |
-| **P4-7** | submit-url 全 57 端點通殺 + 存活探針 | 7.5 | ★★★☆☆ | 🟥 | W06 | ⬜ | — |
-| P4-8 | 超長 HTTP 標頭 / 參數數量炸彈 / Range | 7.6 | ★★★☆☆ | 🟦 | W06 | ⬜ | — |
-| P4-9 | boofuzz 系統化 fuzz | 7.7 | ★★★★☆ | — | W06 | ⬜ | — |
+| **P4-1** | 不帶 submit-url → 往唯讀頁 strcpy（本專案獨家，無 CVE） | 7.1 | ★★★★☆ | 🟧 | W06 | ❌ Does not reproduce on the 2018 build. A POST body omitting submit-url returns 200 on formNtp and formWlanSetup and 302 on formSelLang, and the server survives every time. Two false starts worth recording: the first used formWlanRedirect, which is in root_form[] but is NOT one of the 43 functions referencing lastUrl, so it exercised a different path; the second used `curl -X POST` with no body at all and got 400, which measures the parser rather than the missing parameter. D-2 was measured on V2.1.2 and its own text says that if it does not reproduce here it is a V2.1.2 finding and nothing more. | [BENCH-LOG.md](BENCH-LOG.md) |
+| P4-2 | submit-url= 空值 → 1-byte heap 寫入 | 7.1 | ★★★★☆ | 🟧 | W06 | ❌ Empty and absent are indistinguishable on this build: submit-url= and a body without submit-url both return the same status on the same handler and both leave the server running. The prediction was that they are different paths with different damage; they are neither. | [BENCH-LOG.md](BENCH-LOG.md) |
+| P4-3 | submit-url 100-byte 階梯掃描 | 7.2 | ★★★★★ | 🟥 | W06 | ❌ Refuted with a positive witness rather than with an absence. formNtp echoes submit-url into its Location header, so the value is provably reaching the code that consumes it: 8 bytes echo 7 As, 800 bytes echo 799 As, with no truncation at 100 and no crash, no reboot and no observable change at any length. So on this build submit-url is not the lastUrl[100] idiom W04 measured on V2.1.2. formSelLang was the wrong witness — it redirects to a hardcoded countDownPage.htm whatever you send, which is why an earlier round measured nothing. | [BENCH-LOG.md](BENCH-LOG.md) |
+| **P4-4** | ifname / wlan_id 的 20-byte 階梯（偏移與 100 那組完全不同） | 7.2 | ★★★★★ | 🟥 | W06 | ❌ ifname and wlan_id at 16, 20, 24, 40, 80, 120 and 160 bytes on formWlanSetup: 200 every time, server alive every time. The 20-byte buffer class R3 separates from the 100-byte one produces no observable difference here either. | [BENCH-LOG.md](BENCH-LOG.md) |
+| P4-5 | stack 溢位群（12 個函式、20+ 參數） | 7.3 | ★★★★☆ | 🟥 | W07 | ⬜ | — |
+| P4-6 | 已知 CVE 溢位端點逐一驗（12 條） | 7.4 | ★★★☆☆ | 🟨 | W07 | ⬜ | — |
+| **P4-7** | submit-url 全 57 端點通殺 + 存活探針 | 7.5 | ★★★☆☆ | 🟥 | W07 | ⬜ | — |
+| P4-8 | 超長 HTTP 標頭 / 參數數量炸彈 / Range | 7.6 | ★★★☆☆ | 🟦 | W07 | ⬜ | — |
+| P4-9 | boofuzz 系統化 fuzz | 7.7 | ★★★★☆ | — | W07 | ⬜ | — |
 
 <details><summary>Phase 4 的預測與反證條件（9/9 項已凍結）</summary>
 
@@ -469,12 +469,12 @@ W05 週計畫原本要另外建一份 `notes/prediction-scorecard.md`（12 條�
 
 | ID | 項目 | § | 可行性 | 出場證據 | 排程 | 結果 | 證據 |
 |---|---|---|---|---|---|---|---|
-| P5-1 | cyclic pattern 定偏移 + epc 可控 | 8.3 | ★★★★☆ | 🟥 | W06 | ⬜ | — |
-| P5-2 | MIPS ret2libc | 8.3 | ★★★★☆ | 🟥 | W06 | ⬜ | — |
-| P5-3 | GOT 覆寫（No RELRO） | 8.3 | ★★★☆☆ | 🟥 | W06 | ⬜ | — |
-| P5-4 | MIPS-BE 交叉編譯 + msfvenom 產 payload | 8.4 | ★★★★☆ | — | W06 | ⬜ | — |
-| **P5-5** | cat /proc/cpuinfo —— Lexra 那塊最後的拼圖 | 8.2 | ★★★★★ | 🟥 | W06 | ⬜ | — |
-| P5-6 | qemu + LD_PRELOAD 桌機 fuzz（省實體機） | 8.5 | ★★★★☆ | 🟧 | W06 | ⬜ | — |
+| P5-1 | cyclic pattern 定偏移 + epc 可控 | 8.3 | ★★★★☆ | 🟥 | W07 | ⬜ | — |
+| P5-2 | MIPS ret2libc | 8.3 | ★★★★☆ | 🟥 | W07 | ⬜ | — |
+| P5-3 | GOT 覆寫（No RELRO） | 8.3 | ★★★☆☆ | 🟥 | W07 | ⬜ | — |
+| P5-4 | MIPS-BE 交叉編譯 + msfvenom 產 payload | 8.4 | ★★★★☆ | — | W07 | ⬜ | — |
+| **P5-5** | cat /proc/cpuinfo —— Lexra 那塊最後的拼圖 | 8.2 | ★★★★★ | 🟥 | W06 | 🔶 Retrieved, and it does not answer the question. /proc/cpuinfo on this unit reads: system type RTL819xD, cpu model 52481, BogoMIPS 398.95, tlb_entries 32, mips16 implemented yes, hardware watchpoint no. "cpu model" is a decimal NUMBER, not a core name, so neither RLX4181 nor RLX5281 is confirmed or excluded and W02 open #6 stays open — but it is now open for a different reason: the device does not expose a core name at all, rather than nobody having looked. Two follow-ups were tried and both failed usefully: /proc/cpu does not exist on this kernel, so there is no unaligned-access fixup counter to read, and dmesg returns zero bytes. What the same access DID produce is the kernel banner: Linux 2.6.30.9, gcc 4.4.5-1.5.5p2, built Wed Jan 10 14:50:54 CST 2018 by admin@office.hopeiot — seven minutes before boa is stamped, so kernel and userland come from one build session, which corroborates the W02 timestamp argument from a source W02 never read. And MemTotal is 26052 kB, which refines W02 claim that fitted and usable agree at 32 MiB: 32 MiB is what the boot loader detects, 25.4 MiB is what Linux has. The decisive test for the Lexra question is now a string scan of the decompressed kernel, which needs no device. | [BENCH-LOG.md](BENCH-LOG.md) |
+| P5-6 | qemu + LD_PRELOAD 桌機 fuzz（省實體機） | 8.5 | ★★★★☆ | 🟧 | W07 | ⬜ | — |
 | P5-7 | BinDiff 差分：拿 3.4.0 的漏洞當這台的地圖 | 8.6 | ★★★★☆ | 🟧 | W07 | ⬜ | — |
 
 <details><summary>Phase 5 的預測與反證條件（7/7 項已凍結）</summary>
@@ -804,11 +804,11 @@ W05 週計畫原本要另外建一份 `notes/prediction-scorecard.md`（12 條�
 | ID | 項目 | § | 可行性 | 出場證據 | 排程 | 結果 | 證據 |
 |---|---|---|---|---|---|---|---|
 | **P10-1** | config.dat 兩段式外洩（PROGRESS 開放 #8） | 13.1 | ★★★★☆ | 🟦 | W06 | ✅ 第 2 次 GET /config.dat 回 200/7490B，body 開頭是 COMPCS，而且與我們自己 flash dump 的 0xC000 起 7490 bytes **sha256 完全相同**。不需要 formSaveConfig。順帶：這是第二個獨立儀器讀到這顆 flash（kernel MTD + 乙太網 vs bootloader FLR + UART），W02 開放 #11 在這個區段上關掉 | [BENCH-LOG.md](BENCH-LOG.md) |
-| P10-2 | config 檔名字典掃描（20+ 路徑） | 13.1 | ★★★☆☆ | 🟦 | W06 | ⬜ | — |
-| P10-3 | 未認證改管理密碼 | 13.2 | ★★★★☆ | 🟨 | W06 | ⬜ | — |
-| **P10-4** | 把密碼設成空字串 → 全機無認證（本專案獨家） | 13.2 | ★★★☆☆ | 🟥 | W06 | ⬜ | — |
+| P10-2 | config 檔名字典掃描（20+ 路徑） | 13.1 | ★★★☆☆ | 🟦 | W06 | ✅ 156 paths: the 143 names in this unit own w6cg bundle plus 13 suspects that are not in it. Of the 13, only config.dat answers 200, and it is the only 200 in the whole scan that is not a bundle name — boa creates it at start-up. Distribution 83x302 / 73x200. The three 000 in the raw output were the scan own liveness-control lines, which had been formatted with a leading 000 to align the columns and were therefore indistinguishable from failures. | [BENCH-LOG.md](BENCH-LOG.md) |
+| P10-3 | 未認證改管理密碼 | 13.2 | ★★★★☆ | 🟨 | W06 | ✅ Confirmed in its strongest form and at the first attempt. The form carries Cusername/Cpassword fields for the CURRENT credentials; the handler does not check them. An unauthenticated POST to /boafrm/formPasswordSetup carrying no current-password field at all changed the administrator password: old credentials went 200 to 302 and the new ones 302 to 200. So the chain is shorter than planned — reading the password out of config.dat first is not necessary. | [BENCH-LOG.md](BENCH-LOG.md) |
+| **P10-4** | 把密碼設成空字串 → 全機無認證（本專案獨家） | 13.2 | ★★★☆☆ | 🟥 | W06 | ✅ With USER_PASSWORD empty, password.htm returns 200 and 5322 bytes of real HTML with no Authorization header at all, and home.htm, wlbasic.htm, ddns.htm and status.htm likewise. A WRONG password also returns 200, so the comparison is skipped entirely rather than matching empty against empty. That is the beq at 0x0040bd18 as W04-2 read it. With P10-3 this is a complete unauthenticated takeover: docs/disclosure.md D-4 says reachability matters more than the branch, and the path exists. First run of this test built its URLs from a loop variable the WSL dispatch strips, so four requests all went to / and four 200s nearly became a headline. | [BENCH-LOG.md](BENCH-LOG.md) |
 | **P10-7** | 出廠私鑰 /etc/privateKey.key（未讀） | 13.4 | ★★★☆☆ | 🟦 | W07 | ⬜ | — |
-| **P10-10** | 收工還原 + 基準線比對 | 13.7 | ★★★★★ | — | W06 | ⬜ | — |
+| **P10-10** | 收工還原 + 基準線比對 | 13.7 | ★★★★★ | — | W06 | ✅ Not one unattributable byte. Four 64 KiB snapshots were taken through the boot loader across the session. H601 (0x6000-0x8000): nine bytes moved and all nine came back — the eight ASCII digits of HW_WLAN0_WSC_PIN plus the region checksum at 0x006493, which the device recomputed itself. The final read is byte-identical BOTH to the pre-injection snapshot AND to the 2026-08-16 full dump, taken before this project had ever written to the device. The boot loader region never moved at all. COMPDS and COMPCS differ, and every field is named: COMPCS moved in exactly two, SYSCMD_SELECT and WPS_FIRST, which are the two handlers that were fired; COMPDS moved in twenty-five, all converging on COMPCS values, which is D-10 and not a side effect of any single test. New baseline for the next session: COMPCS vs COMPDS differ in 0 of 343. And a procedure correction that cost nothing to learn but would have cost a session to guess: restoring COMPDS at the START of a bench session is pointless, because any POST rewrites it from COMPCS before the session ends. It belongs at the end. | [BENCH-LOG.md](BENCH-LOG.md) · [runsheet.md](runsheet.md) |
 
 <details><summary>Phase 10 的預測與反證條件（6/6 項已凍結）</summary>
 

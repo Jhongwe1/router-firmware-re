@@ -44,9 +44,25 @@ note = "W05 Day 0 — frozen before any request has been served to this device."
 # breaking the plan or editing the field. Editing it quietly is
 # indistinguishable from moving the goalposts, so now it hashes.
 # `python3 tools/rtcase.py schedule` prints the current value.
-sha256 = "d68ace7d7636ac4686cc2331c0f3f047e3f2cca534dcacc58dab7960c655d341"
+sha256 = "fd9a23c53b8b39aea7a1da5cb6091c343fba922820c2a9512921ce0c99323fcc"
 committed = "2026-08-17"
-note = "Four cases moved out of W05 on 2026-08-17; each carries its reason."
+note = """The payload changed on 2026-08-17: it was (id, week) and is now
+(id, week, rescheduled_from, reschedule_date, reschedule_reason), so every
+declared hash before this line is on the old basis and cannot be compared to
+this one. It changed because of a specific failure, not for symmetry — see
+`tools/rtcase.py schedule_payload`.
+
+Four cases moved out of W05 on 2026-08-17; each carries its reason.
+Ten more moved out of W06 the same day — the Phase 4/5 fuzz and
+exploit-development block. Same failure as the W05 four: the register was built
+by walking the playbook's sections, so cases landed in the week whose section
+number matched rather than the week whose plan admits them, and W06's plan
+forbids fuzzing outright. The reasons here are not "no time": P4-9 is blocked on
+the device (nothing respawns boa, so a run is ~45 requests per power cycle) AND
+in emulation (P0-9 refuted — boa cannot complete one GET under qemu-user), and
+the P5-1 chain has no oracle at all, because this unit has no shell and no
+gdbserver and nothing here has ever shown that a userspace fault prints
+registers on its console."""
 
 [ledger]
 output = "test-ledger.md"
@@ -794,7 +810,10 @@ section = "7.3"
 title = "stack 溢位群（12 個函式、20+ 參數）"
 feasibility = 4
 exit_evidence = "static"
-week = "W06"
+week = "W07"
+rescheduled_from = "W06"
+reschedule_date = "2026-08-17"
+reschedule_reason = '''【2026-08-17 更正】原文說這一項的 oracle 不存在，那句話對實機成立、對桌機不成立——同一天 P0-9 被確認，模擬下 qemu 會印出訊號與 si_addr。所以擋住它的不再是「看不見」，而是 W06 計畫 §六明文禁止本週開新的記憶體破壞工作，加上一個順序問題：崩潰要先在模擬下量到、再決定值不值得在實機上花開機循環去確認，而模擬那條路今天才通。十二個函式、20+ 參數的普查本來就是 W07 的形狀。'''
 predict = 'stack 溢位比 .bss 溢位更接近典型 RCE，因為返回位址在同一個框架裡'
 refute = '崩潰但 epc 不可控 → 覆寫的不是返回位址，回去讀框架佈局'
 
@@ -805,7 +824,10 @@ section = "7.4"
 title = "已知 CVE 溢位端點逐一驗（12 條）"
 feasibility = 3
 exit_evidence = "presumed"
-week = "W06"
+week = "W07"
+rescheduled_from = "W06"
+reschedule_date = "2026-08-17"
+reschedule_reason = '''十二個端點就是十二個 handler，而 W05 量到 boa 掛掉之後沒有任何東西會重起它（rcS 起它一次），所以每一個可能崩潰的端點在最壞情況下各要一次斷電重開加 45 秒。這不是一個下午的形狀，而且它問的是「已公布的參數名在這台對不對得上」——那是系統化盤點，正是 W07 的題目。'''
 predict = 'CVE-2025 那批的參數名有幾個對不上這台：3988 公布 service_type，這台 R1 指認的是 comment'
 refute = '公布的參數名在這台一樣有效 → 參數名差異只是報告寫法，不是 build 差異'
 
@@ -816,7 +838,10 @@ section = "7.5"
 title = "submit-url 全 57 端點通殺 + 存活探針"
 feasibility = 3
 exit_evidence = "static"
-week = "W06"
+week = "W07"
+rescheduled_from = "W06"
+reschedule_date = "2026-08-17"
+reschedule_reason = '''W05 的 POST 輪已經兩次在第 45 個請求附近把 web server 弄掉。57 個端點再乘上長度階梯，保證會反覆掛掉，而每次復原要一次斷電重開。這一項本身也不是 PoC 而是普查：它問的是「R3 指認的 36 個共用同一慣用語的 handler 是不是真的都有反應」，那是 bug hunt 的定義。'''
 star = true
 predict = 'R3 指認 36 個 handler 共用這個慣用語，所以「四個有 CVE 編號的」是取樣不是集合'
 refute = '只有那四個有反應 → 36 這個數字是工具的過度指認，BoaGate R3 要重評'
@@ -828,7 +853,10 @@ section = "7.6"
 title = "超長 HTTP 標頭 / 參數數量炸彈 / Range"
 feasibility = 3
 exit_evidence = "unverified"
-week = "W06"
+week = "W07"
+rescheduled_from = "W06"
+reschedule_date = "2026-08-17"
+reschedule_reason = '''P2-6 這一週會做，而它已經取樣了協定層（0.9 風格、版本號、chunked）。P4-8 是同一個問題的窮舉版本——超長標頭、參數數量炸彈、Range——而窮舉需要一套存活記帳，因為每一發都可能讓 server 消失，之後每一項的結果都會變成「連不上」。取樣本週做，窮舉跟著 W07 的 fuzz 一起做。'''
 predict = 'Boa 的標頭緩衝區與 Realtek form 解析器的 param 陣列都是固定大小'
 refute = '10 萬個參數也正常處理 → 是動態配置，這條收掉'
 
@@ -839,7 +867,10 @@ section = "7.7"
 title = "boofuzz 系統化 fuzz"
 feasibility = 4
 exit_evidence = "none"
-week = "W06"
+week = "W07"
+rescheduled_from = "W06"
+reschedule_date = "2026-08-17"
+reschedule_reason = '''實機端的理由成立，模擬端的理由是錯的，而錯的那一半是我從 W05 的散文裡讀來的、沒有量過就寫進這個欄位。【2026-08-17 更正】原文寫「模擬：P0-9 這一週被反證，boa 在 qemu-user 下連一個 GET 都完成不了」——當天稍後真的去跑，P0-9 是 confirmed：對齊陷阱只落在啟動時產生 /web/config.dat 那一條路徑，擋掉那一個 open() 之後 boa 會 bind、會回應，連 POST /boafrm/formSysCmd 的命令注入都在模擬下端到端成立。所以留在 W07 的理由改成兩條，兩條都還站得住：W06 計畫 §六明文禁止本週 fuzz；而讓 campaign 變得可行的那個目標是**今天才被證明存在的**，替它寫一套 harness 是一件有範圍的工作，不是一週結尾的一個下午。實機那一半不變：boa 掛掉沒有東西重起它，一輪約 45 個畸形請求就要人去拔電。'''
 predict = '端點清單用 root_form[] 的 57 個，參數名用 R1/R2/R3 實際指認的，不是猜的'
 refute = '跑滿一輪零崩潰，而同一輪裡 P4-3 的已知崩潰也沒被抓到 → fuzz harness 的存活偵測壞了，先修 harness'
 
@@ -854,7 +885,10 @@ section = "8.3"
 title = "cyclic pattern 定偏移 + epc 可控"
 feasibility = 4
 exit_evidence = "static"
-week = "W06"
+week = "W07"
+rescheduled_from = "W06"
+reschedule_date = "2026-08-17"
+reschedule_reason = '''oracle 不存在這件事要講精確，而原文講得太寬。【2026-08-17 更正】原文寫「這台沒有 shell、沒有 gdbserver，epc 的觀察通道目前不存在」——**在實機上這句話仍然成立**，但同一天 P0-9 被確認之後，模擬環境裡 qemu 自己就會印出訊號與 si_addr，也能 dump core，所以觀察通道在桌機上是有的。這改變了這一項的形狀而不是它的週次：偏移要在模擬下量、再到實機驗，而那條路徑的第一步是 P5-6。登記簿原本把它評為可行度 4，那個評分假設了一個可以讀暫存器的環境；現在那個環境存在了，但它不是實機。'''
 predict = '無 canary、無 RELRO、無 PIE、無 NX，所以偏移一量到就直接可控'
 refute = 'epc 落在不可預測的值 → 覆寫路徑中間有別的東西，回頭看框架'
 
@@ -865,7 +899,10 @@ section = "8.3"
 title = "MIPS ret2libc"
 feasibility = 4
 exit_evidence = "static"
-week = "W06"
+week = "W07"
+rescheduled_from = "W06"
+reschedule_date = "2026-08-17"
+reschedule_reason = '''依賴 P5-1。沒有一個可控的 epc，ret2libc 沒有東西可以放進去；先算出 system 的位址只是把一個未來的參數準備好，不產生關於這台的任何可驗證事實。'''
 predict = 'uClibc 位址固定（無 ASLR），system 的位址可直接算'
 refute = '兩次重開機後 libc 基底位址不同 → 有某種隨機化，整條利用鏈要重做'
 
@@ -876,7 +913,10 @@ section = "8.3"
 title = "GOT 覆寫（No RELRO）"
 feasibility = 3
 exit_evidence = "static"
-week = "W06"
+week = "W07"
+rescheduled_from = "W06"
+reschedule_date = "2026-08-17"
+reschedule_reason = '''依賴 P5-1。GOT 可不可寫是靜態問題（checksec 已經說 No RELRO），而「覆寫之後下一次呼叫會執行」要一個能觀察執行流的通道，那就是 P5-1 缺的那一個。'''
 predict = 'GOT 可寫，覆寫成 system 位址後下一次呼叫該函式時第一個參數即為命令'
 refute = 'GOT 段實際唯讀 → checksec 的 No RELRO 判定錯誤，那是工具問題不是 build 問題'
 
@@ -887,7 +927,10 @@ section = "8.4"
 title = "MIPS-BE 交叉編譯 + msfvenom 產 payload"
 feasibility = 4
 exit_evidence = "none"
-week = "W06"
+week = "W07"
+rescheduled_from = "W06"
+reschedule_date = "2026-08-17"
+reschedule_reason = '''順序不對。這一項是替一條還沒有可控 epc 的利用鏈準備 payload，而在有東西可以投遞之前先建交叉編譯工具鏈，是把工作做在錯的順序上。它本身不難也沒有風險，正因為如此它應該排在需要它的那一步旁邊。'''
 predict = 'Big-Endian（boa = MIPS:BE:32），所以工具鏈要 mips-linux-gnu 不是 mipsel'
 refute = '產出的 binary 在機上跑不起來 → 先驗 endianness 與 ABI，不要先懷疑 payload'
 
@@ -910,7 +953,10 @@ section = "8.5"
 title = "qemu + LD_PRELOAD 桌機 fuzz（省實體機）"
 feasibility = 4
 exit_evidence = "other-build"
-week = "W06"
+week = "W07"
+rescheduled_from = "W06"
+reschedule_date = "2026-08-17"
+reschedule_reason = '''前提恢復了，而那反而是它該留在 W07 的理由。【2026-08-17 更正】原文寫「P0-9 的反證條件因此觸發，而 P5-6 建立在 P0-9 成立之上」——當天量出來 P0-9 是 confirmed，所以這一項不但沒有失去前提，它現在是整個 Phase 4/5 區塊的篩選工具。正因為如此，把它擠進 W06 最後幾個小時是錯的分配：它要排在 W07 那個區塊的最前面，讓後面每一項都能先在桌機上篩過再上實機。tools/qemu-env.sh serve 已經把「站起來並且證明閘門行為跟實機一致」做成一個會拒絕的子命令，所以這一項的起點已經在了。'''
 predict = 'HTTP 解析器的部分常可在模擬下跑起來，apmib 的部分需要 shim'
 refute = '模擬下的崩潰在實體機上重現不了 → 模擬環境的結論不能外推，只能當篩選器不能當證據'
 

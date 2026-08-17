@@ -9,14 +9,23 @@ trace **already-publicly-disclosed** vulnerabilities down to the responsible
 function in the binary.
 
 > 🚧 **In progress since 2026-07-30. G0 ✅ · G1 ✅ · G2 ✅ passed 2026-08-16 ·
-> G3 ✅ passed 2026-08-11 · G3.5 ✅ · G3.75 ✅ both passed 2026-08-17.**
+> G3 ✅ passed 2026-08-11 · G3.5 ✅ · G3.75 ✅ both passed 2026-08-17 ·
+> G4 ⚠️ four of five, 2026-08-17.**
 >
-> **Latest (W05, 2026-08-17): this unit's own firmware now runs on an x86 host,
-> with a byte-for-byte copy of its own flash standing in for `/dev/mtdblock0`.**
-> The obstacle everyone names for Realtek SDK emulation is the Lexra instruction
-> set; the actual obstacle was that `libapmib` reads flash partitions that do not
-> exist in a chroot — and it reads them with `lseek`+`read`, so the fix was to
-> supply a file. W02's dump is that file.
+> **Latest (W06, 2026-08-17): an unauthenticated HTTP POST changed nine specific
+> bytes on this router's SPI flash, and all nine are named.** Eight are the ASCII
+> digits of a value chosen by the client; the ninth is the region's checksum,
+> recomputed by the device. They are read before and after through the boot
+> loader over a serial console — a path sharing no code with the web server, the
+> kernel, or Ethernet.
+>
+> **They are also in the wrong region.** The plan said that write lands in the
+> configuration block. It lands in `H601`, which holds this unit's MAC addresses
+> and radio calibration — measured at manufacture, in no vendor image, and **not
+> restored by a factory reset.**
+>
+> All nine were put back, and the final read is byte-identical to a dump taken
+> before this project had ever written to the device.
 >
 > Two instruments written for this project are now confirmed by the vendor's own
 > binaries running over the same bytes: `flash extr /web` writes **143 files
@@ -457,18 +466,53 @@ that is not backed by a command someone else can re-run.
   > backdoor, and the wireless attacks whose radiation reaches third parties.
   > None of them produce a checkable fact about this device.
 
-- [ ] **G4 — a PoC a stranger can follow** (W05–W06)
-  - [ ] ≥ 1 CVE reproduced on the physical unit or under emulation
-  - [ ] `poc/` with preconditions, copy-pasteable `curl`, expected result, evidence
-  - [ ] a stranger clones the repo and reproduces it inside 5 minutes
+- [ ] **G4 — a PoC a stranger can follow** (W05–W06) ⚠️ **four of five, 2026-08-17** ← [PROGRESS.md](PROGRESS.md#w06--2026-08-17-night)
+  - [x] a chain on the physical unit, each link separately pointable — [`poc/`](poc/)
+  - [x] **at least one link evidenced out of band**, not from the HTTP response — **two**: ICMP echo requests sourced from the router, and nine named bytes on the SPI NOR
+  - [ ] **an L2 path: anyone, a downloadable image, emulation** — ❌ see below
+  - [x] every PoC document opens with a scope table saying which builds were tested and which were not
+  - [x] [`poc/run.sh`](poc/run.sh) fails and names the failing step — 11 checks against the device, 8 under emulation, and it caught two defects **in itself** on its first run
 
-  > ✅ **The emulation risk is already partly retired.** The plan flagged this as
-  > a W05 risk; a ten-minute check at W01 close-out showed the cheap path works —
-  > the 2015 MIPS binaries run on an x86 host under `qemu-mips-static` in a
-  > chroot, and `/bin/boa` prints its real usage text including `-c serverroot`
-  > and `-f configfile`. **Scope: this shows the binaries load and start.**
-  > Serving an actual request goes through `libapmib.so`, which reads `/dev/mtd*`
-  > partitions that do not exist in a chroot. Bridging that is still G4's problem.
+  > ❌ **The clause that failed, and why it is worth more than passing would have
+  > been.** The plan assumed the L2 reproduction would run the `localPin` line,
+  > which *is* byte-identical in the 2015 and 2020 images. W04-2 then moved G4's
+  > target to `formSysCmd` for a good reason — it is the CVE that names the build
+  > this unit runs — and nobody noticed that **the new target is in neither
+  > downloadable image's dispatch table**, so the chain cannot exist there at all.
+  > Two individually correct decisions whose combination was not. The route is now
+  > open (see below) and closing it is a desktop task with no device.
+
+  > ✅ **`boa` serves under `qemu-user` after all, and W05 said it could not.**
+  > The alignment trap is real, but `-strace` puts it in one place: `boa` takes
+  > `SIGBUS` at an odd address immediately after
+  > `open("/web/config.dat", O_RDWR|O_CREAT|O_TRUNC)` — it dies **generating**
+  > that file at start-up, not serving. Make that one `open()` fail and the server
+  > binds and answers, with the authorisation gate behaving exactly as W04-2 read
+  > it at instruction level: an exempt page 200, a gated page 302. The
+  > unauthenticated command injection reproduces there too, **with no device
+  > attached**.
+  >
+  > The irony is exact: the line that produces this project's best evidence chain
+  > — an unauthenticated `GET /config.dat` — is the same line that makes it the
+  > one link emulation cannot reproduce.
+
+  > 🔴 **What the flash evidence turned out to be.** `plan/W06` drew the last link
+  > as *"`flash set` writes the `COMPCS` block"*. It writes **`H601`** — the
+  > hardware MIB at `0x6000`, which holds this unit's MAC addresses and its radio
+  > calibration constants. They were measured at manufacture, appear in no vendor
+  > image, and **a factory reset does not restore them**. So one unauthenticated
+  > HTTP POST reaches the one region of this device that cannot be recovered from
+  > any source outside the device itself.
+  >
+  > This project spent that morning building a flash writer whose allow-list makes
+  > `H601` unreachable by construction, with no flag to widen it — and then the
+  > device's own `flash set`, driven by one request, wrote it anyway. **The guard
+  > protected the instrument, not the device.**
+  >
+  > Nine bytes changed, all nine came back, and the final read is byte-identical
+  > both to the pre-injection snapshot and to a dump taken before this project had
+  > ever written to the device. **Changed, pointed at, and reversed — all three on
+  > silicon.**
 
 - [ ] **G5 — published write-up** (W08–W09) — a stranger understands the whole chain in 10 minutes
 - [ ] **W07 — systematic bug hunt** (no gate) — 8 categories, not driven by known CVEs
@@ -491,7 +535,9 @@ that is not backed by a command someone else can re-run.
 | [`notes/dump-vs-official.md`](notes/dump-vs-official.md) | **The 4 MiB dump against the two published images** — a five-year vendor remediation caught mid-step, and what four layers of verification do and do not prove |
 | [`notes/prior-art.md`](notes/prior-art.md) | Who disclosed what, when — and which claims survive contact with these images |
 | [`notes/cve-status.md`](notes/cve-status.md) | **Per-CVE, against the build this unit runs** — five located in its own binary, two refuted by it, and two published endpoint names that exist in no dispatch table |
-| [`docs/disclosure.md`](docs/disclosure.md) | **The disclosure register** — what might be new, what state it is in, and the rule separating a finding from a reproduction from tradecraft |
+| [`poc/`](poc/) | **The reproductions** — two public CVE chains with the requests, the flash-byte evidence, and one file that deliberately carries **no request at all** because what it describes has not been reported to anyone. `run.sh` runs against a device or against an emulated copy, and says which step failed |
+| [`docs/report-draft.md`](docs/report-draft.md) | **The report that has not been sent** — what would go to TWCERT/CC, what is attached and what is not, and the one step that is blocking it |
+| [`docs/disclosure.md`](docs/disclosure.md) | **The disclosure register** — what might be new, what state it is in, and the rule separating a finding from a reproduction from tradecraft. Two entries were **withdrawn** on 2026-08-17, one of them by prior art that a by-handler search found in a single query |
 | [`test-ledger.md`](test-ledger.md) | **The test register, generated** — 130 tests with their predictions frozen before the first request, what would refute each, and what nine items were cut and why (Traditional Chinese) |
 | [`notes/attack-surface.md`](notes/attack-surface.md) | Where to look, ranked |
 | [`notes/ghidra-triage.md`](notes/ghidra-triage.md) | Which functions to open first, and why — with the three W01 calls W03 overturned |

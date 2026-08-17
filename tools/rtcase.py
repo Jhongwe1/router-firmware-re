@@ -221,7 +221,7 @@ def freeze_hash(cases: list[dict[str, Any]]) -> str:
 
 
 def schedule_payload(cases: list[dict[str, Any]]) -> bytes:
-    """Canonical bytes over (id, week) for every live case.
+    """Canonical bytes over (id, week, and the reschedule record) for live cases.
 
     The freeze stops a *prediction* moving after a result. Nothing stopped a
     *week* moving, and on 2026-08-17 that gap had teeth: four cases scheduled
@@ -235,8 +235,29 @@ def schedule_payload(cases: list[dict[str, Any]]) -> bytes:
     diff beside its reason, exactly as a prediction change does. `week` stays out
     of the *freeze* hash on purpose: rescheduling is legitimate and re-freezing
     for it would make the freeze mean two things.
+
+    The *reason* joined the payload later the same day, and it was added because
+    of a specific failure rather than for symmetry. Ten cases were moved out of
+    W06 citing, among other things, that boa cannot serve under qemu-user. That
+    claim came from reading a previous week's prose instead of running the test;
+    when the test was run, P0-9 came back `confirmed` and four of the ten reasons
+    were wrong. Correcting them did not move this hash, because it covered only
+    (id, week) -- so a reason could be rewritten afterwards with nothing marking
+    it, and "I could not do this" could become "I chose not to" without a trace.
+    That is the same self-deception the prediction freeze exists to stop, one
+    field over. Now a reason edit has to be re-declared exactly like a week move.
     """
-    live = sorted((c["id"], str(c.get("week", ""))) for c in cases if not is_cut(c))
+    live = sorted(
+        (
+            c["id"],
+            str(c.get("week", "")),
+            str(c.get("rescheduled_from", "")),
+            str(c.get("reschedule_date", "")),
+            str(c.get("reschedule_reason", "")),
+        )
+        for c in cases
+        if not is_cut(c)
+    )
     return json.dumps(live, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
 
 
@@ -367,12 +388,15 @@ def check(register_path: Path, results_path: Path) -> int:
         moved = [c["id"] for c in cases if str(c.get("rescheduled_from", "")).strip()]
         errors.append(
             f"schedule mismatch: register declares {declared_sched[:16] or '<empty>'}..., "
-            f"the (id, week) pairs hash to {actual_sched[:16]}...\n"
-            "       A week moved. That is allowed, and it is not allowed to be "
-            "quiet: set `rescheduled_from`, `reschedule_reason` and "
-            "`reschedule_date` on each case that moved, then put the new hash in "
-            "[schedule].sha256 in the same commit - `python3 tools/rtcase.py "
-            "schedule` prints it.\n"
+            f"the schedule hashes to {actual_sched[:16]}...\n"
+            "       Either a week moved or a reschedule reason was edited. Both "
+            "are allowed, and neither is allowed to be quiet: set "
+            "`rescheduled_from`, `reschedule_reason` and `reschedule_date` on "
+            "each case that moved, then put the new hash in [schedule].sha256 in "
+            "the same commit - `python3 tools/rtcase.py schedule` prints it.\n"
+            "       The reason is hashed because on 2026-08-17 four of them were "
+            "written from a previous week's prose rather than from a measurement, "
+            "and correcting them moved nothing.\n"
             f"       Cases currently carrying a reschedule record: {moved or 'none'}"
         )
 

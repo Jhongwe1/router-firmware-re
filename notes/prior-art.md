@@ -290,9 +290,121 @@ Two things follow, and the second matters more:
 
 ---
 
+## 2023 — `formRoute` / `subnet` was already published, and it is not the defect this project recorded
+
+**Searched 2026-08-17, before the test that would have decided it.** This is the
+first time the rule the section above ends with was applied deliberately rather
+than in hindsight, and it changed an answer inside one query.
+
+| how it was searched | what came back |
+|---|---|
+| `TOTOLINK N150RT formRoute subnet` — **by product** | nothing about `formRoute`. Every result was a `formWsc` CVE |
+| `formRoute boafrm Realtek SDK subnet` — **by handler** | **Cisco Talos TALOS-2023-1894 / CVE-2023-41251**, first page |
+
+Talos read the Realtek **rtl819x Jungle SDK v3.4.11** (via the LevelOne
+WBR-6013, `RER4_A_v3411b_2T2R_LEV_09_170623`) and reported, in `formRoute`, on
+the `subnet` parameter:
+
+> a fixed 100-byte stack buffer `tmpBuf`, formatted with `sprintf()` into
+> `"Invalid Netmask: <subnet>"` with no bounds check, reached when the netmask
+> validation fails. **Purely memory corruption — no `system()`, no shell.**
+
+**Three consequences, and the second is the one that costs this project
+something.**
+
+1. **The handler and the parameter are not unexamined ground.** `D-1` in
+   [`docs/disclosure.md`](../docs/disclosure.md) is described as this project's
+   own, with no CVE. The *parameter* has had one since 2023.
+2. **It predicts, with a mechanism, that `P3-2` is a tooling artefact.**
+   `BoaGate`'s R2 rule flags `form_formRoute` / `subnet` as reaching `system()`
+   in all three builds, and W04's hand reading never saw it. Talos, reading the
+   same SDK family, found a `sprintf` into a fixed buffer at that parameter.
+   **An `sprintf` site mis-classified as a `system()` site is the cheapest
+   explanation available**, and `P3-2`'s refutation condition — frozen before any
+   packet was sent — says exactly that: *the tool is wrong, R2 has to be
+   rewritten, and it affects the other two builds' conclusions too.*
+3. **It does not settle it.** Different vendor, different SDK point release, and
+   `sprintf`-into-a-buffer and `system()`-on-a-string can both exist in one
+   handler. What it does is turn `P3-2` from "does this fire?" into "does this
+   fire, *and* is our tool reading the same line Talos read?" — which is a better
+   question and needs the same single request to answer.
+
+> **The prediction was not touched.** It is frozen and hashed, and finding prior
+> art that argues against it is not a licence to edit it. The prior art is
+> recorded here with its date; the test runs as written. Either the instrument
+> is vindicated or this is instrument bug 25 — and the second outcome is worth
+> more, because R2's count feeds three builds' worth of conclusions.
+
+**And the meta-result stands on its own:** the by-product search returned
+nothing and the by-handler search returned a Talos advisory on the first page.
+That is the 2024 lesson — *a build string is a search term* — generalised: **a
+handler name is a search term too, and it crosses vendors while a product name
+does not.** This SDK ships under dozens of brands; anything found by grepping
+`/bin/boa` should be searched the way the SDK is written, not the way the box is
+labelled.
+
+---
+
+## 2023 — a published bypass against this exact Boa version, and it does not apply
+
+**Searched 2026-08-17 night, while running the per-handler search
+`docs/disclosure.md` step 2 requires before reporting anything.** The search was
+for the password handler; what it surfaced was a version match.
+
+**exploit-db 51139 — Boa Web Server 0.94.13–0.94.14, authentication bypass by
+HTTP method.** Upstream Boa parses `HEAD` without applying the security
+constraint that protects `GET` and `POST`; the response functions then test
+`if (req->method != M_HEAD)` only to decide whether to send a body. So a `HEAD`
+request reaches protected resources without credentials.
+
+**This unit runs `Boa/0.94.14rc21`.** That is inside the affected range, and
+nothing in this project had ever sent a `HEAD` request.
+
+Measured under emulation (`tools/qemu-env.sh serve`, this unit's own binary and
+its own flash, no device attached):
+
+| request | result |
+|---|---|
+| `GET /password.htm` (gated) | `302` |
+| **`HEAD /password.htm` (gated)** | **connection closed, no response at all** |
+| `HEAD /login.htm` (exempt) | `HTTP/1.0 200 OK` |
+| `OPTIONS` / `PUT` / `FOO` on a gated page | `501 Not Implemented` |
+
+**The bypass does not apply to this build.** `HEAD` on a protected page returns
+nothing rather than the content — verified on the wire with `nc`, not just
+through `curl`'s status code — while `HEAD` on an exempt page is served
+normally and `boa` survives all of it. Three methods, three different
+treatments, which is itself a fingerprint.
+
+Why the upstream flaw does not carry over is not settled here: this build's
+authorisation is Realtek's `process_header_end`, not upstream Boa's, so the code
+the advisory describes may simply not be the code that runs. **That is an
+inference, and the instruction-level reading has not been done.**
+
+> 🔴 **This measurement was taken without a frozen refutation condition, and
+> that breaks this project's one non-negotiable rule.** The register exists so
+> that "what would failure look like" is written before the request is sent;
+> here the search turned up a candidate and it was tested in the same minute.
+> So it is **not** recorded in `test-cases.toml` — `rtcase record` would need a
+> prediction that was never frozen, and back-filling one is precisely the thing
+> the freeze hash exists to prevent.
+>
+> It is written here as what it is: an observation made outside the discipline.
+> A W07 case gets frozen first and then run **on the device**, because
+> everything above is emulated and the scope has to say so.
+>
+> Second time in one night. The other was reading a previous week's prose as a
+> measurement — see `PROGRESS.md` W06. Both times the rule was known and neither
+> time was it applied, which is the difference between having a rule and having a
+> checker.
+
+---
+
 ## Sources
 
 - Pierre Kim, TOTOLINK series, 2015-07-16 — <https://pierrekim.github.io/blog/2015-07-16-backdoor-credentials-found-in-4-TOTOLINK-products.html> and companion posts
+- Cisco Talos, TALOS-2023-1894 / CVE-2023-41251, `boa formRoute` stack overflow in the Realtek rtl819x Jungle SDK — <https://talosintelligence.com/vulnerability_reports/TALOS-2023-1894>
+- Boa 0.94.13–0.94.14 HEAD-method authentication bypass — <https://www.exploit-db.com/exploits/51139>
 - Błażej Adamczyk, "TOTOLINK and other Realtek SDK based routers — full takeover", 2019-12-16 — <https://sploit.tech/2019/12/16/Realtek-TOTOLINK.html>
 - Full Disclosure posting, 2020-01-23 — <https://seclists.org/fulldisclosure/2020/Jan/36>
 - CVE-2019-19824 — <https://www.tenable.com/cve/CVE-2019-19824>

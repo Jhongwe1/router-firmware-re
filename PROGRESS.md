@@ -9,7 +9,7 @@
 | **W04-2** | Catch-up: move the findings onto the build this unit runs | **G3.5** | ✅ **passed** — 2026-08-17 (the fifth box closed in W05) |
 | **W05 Day 0** | Pre-engagement: freeze the predictions before the first packet | **G3.75** | ✅ **passed** — 2026-08-17 |
 | **W05** | Dynamic analysis, upper half | — (DoD) | ⚠️ **4 of 5 DoD, 22 / 31 register rows** — 2026-08-17 |
-| W06 | PoC reproduction | G4 | |
+| **W06** | PoC reproduction | **G4** | ⚠️ **4 of 5 — L2 clause not met, 18 / 18 register rows** — 2026-08-17 |
 | W07 | Systematic bug hunt | — | |
 | W08 | Write-up draft | — | |
 | W09 | Write-up publication | G5 | |
@@ -2327,3 +2327,322 @@ wrong device state. Old→new mapping is `runsheet.md` Part B `B-0`.
 | **Reformatting `BENCH-LOG.md`'s punctuation** | It is append-only and verbatim. Changing its punctuation is changing evidence, and the CJK/ASCII mix inside it is now a deliberate exception rather than an oversight |
 | ~~**`LOG.md` and `study/QA.md` punctuation**~~ | **Done, in its own commit** — 1,554 and 2,230 sites. Folding them into the restructure commit would have made `git blame` useless on both, so they went first and alone |
 | **Renumbering `§8.12.x`** | `BENCH-LOG.md` cites those numbers and is append-only, so they are frozen. Three numbering schemes still exist; the bridge between two of them is now machine-checked, and the third stays in the verbatim record |
+
+---
+
+## W06 — 2026-08-17 (night)
+
+**G4: four of five.** The chain is closed on this hardware and the evidence
+reaches the silicon, but the gate's third clause — *an L2 reproduction path on a
+downloadable image* — is not met, and the reason is a finding rather than a
+shortfall.
+
+The register reads **18 of 18** for the week: 17 run tonight, and 10 items
+rescheduled to W07 with a reason each. The 10 are not a shortfall either; W06's
+own plan forbids fuzzing outright, and the register had inherited them from the
+playbook's section numbering rather than from the week plan — the same failure
+found in W05 on 2026-08-16, fixed the same way.
+
+### G4 — five clauses, and the one that failed
+
+| # | Required | Result |
+|---|---|---|
+| 1 | one chain on the hardware, each link separately pointable | ✅ and it is **shorter** than planned — see below |
+| 2 | at least one link evidenced **out of band**, not from the HTTP response | ✅ **two**: ICMP echo requests sourced from the router, and nine named bytes on the SPI NOR |
+| 3 | an L2 path: anyone, a **published** image, emulation | ❌ **not met.** `formSysCmd` is in *neither* downloadable image's dispatch table, so the chain cannot exist there. The route is now open — `boa` does serve under `qemu-user`, proven tonight — but it was proven with *this unit's* rootfs |
+| 4 | every PoC document opens with a scope table | ✅ four documents, and one of them is a stub that carries no request on purpose |
+| 5 | `poc/run.sh` fails, and names which step | ✅ run in both modes; it caught two defects **in itself** on its first run |
+
+> ⚠️ **Clause 3 failing is worth more than clause 3 passing would have been.**
+> The plan assumed L2 would run the `localPin` line, which *is* byte-identical in
+> the 2015 and 2020 images. W04-2 then moved G4's target to `formSysCmd` for good
+> reasons — it is the CVE that names this build — and nobody noticed that the new
+> target exists in no image anyone can download. **The two decisions were each
+> correct and their combination was not**, which is a thing a gate is supposed to
+> catch and did.
+
+### The chain, and the two ways it turned out shorter than drawn
+
+```text
+① GET /config.dat, unauthenticated         200, 7,507 bytes, magic COMPCS
+② decode                                   USER_NAME / USER_PASSWORD, plaintext
+③ authenticate with them                   200 — and ④ does not need this
+④ POST /boafrm/formSysCmd, no credentials  ICMP echo requests from the router
+⑤ read the flash before and after          nine bytes, named, and reversed
+```
+
+**Link ③ is optional.** ④ works with no credentials, and the identical request
+*with* credentials behaves identically — which is the measurement that rules out
+"something else was carried in". An unauthenticated success on its own does not.
+
+**And there is a second chain that needs neither ① nor ②.** `formPasswordSetup`
+carries `Cusername` / `Cpassword` fields for the current credentials, and the
+handler does not check them: an unauthenticated POST that does not know the
+current password changes it. Reading the password out of `config.dat` first is
+not necessary for takeover. → `poc/04-auth-takeover.md`, held.
+
+### 1. Nine bytes on the flash, and they are in the wrong region
+
+**`flash set HW_WLAN0_WSC_PIN` writes `H601`, not `COMPCS`.** `plan/W06` §2 drew
+link ⑤ as *"`flash set` writes the `COMPCS` block"*. It does not: `HW_WLAN0_*`
+ids live in the **hardware** MIB at `0x6000`–`0x8000`.
+
+```text
+0x00648a  71 -> 61        (cmp -l prints octal: '9' -> '1')
+ …
+0x006491  62 -> 70
+0x006493  15 -> 25        <- the region's checksum, recomputed by the device
+
+before: 99956042      after: 13572468
+```
+
+The evidence was already here. W05's emulation run printed `0x00648a`,
+`0x00648b` and `0x006493` and annotated the third as *"the H601 region's 8-bit
+checksum"* — **the region was named on the same line as the offsets**, and nobody
+joined the two sentences, this author included, who fired the first shot at the
+device without doing so.
+
+**That makes the finding worse, and the difference is the point.** `COMPCS` is
+configuration: rewritten by any handler, and restored by a factory reset. `H601`
+holds this unit's **MAC addresses and radio calibration**, measured at
+manufacture, present in no vendor image, and not restored by a reset.
+
+> 🔴 **The guard protected the instrument, not the device.** This morning
+> `tools/console-write.py` was built with an allow-list that makes `H601`
+> unreachable by construction, with no flag that widens it. Tonight the device's
+> own `flash set`, driven by one unauthenticated HTTP request, wrote it anyway.
+
+Reversal is half the claim and it holds: the final read is byte-identical to the
+pre-injection snapshot **and** to the 2026-08-16 full dump, taken before this
+project had ever written to the device. Restored through the device's own MIB
+writer, so the checksum is recomputed by the code that owns it.
+
+### 2. One request removes the web server, permanently
+
+A single unauthenticated, **well-formed** POST to one form handler — only
+`submit-url`, no payload, no overlong parameter — and `boa` is gone until a power
+cycle. Three POSTs of the same shape to a different handler immediately before it
+were served normally; the fourth returned nothing at all, and thirty seconds
+later the listening socket was still gone while ICMP to the device answered in
+1.6 ms. `rcS` starts `boa` once and nothing respawns it.
+
+This also revises W05's reading of its own data: that session attributed the
+outage to **volume** ("around forty-five in sequence"). Whether the W05
+transcript shows this same handler is a re-reading of that record, not something
+tonight measured. → `docs/disclosure.md` **D-11**, held.
+
+### 3. Two project-original findings withdrawn, one of them by prior art
+
+- **`D-1` withdrawn.** `form_formRoute` / `subnet` produced no command execution,
+  while `localPin` on `formWsc` produced four ICMP echo requests through the same
+  oracle in the same session — a discriminating control, not an absence.
+  `BoaGate`'s R2 rule mis-classified an `sprintf` site as a `system()` site, and
+  that rule feeds conclusions about all three builds.
+- **`D-2` does not reproduce on this build**, and `P4-3` refuted the mechanism
+  with a **positive** witness rather than an absence: `formNtp` echoes
+  `submit-url` into its `Location` header, and 800 bytes come back as 799 `A`s
+  with no truncation at 100. The value provably reaches the code that consumes it
+  and nothing happens. This build does not use the `lastUrl[100]` idiom W04
+  measured in 2015.
+
+### 4. `boa` serves under `qemu-user` after all
+
+W05 recorded that it could not, blocked on an alignment trap. The trap is real
+and it is an unaligned halfword store, but it is not where that sentence puts it:
+
+```text
+open("/dev/mtdblock0") lseek(49152) read(7490)      <- COMPCS
+open("/web/config.dat", O_RDWR|O_CREAT|O_TRUNC) = 3
+--- SIGBUS si_addr=0x00492b41 ---                   <- odd address
+```
+
+It dies **generating `/web/config.dat` at start-up**, not serving. Make that one
+`open()` fail and it binds and answers: `login.htm` 200, `blank.htm` 302 — the
+gate model W04-2 read at instruction level, reproduced with no device attached.
+The command injection reproduces there too, including the empty-file trap that
+follows from the format string.
+
+> **The irony is exact**: the line that produces this project's best evidence
+> chain — an unauthenticated `GET /config.dat` — is the same line that makes it
+> the one link emulation cannot reproduce.
+
+### 5. The kernel banner, from a channel that did not exist before tonight
+
+```text
+Linux version 2.6.30.9 (admin@office.hopeiot) (gcc 4.4.5-1.5.5p2) #1526
+  Wed Jan 10 14:50:54 CST 2018
+MemTotal: 26052 kB
+```
+
+The kernel is stamped **seven minutes before `boa`**, so kernel and userland come
+from one build session — corroborating W02's timestamp argument from a source W02
+never read. And `MemTotal` refines a W02 claim: W02 said `ramSize: 32M` settles
+*fitted vs usable* and "here they agree". **32 MiB is what the boot loader
+detects; 25.4 MiB is what Linux has.** Two different measurements.
+
+`/proc/cpuinfo` does **not** answer the Lexra question: `cpu model` is a decimal
+number (`52481`), not a core name, and `system type` reads `RTL819xD` — a third
+distinct naming beside the silicon ID's `8196E` and the Ethernet driver's
+`8196C`. `/proc/cpu` does not exist, so there is no alignment-fixup counter, and
+`dmesg` returns zero bytes.
+
+### Claims that W06 overturned
+
+| Said | Actually |
+|---|---|
+| **`plan/W06` §2:** "`flash set` writes the `COMPCS` block" | It writes `H601` — MACs and radio calibration live in the same 8 KiB |
+| **W05 finding 6 / open #16:** `boa` cannot serve under `qemu-user` | It can. The trap is confined to the `config.dat` generation path at start-up |
+| **`docs/disclosure.md` D-1:** `formRoute`/`subnet` reaches `system()` in all three builds | Refuted on the device, and predicted with a mechanism beforehand by a Talos advisory that a by-handler search found in one query |
+| **`docs/disclosure.md` D-2:** omitting `submit-url` is a one-request crash | Not on this build. 800 bytes echo back intact and the server survives |
+| **W05:** the web server outage was caused by request *volume* | One request to one handler is enough, with a three-request control immediately before it |
+| **W02:** `ramSize: 32M`, so fitted and usable agree | The boot loader detects 32 MiB; Linux reports 26,052 kB |
+| **`runsheet.md` A2.6, written the same morning:** restoring `COMPDS` returns the difference to 4 of 343 | 23. The difference is *between two regions* and the section restores one of them: 4 original + 19 the POST round changed in `COMPCS` |
+| **`plan/W06` §3:** L2 runs the same chain on V2.1.2 | The chain's target handler is in neither downloadable image |
+
+### Instrument work
+
+| | |
+|---|---|
+| [`tools/console-write.py`](tools/console-write.py) | The flash **writer**, which did not exist this morning although `runsheet.md` A2.6 had specified it. An allow-list of two ranges — the drill sector and the config region — so the boot loader and `H601` are unreachable by construction. Positive control before every run, staged RAM read back before every `FLW`, and the written range read into a third address afterwards |
+| [`tools/test-console-write.sh`](tools/test-console-write.sh) | 28 cases. First run: 19 passed, 6 failed, and all six were real |
+| `qemu-env.sh serve` / `stop` | Stands `boa` up and **refuses to report it up** unless a gated page redirects *and* an exempt page is served. `stop` uses a pidfile, because `pkill -f` matches the calling shell's own command line and kills it |
+| [`poc/run.sh`](poc/run.sh) | Two modes, preconditions that name the failing step, an RFC 1918 check, a banner check, and a refusal to start without `--i-own-this-device` |
+| `rtcase` schedule hash | now covers the reschedule **reason**, not just `(id, week)` |
+
+### Instrument bugs 23 through 27
+
+**23. A refuted claim living inside a tool's own output.** `console-dump.py`'s
+rescue path still told the operator that a `ping` reply is the whole of what
+`P9-3` asks. The bench refuted that on the day it was written — this loader has
+TFTP and no ICMP, and synthesises its MAC from the address it was handed.
+`check-runsheet.py` reads `runsheet.md` and `RUNBOOK.md`; **nothing reads what
+the tools themselves print.** Same shape as bug 22, one file further out.
+
+**24. A dead branch holding the only correct message.** `make doctor`'s
+direct-attachment check asked `/proc/net/route` whether `10.1.1.1` has a route. A
+default route matches every destination, so the "no route" branch was
+unreachable — and the check FAILED in the state every session begins in, telling
+the operator to attach an adapter they had just attached. **A check whose failure
+names the wrong fix is worse than no check**, because the real cause then looks
+like the one you just ruled out.
+
+**25. `BoaGate` R2 has false positives.** Two of the six sites it names in
+`formWsc` / `formRoute` produce no execution on the device, and published prior
+art explains one of them as an `sprintf` misread as a `system()`. This is the
+first instrument bug in this project found by an **external** source rather than
+by comparing two of its own instruments.
+
+**26. A dry run that printed the bytes it promised to withhold.**
+`console-write.py`'s first dry run printed the header *"this range is per-unit
+secret: offsets and digests are logged, bytes are not"* and then every `EB` line
+carried sixteen of those bytes — which for `0x8000` includes a copy of `COMPCS`
+and therefore this unit's admin password. **A tool that states a guarantee and
+breaks it on the next line is worse than one that never claimed it**, because the
+claim is what stops the reader looking.
+
+**27. Controls that could not distinguish what they were written to distinguish.**
+Three tonight, the same mistake in different clothes: a liveness line formatted
+with a leading `000` so it was indistinguishable from a failed request in the
+distribution; `poc/run.sh`'s "did nothing get created" check testing whether the
+body was empty, when this server answers a missing file with a redirect **page**;
+and the `P4-3` ladder fired at `formWlanRedirect`, which is in `root_form[]` but
+is **not** one of the 43 functions referencing `lastUrl` — the "or this path was
+never walked" half of that test's own refutation, arrived at by accident.
+
+**Twenty-seven recorded. Twenty were caught by comparing two things that should
+have agreed, four by a check written to fail, one by asking what a checker does
+not read, and one by an outside advisory.**
+
+### A mistake worth more than the finding it nearly cost
+
+Ninety minutes before measuring it, this session moved ten cases out of W06 and
+wrote, into a machine-hashed field, that `P4-9` and `P5-6` were blocked because
+*"`boa` cannot complete one GET under `qemu-user`"*. **That had not been run.** It
+was read out of W05's prose and written down as a measurement, in a repository
+whose first evidence rule is that no claim rests on one tool. When it was run,
+`P0-9` came back **confirmed** and four of the ten reasons were wrong.
+
+Correcting them moved nothing, because `[schedule].sha256` covered only
+`(id, week)`. So a reason could be rewritten afterwards with no trace, and *"I
+could not do this"* could quietly become *"I chose not to"* — the
+prediction-freeze problem one field over. The hash now covers the reschedule
+record, and `test-rtcase.sh` gains the case that proves it can fail.
+
+### Deliberately not done in W06
+
+| Item | Why |
+|---|---|
+| **Reporting anything to TWCERT/CC** | `docs/disclosure.md` step 2 requires a prior-art search **for the specific handler**, and it has not been run for `D-4` or `D-11`. The one run for `D-1` this evening took a single query and withdrew a finding; running it after a report would be the wrong order. The 90-day clock has not started |
+| **A request for `D-4` or `D-11` in any committed file** | Neither has been reported. `poc/04-auth-takeover.md` names the findings and carries no request, which is the first time this project's own rule has cost it something it wanted to write |
+| **The L2 environment on a published image** | G4 clause 3. The route is proven and the work is scoped: build a `qemu-env` from the extracted V2.1.2 rootfs and run the `localPin` chain, which is byte-identical in 2015 and 2020. A desktop task, and W07's opening |
+| **`P4-5` onwards, `P5-1`–`P5-4`, `P5-6`, `P4-9`** | Moved to W07 with a reason each. `P5-1`'s is load-bearing: this unit has no shell and no gdbserver, so an `epc` oracle does not exist **on the device** — though it does under emulation now, which is why `P5-6` leads that block rather than trailing it |
+| **A second shot to characterise D-11 further** | Whether it is a crash or a hang, and which parameter shape triggers it, are W07 questions. Tonight's measurement is deliberately one request and one control |
+| **Re-reading the W05 POST-sweep transcript** | It would probably show whether the same handler caused that outage. It is a records question, not a bench question, and mixing the two is how tonight's measurement would stop being about tonight |
+
+### Open, carried forward
+
+W05's list stands except #16, answered above. Added or changed by W06:
+
+35. **Are other `HW_*` MIB ids reachable the way `HW_WLAN0_WSC_PIN` is?** The MAC
+    addresses are in the same region and the same table. One field was written;
+    the generalisation is untested, and it is the obvious next question.
+36. **`BoaGate` R2's other four sites.** Two of six are false positives. The
+    remaining four have not been checked, and the rule's output is cited in three
+    builds' worth of conclusions.
+37. **Which handler kills `boa` in one request, and how.** Named in the register
+    and in `docs/disclosure.md` D-11, not here. Whether it is a crash or a hang is
+    unmeasured; `boa` writes no core and this kernel's `dmesg` is empty.
+38. **`cpu model : 52481`.** Not a core name. The decisive test for the Lexra
+    question is now a string scan of the decompressed kernel — which needs no
+    device and was not run tonight.
+39. **Does the W05 outage have the same cause as tonight's?** W05 attributed it to
+    volume. Its transcripts carry per-request `elapsed_ms` and would settle it.
+40. **`formSelLang` ignores `submit-url` entirely** and redirects to a hardcoded
+    `countDownPage.htm`, while `formNtp` echoes it back in full. Both reference
+    `lastUrl`. So "references `lastUrl`" and "uses `submit-url`" are different
+    sets, and the 34-handler count from W04 describes the first.
+
+### A gap found while auditing the close-out, not by any check
+
+The question was whether the disclosure rule had cost this session any *record*.
+It has not: for the three held findings the verdict, the frozen refutation
+condition, every observation channel and the list of what was burned are all in
+public files — `BENCH-LOG.md` cards `T-32`, `T-33` and `T-36`, and the register
+rows for `P10-3` and `P10-4`. **The only thing withheld anywhere is the
+copy-pasteable request**, which is what the rule says to withhold.
+
+Checking that turned up something else.
+
+**`D-11` has no row in the register at all.** Not because of disclosure —
+because of the *freeze*. It came out of a handler census rather than a question
+somebody wrote down first, so no prediction was ever frozen for it, and
+`rtcase record` correctly refuses a case with no pre-written refutation
+condition. The same is true of the Boa `HEAD`-method test, which is recorded only
+in [`notes/prior-art.md`](notes/prior-art.md).
+
+So:
+
+> **The register holds only what was predicted. Anything found by looking rather
+> than by asking falls outside it** — and the two most interesting results of
+> this week, the single-request denial of service and the discovery that
+> `flash set` writes `H601` rather than `COMPCS`, were both found by looking.
+
+The concrete break is a missing cross-check: `docs/disclosure.md` carries `D-11`,
+`test-cases.toml` has no corresponding row, and **nothing notices**.
+`tools/check-runsheet.py` enforces the equivalent rule in one direction — every
+executed register item must have a procedure that reaches it — and there is no
+checker at all for the direction that runs between the disclosure register and
+the test register.
+
+41. **Every `D-*` entry should name either a register id or an explicit reason
+    for having none**, checked mechanically, in the same shape as the runsheet's
+    `<!-- no-procedure: … -->` blocks. Until that exists, a finding can live in
+    the disclosure register with no test behind it and no count that would show
+    the absence.
+42. **And the deeper question that one exposes:** the freeze makes the register
+    trustworthy by refusing unpredicted results, which also makes it structurally
+    blind to discovery. A second class — recorded, counted, and *never* renderable
+    as a confirmed prediction — would close it, but it has to be designed so that
+    it cannot become a back door for filling in predictions afterwards. That is
+    the whole reason the freeze exists, so this is not a small change and it is
+    not being made at one in the morning.

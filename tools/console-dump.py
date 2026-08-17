@@ -581,9 +581,25 @@ def cmd_rescue(args) -> int:
                 "configured, so a ping failing afterwards would prove nothing")
         print(f"  ok    the loader reports {args.ip}")
         print()
-        print("  Now, from a host on that segment:  ping -c 3 " + args.ip)
-        print("  A reply from a board sitting at <RealTek> with no kernel loaded")
-        print("  is the whole of what P9-3 asks. Nothing is uploaded.")
+        # This block used to say: ping it, and a reply is the whole of what P9-3
+        # asks. Both halves of that were wrong and the bench refuted them on
+        # 2026-08-17 -- a TFTP-only stack owes nobody an ICMP implementation, and
+        # the loader synthesises its MAC from the address it was handed
+        # (0a:01:01:01 for 10.1.1.1), so it is not this unit's MAC either.
+        #
+        # The advice survived the refutation because tools/check-runsheet.py
+        # reads runsheet.md and RUNBOOK.md, and nothing reads what the tools
+        # themselves print. Same shape as instrument bug 22, one file further out.
+        print("  ==>   ping will NOT answer, and that is not a failure.")
+        print("        This loader implements TFTP and no ICMP at all, measured "
+              "2026-08-17.")
+        print("        What does show the link is live, none of it needing an "
+              "upload:")
+        print("          * arp -n " + args.ip + "  resolves")
+        print("          * the host interface's rx_packets counter moves")
+        print("          * a TFTP read request comes back with DATA")
+        print("        Entering rescue mode is the whole of what P9-3 asks. "
+              "Nothing is uploaded.")
     except DumpError as e:
         fail(str(e))
     finally:

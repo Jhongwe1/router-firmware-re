@@ -96,6 +96,11 @@ OWN_TOOLS = {
     "tools/loader-unpack.py", "tools/check-reports.py",
     "tools/check-runsheet.py", "tools/annotate-photo.py",
     "tools/redact-photo.py", "tools/zipprefix.py",
+    # The write path. It is in this set for the same reason it has the largest
+    # guard suite: a flag that has been renamed or removed is, on this one tool,
+    # the difference between programming 0x008000 and programming whatever the
+    # argument parser fell back to.
+    "tools/console-write.py",
 }
 
 
