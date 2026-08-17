@@ -436,8 +436,8 @@ that is not backed by a command someone else can re-run.
   - [x] **the `FLW` recovery path rehearsed** — this is G3.5 #5, cited and not restated. Closed 2026-08-17
   - [x] **isolation verified** — exactly two MAC addresses on the segment, eight packets each, no DNS and nothing outbound. The control is that the capture recorded 16 packets at all: an earlier one recorded **zero**, and zero proves nothing until the link is known to deliver
   - [x] **IoC pre-check** — both halves, against criteria written before the check: **the live config differs from this unit's own factory baseline in 4 of 343 entries**, no fifth, and every port the register named is closed
-  - [x] **the prediction ledger is frozen** ← [`test-ledger.md`](test-ledger.md) — **130** registered tests, **102** carrying a written refutation condition, hashed and committed **before any request is served**; W05 closed **27 of 27**
-  - [x] **the disclosure register is written** ← [`docs/disclosure.md`](docs/disclosure.md) — eight candidate originals, what each is worth, and the rule that decides what gets published
+  - [x] **the prediction ledger is frozen** ← [`test-ledger.md`](test-ledger.md) — **134** registered tests, **117** carrying a written refutation condition, hashed and committed **before any request is served**; W05 closed **27 of 27**
+  - [x] **the disclosure register is written** ← [`docs/disclosure.md`](docs/disclosure.md) — seventeen rows, what each is worth, and the rule that decides what gets published
 
   > ### ★ Why this gate exists
   >
@@ -541,7 +541,7 @@ that is not backed by a command someone else can re-run.
   > silicon.**
 
 - [ ] **G5 — published write-up** (W08–W09) — a stranger understands the whole chain in 10 minutes
-- [ ] **W07 — systematic bug hunt** (no gate) — 8 categories, not driven by known CVEs
+- [ ] **W07 — systematic bug hunt** (no gate) — 8 categories, not driven by known CVEs. **11 of 57 register rows closed**, all of them at the desk; the deliverable is [`notes/bughunt.md`](notes/bughunt.md), nineteen verdicts each pointing at a file under `reports/`, and a *relatively safe* section the same size as the verdict table
 - [ ] **W10 — close-out, disclosure admin, buffer**
 
 ## What is here
@@ -564,7 +564,7 @@ that is not backed by a command someone else can re-run.
 | [`poc/`](poc/) | **The reproductions** — two public CVE chains with the requests, the flash-byte evidence, and one file that deliberately carries **no request at all** because what it describes has not been reported to anyone. `run.sh` runs against a device or against an emulated copy, and says which step failed |
 | [`docs/report-draft.md`](docs/report-draft.md) | **The report that has not been sent** — what would go to TWCERT/CC, what is attached and what is not, and the one step that is blocking it |
 | [`docs/disclosure.md`](docs/disclosure.md) | **The disclosure register** — what might be new, what state it is in, and the rule separating a finding from a reproduction from tradecraft. Two entries were **withdrawn** on 2026-08-17, one of them by prior art that a by-handler search found in a single query |
-| [`test-ledger.md`](test-ledger.md) | **The test register, generated** — 130 tests with their predictions frozen before the first request, what would refute each, and what nine items were cut and why (Traditional Chinese) |
+| [`test-ledger.md`](test-ledger.md) | **The test register, generated** — 134 tests with their predictions frozen before the first request, what would refute each, and what nine items were cut and why (Traditional Chinese) |
 | [`notes/attack-surface.md`](notes/attack-surface.md) | Where to look, ranked |
 | [`notes/ghidra-triage.md`](notes/ghidra-triage.md) | Which functions to open first, and why — with the three W01 calls W03 overturned |
 | [`notes/dispatch-table.md`](notes/dispatch-table.md) | `root_form[]` recovered: every `/boafrm/` route in both builds, and what changed between them |

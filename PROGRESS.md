@@ -3043,3 +3043,259 @@ Two things a fresh session should not have to rediscover:
   orphans hold the port and answer for a server that no longer exists.
 - **`FWRE_WORK` explicitly when shelling out under sudo.** Nested `sudo` sets
   `SUDO_USER=root` and moves the work directory to `/root`.
+
+---
+
+## W07 Day 2 — the desk half, and a bypass that needs no credentials — 2026-08-18
+
+A session with no hardware in it at all, by choice: the bench block moved to the
+next sitting so that every prediction it will test could be frozen first. Eleven
+of W07's fifty-seven register rows are now closed, up from two, and **none of the
+work below required the device**.
+
+### `P2-9` — the Basic-auth path has a second credential pair, and nothing writes it
+
+`process_header_end` compares supplied credentials against **two** pairs of stack
+buffers. The real one is `apmib_get(0xb6)` / `apmib_get(0xb7)` into `sp+0x58` and
+`sp+0x78`, compared at `0x0040bdb8` and `0x0040be00`, granting `req->0xb0 = 1`.
+The other is `sp+0x18` and `sp+0x38`, compared **first** at `0x0040bd48` and
+`0x0040bd90`, granting `req->0xb0 = 2` — a higher level.
+
+Across all 1,964 bytes of that function the only instructions touching those two
+offsets are three reads. No `sw`, `sb`, `sh`, no `apmib_get`, no `strcpy`.
+
+With the stored credentials at `admin` / `admin` — both non-empty, read back
+through the vendor's own `/bin/flash` in the same run — a `Basic` header whose
+username and password are **both empty** returns 200 and 333 bytes on a gated
+page, byte-identical to the real credentials, while no header, an empty user with
+a password, a user with an empty password, a wrong pair, and `admin` with a wrong
+password all return 302. `/password.htm` goes from 302 to 200 with 5,332 bytes of
+real HTML.
+
+**It reproduces on the published V2.1.2 image** — a different `boa`, five years
+older, flash rebuilt by `mkflash`, no dump involved. **And V3.4.0 removed it**:
+`FUN_00409fd8` has one comparison, both halves filled by `apmib_get` immediately
+above, and no second level.
+
+> ⚠️ **Emulated, on two profiles but one emulator.** The buffers are almost
+> certainly zero for a structural reason — `process_header_end` has the deepest
+> frame in the request path and Linux hands out zero-filled stack pages — but
+> that is a mechanism story, not a measurement. Device confirmation is three
+> requests and no power cycle, and it is the first item of the next bench visit.
+> **Prior art has not been searched.** Until it has, this is "found here", not
+> "new", and nothing goes to anyone.
+
+W03 saw the same shape in V2.1.2 at `sp+0x40` / `sp+0x60` and correctly refused
+to call it a finding. What was wrong was not the caution: the candidate then sat
+for weeks while an environment able to fire it was built for an unrelated
+purpose, and nobody pointed it here.
+→ [`uninit-credential-pair.md`](notes/uninit-credential-pair.md)
+
+### The firmware upgrade path checks a 16-bit sum, and the trigger is outside the gate
+
+`UpgradeByData` at `0x00460798` is 1,608 bytes and the whole acceptance is a
+4-byte tag `memcmp` — `cr6c`, `w6cg`, `r6cr` — plus a checksum: `FUN_00460600`
+at `0x00460a98` sums big-endian halfwords and requires zero, `FUN_00460690` at
+`0x00460aec` sums bytes and requires zero. **No signature, no `hw_version`, no
+anti-rollback**, and `strings` over the whole binary has no match for any of
+them. `form_formUpload` passes the model string `TOTOLINK-N150RT-V2.1.0` — older
+than, and different from, the version this unit reports.
+
+`/bin/batchRemoteUpgrade`, 15 KB and never read by this project, fetches firmware
+over **plain HTTP**. The same job is inside `boa`: `FUN_0044f7b4`, reached from
+`form_formSaveConfig`, reads `submit_rfw_check` / `submit_rfw_download` /
+`submit_rfw_upgrade` and calls `CheckRFW` with the hard-coded host
+`sl.totolink.software`. `POST /boafrm/formSaveConfig` does not enter the gate on
+this build.
+→ [`firmware-upgrade-path.md`](notes/firmware-upgrade-path.md)
+
+### `check_host` is correct code that nothing calls
+
+It exists at `0x00410470`, it is strict, and its verdict **is** enforced —
+`process_header_end` tests it at `0x0040bca4` and a failure reaches
+`send_r_bad_request`. And it never runs: `0x0040bbec` branches past the entire
+host block when `vhost_root` is NULL, landing on the same label the success path
+uses, and `VHostRoot` is commented out in both `/etc/boa/boa.conf.bak` line 150
+and the runtime `/var/boa.conf`. **Seventeen `Host` values, nine of which
+`check_host` would reject — empty, 300 characters, spaces, underscores,
+punctuation — all returned 200.**
+
+Separately: the client's `Host` is copied verbatim into the gate's redirect
+`Location`, an unauthenticated open redirect on every gated path. **It is not
+XSS** — both sinks encode, URL-encoding in the header and HTML entities in the
+body — and saying so is the point.
+→ [`host-header-and-redirect.md`](notes/host-header-and-redirect.md)
+
+### The three unread binaries, and one was not what four weeks of notes assumed
+
+| | |
+|---|---|
+| `/bin/auth` | **the 802.1X / WPA authenticator**, not a credential checker — `RTLAuthenticator`, `lib1x_do_authenticator`, `lib1x_control_STA_SetGTK`, `libnet_*`. W01 called it "the likely credential check"; W04 filed it "off the critical path". W04's conclusion was right and its reasoning was luck. It is the daemon W08's `P7-5` and `P7-6` attack |
+| `/bin/miniigd` | behind **52869/tcp**, which `P1-2` found open and no prediction had mentioned. `FUN_004083a8` parses five SOAP values and puts them into `sprintf("echo \"%s,%s,%s,%s,NA,%s\" >> %s")` then `system()` at `0x004085fc`, with an unbounded `strcpy` on the same path and **nothing in between**. Almost certainly CVE-2014-8361 — CISA KEV, a Mirai payload since 2015 — so the finding is "a 2018 build ships it on an open port", which is verification, not discovery |
+| `/bin/dnsspoof` | 3,820 bytes, started when the WAN drops and startable by `boa`. It appends a fixed 16-byte record at `buffer + n` past a **256-byte** stack buffer, so a query of 245 bytes or more corrupts three pointers set once before the loop — one dereferenced by the next query's name scan, one a `memcpy` destination. **Bounded**: `recvfrom` caps `n` at 256 and the saved `ra` is forty bytes out of reach, so this is not a return-address overwrite |
+
+Also corrected: this `miniigd`'s SOAP control endpoint is
+`/upnp/control/WANIPConnection`. The working notes carried `miniupnpd`'s
+`/upnp/control/WANIPConn1`; a bench probe of the documented path would have
+returned a clean negative with the port open the whole time.
+→ [`three-unread-binaries.md`](notes/three-unread-binaries.md)
+
+### The XSS five are one omission, and the escaper is already in the binary
+
+`boa` ships `req_write_escape_html` with an entity table for `"`, `'`, `\`, `<`
+and `>`. It has **six callers** and every one is an upstream Boa status page —
+403, 404, 301, 302, 411 — plus `send_redirect_perm`. **No Realtek ASP list
+renderer calls it**, and `boa` carries 105 table-markup format strings whose
+data-bearing ones are raw `%s`, two of them inside HTML attribute values.
+
+So CVE-2025-3994 / 3995 / 3996 / 4460 / 4461 are five instances of one omission
+across roughly thirty render functions. **Same shape as W03 turning "`.dat` files
+are not restricted" into "everything without `htm` in the path"** — the second
+time the difference between reading an advisory and reading the binary has been a
+factor of six.
+
+And the plan's method for this could not have worked: `dhcptbl.htm` contains no
+field, only `<% dhcpClientList(); %>`. The value is written by a C function, so
+grepping 146 template files would have returned nothing and proved nothing.
+→ [`xss-escaping.md`](notes/xss-escaping.md)
+
+### `P8-24` — the boot script turns telnet on when both settings regions are invalid
+
+New register case, **frozen before the experiment**. `/bin/startup.sh` lines
+19–47: `flash test-dsconf` fails **and** `flash test-csconf` fails, and the
+script loads factory defaults and runs `flash set TELNET_ENABLED 1` — while
+`/etc/passwd.org` has carried `root` / `123456` and `onlime_r` / `12345`, both
+uid 0, unchanged since 2015.
+
+Seven damage states measured. **The branch is entered**: with both signatures
+zeroed, `startup.sh` printed its own line 23. **What it writes is not
+observable** — `flash default-sw` and `flash reset1` both die on a `qemu-user`
+SIGBUS, while a plain `flash set WAN_DHCP 7` in the same environment writes and
+reads back, which is what makes that a statement about the recovery path rather
+than the environment.
+
+Two refinements the prediction did not have: `test-dsconf` checks the
+**decompressed** header — it prints `Expect [sig=6G, ver=3, len=31878]` — and
+tolerates a flipped payload byte, while `test-csconf` also runs `mib_tlv_init`
+and does not, so reaching the branch needs `COMPDS`'s header damaged
+specifically. And `startup.sh:25` is `eval \`flash get WLAN_BAND2G5G_SELECT\``,
+which executed: the transcript shows the shell reporting `eval: line 1: Invalid:
+not found` — `flash`'s own error text run as a command.
+
+**It flips `P8-12`**, which records the config-upload chain as blocked on this
+project having no `COMPCS` encoder. This path does not want a valid blob; it
+wants an invalid `COMPDS`, and invalid bytes need no encoder.
+→ [`config-failopen.md`](notes/config-failopen.md)
+
+### `P8-8` and `P8-18` refuted, `P10-7` refuted, and each for a different reason
+
+- **`P8-8`** — the playbook named three boot-script sites and all three are dead.
+  `snmpd.sh` has the strongest sink, nine `eval` calls over `flash get` results,
+  and **none of its nine MIB names exists in this build's table**: the recovered
+  `libapmib` table has `SNMP_RO_COMMUNITY`, the script asks for
+  `SNMP_ROCOMMUNITY`, and `/bin/flash` itself answers the latter with a usage
+  dump. `smb.sh`/`smbbak.sh` have no `eval` — and `smbd`, `smbpasswd`, `nmbd` and
+  `snmpd` are all absent from `/bin` while three scripts driving them ship.
+- **`P8-18`** — `FUN_0044f360` returns an integer offset on every path.
+  `filename=` is a landmark it searches past; the value is never copied.
+  `formUploadConfig` is a **different** handler, still unread, and belongs to
+  `P8-12`.
+- **`P10-7`** — the register's premise is wrong for this unit. It ships **one**
+  factory key, `/etc/dropbear_rsa_host_key`, and **no SSH daemon at all**, while
+  `sysconf` still installs the key to `/var/dropbear` on every boot.
+
+### Instrument bugs 37 through 39
+
+**37. `qemu-env.sh reset` could not remove what `serve` deliberately creates.**
+`reset` ended with `rm -f "$ENVDIR/var/web/config.dat"`, and `cmd_serve` makes
+that path a **directory** — the `P0-9` trick that makes `boa`'s start-up `open()`
+return `EISDIR`. `rm -f` cannot remove a directory, so after any `serve`, `reset`
+returned non-zero with every restore above that line having succeeded, and the
+leftover survived a reset that promises to restore both pieces of state. It had
+been that way since `serve` was written; **nothing noticed because no caller had
+ever checked `reset`'s exit status.**
+
+**38. A probe that produced seven complete, plausible, empty measurements.**
+`failopen-probe.sh` ran the boot script as `qemu-env.sh run /bin/startup.sh`, and
+`run` executes under `qemu-mips-static`, which wants an ELF. The first working run
+printed seven neatly formatted damage states in which the boot script said
+nothing and changed nothing — **including the one state the probe was written to
+detect.** What caught it was that the control state and the both-damaged state
+produced identical output, which cannot be true if the branch exists. It now runs
+`echo SHELL_RUNS` through the same path first and refuses if it does not come
+back.
+
+**39. A binary vanished from the extracted rootfs mid-read.** `bin/miniigd` was
+listed and `strings`-ed successfully and twenty minutes later `cp` reported no
+such file, while the copy inside the built emulation environment was still there.
+Restored by re-running `unsquashfs`; the fresh extraction's SHA-256 matches the
+environment copy byte for byte, so nothing measured is in doubt. **What removed
+it is not known** and guessing would be worse than saying so — only `strings`,
+`readelf` and a failed Ghidra import had touched that path. The lesson is not the
+file: **nothing in this repository checks that the extracted tree still matches
+the SquashFS it came from**, so a tree that loses a file looks exactly like one
+that does not, and the extracted rootfs has been treated as evidence when it is
+derived data.
+
+That is thirty-nine recorded, and the tally by *how* they were caught is
+unchanged in shape: comparing two things that should have agreed, a check written
+to fail, or asking what a checker does not read. **Number 39 was caught by none of
+those** — it was caught by a `cp` that failed for an unrelated reason, which is
+luck, and luck is why the missing check is written down above.
+
+### Corrections to the plan
+
+| W07's plan says | What happened |
+|---|---|
+| Day 2 allots a day to standing up **six emulation profiles** for differential fuzzing | The one differential answer this week needed — does 2020 have the credential pair — came from **twenty minutes reading three binaries**. The harness is still worth building, for divergences nobody thought to look for, but the cheap version should have run first |
+| Day 4: *"grep three corpora for which templates **output** that field"* | There is nothing to grep. The templates call `<% dhcpClientList(); %>`; the value is written by a C function inside `boa`. The plan's *method* — parameter → MIB field → output site — is right and is what turned five CVEs into one class; its idea of where the output site lives is wrong |
+| Day 5 lists `/bin/auth` as a **credential check** worth reading for that reason | It is the 802.1X authenticator. Worth reading, for a different week |
+| Day 1's residue is *"this week's work list"* | 63 of the 91 are the `submit-url` class already refuted on this build, and four more parameters are named in `P4-4`'s frozen prediction. What is left uncharacterised is about a dozen parameters |
+
+### Deliberately not done
+
+| Item | Why |
+|---|---|
+| Everything needing the device | Moved to the next sitting **on purpose**, so that the eleven register rows with no refutation condition could be written and frozen first. Writing them the night before the visit rather than after it is the entire reason the register exists |
+| The `P4`/`P5` exploitation block, 9 cases | No offset measured, no `epc` shown controllable, no chain assembled. The environment exists on two profiles. Not started rather than half-done |
+| The six-profile differential harness | See *Corrections*. `mkflash` makes a V3.4.0 profile cheap and its control set has to be derived from that build rather than copied — *"a profile whose control cannot fail is not a second environment, it is a second way to believe the first one"* |
+| Recording the bench-blocked cases as `partial` | `P6-1`, `P6-10`, `P8-2`, `P8-19` all have a completed white-box half and a refutation condition phrased about behaviour. Recording them would mark them done in `make todo` and hide the work still owed |
+| Reporting anything to anyone | Three items are candidates for being original and **none has had the per-handler prior-art search** step 2 of `docs/disclosure.md` requires. That search took one query and overturned `D-1` |
+
+### Open, carried forward
+
+50. **Does the empty-credential bypass fire on silicon?** Three requests, no
+    power cycle. The most valuable question this session produced.
+51. **Prior art for the uninitialised credential pair**, and for the `dnsspoof`
+    write. Neither has been searched, and `notes/prior-art.md` has been wrong once.
+52. **What `req->0xb0 = 2` buys over `= 1`.** The finding is "authenticates", not
+    "authenticates as something better", and the wording stays there until this is
+    read.
+53. **Can the two uninitialised buffers be made to hold *chosen* bytes** rather
+    than zero? That would be a different and worse thing.
+54. **Which of `dnrd`, `dnsmasq`, `dns_protocl` and `dnsspoof` is bound to 53.**
+    `P1-2` found 53/udp `open|filtered` and did not say by what. `P6-10` cannot
+    close before this.
+55. **UDP 9034 has never actually been probed over UDP.** `runsheet.md:1740` uses
+    `nmap -sT`, a TCP connect scan, while `P6-4` is about CVE-2021-35394's UDP
+    daemon and the W05 UDP list was ten ports that did not include it. A TCP RST
+    says nothing about a UDP listener.
+56. **Nothing verifies the extracted rootfs against its SquashFS.** See instrument
+    bug 39.
+57. **`formUploadConfig` is still unread**, and `P8-12`'s chain now has a second
+    route through `P8-24` that needs no encoder.
+
+### Where W07 stands, and what the next session does
+
+The register reads **W07 11 of 57**. Everything remaining that does not need the
+device is the `P4`/`P5` block and `P5-7`/`P8-21`/`P8-23`; everything else is the
+bench.
+
+| Next | Needs the device? | Note |
+|---|---|---|
+| **1. The three-request credential check** | ✅ | Empty pair, real pair, wrong password, on a gated page. No power cycle, no write. Settles `P2-9` and open #50 |
+| **2. The UDP sweep that has never run** | ✅ | 9034, 20005, 9999 **over UDP**, with a known-open UDP port answering in the same sweep as the positive control. Settles `P6-4` and `P6-12`, and open #55 |
+| **3. The UPnP block** | ✅ | 52869 SOAP on `/upnp/control/WANIPConnection`, 1900 SSDP, 52881 wscd. `P6-1`, `P6-2`, `P6-3`, `P8-7`, and `P8-2`'s UPnP point |
+| **4. The rest of the network block, then the destructive batch** | ✅ | Read-only first, then the config-changing ones, then the handler sample, then `P8-4`, and `P9-9` **last** because it wipes the settings every other test is standing on |
+| **5. `P5-6` and the `P4`/`P5` block** | ❌ | Desk work, and the screening tool leads it |
+| **6. Prior-art searches** | ❌ | Before anything is reported, and it gates `D-15`, `D-16`, `D-17` |
