@@ -432,3 +432,157 @@ CVE-2019-19823 的端到端鏈）、`formUpload` / `formUploadConfig`、
 所以本場對 `P3-13` 的問題比登記時更尖銳：不是「寫入類在不在門外」，而是
 **「閘門為什麼特地點名這兩個」**。用 GET 探（不執行 handler）。
 
+## 紀錄卡
+
+```
+T-06  開放#17  FLW 的磁區語意                            11:00
+      指令: console-dump.py dump --at-prompt --flash 0x3F0100 --length 8
+                              --ram 0x80560000 --chunk 8
+      對照組: FLR flash 0x000000 -> 0x80560000, 期望 0b f0 00 04 -> 命中
+      讀出:  cafe babe cafe babe
+      判定: ✅ 讀-改-抹-寫回,而且**保留磁區其餘內容**
+      反證檢查: 測前寫「ca fe ba be → 讀-改-抹-寫回;ff ff → 整磁區抹掉,
+                寫 flash 風險全部上調」。前者成立
+      ⚠️ 為什麼這次的證據比 07:47 那次硬: 對照組先把 flash 0x0 讀進**同一個**
+         RAM 位址,所以真正讀取之前那塊 RAM 裝的是第三種東西 ——
+         「換一個沒用過的位址」還是不知道裡面是什麼,這個知道
+
+T-07  P0-10   64 KiB 快照(POST 之前)                    11:02
+      檔名: dumps/config-region-20260817-1102-pre.bin   sha256 78186d2b…
+      與 8/16 完整 dump 前 64 KiB: **IDENTICAL**
+      判定: ✅ 而且它同時是一個對照組 ——
+            8/16 之後這台開機至少三次、跑過完整 GET 輪、成功登入過一次,
+            設定區**一個 byte 都沒變**。所以稍後 POST 造成的差異可以歸因
+
+T-08  P0-5    IoC 預檢                                   11:03
+      COMPCS / COMPDS 各 344 筆,共同 343 筆
+      差異: 4 —— CHECK_SSID_OK · DHCP_LEASE_TIME · MIB_VER · WLAN_SSIDS
+      兩區 checksum_ok=True, ring_fill_agrees=True, verdict=consistent
+      判定: ✅ 凍結條件「4 / 343」MET,四個名字與 07:35 那次相同
+
+T-09  P9-3    救援路徑(非破壞性上限)                    11:05
+      AUTOBURN: 0        -> Unknown command !
+      AUTOBURN 0         -> AutoBurning=0            ★ 空格才是語法
+      IPCONFIG:10.1.1.1  -> Unknown command !
+      IPCONFIG 10.1.1.1  -> Now your Target IP is 10.1.1.1
+      主機端: ping 4 送 0 收;ip neigh = REACHABLE;rx_packets 0 -> 1
+      TFTP RRQ(不存在的檔名) -> **516 bytes DATA (opcode 3) from :2098**
+      判定: 🔶 部分 —— 救援進得去、網路活著、TFTP 服務會回應;
+            但預測寫的是「tftp **put** 可用」,而 put 依這一場的上限不做
+      反證檢查: 凍結條件只問「救援模式進不進得去」。進得去,不成立
+      ⚠️ 我自己寫在計畫裡的成功條件是「ping 有回應,且 MAC 是這台」——
+         **兩半都不成立,而那是我的條件寫錯了**:TFTP-only 的堆疊沒有義務
+         實作 ICMP,而 loader 的 MAC 是從 IP 合成的(0a 01 01 01 = 10.1.1.1)。
+         凍結的那一條沒有要求這些
+      計畫外: TFTP GET 不看檔名,吐的 516 bytes 與 flash 0x060010 起的
+              cr6c 酬載逐 byte 相同。列為開放題,本週不追
+
+T-10  P1-12   上電到 web 可服務                          11:11
+      工具: tools/coldboot-timing.sh(一次上電同時餵三項)
+      +0.00  第一個 console 字元          +6.91  Uncompressing Linux... done
+      +0.61  ---RealTek(RTL8196E) v1.3    +14.02 init started: BusyBox v1.13.4
+      +5.84  Jump to image start=0x80500000
+      +32.50 boa: starting server pid=350, port 80
+      +38.76 **第一個 HTTP 200**
+      判定: ✅ 成立(預測 < 40 秒)
+      反證檢查: 測前寫「**明顯**超過 40 秒 → bootlog 時間戳不是牆鐘時間,
+                或有服務是延遲啟動的」。38.76 不是明顯超過
+      ⚠️ 但餘裕只有 1.24 秒,而 **t=0 是第一個 console 字元不是通電瞬間**,
+         所以 38.76 是下界。而且 boa 自報啟動之後還有 6.3 秒不能服務。
+         這一項的用途是「掃太早會把沒起來的服務讀成關的」——實務結論是**等 45 秒**
+
+T-11  P9-1    bootloader 能不能傳 kernel cmdline         (靜態,11:1x 補動態)
+      A 儀器: loader stage 2(flash 0x0012F0 起 LZMA, 17,334 -> 56,592)
+              13 個 cmdline 形狀的針 -> **0 命中**
+              同一次掃描找到 `?` 印的全部 17 個指令(找不齊就拒絕出報告)
+      B 儀器: 裝置 console 的 `?` -> 16 條,與 A 的字串表逐條相符
+      C 儀器: kernel(flash 0x060010+0x2808 起 LZMA, 976,470 -> 3,374,772)
+              0x2f9590  console=ttyS0,38400 root=/dev/mtdblock1   ← 沒有 init=
+              0x2d8590  No init found.  Try passing init= option to kernel.
+              "Kernel command line" -> **ABSENT**
+      D 觀測: 開機 log 全程沒有 `Kernel command line:` ——
+              而 C 說那個字串不在 image 裡,所以它**永遠印不出來**
+      判定: ❌ 反證成立(static)
+      反證檢查: 測前寫「改了 init 之後仍然進正常開機 → cmdline 不是從
+                bootloader 傳的」。**前件無法構成** —— loader 沒有任何指令
+                可以表達它。而 C 顯示 kernel 會認 init=,缺的完全在 loader 那側
+
+T-12  P3-13   未認證的設定「寫入」端點盤點              11:2x
+      工具: bench-probe writes(**GET only,一個 handler 都沒執行**)
+      全部 57 個 /boafrm/formX      -> 302 → home.htm  (門沒跑)
+      全部 57 個 /boafrm/formX.htm  -> 302 → login.htm (門跑了,擋掉)
+      唯一例外: formLogin.htm -> 404 —— `formLogin` 在豁免清單上
+      測試自己點名的三個(formUpload / formPasswordSetup / formSaveConfig)
+      與其餘 54 個**完全同一種行為**
+      判定: ✅ 成立
+      反證檢查: 測前寫「寫入類被擋而讀取類沒被擋 → 門不是純 URI 字串比對」。
+                兩類逐一相同,不成立
+
+T-13  P1-4    57 個端點 POST 存在性                      11:3x / 11:4x
+      跑了兩次,結果高度一致:
+        送出 POST 34 / 36    有回應 31 / 32    無回應 3 / 4
+        狀態碼: 200 ×4, 302 ×27–28,**零個 404**
+        302 去向: msg.htm ×13, status.htm ×11–12, countDownPage.htm ×2,
+                  login.htm ×1(= formLogout,合理)
+        依名字拒打: 13(拒絕清單,理由逐條在 RUNBOOK §8.12.12)
+      **formSysCmd -> 302 → status.htm, 10 ms** ← W05 DoD 第 5 項 (b) 關掉
+        而它可證明沒有執行任何東西:handler 是
+        `if (*cmd != '\0') { … system(buf); }`,而 sysCmd 缺席
+      判定: 🔶 部分
+      反證檢查: 測前寫「大量端點回 404 或連線中斷 → **先確認是不是自己把
+                boa 打掛了**,再下端點不存在的結論」。
+                連線確實中斷了,而我們確認了是自己打掛的 —— 逐項 elapsed_ms、
+                會重試的對照組、以及 console 全程無訊息
+```
+
+## 這一場最重要的一個計畫外結果
+
+**未認證、不帶任何參數的 POST,可以把這台唯一的 web server 佔住好幾秒;
+連續約 45 個就把它徹底弄掉,而且它不會自己回來。**
+
+```
+9650 ms  POST /boafrm/formPortFw          6009 ms  POST /boafrm/formSysLog
+6359 ms  POST /boafrm/formPocketWizard    6008 ms  POST /boafrm/formRoute
+                                          6007 ms  POST /boafrm/formWlanSetup
+```
+
+`boa` 在這台是**單一 process**(`boa: starting server pid=350`),handler 呼叫
+`system()` / `execl()` 期間它不回到 accept 迴圈,backlog 滿了之後新連線被拒。
+兩次獨立的掃描都在第 45 個附近死掉。死掉之後:
+
+- `ping` 全程正常 —— **kernel 活著,只有 boa 不見了**
+- console **一行訊息都沒有** —— 沒有 oops,沒有任何字
+- 超過 20 分鐘後 `boa` 仍然沒有回來 —— `rcS` 是一次性啟動它的,不是 respawn
+
+**這與 `P4-1`(不帶 submit-url 往唯讀段 strcpy)是不同的一條。** 這一條**帶**
+`submit-url`,而且完全合法。歸類與影響評估留給 W06/W07,`docs/disclosure.md`
+先記一筆。
+
+## 這一場的四個儀器缺陷
+
+1. **`console-dump.py` 擋掉 `AUTOBURN` —— 在這一格是反的。** 那是唯一一個
+   「讓後面每件事變安全」的指令,擋掉它等於把它推回給手指,而旁邊就是相反的值。
+   → 新增 `rescue` 子指令,**只送得出 0**,而且驗回應。
+2. **說明文字不是語法。** `AUTOBURN: 0` / `IPCONFIG:<addr>` 都回 `Unknown
+   command !`;loader 的字串表把指令 token 和說明行分開存。這是這顆 loader
+   第三次文件與 parser 不一致(前兩次:`HELP` 不能用、`FLR`/`FLW` 的 Y 提示標點)。
+3. **`bench-probe` 中止時一個 byte 都不寫。** 它偵測到最有價值的事件,然後在
+   同一個動作裡把該事件的證據銷毀 —— 59 筆回應連同逐項 elapsed_ms。
+4. **`set -o pipefail` + `grep -q` 又來一次**,由我,寫進守衛套件裡,
+   而 `PROGRESS.md` 當天就把它記為儀器 bug 15。
+
+## 這一場燒掉了什麼
+
+| | |
+|---|---|
+| flash 寫入 | **零** —— `FLR`/`DB` 全是讀 |
+| 裝置設定 | **有改,而且是計畫內的**:約 70 個 handler 被 POST 執行過(兩輪) |
+| web 服務 | `boa` 目前不在。**斷電重開即復原**,不需要救援路徑 |
+| 不可逆 | 無 |
+
+> 🔴 **下一場的 IoC 預檢不會是 4 / 343,而那是預期的。**
+> 凍結條件是對「這一場之前」的狀態寫的。POST 輪之後基準必須重新建立,
+> 而重建的方式是**歸因**而不是重設:POST 之後的 64 KiB 快照與
+> `config-region-20260817-1102-pre.bin` 逐欄位比對,差異逐項對到哪一輪。
+> **看到不是 4 就當資安事件處理是錯的 —— 先讀這一段。**
+
