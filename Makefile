@@ -154,6 +154,25 @@ probe-test: ## Prove the bench prober's refusals fire (needs no device)
 loader-test: ## Prove the boot-loader unpacker's refusals fire (needs no dump)
 	bash tools/test-loader-unpack.sh
 
+# The three suites below were written before `ci` existed as a single list and
+# were never added to it -- 35 cases, none needing hardware, recorded as
+# PROGRESS open #33 when the totals were recounted on 2026-08-17. The largest of
+# them guards the flash parser, which is the code path every byte of this unit's
+# dump came through. Found by counting, not by anything checking.
+dump-test: ## Prove the flash reader's refusals fire (needs no device)
+	bash tools/test-console-dump.sh
+
+flash-tools-test: ## Prove the CH341A path's refusals fire (needs no programmer)
+	bash tools/test-flash-tools.sh
+
+photo-test: ## Prove the redaction and annotation guards fire (needs no photograph)
+	bash tools/test-photo-tools.sh
+
+# The write path is the only tool here that can destroy the unit, so its guard
+# suite is the one that most needs to be in CI rather than in a habit.
+write-test: ## Prove the flash writer refuses every range it must not touch
+	bash tools/test-console-write.sh
+
 # Like recon-unit and qemu-env: needs the flash dump read off my own unit, so it
 # is not in `recon`. The report it writes is mostly a claim about what the boot
 # loader does *not* contain, which is why its committed form carries a positive
@@ -170,7 +189,7 @@ loader-report: ## Unpack the boot loader's LZMA stage 2 (needs the flash dump)
 # `rtcase-test` is in here and not optional. It is the only thing proving the
 # register gate can fail; without it `make rtcase` going green means nothing,
 # which is the exact shape of instrument bug 12.
-ci: lint test shellcheck check-reports check-runsheet rtcase rtcase-test qemu-test probe-test loader-test runsheet-test ## Everything CI checks, except the container build
+ci: lint test shellcheck check-reports check-runsheet rtcase rtcase-test qemu-test probe-test loader-test runsheet-test dump-test flash-tools-test photo-test write-test ## Everything CI checks, except the container build
 	@echo "  ok   local CI equivalents passed (container build not included)"
 
 diff: venv ## Diff the two builds

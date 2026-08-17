@@ -128,6 +128,24 @@ jobs:
       - name: runsheet checker — prove it can fail
         run: bash tools/test-check-runsheet.sh
 
+      # The four below were outside every CI list until 2026-08-18. Three of
+      # them predate this job and were simply never added — 35 cases, none
+      # needing hardware, recorded as PROGRESS open #33 when the guard-case
+      # totals were recounted and did not add up. The flash reader's suite is
+      # the largest of the three, and it guards the code path every byte of this
+      # unit's dump came through.
+      - name: flash reader — the parser refusals and the redaction rule
+        run: bash tools/test-console-dump.sh
+      - name: CH341A path — the ways a clip lies
+        run: bash tools/test-flash-tools.sh
+      - name: photo tools — redaction and annotation guards
+        run: bash tools/test-photo-tools.sh
+      # And the new one. This is the only tool in the repository that can
+      # destroy the unit, so its refusals are the ones that most need a machine
+      # checking them on every push rather than a habit checking them sometimes.
+      - name: flash writer — every range it must refuse, and two it must accept
+        run: bash tools/test-console-write.sh
+
   toolbox-image:
     name: toolchain image builds
     runs-on: ubuntu-24.04
