@@ -669,6 +669,53 @@
       ],
       "note": "Refuted at all three sites the prediction named, each for a different reason, and the complete inventory is nine flash get sites of which only two are eval. snmpd.sh:36-44 is the strongest sink - eval, not interpolation, and flash get quotes string values with double quotes where a backtick still executes - but none of its nine SNMP_ names exists in this build MIB table. Two instruments: the table recovered from libapmib.so has SNMP_RO_COMMUNITY and SNMP_RW_COMMUNITY only, and the vendor own /bin/flash answers flash get SNMP_NAME with a usage dump and rc=255. The script asks SNMP_ROCOMMUNITY - one underscore apart, scripts and MIB table from different SDK vintages, which is also why snmpd smbd smbpasswd nmbd are all absent from /bin while three scripts driving them ship. smb.sh and smbbak.sh capture MIB values with backticks but feed a config file and argv after word-splitting, no eval so no execution. The one live eval is startup.sh:25 over WLAN_BAND2G5G_SELECT and it DOES run at boot - see P8-24, where the transcript shows the shell reporting Invalid: not found from flash error text. So the class exists on this device and no attacker-controlled value currently reaches it.",
       "case_freeze_sha256": "dd2ca263be6f90e62c80d05583bba6810e07c6aba42f1e8debe56c1ef51aeb00"
+    },
+    {
+      "id": "P9-13",
+      "date": "2026-08-18",
+      "verdict": "confirmed",
+      "evidence_kind": "static",
+      "artefacts": [
+        "notes/firmware-upgrade-path.md",
+        "reports/ghidra-xref-unit-2018-upgrade.json"
+      ],
+      "note": "Checksum only, and the addresses are in the note. UpgradeByData @0x00460798 (1608 bytes) is the whole acceptance path and it does exactly three things: memcmp against the four-byte section tags cr6c/w6cg/r6cr at 0x004608cc, 0x00460924, 0x0046097c; a checksum, FUN_00460600 called at 0x00460a98 for cr6c and r6cr and FUN_00460690 at 0x00460aec for w6cg; and a strncmp at 0x00460a04 against a model string the caller supplies. Both checksums are additive with no key - FUN_00460600 sums big-endian halfwords and requires 0, FUN_00460690 sums bytes and requires 0 with a length cap of 0x800000. No signature, no hw_version, no anti-rollback: strings over the whole binary finds no signature/RSA/pubkey/pem/hw_version match, and the listing has no room for one. Read at instruction level with BoaListing, not from the decompiler. The model string form_formUpload passes at 0x0044f4dc is the literal TOTOLINK-N150RT-V2.1.0 while this unit reports TOTOLINK-CX-N150RT-V2.1.6-B20171121.1002, and nothing compares the two - the accepted label is an older, published version string.",
+      "case_freeze_sha256": "d6ac0ce9b45cd3aa5120e1e20b034a3746bd50319998f608822d96587b33625c"
+    },
+    {
+      "id": "P8-10",
+      "date": "2026-08-18",
+      "verdict": "confirmed",
+      "evidence_kind": "static",
+      "artefacts": [
+        "notes/firmware-upgrade-path.md",
+        "reports/ghidra-xref-unit-2018-rfw.json"
+      ],
+      "note": "It makes outbound connections, they are plain HTTP, and the trigger is unauthenticated. /bin/batchRemoteUpgrade carries its flow in its string table: wget -q -c http://%s:%s/fw/totolink/%s/ -O /tmp/index.htm, then cat /tmp/index.htm | grep %s >/tmp/fwList, then wget -c http://%s:%s/fw/totolink/%s/%s -O /tmp/%s. It imports system, sprintf and strcpy, and sysconf starts it as batchRemoteUpgrade with six arguments. The same job exists inside boa: FUN_0044f7b4, reached from form_formSaveConfig, reads submit_rfw_check (0x0044f804), submit_rfw_download (0x0044f824) and submit_rfw_upgrade (0x0044f844) from the POST body and calls CheckRFW at 0x0044f88c with the literal host sl.totolink.software and model TWN150RTV2, then DownloadWithPercents and InitRFWUpgrade. auth-flow-2018.md and P2-1 both put POST /boafrm/* outside the gate. Combined with P9-13 (additive checksum, no signature) the class is a supply-chain path that needs DNS or MITM control and no memory-corruption exploit. STATIC ONLY - nothing has been executed; the device half is scheduled and the write half stays with P9-10 in W08.",
+      "case_freeze_sha256": "e88da237fa4f05ec16f57fbb3329c6f17773fe72e13aa41797f844937d111b39"
+    },
+    {
+      "id": "P8-18",
+      "date": "2026-08-18",
+      "verdict": "refuted",
+      "evidence_kind": "static",
+      "artefacts": [
+        "notes/firmware-upgrade-path.md"
+      ],
+      "note": "Refuted exactly as the refutation condition anticipated. FUN_0044f360 @0x0044f360 is 272 bytes and every path through it returns an integer OFFSET, not a string: it strstrs four Content-Type markers, and failing those it uses filename= at 0x0044f408 purely as a landmark - strchr for the closing quote at 0x0044f424, one more strstr at 0x0044f440, then return (p - body) + 4. The filename is never copied, never reaches sprintf, never becomes a path or a shell string. form_formUpload uses the return value as UpgradeByData third argument and touches no other multipart header. Note the scope: formUploadConfig is a DIFFERENT handler, is not covered here, and is still unread - that one belongs to P8-12.",
+      "case_freeze_sha256": "db9b72411323981827590810335d5ec905a2695405ade596f9e6ebebc91cc390"
+    },
+    {
+      "id": "P8-5",
+      "date": "2026-08-18",
+      "verdict": "confirmed",
+      "evidence_kind": "emulated",
+      "artefacts": [
+        "notes/host-header-and-redirect.md",
+        "reports/ghidra-xref-unit-2018-checkhost.json"
+      ],
+      "note": "check_host exists, is strict, is enforced, and never runs. It is at 0x00410470, 272 bytes: first char alphanumeric, length under 64, later chars alphanumeric or - or ., no leading or doubled dot, last char alphanumeric. process_header_end tests the verdict at 0x0040bca4 and a failure reaches send_r_bad_request at 0x0040bccc, a 400. Six instructions earlier, 0x0040bbec branches past the entire host block when vhost_root is NULL, landing on the same label the success path uses - and VHostRoot is commented out in both /etc/boa/boa.conf.bak line 150 and the runtime /var/boa.conf, so vhost_root is NULL on every boot. Measured, not inferred: seventeen Host values against the emulated server, nine of which check_host would reject including empty, 300 chars, spaces, underscores and punctuation, all returned 200, with login.htm/blank.htm controls holding. Bonus, and it is its own finding: the client Host at req+0x60 IS reflected into the gate redirect Location, giving an unauthenticated open redirect on every gated path - but both sinks encode correctly (URL-encoding in Location, HTML entities in the body), so it is not XSS.",
+      "case_freeze_sha256": "979a8e969984427721db3003853dc31308ba29e4caaafe55ac4667e0045c675e"
     }
   ],
   "register": "test-cases.toml",

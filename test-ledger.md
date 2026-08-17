@@ -53,10 +53,10 @@ W05 週計畫原本要另外建一份 `notes/prediction-scorecard.md`（12 條�
 |---|---|
 | 登記項目 | **134**（排入 125，砍掉 9） |
 | 已寫反證條件（凍結） | **117** / 125 |
-| 已執行 | **56** |
+| 已執行 | **60** |
 | 其中以真機動態證據收掉 | **43** |
-| 其中以模擬環境執行收掉（**不是矽上**） | **9** |
-| 判定成立 / 判定不成立 | **31** / **12** |
+| 其中以模擬環境執行收掉（**不是矽上**） | **10** |
+| 判定成立 / 判定不成立 | **34** / **13** |
 | 凍結雜湊 | `a9bd2761074e0b349726ec0ee96f3280e30a81e13a034643c1c3581dfc7f10be` |
 
 ## 排程：哪一週要打掉哪些
@@ -70,7 +70,7 @@ W05 週計畫原本要另外建一份 `notes/prediction-scorecard.md`（12 條�
 | **W04-2** | Phase 0 | 2 / 2 | `▰▰▰▰▰▰▰▰▰▰` |
 | **W05** | Phase 0, 1, 2, 3, 6, 9 | 27 / 27 | `▰▰▰▰▰▰▰▰▰▰` |
 | **W06** | Phase 0, 2, 3, 4, 5, 10 | 20 / 20 | `▰▰▰▰▰▰▰▰▰▰` |
-| **W07** | Phase 1, 2, 3, 4, 5, 6, 8, 9, 10 | 4 / 57 | `▰▱▱▱▱▱▱▱▱▱` |
+| **W07** | Phase 1, 2, 3, 4, 5, 6, 8, 9, 10 | 8 / 57 | `▰▱▱▱▱▱▱▱▱▱` |
 | **W08** | Phase 7, 9 | 0 / 16 | `▱▱▱▱▱▱▱▱▱▱` |
 
 ## 圖例
@@ -668,18 +668,18 @@ W05 週計畫原本要另外建一份 `notes/prediction-scorecard.md`（12 條�
 | P8-2 | 其他 7 個儲存型注入點 | 11.1 | ★★★☆☆ | 🟦 | W07 | ⬜ | — |
 | P8-3 | CSRF drive-by → RCE | 11.2 | ★★★★☆ | 🟨 | W07 | ⬜ | — |
 | P8-4 | CSRF 改密碼 → 正常登入 | 11.2 | ★★★★☆ | 🟨 | W07 | ⬜ | — |
-| **P8-5** | check_host 到底檢查什麼（rebinding 的前提） | 11.3 | ★★★☆☆ | 🟦 | W07 | ⬜ | — |
+| **P8-5** | check_host 到底檢查什麼（rebinding 的前提） | 11.3 | ★★★☆☆ | 🟦 | W07 | 🟪 check_host exists, is strict, is enforced, and never runs. It is at 0x00410470, 272 bytes: first char alphanumeric, length under 64, later chars alphanumeric or - or ., no leading or doubled dot, last char alphanumeric. process_header_end tests the verdict at 0x0040bca4 and a failure reaches send_r_bad_request at 0x0040bccc, a 400. Six instructions earlier, 0x0040bbec branches past the entire host block when vhost_root is NULL, landing on the same label the success path uses - and VHostRoot is commented out in both /etc/boa/boa.conf.bak line 150 and the runtime /var/boa.conf, so vhost_root is NULL on every boot. Measured, not inferred: seventeen Host values against the emulated server, nine of which check_host would reject including empty, 300 chars, spaces, underscores and punctuation, all returned 200, with login.htm/blank.htm controls holding. Bonus, and it is its own finding: the client Host at req+0x60 IS reflected into the gate redirect Location, giving an unauthenticated open redirect on every gated path - but both sinks encode correctly (URL-encoding in Location, HTML entities in the body), so it is not XSS. | [host-header-and-redirect.md](notes/host-header-and-redirect.md) · [ghidra-xref-unit-2018-checkhost.json](reports/ghidra-xref-unit-2018-checkhost.json) |
 | P8-6 | DNS rebinding 完整鏈 | 11.3 | ★★★☆☆ | 🟦 | W07 | ⬜ | — |
 | P8-7 | UPnP 自曝：把 LAN-only 升級成 WAN 可達 | 11.4 | ★★★☆☆ | 🟨 | W07 | ⬜ | — |
 | **P8-8** | MIB 值被拼進開機腳本的 shell 命令（白盒定位） | 11.5 | ★★★☆☆ | 🟨 | W07 | ❌ Refuted at all three sites the prediction named, each for a different reason, and the complete inventory is nine flash get sites of which only two are eval. snmpd.sh:36-44 is the strongest sink - eval, not interpolation, and flash get quotes string values with double quotes where a backtick still executes - but none of its nine SNMP_ names exists in this build MIB table. Two instruments: the table recovered from libapmib.so has SNMP_RO_COMMUNITY and SNMP_RW_COMMUNITY only, and the vendor own /bin/flash answers flash get SNMP_NAME with a usage dump and rc=255. The script asks SNMP_ROCOMMUNITY - one underscore apart, scripts and MIB table from different SDK vintages, which is also why snmpd smbd smbpasswd nmbd are all absent from /bin while three scripts driving them ship. smb.sh and smbbak.sh capture MIB values with backticks but feed a config file and argv after word-splitting, no eval so no execution. The one live eval is startup.sh:25 over WLAN_BAND2G5G_SELECT and it DOES run at boot - see P8-24, where the transcript shows the shell reporting Invalid: not found from flash error text. So the class exists on this device and no attacker-controlled value currently reaches it. | [config-failopen.md](notes/config-failopen.md) · [mib-table-unit-2018.json](reports/mib-table-unit-2018.json) |
-| **P8-10** | batchRemoteUpgrade 的對外連線（白盒未讀） | 11.7 | ★★★☆☆ | 🟦 | W07 | ⬜ | — |
+| **P8-10** | batchRemoteUpgrade 的對外連線（白盒未讀） | 11.7 | ★★★☆☆ | 🟦 | W07 | 🟥 It makes outbound connections, they are plain HTTP, and the trigger is unauthenticated. /bin/batchRemoteUpgrade carries its flow in its string table: wget -q -c http://%s:%s/fw/totolink/%s/ -O /tmp/index.htm, then cat /tmp/index.htm | grep %s >/tmp/fwList, then wget -c http://%s:%s/fw/totolink/%s/%s -O /tmp/%s. It imports system, sprintf and strcpy, and sysconf starts it as batchRemoteUpgrade with six arguments. The same job exists inside boa: FUN_0044f7b4, reached from form_formSaveConfig, reads submit_rfw_check (0x0044f804), submit_rfw_download (0x0044f824) and submit_rfw_upgrade (0x0044f844) from the POST body and calls CheckRFW at 0x0044f88c with the literal host sl.totolink.software and model TWN150RTV2, then DownloadWithPercents and InitRFWUpgrade. auth-flow-2018.md and P2-1 both put POST /boafrm/* outside the gate. Combined with P9-13 (additive checksum, no signature) the class is a supply-chain path that needs DNS or MITM control and no memory-corruption exploit. STATIC ONLY - nothing has been executed; the device half is scheduled and the write half stays with P9-10 in W08. | [firmware-upgrade-path.md](notes/firmware-upgrade-path.md) · [ghidra-xref-unit-2018-rfw.json](reports/ghidra-xref-unit-2018-rfw.json) |
 | P8-11 | 假 NTP / 假 DDNS / 假 DNS 回應（SSRF 類） | 11.7 | ★★★☆☆ | 🟦 | W07 | ⬜ | — |
 | **P8-12** | 上傳 config 開 telnet（卡在 fwrecon 缺 encoder） | 11.8 | ★★☆☆☆ | 🟨 | W07 | ⬜ | — |
 | P8-14 | 以 formSysCmd 掃內網（借合法功能做偵察） | 11.10 | ★★★★☆ | 🟨 | W07 | ⬜ | — |
 | P8-15 | 命令路由器把 flash / 記憶體交出來（論證影響） | 11.11 | ★★★★☆ | 🟨 | W07 | 🔶 命令盤點那半收掉，兩個來源：rootfs 裡沒有 nc/netcat/tftp/curl/telnet 的 ELF，且 busybox 自報的 48 個 applet 也沒有（對照組 uptime 有回應）。/bin/wget 確實存在，與預測相符。外洩本身未演示 | [emulation-2018.md](notes/emulation-2018.md) |
 | P8-16 | Slowloris（S-2） | 11.12 | ★★★★☆ | 🟨 | W07 | ⬜ | — |
 | P8-17 | ARP MITM 竊聽明文憑證（S-3） | 11.12 | ★★★★☆ | 🟥 | W07 | ⬜ | — |
-| **P8-18** | 上傳 filename= 注入（S-11，白盒未讀） | 11.12 | ★★★★☆ | 🟦 | W07 | ⬜ | — |
+| **P8-18** | 上傳 filename= 注入（S-11，白盒未讀） | 11.12 | ★★★★☆ | 🟦 | W07 | ❌ Refuted exactly as the refutation condition anticipated. FUN_0044f360 @0x0044f360 is 272 bytes and every path through it returns an integer OFFSET, not a string: it strstrs four Content-Type markers, and failing those it uses filename= at 0x0044f408 purely as a landmark - strchr for the closing quote at 0x0044f424, one more strstr at 0x0044f440, then return (p - body) + 4. The filename is never copied, never reaches sprintf, never becomes a path or a shell string. form_formUpload uses the return value as UpgradeByData third argument and touches no other multipart header. Note the scope: formUploadConfig is a DIFFERENT handler, is not covered here, and is still unread - that one belongs to P8-12. | [firmware-upgrade-path.md](notes/firmware-upgrade-path.md) |
 | P8-19 | WAN 側 DHCP / PPPoE 攻擊（S-7 / S-8） | 11.12 | ★★★☆☆ | 🟦 | W07 | ⬜ | — |
 | P8-20 | iwpriv 隱藏 ioctl + 暫存器 peek/poke（S-6） | 11.12 | ★★★☆☆ | 🟥 | W07 | ⬜ | — |
 | **P8-21** | 同型號橫向抄襲（S-15：A3002RU / N300RT / N302RE） | 11.12 | ★★★★★ | 🟨 | W07 | ⬜ | — |
@@ -819,7 +819,7 @@ W05 週計畫原本要另外建一份 `notes/prediction-scorecard.md`（12 條�
 | P9-10 | 改造韌體回刷 / implant | 12.7 | ★★★☆☆ | 🟨 | W08 | ⬜ | — |
 | P9-11 | 短接 SPI 強制落回 bootloader（HW-a） | 12.8 | ★★★☆☆ | 🟦 | W08 | ⬜ | — |
 | P9-12 | 換自製 flash / tftpboot RAM kernel（HW-b/c） | 12.8 | ★★★☆☆ | 🟦 | W08 | ⬜ | — |
-| **P9-13** | 韌體映像驗收檢查：這個 build 實際驗哪幾個欄位（純靜態，不回刷） | 12.7 | ★★★★☆ | 🟦 | W07 | ⬜ | — |
+| **P9-13** | 韌體映像驗收檢查：這個 build 實際驗哪幾個欄位（純靜態，不回刷） | 12.7 | ★★★★☆ | 🟦 | W07 | 🟥 Checksum only, and the addresses are in the note. UpgradeByData @0x00460798 (1608 bytes) is the whole acceptance path and it does exactly three things: memcmp against the four-byte section tags cr6c/w6cg/r6cr at 0x004608cc, 0x00460924, 0x0046097c; a checksum, FUN_00460600 called at 0x00460a98 for cr6c and r6cr and FUN_00460690 at 0x00460aec for w6cg; and a strncmp at 0x00460a04 against a model string the caller supplies. Both checksums are additive with no key - FUN_00460600 sums big-endian halfwords and requires 0, FUN_00460690 sums bytes and requires 0 with a length cap of 0x800000. No signature, no hw_version, no anti-rollback: strings over the whole binary finds no signature/RSA/pubkey/pem/hw_version match, and the listing has no room for one. Read at instruction level with BoaListing, not from the decompiler. The model string form_formUpload passes at 0x0044f4dc is the literal TOTOLINK-N150RT-V2.1.0 while this unit reports TOTOLINK-CX-N150RT-V2.1.6-B20171121.1002, and nothing compares the two - the accepted label is an older, published version string. | [firmware-upgrade-path.md](notes/firmware-upgrade-path.md) · [ghidra-xref-unit-2018-upgrade.json](reports/ghidra-xref-unit-2018-upgrade.json) |
 
 <details><summary>Phase 9 的預測與反證條件（9/13 項已凍結）</summary>
 
