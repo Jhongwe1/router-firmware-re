@@ -103,6 +103,19 @@ reader undefended.
   `plan/` and `archive/` are gitignored — read them, never quote them into
   committed files.
 
+## Bench sessions — W06 and W07 have one every week
+
+- **Procedure lives in `RUNBOOK.md` §8.12**, cut into composable sub-sections. A
+  week is *which sections, in what order, plus its own extra steps* — **never a
+  new `W0N-bench-runsheet.md`.** W05 opened one; 580 of its 1,091 lines were
+  reusable procedure, and a second copy would be one state with two owners.
+- **What was actually run goes in `BENCH-LOG.md`** (repo root, append-only): the
+  session's plan written *before* touching anything, then verbatim excerpts, what
+  each step burned, and what is next.
+- **Because that record is verbatim, §8.12 may be refined freely** — the evidence
+  does not depend on the procedure document still saying what it said.
+- Verdicts and evidence links stay owned by `study/test-cases.toml`, unchanged.
+
 ## House style
 
 - **Write for an engineer, never for a hiring panel.** This repo is public and

@@ -9,7 +9,7 @@ trace **already-publicly-disclosed** vulnerabilities down to the responsible
 function in the binary.
 
 > 🚧 **In progress since 2026-07-30. G0 ✅ · G1 ✅ · G2 ✅ passed 2026-08-16 ·
-> G3 ✅ passed 2026-08-11 · G3.5 ✅ passed 2026-08-17 · G3.75 ⚠️ 3 of 5.**
+> G3 ✅ passed 2026-08-11 · G3.5 ✅ · G3.75 ✅ both passed 2026-08-17.**
 >
 > **Latest (W05, 2026-08-17): this unit's own firmware now runs on an x86 host,
 > with a byte-for-byte copy of its own flash standing in for `/dev/mtdblock0`.**
@@ -467,7 +467,7 @@ that is not backed by a command someone else can re-run.
 | [`notes/formSysCmd-analysis.md`](notes/formSysCmd-analysis.md) | The CVE endpoint that is not there, and why three pieces of evidence pointed the wrong way |
 | [`notes/emulation-2018.md`](notes/emulation-2018.md) | **This unit's firmware running on an x86 host** — what was faked, whether each substitution distorts the result, and exactly where `boa` stops |
 | [`notes/oracle-design.md`](notes/oracle-design.md) | **Five observation channels for a blind injection**, four of them rehearsed under emulation — including one that points at the bytes that changed in SPI flash |
-| [`study/W05-bench-runsheet.md`](study/W05-bench-runsheet.md) | The 2026-08-17 bench session: what was run in what order, and the record card for each (Traditional Chinese) |
+| [`BENCH-LOG.md`](BENCH-LOG.md) | **What was actually run at the bench, session by session** — the plan written before touching anything, then verbatim record cards. Append-only (Traditional Chinese) |
 | [`notes/w6cg-web-ui.md`](notes/w6cg-web-ui.md) | **The web UI the vendor actually shipped** — the page and the route are anti-correlated across three builds, and the 2015 fix was half a fix |
 | [`notes/skt-analysis.md`](notes/skt-analysis.md) | The 2015 backdoor decoded: port, magic words, and the one `iptables` line it exists to run |
 | [`reports/`](reports/) | Generated analysis: per-version reports, version diff, Ghidra string xrefs |

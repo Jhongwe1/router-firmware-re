@@ -1381,8 +1381,8 @@ exist.
 | read back, **to a different RAM address** | byte-identical |
 | erase | writing `FF`s over it returns the region to `ff ff ff ff ff ff ff ff` |
 
-Verbatim transcript in [`RUNBOOK.md` §8.9.1](RUNBOOK.md); the session's worksheet
-and record cards are [`study/W05-bench-runsheet.md`](study/W05-bench-runsheet.md).
+Verbatim transcript in [`RUNBOOK.md` §8.9.1](RUNBOOK.md); the session's record
+cards are in [`BENCH-LOG.md`](BENCH-LOG.md).
 **Both halves of the frozen refutation are satisfied, so `P0-3` passes** — and
 the interesting part is what the drill turned up that its own criterion did not
 ask about, in *Open, carried forward* #17.
@@ -1795,6 +1795,39 @@ habit is not — and the habit is the thing the board exists to enforce.
 
 What the request did return is real and is recorded: `Server: Boa/0.94.14rc21`,
 which is `P1-3`'s first half and matches what three builds' string tables said.
+
+### A second process failure: the file this session created had the wrong shape
+
+`study/W05-bench-runsheet.md` was written at the start of the day to put one
+document in front of the operator for an irreversible flash write. That instinct
+was right. **What it became was not**: 1,091 lines holding five kinds of content,
+of which **~580 lines were reusable procedure** — and its per-week name would
+have forced a `W06-bench-runsheet.md` that copied them.
+
+**That is one state with two owners, the failure this repository has now recorded
+three times.** It was caught by the author asking whether it was the right shape,
+not by anything here.
+
+The interesting part is *how* it happened. The ownership question **was** asked,
+once, and the answer was written into the file's own first paragraph on the first
+version — when the file held only the `FLW` drill. **It was not re-asked as Phase
+3's procedure, the results, the corrections and the handoff were appended to it.**
+Same shape as the 2026-08-16 document-sync failure: *treating a question as a
+checkpoint passed once rather than a state that has to keep holding.*
+
+The fix, in the same commit as this note:
+
+| | |
+|---|---|
+| **procedure** | `RUNBOOK.md` **§8.12**, cut into composable sub-sections — a week is *which sections in what order*, not a new document. §8.9 gains **§8.9.4**, the improved `FLW` steps that had existed only in the runsheet |
+| **what was actually run** | **`BENCH-LOG.md`** at the repo root, append-only: the session's plan written before touching anything, then verbatim record cards |
+| **verdicts and evidence** | unchanged, `study/test-cases.toml` |
+
+And the rule that makes refinement safe rather than lossy, now in `CLAUDE.md`:
+**because the bench log is verbatim, §8.12 may be refined freely** — the evidence
+stands on what was typed and seen, not on the procedure document still saying
+what it said. Today alone produced four procedure defects worth fixing, so a
+procedure that cannot be corrected is the worse failure mode.
 
 ### Corrections to the plan
 
