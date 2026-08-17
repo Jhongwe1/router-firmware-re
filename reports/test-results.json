@@ -738,6 +738,18 @@
       ],
       "note": "The premise is wrong for this unit and the answer is that the key is unusable. The register said the rootfs has two factory private keys; that is a statement about V2.1.2 plus V3.4.0. THIS unit has one: /etc/dropbear_rsa_host_key, 282 bytes, dropbear wire format, ssh-rsa with a 0x81-byte modulus so 1024-bit. /etc/privateKey.key is V3.4.0 only. And there is no SSH daemon in the rootfs at all - no dropbear, no dropbearmulti, no sshd among the binaries - while sysconf still does mkdir /var/dropbear and copies the key there at boot. So the key ships, is installed on every boot, and nothing can present it; P6-11 measured port 22 closed on the device, which is the same conclusion from the other side. It stays a shipped-identical-key class item for OTHER models that do run dropbear, which is a P8-21 question, not this unit.",
       "case_freeze_sha256": "4e7a8bc0235beeed976e3c921b6c792c50dfea935e8f4a1f26e21a0dc798c5e7"
+    },
+    {
+      "id": "P8-1",
+      "date": "2026-08-18",
+      "verdict": "confirmed",
+      "evidence_kind": "static",
+      "artefacts": [
+        "notes/xss-escaping.md",
+        "reports/ghidra-xref-unit-2018-escape.json"
+      ],
+      "note": "The white-box read the prediction asked for, and the refutation did not fire: there is no escaping. But the templates were the wrong place and the case as written would have looked in them - dhcptbl.htm contains no field at all, only <% dhcpClientList(); %>, so the value is written by a C function inside boa and grepping 146 template files would have found nothing. What boa does have is req_write_escape_html with an entity table for double-quote, apostrophe, backslash, less-than and greater-than. It has exactly SIX callers and every one is an upstream Boa status page - 403, 404, 301, 302, 411 - plus send_redirect_perm. Not one Realtek ASP list renderer calls it, and boa carries 105 table-markup format strings whose data-bearing ones are raw %s, two of them inside HTML attribute values where a single double-quote suffices. So the five 2025 XSS CVEs are five instances of one omission covering roughly thirty render functions - the same shape as W03 turning \"dat files are not restricted\" into \"everything without htm in the path\". NOT established: that a hostname carrying markup survives udhcpd and the lease table to reach dhcpClientList. Filtering on the WRITE side would close the point as effectively as escaping on the read side and nothing here looked at the write side; that is P8-2 and it stays open.",
+      "case_freeze_sha256": "956b5eb65bb1ea49a9080521950aae83c04dcb73aca35f0f0428b494906c8301"
     }
   ],
   "register": "test-cases.toml",
