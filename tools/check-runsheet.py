@@ -262,6 +262,81 @@ def check(path: Path) -> int:
     if partb < 0:
         errors.append(f"{path.name}: no `# Part B` section — per-week run orders live there")
 
+    # ---- coverage: 27 results should mean 27 reproducible paths ---------
+    #
+    # Asked by the author on 2026-08-17: "we closed 27 tests this week -- should
+    # there not be 27 things somebody can re-run?" Yes. And when that was
+    # measured, runsheet.md named exactly ONE of the 27.
+    #
+    # A registered test whose result nobody can reach a procedure for is a
+    # finding a reader has to take on trust, which is the thing this whole
+    # repository is arranged against. So each step declares which tests it
+    # closes, and this checks it in BOTH directions:
+    #
+    #   * a test id a step claims must exist in the register (no typos, no
+    #     invented ids -- a mapping that names P9-99 looks like coverage);
+    #   * every executed test must be claimed by at least one step, or listed
+    #     in the "no procedure" block below with a reason.
+    #
+    # The second direction is the one that matters. The first would pass on an
+    # empty mapping.
+    reg = REPO / "test-cases.toml"
+    results = REPO / "reports/test-results.json"
+    if reg.is_file() and results.is_file():
+        import json as _json
+        import tomllib
+        doc = tomllib.loads(reg.read_text("utf-8"))
+        cases = {c["id"]: c for c in doc.get("case", [])}
+        executed = {r["id"] for r in
+                    _json.loads(results.read_text("utf-8")).get("results", [])}
+
+        claimed: dict[str, list[str]] = {}
+        for j, (name, ln) in enumerate(steps):
+            end = steps[j + 1][1] if j + 1 < len(steps) else len(lines)
+            for k in range(ln, end):
+                if "**關掉的項目**" not in lines[k - 1]:
+                    continue
+                for cid in re.findall(r"\b(P\d+-\d+)\b", lines[k - 1]):
+                    claimed.setdefault(cid, []).append(name)
+        if not claimed:
+            errors.append(
+                f"{path.name}: no step claims to close any registered test. "
+                "Either the 關掉的項目 field was removed or its shape changed, and "
+                "the coverage check below would then pass over nothing")
+
+        for cid, where in sorted(claimed.items()):
+            if cid not in cases:
+                errors.append(
+                    f"{path.name}: step {'/'.join(where)} claims to close {cid}, "
+                    "which is not in the register")
+
+        # Steps close tests for the weeks the runsheet actually covers. A test
+        # from a week whose sections are not written yet is not a gap.
+        covered_weeks = set(re.findall(r"(?m)^## B-(W\d+)", text))
+        owed = {cid for cid in executed
+                if cid in cases
+                and str(cases[cid].get("week")) in covered_weeks
+                and not str(cases[cid].get("cut_reason", "")).strip()}
+        # An explicit escape hatch, because some results genuinely have no
+        # procedure -- and saying which, with a reason, is honest where silence
+        # is not.
+        exempt = set()
+        m = re.search(r"(?s)<!--\s*no-procedure:(.*?)-->", text)
+        if m:
+            exempt = set(re.findall(r"\b(P\d+-\d+)\b", m.group(1)))
+        gap = sorted(owed - set(claimed) - exempt)
+        if gap:
+            errors.append(
+                f"{path.name}: {len(gap)} executed test(s) that no step claims "
+                f"and no exemption names: {', '.join(gap)}.\n"
+                "        A result nobody can reach a procedure for is a claim a "
+                "reader has to take on trust. Add it to a step's 關掉的項目, or "
+                "name it in the `<!-- no-procedure: ... -->` block with a reason.")
+        covered = len(owed & set(claimed))
+    else:
+        covered = 0
+        warnings.append(f"{path.name}: no register or results file; coverage unchecked")
+
     # ---- report --------------------------------------------------------
     for w in warnings:
         print(f"  warn  {w}", file=sys.stderr)
@@ -271,7 +346,8 @@ def check(path: Path) -> int:
         return 1
     print(f"runsheet OK — {len(steps)} steps, {len(commands)} command lines, "
           f"{len(seen_make)} make targets, {len(helps)} tools checked against "
-          f"their own --help, {untagged} untagged fences")
+          f"their own --help, {untagged} untagged fences, "
+          f"{covered} executed tests reachable")
     return 0
 
 

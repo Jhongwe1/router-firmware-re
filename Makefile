@@ -119,7 +119,7 @@ doctor: ## Is this machine ready? `make doctor` or `make doctor TIER=1`
 check-runsheet: ## Verify every command in runsheet.md still resolves
 	python3 tools/check-runsheet.py
 
-runsheet-test: ## Prove the runsheet checker can fail (15 cases)
+runsheet-test: ## Prove the runsheet checker can fail (18 cases)
 	bash tools/test-check-runsheet.sh
 
 rtcase: ## G3.75: the test register is frozen and every result carries evidence

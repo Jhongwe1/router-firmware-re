@@ -41,6 +41,7 @@ write_good() {
 | | |
 |---|---|
 | **層** | T1 |
+| **關掉的項目** | `P0-2` |
 | **最後驗證** | 2026-08-17 |
 
 ```bash
@@ -56,8 +57,9 @@ See §8.12.3 and [`RUNBOOK.md`](RUNBOOK.md).
 
 # Part B — per week
 
-## B-W05
-nothing
+## B-W99
+A week with no executed tests, so the fixture carries no coverage obligation of
+its own. The coverage cases below switch this to a real week on purpose.
 MD
 }
 
@@ -143,6 +145,60 @@ p = pathlib.Path(sys.argv[1])
 p.write_text(re.sub(r"```bash.*?```", "", p.read_text("utf-8"), flags=re.S), "utf-8")
 PYEOF
 expect_fail "a runsheet with no commands at all" "no shell commands found at all"
+
+echo
+echo "=== coverage: an executed test with no procedure is a claim taken on trust ==="
+
+# A step claiming an id that is not in the register. A mapping naming P9-99 looks
+# exactly like coverage from a distance.
+write_good
+"$PY" - "$RS" <<'PYEOF'
+import pathlib, sys
+p = pathlib.Path(sys.argv[1])
+s = p.read_text("utf-8").replace("| **最後驗證** |",
+    "| **關掉的項目** | `P99-99` |\n| **最後驗證** |", 1)
+p.write_text(s, "utf-8")
+PYEOF
+expect_fail "a step claiming a test id the register does not have" \
+            "which is not in the register"
+
+# The direction that matters. The fixture already claims P0-2; switching Part B to
+# a week that really has results makes every OTHER result unreachable.
+write_good
+sed -i 's|## B-W99|## B-W05|' "$RS"
+out="$("$PY" tools/check-runsheet.py "$RS" 2>&1)"; rc=$?
+if [ "$rc" -eq 0 ]; then
+  bad "a runsheet covering W05 but claiming one test was accepted"
+elif printf '%s' "$out" | grep -qF "no step claims and no exemption names"; then
+  ok "every executed test of a covered week must be claimed by some step"
+else
+  bad "coverage gap reported for the wrong reason:"; printf '%s\n' "$out" | sed 's/^/          /'
+fi
+
+# The escape hatch has to work, or the only way to pass is to claim coverage you
+# do not have -- which is worse than an honest gap.
+write_good
+"$PY" - "$RS" <<'PYEOF'
+import json, pathlib, sys, tomllib
+p = pathlib.Path(sys.argv[1])
+reg = tomllib.loads(pathlib.Path("test-cases.toml").read_text("utf-8"))
+cases = {c["id"]: c for c in reg["case"]}
+done = [r["id"] for r in
+        json.loads(pathlib.Path("reports/test-results.json").read_text("utf-8"))["results"]]
+ids = sorted({c for c in done if c in cases
+              and str(cases[c].get("week")) == "W05"
+              and not str(cases[c].get("cut_reason", "")).strip()
+              and c != "P0-2"})          # P0-2 is the fixture's own claim
+s = p.read_text("utf-8").replace("## B-W99", "## B-W05")
+s += "\n<!-- no-procedure: " + " ".join(ids) + " — fixture -->\n"
+p.write_text(s, "utf-8")
+PYEOF
+if "$PY" tools/check-runsheet.py "$RS" >/dev/null 2>&1; then
+  ok "the no-procedure escape hatch is honoured when it names the gap"
+else
+  bad "the escape hatch did not work, so the only way to pass is to overclaim"
+  "$PY" tools/check-runsheet.py "$RS" 2>&1 | sed 's/^/          /'
+fi
 
 echo
 echo "=== fences: a reader must never confuse 'run this' with 'you will see this' ==="
