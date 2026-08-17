@@ -51,13 +51,13 @@ W05 週計畫原本要另外建一份 `notes/prediction-scorecard.md`（12 條�
 
 | | |
 |---|---|
-| 登記項目 | **130**（排入 121，砍掉 9） |
-| 已寫反證條件（凍結） | **102** / 121 |
+| 登記項目 | **132**（排入 123，砍掉 9） |
+| 已寫反證條件（凍結） | **104** / 123 |
 | 已執行 | **51** |
 | 其中以真機動態證據收掉 | **43** |
 | 其中以模擬環境執行收掉（**不是矽上**） | **4** |
 | 判定成立 / 判定不成立 | **28** / **11** |
-| 凍結雜湊 | `69c342dce863dcc7d2450d3f45f97ad2b3753296a2c8756a54ec27604caffc55` |
+| 凍結雜湊 | `121550712670996a7c1e20816932c10a063a1a7b9804cb631199b050a8e76ef8` |
 
 ## 排程：哪一週要打掉哪些
 
@@ -69,7 +69,7 @@ W05 週計畫原本要另外建一份 `notes/prediction-scorecard.md`（12 條�
 | **W02** | Phase 0, 9 | 2 / 2 | `▰▰▰▰▰▰▰▰▰▰` |
 | **W04-2** | Phase 0 | 2 / 2 | `▰▰▰▰▰▰▰▰▰▰` |
 | **W05** | Phase 0, 1, 2, 3, 6, 9 | 27 / 27 | `▰▰▰▰▰▰▰▰▰▰` |
-| **W06** | Phase 0, 2, 3, 4, 5, 10 | 18 / 18 | `▰▰▰▰▰▰▰▰▰▰` |
+| **W06** | Phase 0, 2, 3, 4, 5, 10 | 18 / 20 | `▰▰▰▰▰▰▰▰▰▱` |
 | **W07** | Phase 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 | 1 / 71 | `▱▱▱▱▱▱▱▱▱▱` |
 
 ## 圖例
@@ -98,8 +98,9 @@ W05 週計畫原本要另外建一份 `notes/prediction-scorecard.md`（12 條�
 | P0-8 | 開機腳本審閱：找 MIB 值被拼進 shell 的地方 | 3.8.5 | ★★★★☆ | 🟥 | W04-2 | 🔶 rcS 已審；但 /bin/*.sh 的 MIB→shell 內插普查沒有寫進任何 committed note，P8-8 目前無可引用證據 | [skt-analysis.md](notes/skt-analysis.md) · [credentials.md](notes/credentials.md) |
 | P0-9 | qemu / FirmAE 模擬環境（桌機 fuzz 用） | 3.8.6 | ★★☆☆☆ | 🟧 | W06 | 🟪 boa serves under qemu-user after all, and W05 finding 6 was too strong. The alignment trap is real but confined to one path: -strace shows SIGBUS at an odd address (si_addr=0x00492b41) immediately after open("/web/config.dat",O_RDWR|O_CREAT|O_TRUNC) at start-up, i.e. while GENERATING config.dat, not while serving. Make that one open() fail (config.dat is a directory) and boa prints Create config file error!, binds, and answers: login.htm 200 (exempt), blank.htm 302 (gated), status.htm 200/30087B - the gate model W04-2 read at instruction level, reproduced with no device attached. POST /boafrm/formSysCmd with sysCmd=cat /etc/version > /var/web/w06emu.txt;# returns the build string through the docroot oracle, and the same POST without the ;# idiom yields HTTP 204 0 bytes - the empty-file trap predicted from the format string %s 2>&1 > %s. Controls: /bin/flash get IP_ADDR works, guest /bin/wget completes HTTP against a host server, the target file 302s before the test, and a POST carrying no sysCmd creates nothing. Desktop fuzz route is open. Cost, stated: /config.dat cannot be fetched from the emulated server because the file standing in for it is the directory that keeps boa alive, so chain links 1-2 stay device-only. tools/qemu-env.sh serve refuses to report success unless both gate controls hold. | [qemu-env.sh](tools/qemu-env.sh) · [emulation-2018.md](notes/emulation-2018.md) |
 | **P0-10** | 每次動手前抓 64 KiB 設定區快照（0x0–0x10000） | 3.2 | ★★★★★ | 🟥 | W05 | 🔶 基準快照已取，與 8/16 完整 dump 的前 64 KiB 逐 byte 相同。反證條件要一次寫入後的差分，那是 W06 | [BENCH-LOG.md](BENCH-LOG.md) |
+| P0-11 | L2：只用公開映像建立模擬環境（不含任何本機專屬產物） | 3.8.6 | ★★★☆☆ | 🟥 | W06 | ⬜ | — |
 
-<details><summary>Phase 0 的預測與反證條件（10/10 項已凍結）</summary>
+<details><summary>Phase 0 的預測與反證條件（11/11 項已凍結）</summary>
 
 **P0-1 — flash 全讀 ×2 + sha256 比對（救命繩 L-1）**
 
@@ -151,6 +152,11 @@ W05 週計畫原本要另外建一份 `notes/prediction-scorecard.md`（12 條�
 
 - 預測：完整 4 MiB 要 105 分鐘，但會被改到的只有前 64 KiB（`H601`/`COMPDS`/`COMPCS` 都在裡面），以 723 B/s 算約 90 秒。有了時間序列快照，不只能還原，還能**指出某個請求改了哪幾個 byte**
 - **反證：送出一個已知會寫設定的請求（例如 `formWsc` 的 `localPin`）之後，兩份快照的差異是 0 → 寫入沒有落到這 64 KiB，還原點的範圍就選錯了，P0-1 的完整備份才是唯一退路**
+
+**P0-11 — L2：只用公開映像建立模擬環境（不含任何本機專屬產物）**
+
+- 預測：公開的 V2.1.2 容器只有三個 section —— `w6cg`@`0x010000`、`cr6c`@`0x060000`、`r6cr`@`0x180000`（`reports/n150rt-2.1.2.json`）—— **flash 的前 64 KiB 完全不在裡面**：boot loader、`H601`、`COMPDS`、`COMPCS` 都是出廠燒進去的。所以拿一份只由容器填出來的 flash 餵給 `qemu-user`，`apmib_init()` 會在硬體設定那一關失敗（`libapmib.so` 裡有 `Read hw setting header failed!` 與 `Invalid hw setting signature [sig=%c%c]!` 這兩條訊息），`boa` 起不來。L2 因此需要合成 `0x6000` 起的那一段，而合成要用的東西 —— MIB id 表、TLV 格式、8-bit checksum、LZSS —— 全部可以從公開的 `libapmib.so` 推導，不含任何本機祕密。
+- **反證：只用容器填出來的 flash，`boa` 就 bind 並回應 `login.htm` 200 → 映像自己會初始化，上面整套「需要合成」的論證作廢，L2 只是下載即跑；反方向同樣算反證 —— 合成之後 `boa` 仍然起不來 → 公開映像上不存在 L2 路徑，G4 clause 3a 失敗，而且要指出缺的究竟是哪一段。**
 
 </details>
 
@@ -324,8 +330,9 @@ W05 週計畫原本要另外建一份 `notes/prediction-scorecard.md`（12 條�
 | P3-11 | download.cgi QUERY_STRING 注入 | 6.6 | ★☆☆☆☆ | 🟨 | W07 | ⬜ | — |
 | P3-12 | Beastmode 家族 /cgi-bin/* 注入 | 6.6 | ★☆☆☆☆ | 🟨 | W07 | ⬜ | — |
 | **P3-13** | 未認證的設定「寫入」端點盤點（不要只找讀的） | 6.7 | ★★★★☆ | 🟥 | W05 | ✅ bench-probe writes,**GET only,一個 handler 都沒有執行**(GET 在這個 build 上走不到 handleForm)。全部 57 個 /boafrm/formX → 302 → home.htm(門沒跑);全部 57 個 /boafrm/formX.htm → 302 → login.htm(門跑了,擋掉)。測試自己點名的三個(formUpload / formPasswordSetup / formSaveConfig)與其餘 54 個完全同一種行為,所以反證條件「寫入類被擋而讀取類沒被擋」不成立。唯一例外是 formLogin.htm 回 404 而非 302 —— 因為 `formLogin` 在閘門的豁免清單上(W04-2 在指令層級讀出的 11 個字串之一),路徑含有它就豁免,門不跑,落到檔案層找不到檔。**那是閘門模型預測的第 57 個資料點,而它沒有被擬合過。** | [BENCH-LOG.md](BENCH-LOG.md) |
+| P3-14 | L2：`localPin` 命令注入在公開映像 V2.1.2 上重現 | 6.1 | ★★★☆☆ | 🟥 | W06 | ⬜ | — |
 
-<details><summary>Phase 3 的預測與反證條件（14/14 項已凍結）</summary>
+<details><summary>Phase 3 的預測與反證條件（15/15 項已凍結）</summary>
 
 **P3-0 — 建立回顯通道（docroot 回寫 + 帶外）**
 
@@ -398,6 +405,11 @@ W05 週計畫原本要另外建一份 `notes/prediction-scorecard.md`（12 條�
 
 - 預測：gate 只看 .htm/.asp，所以寫入類 handler（formUpload / formPasswordSetup / formSaveConfig）全部在門外
 - **反證：寫入類端點被擋而讀取類沒被擋 → 門的判定不是純 URI 字串比對，P2-1 的結論要修**
+
+**P3-14 — L2：`localPin` 命令注入在公開映像 V2.1.2 上重現**
+
+- 預測：`formWsc` 在 V2.1.2 的 `root_form[]` 裡（`0x0044a190`，`reports/ghidra-formtable-2.1.2.json`），而 `localPin` 那一行在 2015 與 2020 之間 byte-for-byte 相同（`notes/three-way-read.md`）。P3-5 已經在這台實機上動態證過同一行。所以在 L2 環境送同一發注入，`strace` 應該看得到被內插的命令走到 `execve`。
+- **反證：`strace` 裡沒有 `execve`，或內插的命令沒有被執行 → 「這條鏈不依賴這台獨有的 build」這個 L2 主張不成立，G4 clause 3a 失敗；同時 `notes/three-way-read.md` 的 byte-identical 讀法要重驗，因為它是這個預測唯一的靜態依據。**
 
 </details>
 

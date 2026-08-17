@@ -31,9 +31,16 @@ schema_version = "1"
 # sha256 over (id, predict, refute) of every case that has a refutation.
 # Change a prediction and this must change in the same commit, where the diff
 # shows it. `python3 tools/rtcase.py freeze` prints the current value.
-sha256 = "69c342dce863dcc7d2450d3f45f97ad2b3753296a2c8756a54ec27604caffc55"
-committed = "2026-08-17"
-note = "W05 Day 0 — frozen before any request has been served to this device."
+sha256 = "121550712670996a7c1e20816932c10a063a1a7b9804cb631199b050a8e76ef8"
+committed = "2026-08-18"
+note = """W05 Day 0 — frozen before any request has been served to this device.
+
+2026-08-18: two cases added, P0-11 and P3-14, both for G4 clause 3a — the L2
+reproduction on an image anyone can download. They are frozen here *before* the
+environment they describe has been built, and the commit that adds them carries
+no result. That ordering is the whole claim: the prediction that a
+container-only flash cannot start boa is on the record before the measurement
+that settles it, and both of them can fail in either direction."""
 
 [schedule]
 # sha256 over (id, week) of every live case. `week` is deliberately NOT in
@@ -44,8 +51,8 @@ note = "W05 Day 0 — frozen before any request has been served to this device."
 # breaking the plan or editing the field. Editing it quietly is
 # indistinguishable from moving the goalposts, so now it hashes.
 # `python3 tools/rtcase.py schedule` prints the current value.
-sha256 = "fd9a23c53b8b39aea7a1da5cb6091c343fba922820c2a9512921ce0c99323fcc"
-committed = "2026-08-17"
+sha256 = "b8a6fde8f7dc6cb43055e6de5967e658dab2a0318ed1eaa506dc0cd65b3f4bd8"
+committed = "2026-08-18"
 note = """The payload changed on 2026-08-17: it was (id, week) and is now
 (id, week, rescheduled_from, reschedule_date, reschedule_reason), so every
 declared hash before this line is on the old basis and cannot be compared to
@@ -58,11 +65,24 @@ exploit-development block. Same failure as the W05 four: the register was built
 by walking the playbook's sections, so cases landed in the week whose section
 number matched rather than the week whose plan admits them, and W06's plan
 forbids fuzzing outright. The reasons here are not "no time": P4-9 is blocked on
-the device (nothing respawns boa, so a run is ~45 requests per power cycle) AND
-in emulation (P0-9 refuted — boa cannot complete one GET under qemu-user), and
-the P5-1 chain has no oracle at all, because this unit has no shell and no
-gdbserver and nothing here has ever shown that a userspace fault prints
-registers on its console."""
+the device, because nothing respawns boa and a run costs ~45 requests per power
+cycle; and the P5-1 chain has no oracle *on the device*, because this unit has
+no shell and no gdbserver and nothing here has ever shown that a userspace fault
+prints registers on its console.
+
+Two clauses stood here until 2026-08-18 and both were wrong — the same two the
+reschedule reasons were corrected for on 2026-08-17. This paragraph said P4-9
+was blocked in emulation as well, citing "P0-9 refuted — boa cannot complete one
+GET under qemu-user", and that the P5-1 chain had no oracle at all. P0-9 came
+back `confirmed` that same evening: boa serves under qemu-user once the start-up
+`config.dat` write is made to fail, and qemu prints the signal and si_addr
+itself, so the oracle does exist on the desktop even though it does not on the
+device. Every *hashed* field was corrected that night. This note was not,
+because the schedule hash covers (id, week, rescheduled_from, reschedule_date,
+reschedule_reason) and not the prose that summarises them — so the register's
+own header went on asserting, for a day, the claim its own rows had already
+withdrawn, in the same file. Instrument bug 28, and the same shape as 23: a
+refuted claim surviving in a place no checker reads."""
 
 [ledger]
 output = "test-ledger.md"
@@ -319,6 +339,17 @@ week = "W05"
 star = true
 predict = '完整 4 MiB 要 105 分鐘，但會被改到的只有前 64 KiB（`H601`/`COMPDS`/`COMPCS` 都在裡面），以 723 B/s 算約 90 秒。有了時間序列快照，不只能還原，還能**指出某個請求改了哪幾個 byte**'
 refute = '送出一個已知會寫設定的請求（例如 `formWsc` 的 `localPin`）之後，兩份快照的差異是 0 → 寫入沒有落到這 64 KiB，還原點的範圍就選錯了，P0-1 的完整備份才是唯一退路'
+
+[[case]]
+id = "P0-11"
+phase = "0"
+section = "3.8.6"
+title = "L2：只用公開映像建立模擬環境（不含任何本機專屬產物）"
+feasibility = 3
+exit_evidence = "static"
+week = "W06"
+predict = '''公開的 V2.1.2 容器只有三個 section —— `w6cg`@`0x010000`、`cr6c`@`0x060000`、`r6cr`@`0x180000`（`reports/n150rt-2.1.2.json`）—— **flash 的前 64 KiB 完全不在裡面**：boot loader、`H601`、`COMPDS`、`COMPCS` 都是出廠燒進去的。所以拿一份只由容器填出來的 flash 餵給 `qemu-user`，`apmib_init()` 會在硬體設定那一關失敗（`libapmib.so` 裡有 `Read hw setting header failed!` 與 `Invalid hw setting signature [sig=%c%c]!` 這兩條訊息），`boa` 起不來。L2 因此需要合成 `0x6000` 起的那一段，而合成要用的東西 —— MIB id 表、TLV 格式、8-bit checksum、LZSS —— 全部可以從公開的 `libapmib.so` 推導，不含任何本機祕密。'''
+refute = '''只用容器填出來的 flash，`boa` 就 bind 並回應 `login.htm` 200 → 映像自己會初始化，上面整套「需要合成」的論證作廢，L2 只是下載即跑；反方向同樣算反證 —— 合成之後 `boa` 仍然起不來 → 公開映像上不存在 L2 路徑，G4 clause 3a 失敗，而且要指出缺的究竟是哪一段。'''
 
 # ===========================================================================
 # Phase 1 — 偵察與指紋
@@ -751,6 +782,17 @@ week = "W05"
 star = true
 predict = 'gate 只看 .htm/.asp，所以寫入類 handler（formUpload / formPasswordSetup / formSaveConfig）全部在門外'
 refute = '寫入類端點被擋而讀取類沒被擋 → 門的判定不是純 URI 字串比對，P2-1 的結論要修'
+
+[[case]]
+id = "P3-14"
+phase = "3"
+section = "6.1"
+title = "L2：`localPin` 命令注入在公開映像 V2.1.2 上重現"
+feasibility = 3
+exit_evidence = "static"
+week = "W06"
+predict = '''`formWsc` 在 V2.1.2 的 `root_form[]` 裡（`0x0044a190`，`reports/ghidra-formtable-2.1.2.json`），而 `localPin` 那一行在 2015 與 2020 之間 byte-for-byte 相同（`notes/three-way-read.md`）。P3-5 已經在這台實機上動態證過同一行。所以在 L2 環境送同一發注入，`strace` 應該看得到被內插的命令走到 `execve`。'''
+refute = '''`strace` 裡沒有 `execve`，或內插的命令沒有被執行 → 「這條鏈不依賴這台獨有的 build」這個 L2 主張不成立，G4 clause 3a 失敗；同時 `notes/three-way-read.md` 的 byte-identical 讀法要重驗，因為它是這個預測唯一的靜態依據。'''
 
 # ===========================================================================
 # Phase 4 — 記憶體破壞
