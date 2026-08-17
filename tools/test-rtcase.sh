@@ -182,6 +182,43 @@ reject "an evidence_kind that is neither static nor dynamic" "evidence_kind"
 res "\"id\":\"T-1\",\"verdict\":\"confirmed\",\"evidence_kind\":\"dynamic\",\"artefacts\":[\"README.md\"],\"case_freeze_sha256\":\"$S1\""
 reject "a result with no date" "no date"
 
+# --- 6b. the marks: executed is not the same as executed on the device -----
+#
+# W05 added a third evidence grade, `emulated`, for results produced by running
+# this unit's own binaries under qemu against its own flash image. The whole
+# reason it is a separate grade is that it must not be readable as the dynamic
+# tick, and "must not" is worth nothing until something checks it. This also
+# fails if a fourth grade is ever added without deciding what it renders as.
+
+echo "=== marks ==="
+
+mark_for() {
+  "$PY" - "$1" <<'PYEOF'
+import sys
+sys.path.insert(0, "tools")
+import rtcase
+print(rtcase.verdict_cell({}, {"verdict": "confirmed", "evidence_kind": sys.argv[1]}, 1))
+PYEOF
+}
+
+TICK="$(mark_for dynamic)"
+if [ -n "$TICK" ]; then
+  ok "a confirmed/dynamic result renders as the tick ($TICK)"
+else
+  bad "a confirmed/dynamic result renders as nothing - the control below is meaningless"
+fi
+
+for kind in $("$PY" -c 'import sys; sys.path.insert(0,"tools"); import rtcase; print(" ".join(k for k in rtcase.EVIDENCE_KINDS if k != "dynamic"))'); do
+  m="$(mark_for "$kind")"
+  if [ "$m" = "$TICK" ]; then
+    bad "a confirmed/$kind result renders as the dynamic tick"
+  elif [ -z "$m" ]; then
+    bad "a confirmed/$kind result renders as nothing at all"
+  else
+    ok "a confirmed/$kind result renders as $m, not the tick"
+  fi
+done
+
 # --- 7. cuts --------------------------------------------------------------
 
 echo "=== cuts ==="

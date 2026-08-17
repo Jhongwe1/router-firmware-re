@@ -95,6 +95,27 @@ jobs:
           git diff --exit-code -- study/test-ledger.md \
             || { echo "study/test-ledger.md is out of date — run \`make ledger\`"; exit 1; }
 
+  bench-guards:
+    name: bench tooling refuses what it claims to refuse
+    runs-on: ubuntu-24.04
+    # Both suites are split so that the half needing neither root, nor a flash
+    # dump, nor a router runs here. The other half reports itself as *skipped*
+    # rather than quietly not running — a suite that silently covers less than
+    # it looks like is the shape of instrument bug 12.
+    #
+    # This job exists because `make ci` runs these and CI did not, which is
+    # exactly the divergence RUNBOOK 10.21 was written about: local green has to
+    # mean CI green, or running the local check stops being a check.
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: qemu environment — the positive control and the input refusals
+        run: bash tools/test-qemu-env.sh
+      - name: bench prober — the refusals, against a real local HTTP server
+        run: bash tools/test-bench-probe.sh
+
   toolbox-image:
     name: toolchain image builds
     runs-on: ubuntu-24.04

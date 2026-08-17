@@ -62,8 +62,97 @@
       ],
       "note": "rcS 已審；但 /bin/*.sh 的 MIB→shell 內插普查沒有寫進任何 committed note，P8-8 目前無可引用證據",
       "case_freeze_sha256": "5d4c09a582bc4648fa902f53c2edf4b4b3bf743781c716ded65f47b4ebffb255"
+    },
+    {
+      "id": "P0-2",
+      "date": "2026-08-17",
+      "verdict": "confirmed",
+      "evidence_kind": "dynamic",
+      "artefacts": [
+        "study/W05-bench-runsheet.md"
+      ],
+      "note": "38400 8N1 全程無亂碼；一次上電命中 bootloader，`?` 印出完整 16 條指令。banner: RTL8196E v1.3 2014.04.22 400MHz",
+      "case_freeze_sha256": "93a9a620b79884cf62f3c18afb495db6ebba8a25b30cec30933a4e9b0aabe7a5"
+    },
+    {
+      "id": "P0-3",
+      "date": "2026-08-17",
+      "verdict": "confirmed",
+      "evidence_kind": "dynamic",
+      "artefacts": [
+        "study/W05-bench-runsheet.md"
+      ],
+      "note": "寫入→讀回逐 byte 一致（新 RAM 位址），寫 FF 後回到全 FF。凍結的兩個條件都滿足。FLW 的磁區語意是新開的問題，不在這一條裡",
+      "case_freeze_sha256": "f0db18fea6119430592e503c83e3e5dad991007b40a6964626fcf859de8fef03"
+    },
+    {
+      "id": "P0-10",
+      "date": "2026-08-17",
+      "verdict": "partial",
+      "evidence_kind": "dynamic",
+      "artefacts": [
+        "study/W05-bench-runsheet.md"
+      ],
+      "note": "基準快照已取，與 8/16 完整 dump 的前 64 KiB 逐 byte 相同。反證條件要一次寫入後的差分，那是 W06",
+      "case_freeze_sha256": "8c6d743e1b8d2e569bc61968f6e9b5f1b12e3ae86cce8e8496b9b4631adb5f83"
+    },
+    {
+      "id": "P0-5",
+      "date": "2026-08-17",
+      "verdict": "partial",
+      "evidence_kind": "dynamic",
+      "artefacts": [
+        "study/W05-bench-runsheet.md"
+      ],
+      "note": "設定那半通過：live 與出廠差異 4/343，正是事先寫下的數字。埠那半（19412/31412/48101/2323/60001）本次未測，網段尚未建立",
+      "case_freeze_sha256": "e2719b97e79421b25b2763128ebc1e3606b948c6d301f2f269d566d5c120bdad"
+    },
+    {
+      "id": "P3-0",
+      "date": "2026-08-17",
+      "verdict": "partial",
+      "evidence_kind": "emulated",
+      "artefacts": [
+        "notes/oracle-design.md",
+        "notes/emulation-2018.md"
+      ],
+      "note": "docroot 確認為 /var/web（ramfs，143 檔，每一檔 sha256 與 webbundle 報告相同）且可寫入；ICMP 通道亦驗過。GET 回來那一半未測——boa 在 qemu 下服務不了請求",
+      "case_freeze_sha256": "5e055c67a63532bd2fd43ae28bc015566f92b52090b9fc6024d54179aeaf482e"
+    },
+    {
+      "id": "P3-6",
+      "date": "2026-08-17",
+      "verdict": "confirmed",
+      "evidence_kind": "emulated",
+      "artefacts": [
+        "notes/oracle-design.md"
+      ],
+      "note": "十種分隔符九種在這台自己的 /bin/sh 上有效；|| 短路是因為 flash set 回傳 0，不是被過濾。handler 尾巴的 2>&1 > /tmp/syscmd.log 確實會蓋掉 payload 的 >，必須用 ;# 截斷",
+      "case_freeze_sha256": "75cb14b6b688923284cc1c4a7f820e6eee619a93bcd85d217dea02b079a18b7e"
+    },
+    {
+      "id": "P10-1",
+      "date": "2026-08-17",
+      "verdict": "partial",
+      "evidence_kind": "emulated",
+      "artefacts": [
+        "notes/emulation-2018.md"
+      ],
+      "note": "預測的前提錯了，方向比預測好：boa 啟動時就 open(/web/config.dat, O_RDWR|O_CREAT|O_TRUNC)，不需要 formSaveConfig。檔案是否有內容、是否 GET 得回來仍未測",
+      "case_freeze_sha256": "efde1cde80932fd407e75a15675cef1fc6cd88c8eb8394f0db166be982086299"
+    },
+    {
+      "id": "P8-15",
+      "date": "2026-08-17",
+      "verdict": "partial",
+      "evidence_kind": "emulated",
+      "artefacts": [
+        "notes/emulation-2018.md"
+      ],
+      "note": "命令盤點那半收掉，兩個來源：rootfs 裡沒有 nc/netcat/tftp/curl/telnet 的 ELF，且 busybox 自報的 48 個 applet 也沒有（對照組 uptime 有回應）。/bin/wget 確實存在，與預測相符。外洩本身未演示",
+      "case_freeze_sha256": "3aa282e70dd6067c2eb7578820f3f7e274c0f2eb60b79cd17ec63b486d85f544"
     }
   ],
   "register": "study/test-cases.toml",
-  "register_freeze_sha256": "90fe878da57549f9469b382b9fff0fca9071cd3a422cd19baaa3e76857a3c3d9"
+  "register_freeze_sha256": "69c342dce863dcc7d2450d3f45f97ad2b3753296a2c8756a54ec27604caffc55"
 }

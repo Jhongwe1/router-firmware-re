@@ -1339,7 +1339,10 @@ python -m fwrecon web <image> --json -o reports/...
 
 ---
 
-## 8.9 ⚠️ G3.5 最後一格:`FLW` 回復路徑演練(**還沒做,而且要你親手做**)
+## 8.9 G3.5 最後一格:`FLW` 回復路徑演練(**2026-08-17 已執行**)
+
+> ✅ **做過了。逐字 transcript 在 §8.9.1,實測推翻本節三處寫法。**
+> 下面的步驟保留原樣,因為 §8.9.1 的更正只有對照著原文才讀得懂。
 
 **W05 不准在這一格完成之前開始。** 理由不是儀式:W06 的 PoC 必然寫 flash
 (`flash set` 寫的就是 `COMPCS`),而這台機器的回復路徑**從來沒有被執行過**。
@@ -1413,6 +1416,114 @@ DB 80550000 8
 bootloader 指令表補上「`FLW` 已實測,日期」。** 這份文件是操作紀錄,它的
 transcript 是逐字的 —— W02 Day 4 的第 8 號 bug 就是因為有人去讀了 `notes/`
 裡被排版修剪過的引用,而不是讀這裡。
+
+---
+
+### 8.9.1 逐字 transcript(2026-08-17 07:38–07:47)
+
+原始檔:`$FWRE_WORK/dumps/w05-flw-20260817-0738.log`。作業單與紀錄卡在
+[`study/W05-bench-runsheet.md`](study/W05-bench-runsheet.md)。
+
+```
+<RealTek>FLR 80520000 3F0000 100
+Flash read from 003F0000 to 80520000 with 00000100 bytes	?
+(Y)es , (N)o ? --> Y
+Flash Read Successed!
+<RealTek>DB 80520000 256
+ [Addr]   .0 .1 .2 .3 .4 .5 .6 .7 .8 .9 .A .B .C .D .E .F
+80520000: ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff     ................
+   (16 行全部 ff,此處省略 15 行 —— 完整內容見 log 檔)
+<RealTek>EB 80530000 DE AD BE EF DE AD BE EF
+<RealTek>DB 80530000 8
+ [Addr]   .0 .1 .2 .3 .4 .5 .6 .7 .8 .9 .A .B .C .D .E .F
+80530000: de ad be ef de ad be ef                             ........
+<RealTek>FLW 3F0000 80530000 8
+Write 0x00000008 Bytes to SPI flash#1, offset 0x003f0000<0xbd3f0000>, from RAM 0x80530000 to 0x80530008
+(Y)es, (N)o->Y
+.<RealTek>FLR 80540000 3F0000 8
+Flash read from 003F0000 to 80540000 with 00000008 bytes	?
+(Y)es , (N)o ? --> Y
+Flash Read Successed!
+<RealTek>DB 80540000 8
+ [Addr]   .0 .1 .2 .3 .4 .5 .6 .7 .8 .9 .A .B .C .D .E .F
+80540000: de ad be ef de ad be ef                             ........
+<RealTek>EB 80530100 CA FE BA BE CA FE BA BE
+<RealTek>DB 80530100 8
+ [Addr]   .0 .1 .2 .3 .4 .5 .6 .7 .8 .9 .A .B .C .D .E .F
+80530100: ca fe ba be ca fe ba be                             ........
+<RealTek>FLW 3F0100 80530100 8
+Write 0x00000008 Bytes to SPI flash#1, offset 0x003f0100<0xbd3f0100>, from RAM 0x80530100 to 0x80530108
+(Y)es, (N)o->Y
+.<RealTek>FLR 80540000 3F0000 8
+Flash read from 003F0000 to 80540000 with 00000008 bytes	?
+(Y)es , (N)o ? --> T Y
+Flash Read Successed!
+<RealTek>DB 80540000 8
+ [Addr]   .0 .1 .2 .3 .4 .5 .6 .7 .8 .9 .A .B .C .D .E .F
+80540000: de ad be ef de ad be ef                             ........
+<RealTek>EB 80530200 FF FF FF FF FF FF FF FF
+<RealTek>DB 80530200 8
+ [Addr]   .0 .1 .2 .3 .4 .5 .6 .7 .8 .9 .A .B .C .D .E .F
+80530200: ff ff ff ff ff ff ff ff                             ........
+<RealTek>FLW 3F0000 80530200 8
+Write 0x00000008 Bytes to SPI flash#1, offset 0x003f0000<0xbd3f0000>, from RAM 0x80530200 to 0x80530208
+(Y)es, (N)o->Y
+.<RealTek>FLR 80550000 3F0000 8
+Flash read from 003F0000 to 80550000 with 00000008 bytes	?
+(Y)es , (N)o ? --> Y
+Flash Read Successed!
+<RealTek>DB 80550000 8
+ [Addr]   .0 .1 .2 .3 .4 .5 .6 .7 .8 .9 .A .B .C .D .E .F
+80550000: ff ff ff ff ff ff ff ff                             ........
+<RealTek>
+```
+
+**判定:寫入 → 讀回逐 byte 一致,抹除後回到全 FF。§8.9 事先凍結的兩個條件都滿足,
+`P0-3` 通過,G3.5 補齊。**
+
+### 8.9.2 這一次實測推翻的四處
+
+| 上面寫的 | 實際 |
+|---|---|
+| 「`Flash Write Successed!`(或等價字樣)」 | **一個句點 `.`**。真正的回應是 `Write 0x… Bytes to SPI flash#1, offset 0x003f0000<0xbd3f0000>, from RAM 0x… to 0x…` |
+| `FLR` 的提示是 `(Y)es , (N)o ? -->` | **`FLW` 的是 `(Y)es, (N)o->`**。兩個相鄰指令,兩種標點 —— 跟「兩種進位制」是同一種毛病 |
+| 「`EB` 一次吃多個 byte 沒有被實測過」 | **測過了,可以。** `?` 的說明本身也寫 `EB <Address> <Value1> <Value2>...` |
+| 「抹回去:`FLW 3F0000 <一塊全 FF 的 RAM> 8`」 | **會回到 FF,但理由不是這份文件想的那個。** NOR flash 的程式化只能把 `1` 變 `0`,`FF` 寫在 `DE` 上面應該還是 `DE`。它回到 `FF` 代表**`FLW` 自己做了抹除** —— 見 §8.9.3 |
+
+**額外情報:`FLW` 的回應洩漏 flash 的記憶體映射位址** —— `offset 0x003f0000<0xbd3f0000>`,
+所以 SPI flash 映射在 **`0xbd000000`**(KSEG1 非快取區)。`notes/flash-layout.md` 沒有這個。
+
+### 8.9.3 未結:`FLW` 的磁區語意,以及作業單這一格設計錯了
+
+**Step 5 與 Step 6 的結果在 NOR flash 的物理上互相矛盾。**
+抹除的最小單位是磁區(這顆 EN25QH32B 是 4 KiB),所以 Step 5 在 `0x3F0100` 的寫入
+本應把 `0x3F0000` 一起抹掉,但它讀起來還在。三條證據指向同一個機制:
+
+| | |
+|---|---|
+| Step 6 回到 `FF` | 一定有抹除 |
+| Step 5 同磁區另一段沒被清掉 | 抹除前先把磁區內容讀出來了 |
+| **`?` 的完整指令集裡沒有任何抹除指令** | 所以抹除只能由 `FLW` 自己做 |
+
+**推定:`FLW` 是「讀出整個磁區 → 改指定 byte → 抹除磁區 → 整段寫回」。**
+如果成立,**每一次 `FLW` 都會重寫整個 4 KiB 磁區**,而 `H601`(這台的 MAC 與
+射頻校準)整個住在一個磁區裡 —— 寫入中途斷電失去的不是 8 個 byte,是那個磁區。
+
+> ⚠️ **而且這一格的證據本來就不夠,原因在作業單:**
+> Step 5 的讀回用了 `80540000`,**那是 Step 4 已經用過、而且裡面就是 `de ad be ef` 的位址**。
+> §8.7.8 早就警告過「內容沒變就是 `FLR` 沒生效」,而作業單自己踩了進去。
+
+分辨它只要一組指令(`80560000` 是全新的 RAM 位址,第一個 `DB` 是對照組):
+
+```
+DB 80560000 8
+FLR 80560000 3F0100 8
+Y
+DB 80560000 8
+```
+
+讀到 `ca fe ba be …` → 讀-改-抹-寫回成立;讀到 `ff ff …` → `FLW` 抹掉整個磁區,
+**寫 flash 的風險等級要全部上調**。
 
 ---
 
@@ -1533,6 +1644,127 @@ UART console 當下輸出:
 > 沒有對照組的守衛套件會在整個系統壞掉的情況下全綠 —— 2026-08-14
 > `tools/test-photo-tools.sh` 就是 5/5 通過而每一次呼叫都死在 `import PIL`。
 > 這 22 個案例第一次跑就抓到 `rtcase record` 的一個真 bug。
+> **2026-08-17 增至 27 個**,新的五個裡有三個在測「執行過 ≠ 在矽上執行過」的
+> 渲染規則(§8.11.5)。
+
+---
+
+## 8.11 W05:把這台的韌體跑起來(qemu-user + 真 flash)
+
+**W01 就證明過 2015 的 MIPS 執行檔能在 x86 上跑,唯一被點名的阻礙是
+`libapmib` 要讀 `/dev/mtd*`。W02 之後那個檔案在手上了。**
+
+### 8.11.1 三個指令
+
+```bash
+sudo make qemu-env                      # 建環境(約 30 秒)
+sudo bash tools/qemu-env.sh check       # 陽性對照
+bash tools/test-qemu-env.sh             # 守衛套件(不需要 root 的那半也會跑)
+```
+
+`build` 做的每一步都抄自這台自己的開機:`/etc/init.d/rcS` 的 `mkdir /var/*`、
+`/bin/sysconf` 字串表裡的 `cp -a /etc/boa/boa.conf.bak /var/boa.conf`、
+以及 `flash extr /web`(**用廠商自己的解壓工具灌 docroot,不是我們的**)。
+**唯一不是這台自己的,是把 flash dump 放成 `/dev/mtdblock0`。**
+
+### 8.11.2 陽性對照為什麼是三個值而不是一個
+
+```bash
+sudo bash tools/qemu-env.sh check
+#   control ok: TELNET_ENABLED=0
+#   control ok: IP_ADDR=10.1.1.1
+#   control ok: USER_NAME="admin"
+#   MIB lines from the vendor binary: 2317
+#   positive control passed
+```
+
+三個值都是 W04-2 用**不共用程式碼的解碼器**讀出來的。錯的映像、空的裝置檔、
+留在共享記憶體裡的舊值,每一種都會打掉其中至少一個。守衛套件證明它們真的會掉。
+
+### 8.11.3 ⚠️ 復原檔案不等於復原狀態
+
+`flash` / `boa` / `sysconf` 把 MIB 表快取在 **System V 共享記憶體**裡。
+那段記憶體屬於**主機**核心,活得比 guest 行程久,而且 `cp` 回 `/dev/mtdblock0`
+碰不到它。
+
+```bash
+sudo bash tools/qemu-env.sh run /bin/flash set HW_WLAN0_WSC_PIN 11111111
+sudo cp <pristine> ~/fwre-work/qemu-env-2018/dev/mtdblock0     # 只復原檔案
+sudo bash tools/qemu-env.sh run /bin/flash get HW_WLAN0_WSC_PIN
+#   HW_WLAN0_WSC_PIN="11111111"      ← 值是從 shm 來的,不是從檔案
+```
+
+**每次量測之前跑 `reset`,不要自己 `cp`。**
+
+```bash
+sudo bash tools/qemu-env.sh reset       # 檔案 + shm/sem 一起
+```
+
+這一坑不是從 strace 推出來的,是**一次量錯的結果**:只改了 `HW_WLAN0_REG_DOMAIN`
+的那一輪,diff 裡冒出七個 WPS PIN 欄位的 byte —— 上一個測試留下的。
+
+### 8.11.4 一個指令,兩個 oracle
+
+```bash
+sudo bash tools/qemu-env.sh reset
+sudo bash tools/qemu-env.sh run /bin/sh -c \
+     'flash set HW_WLAN0_WSC_PIN 1;ls -l / > /var/web/x.txt 2>&1;#'
+sudo bash tools/qemu-env.sh diff
+#   3 bytes changed
+#     0x00648a  0x39 -> 0x31
+#     0x00648b  0x39 -> 0x00
+#     0x006493  0x0d -> 0x4e   <- H601 checksum
+#   checksum: delta 65, expected 65 -> balances
+```
+
+上面那一行 `sh -c` 的字串,就是 `boa` 的 `sprintf` 會組出來的東西。
+輸出落在 docroot(oracle 0),flash 上被改掉的三個 byte 是 oracle 4。
+完整設計在 [`notes/oracle-design.md`](notes/oracle-design.md)。
+
+> **`boa` 本身在這裡起不來** —— 它在 `libapmib.so+0x27dc` 的一個**未對齊半字存取**
+> 上吃 SIGBUS,而真機的 kernel 會靜靜幫它修好。這不是韌體的缺陷也不是指令集問題
+> (那條指令是 opcode `0x29`,標準 MIPS I,手算編碼對過原始 bytes)。
+> 經過在 [`notes/emulation-2018.md` §4](notes/emulation-2018.md)。
+
+### 8.11.5 登記簿多了第三種證據等級
+
+模擬環境裡跑出來的結果**既不是靜態、也不是動態**。記成 `static` 低估了它
+(東西真的執行了),記成 `dynamic` 就是登記簿存在要防的那種灌水。
+
+```bash
+python3 tools/rtcase.py record --id P3-6 --date 2026-08-17 \
+    --verdict confirmed --evidence emulated \
+    --artefact notes/oracle-design.md --note "..."
+```
+
+`emulated` 渲染成 **🟪,永遠不會變成 ✅**,而 `tools/test-rtcase.sh` 有三個案例
+在測這條規則。順帶修掉一個潛伏的 bug:圖例原本用左欄的長度去索引右欄,
+**第七個結果標記會被靜靜丟掉** —— 而那正好是新加的這一個。
+
+### 8.11.6 網路那一輪:`tools/bench-probe.py`
+
+```bash
+python3 tools/bench-probe.py control     --host 10.1.1.1
+python3 tools/bench-probe.py fingerprint --host 10.1.1.1 -o $D/w05-fingerprint.json
+python3 tools/bench-probe.py gate        --host 10.1.1.1 -o $D/w05-gate.json
+python3 tools/bench-probe.py endpoints   --host 10.1.1.1 -o $D/w05-endpoints.json
+python3 tools/bench-probe.py ssdp        --host 10.1.1.1 -o $D/w05-ssdp.json
+bash tools/test-bench-probe.sh           # 8 個案例,不需要裝置
+```
+
+**它擋掉的那件事**:POST 到 `/boafrm/*` 少帶 `submit-url` 會讓 handler
+`strcpy("/status.htm")` 寫進唯讀段,照程式碼讀那會打掛 web server ——
+然後**後面每一個端點都會回「連不上」,看起來就跟「端點不存在」一模一樣**。
+一次打錯,57 個端點的普查變成 57 個偽陰性。
+
+它還做兩件事:**每 10–20 個請求重跑一次對照組**(否則「後半段全失敗」無從得知
+從哪裡開始壞的),以及**參數裡有 shell 元字元就拒絕送**(注入是 W06 的,而且
+在回復演練之後)。端點清單從 `reports/ghidra-formtable-unit-2018.json` 讀,
+不是寫死的。
+
+> ⚠️ `endpoints` **預設走 GET**。`--allow-post` 會真的執行 handler ——
+> `formWlanSetup` 收到只有 `submit-url` 的 POST,其他參數全取預設值,
+> 那可能就是把無線設定清掉。要跑就前後各抓一次 64 KiB 快照。
 
 ---
 
@@ -2080,8 +2312,29 @@ make ledger                                      # 重生成 study/test-ledger.m
 python3 tools/rtcase.py record --id P3-3 --date 2026-08-20 \
     --verdict confirmed --evidence dynamic --artefact poc/formSysCmd/README.md
 python3 tools/rtcase.py freeze                   # 改過預測之後,把新雜湊貼回登記簿
-#   --evidence dynamic 才會印 ✅;static 印 🟥。真的送過封包才叫 dynamic
+#   --evidence dynamic 才會印 ✅;static 印 🟥;emulated 印 🟪
+#   真的對這台送過封包才叫 dynamic。在 qemu 裡跑起來的叫 emulated
 #   沒寫反證條件的項目,record 會直接拒絕 —— 這是刻意的
+
+# ── W05 模擬環境:這台自己的韌體 + 這顆 flash 的副本(§8.11)──
+sudo make qemu-env                               # 建環境(~30 秒),結尾自動跑陽性對照
+sudo bash tools/qemu-env.sh check                # 三個已知值 + MIB 行數
+sudo bash tools/qemu-env.sh reset                # ★ 每次量測前:檔案 **和** shm 一起
+sudo bash tools/qemu-env.sh run /bin/flash get TELNET_ENABLED
+sudo bash tools/qemu-env.sh run /bin/sh -c \
+     'flash set HW_WLAN0_WSC_PIN 1;ls -l / > /var/web/x.txt 2>&1;#'
+sudo bash tools/qemu-env.sh diff                 # 改了哪幾個 byte,校驗和平不平
+make qemu-test                                   # 守衛套件(不需 root 的那半也會跑)
+#   ⚠️ 只 cp 回 /dev/mtdblock0 不算復原 —— MIB 表快取在主機的 SysV 共享記憶體裡
+
+# ── W05 網路那一輪(§8.11.6)──────────────────────
+python3 tools/bench-probe.py control     --host 10.1.1.1
+python3 tools/bench-probe.py fingerprint --host 10.1.1.1 -o ~/fwre-work/dumps/w05-fp.json
+python3 tools/bench-probe.py gate        --host 10.1.1.1 -o ~/fwre-work/dumps/w05-gate.json
+python3 tools/bench-probe.py endpoints   --host 10.1.1.1 -o ~/fwre-work/dumps/w05-ep.json
+python3 tools/bench-probe.py ssdp        --host 10.1.1.1 -o ~/fwre-work/dumps/w05-ssdp.json
+make probe-test                                  # 8 個案例,不需要裝置
+#   endpoints 預設 GET。--allow-post 會真的執行 handler,前後各抓一次 64 KiB 快照
 ```
 
 > ⚠️ **看報告先看 `self_check`,但不要只看 `self_check`。**
@@ -2265,6 +2518,11 @@ cd FirmAE && ./install.sh      # 30–60 分鐘
 | 2026-08-16 | W04-2 補課 | 新增 §8.8.4:廠商映像重抓、從 `Zone.Identifier` 讀 provenance、`tools/zipprefix.py`,以及一份 40% 殘檔**撐得到哪裡**(兩個 section 完整,截斷的是 rootfs)。§12 速查表補上 `zipprefix`。 |
 | 2026-08-16 | W04-2 補課 | 新增 §8.8.5:`fwrecon web` —— 把 W01 留下的 `w6cg` 格式做完(64B header,長度欄在 `+0x3c` 且是 big-endian)。§12 速查表補上。兩個坑寫在該節:**`self_check` 不是 `exact` 就不要用它的數字**;以及 **`--grep` 逐筆搜內容,不是搜整塊** —— 用整塊 grep 會在 2018 那份裡「找到」一個不存在的 `syscmd.htm`。 |
 | 2026-08-16 | W04-2 補課 | `make lint` 與 CI 補掃 `tools/*.py`。**那幾支獨立腳本一直不在任何 lint 範圍內** —— 它們不在 `fwrecon` 套件裡,ruff 往上找設定檔永遠找不到 `tools/fwrecon/pyproject.toml`,所以是用預設規則掃的,等於幾乎沒掃。改成用 `--config` 指同一份設定(不另開一份會漂移的),掃出 `console-dump.py` 一個 `B007`,已修。 |
+| 2026-08-17 | W05 | **§8.9 從「還沒做」改成已執行**,補上 §8.9.1 逐字 transcript、§8.9.2 **本節被實測推翻的四處**(回應字樣不是 `Flash Write Successed!` 是一個句點;`FLW` 的 Y 提示與 `FLR` 標點不同;`EB` 一次吃多個 byte 已證;「寫 FF 抹回去」會成功但理由跟文件想的不一樣),以及 §8.9.3 **未結的 `FLW` 磁區語意**。 |
+| 2026-08-17 | W05 | 新增 **§8.11**:qemu-user + 真 flash 當 `/dev/mtdblock0`。含 §8.11.3 **「復原檔案不等於復原狀態」** —— MIB 表快取在主機的 System V 共享記憶體裡,`cp` 回裝置檔碰不到它。這一坑是一次量錯的結果,不是推理出來的。 |
+| 2026-08-17 | W05 | §8.11.5:登記簿新增第三種證據等級 **`emulated`(🟪,永遠不會變成 ✅)**。`tools/test-rtcase.sh` 22 → 27 個案例。順帶修掉圖例用左欄長度索引右欄的潛伏 bug —— 第七個結果標記會被靜靜丟掉,而那正好是新加的這一個。 |
+| 2026-08-17 | W05 | §8.11.6:`tools/bench-probe.py` + 8 個案例的守衛套件。**它存在的理由是一個無聲的失敗模式**:POST 少帶 `submit-url` 會打掛 boa,而之後每個端點都長得像「不存在」。 |
+| 2026-08-17 | W05 | §12 速查表新增 `make qemu-env` / `qemu-test` / `probe-test`;`make ci` 從 6 個目標變 8 個。作業單與紀錄卡在 [`study/W05-bench-runsheet.md`](study/W05-bench-runsheet.md)(**新檔,它擁有的是「這一場照什麼順序做」,規程仍然歸 §8.9**)。`study/QA.md` 新增 §14。 |
 
 > **上面三列裡的前兩列是補登的,而漏登的方式值得記一筆。** §8.8 和 §8.9 是
 > 2026-08-16 的「document sync」commit 加進這份文件的,那個 commit **改了

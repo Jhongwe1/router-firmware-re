@@ -53,9 +53,10 @@ W05 週計畫原本要另外建一份 `notes/prediction-scorecard.md`（12 條�
 |---|---|
 | 登記項目 | **130**（排入 121，砍掉 9） |
 | 已寫反證條件（凍結） | **102** / 121 |
-| 已執行 | **5** |
-| 其中以真機動態證據收掉 | **2** |
-| 判定成立 / 判定不成立 | **4** / **0** |
+| 已執行 | **13** |
+| 其中以真機動態證據收掉 | **6** |
+| 其中以模擬環境執行收掉（**不是矽上**） | **4** |
+| 判定成立 / 判定不成立 | **7** / **0** |
 | 凍結雜湊 | `69c342dce863dcc7d2450d3f45f97ad2b3753296a2c8756a54ec27604caffc55` |
 
 ## 排程：哪一週要打掉哪些
@@ -67,9 +68,9 @@ W05 週計畫原本要另外建一份 `notes/prediction-scorecard.md`（12 條�
 | **W01** | Phase 0 | 1 / 1 | `▰▰▰▰▰▰▰▰▰▰` |
 | **W02** | Phase 0, 9 | 2 / 2 | `▰▰▰▰▰▰▰▰▰▰` |
 | **W04-2** | Phase 0 | 2 / 2 | `▰▰▰▰▰▰▰▰▰▰` |
-| **W05** | Phase 0, 1, 2, 3, 6, 9 | 0 / 31 | `▱▱▱▱▱▱▱▱▱▱` |
-| **W06** | Phase 0, 2, 3, 4, 5, 10 | 0 / 25 | `▱▱▱▱▱▱▱▱▱▱` |
-| **W07** | Phase 1, 2, 3, 5, 6, 7, 8, 9, 10 | 0 / 60 | `▱▱▱▱▱▱▱▱▱▱` |
+| **W05** | Phase 0, 1, 2, 3, 6, 9 | 6 / 31 | `▰▰▱▱▱▱▱▱▱▱` |
+| **W06** | Phase 0, 2, 3, 4, 5, 10 | 1 / 25 | `▱▱▱▱▱▱▱▱▱▱` |
+| **W07** | Phase 1, 2, 3, 5, 6, 7, 8, 9, 10 | 1 / 60 | `▱▱▱▱▱▱▱▱▱▱` |
 
 ## 圖例
 
@@ -77,26 +78,26 @@ W05 週計畫原本要另外建一份 `notes/prediction-scorecard.md`（12 條�
 |---|---|---|---|---|
 | ✅ | 真機動態已證 | | ⬜ | 待測 |
 | 🟥 | 本機韌體靜態已證（跨兩個不共用程式碼的工具） | | ✅ | 成立（真機動態） |
-| 🟧 | 他版已證 —— 那不是這台跑的 binary | | 🟥 | 成立（靜態讀出，未送封包） |
-| 🟨 | 推定（同 SDK / 同家族），這台未獨立驗過 | | ❌ | 不成立 |
-| 🟦 | 未驗 —— 來自桌面報告或公開 CVE | | 🔶 | 部分 |
-| ❌ | 已反駁 | | ⬛ | 不適用 |
-| — | 程序項，無證據等級 | |  |  |
+| 🟧 | 他版已證 —— 那不是這台跑的 binary | | 🟪 | 成立（**在模擬環境裡執行過**，不是在矽上 —— 見 notes/emulation-2018.md） |
+| 🟨 | 推定（同 SDK / 同家族），這台未獨立驗過 | | 🟥 | 成立（靜態讀出，未送封包） |
+| 🟦 | 未驗 —— 來自桌面報告或公開 CVE | | ❌ | 不成立 |
+| ❌ | 已反駁 | | 🔶 | 部分 |
+| — | 程序項，無證據等級 | | ⬛ | 不適用 |
 
 ## Phase 0 — 開打前（不可逆程度最低，但擋住其他全部）
 
 | ID | 項目 | § | 可行性 | 出場證據 | 排程 | 結果 | 證據 |
 |---|---|---|---|---|---|---|---|
 | **P0-1** | flash 全讀 ×2 + sha256 比對（救命繩 L-1） | 3.2 | ★★★★★ | 🟥 | W02 | ✅ 兩次全讀 sha256 a800059a…，經不同 RAM 中繼位址，cmp 零差異 byte | [MANIFEST.json](../dumps/MANIFEST.json) · [flashdump-unit-2018.json](../reports/flashdump-unit-2018.json) · [dump-vs-official.md](../notes/dump-vs-official.md) |
-| P0-2 | UART console 常駐 + 全程 log（L-2） | 3.2 | ★★★★★ | 🟥 | W05 | ⬜ | — |
-| **P0-3** | bootloader 救援路徑演練 FLW→FLR→抹除（G3.5 #5） | 3.2 / 12.3 | ★★★★☆ | 🟥 | W05 | ⬜ | — |
+| P0-2 | UART console 常駐 + 全程 log（L-2） | 3.2 | ★★★★★ | 🟥 | W05 | ✅ 38400 8N1 全程無亂碼；一次上電命中 bootloader，`?` 印出完整 16 條指令。banner: RTL8196E v1.3 2014.04.22 400MHz | [W05-bench-runsheet.md](W05-bench-runsheet.md) |
+| **P0-3** | bootloader 救援路徑演練 FLW→FLR→抹除（G3.5 #5） | 3.2 / 12.3 | ★★★★☆ | 🟥 | W05 | ✅ 寫入→讀回逐 byte 一致（新 RAM 位址），寫 FF 後回到全 FF。凍結的兩個條件都滿足。FLW 的磁區語意是新開的問題，不在這一條裡 | [W05-bench-runsheet.md](W05-bench-runsheet.md) |
 | P0-4 | 隔離確認（WAN 假 ISP + lab.pcap） | 3.3 | ★★★★★ | — | W05 | ⬜ | — |
-| **P0-5** | IoC 預檢：確認這台不是已經是別人的肉雞 | 3.4 | ★★★★★ | 🟥 | W05 | ⬜ | — |
+| **P0-5** | IoC 預檢：確認這台不是已經是別人的肉雞 | 3.4 | ★★★★★ | 🟥 | W05 | 🔶 設定那半通過：live 與出廠差異 4/343，正是事先寫下的數字。埠那半（19412/31412/48101/2323/60001）本次未測，網段尚未建立 | [W05-bench-runsheet.md](W05-bench-runsheet.md) |
 | P0-6 | 抽 form handler 函式表（交叉驗證用） | 3.8.3 | ★★★★☆ | 🟥 | W04-2 | 🟥 兩支獨立工具得出 57 與 60；不一致本身就是 P1-5 | [ghidra-formtable-unit-2018.json](../reports/ghidra-formtable-unit-2018.json) · [n150rt-unit-2018.json](../reports/n150rt-unit-2018.json) |
 | P0-7 | 抽韌體升級 magic（偽造 header 用） | 3.8.4 | ★★★☆☆ | 🟥 | W01 | 🟥 IMG_HEADER_T 欄位順序在 tools/fwrecon/src/fwrecon/rtlimage.py | [anatomy-n150rt.md](../notes/anatomy-n150rt.md) · [flash-layout.md](../notes/flash-layout.md) |
 | P0-8 | 開機腳本審閱：找 MIB 值被拼進 shell 的地方 | 3.8.5 | ★★★★☆ | 🟥 | W04-2 | 🔶 rcS 已審；但 /bin/*.sh 的 MIB→shell 內插普查沒有寫進任何 committed note，P8-8 目前無可引用證據 | [skt-analysis.md](../notes/skt-analysis.md) · [credentials.md](../notes/credentials.md) |
 | P0-9 | qemu / FirmAE 模擬環境（桌機 fuzz 用） | 3.8.6 | ★★☆☆☆ | 🟧 | W06 | ⬜ | — |
-| **P0-10** | 每次動手前抓 64 KiB 設定區快照（0x0–0x10000） | 3.2 | ★★★★★ | 🟥 | W05 | ⬜ | — |
+| **P0-10** | 每次動手前抓 64 KiB 設定區快照（0x0–0x10000） | 3.2 | ★★★★★ | 🟥 | W05 | 🔶 基準快照已取，與 8/16 完整 dump 的前 64 KiB 逐 byte 相同。反證條件要一次寫入後的差分，那是 W06 | [W05-bench-runsheet.md](W05-bench-runsheet.md) |
 
 <details><summary>Phase 0 的預測與反證條件（10/10 項已凍結）</summary>
 
@@ -309,13 +310,13 @@ W05 週計畫原本要另外建一份 `notes/prediction-scorecard.md`（12 條�
 
 | ID | 項目 | § | 可行性 | 出場證據 | 排程 | 結果 | 證據 |
 |---|---|---|---|---|---|---|---|
-| **P3-0** | 建立回顯通道（docroot 回寫 + 帶外） | 6.0 | ★★★★★ | 🟥 | W05 | ⬜ | — |
+| **P3-0** | 建立回顯通道（docroot 回寫 + 帶外） | 6.0 | ★★★★★ | 🟥 | W05 | 🔶 docroot 確認為 /var/web（ramfs，143 檔，每一檔 sha256 與 webbundle 報告相同）且可寫入；ICMP 通道亦驗過。GET 回來那一半未測——boa 在 qemu 下服務不了請求 | [oracle-design.md](../notes/oracle-design.md) · [emulation-2018.md](../notes/emulation-2018.md) |
 | **P3-1** | A2 formWsc / peerPin → system() | 6.1 | ★★★★★ | 🟥 | W05 | ⬜ | — |
 | **P3-2** | A3 formRoute / subnet → system()（本專案獨家，無 CVE） | 6.1 | ★★★★★ | 🟥 | W05 | ⬜ | — |
 | **P3-3** | A1 formSysCmd / sysCmd（CVE-2024-51228，解 X-8） | 6.1 | ★★★★★ | 🟥 | W05 | ⬜ | — |
 | P3-4 | A4 targetAPSsid（Playbook v1 誤植，實際在 R1 不在 R2） | 6.1 | ★★★☆☆ | 🟨 | W06 | ⬜ | — |
 | P3-5 | A2b formWsc / localPin（寫 flash） | 6.1 | ★★★★★ | 🟥 | W06 | ⬜ | — |
-| P3-6 | 分隔符輪替（10 種語法） | 6.1 / 6.2 | ★★★★☆ | 🟦 | W05 | ⬜ | — |
+| P3-6 | 分隔符輪替（10 種語法） | 6.1 / 6.2 | ★★★★☆ | 🟦 | W05 | 🟪 十種分隔符九種在這台自己的 /bin/sh 上有效；|| 短路是因為 flash set 回傳 0，不是被過濾。handler 尾巴的 2>&1 > /tmp/syscmd.log 確實會蓋掉 payload 的 >，必須用 ;# 截斷 | [oracle-design.md](../notes/oracle-design.md) |
 | P3-7 | 改用 GET / 換 submit 按鈕名稱 | 6.1 | ★★★☆☆ | 🟦 | W06 | ⬜ | — |
 | P3-8 | 診斷頁命令注入字典探測 | 6.3 | ★★☆☆☆ | ❌ | W07 | ⬜ | — |
 | P3-9 | formLogin topicurl JSON API 列舉 | 6.4 | ★★☆☆☆ | 🟨 | W07 | ⬜ | — |
@@ -659,7 +660,7 @@ W05 週計畫原本要另外建一份 `notes/prediction-scorecard.md`（12 條�
 | P8-11 | 假 NTP / 假 DDNS / 假 DNS 回應（SSRF 類） | 11.7 | ★★★☆☆ | 🟦 | W07 | ⬜ | — |
 | **P8-12** | 上傳 config 開 telnet（卡在 fwrecon 缺 encoder） | 11.8 | ★★☆☆☆ | 🟨 | W07 | ⬜ | — |
 | P8-14 | 以 formSysCmd 掃內網（借合法功能做偵察） | 11.10 | ★★★★☆ | 🟨 | W07 | ⬜ | — |
-| P8-15 | 命令路由器把 flash / 記憶體交出來（論證影響） | 11.11 | ★★★★☆ | 🟨 | W07 | ⬜ | — |
+| P8-15 | 命令路由器把 flash / 記憶體交出來（論證影響） | 11.11 | ★★★★☆ | 🟨 | W07 | 🔶 命令盤點那半收掉，兩個來源：rootfs 裡沒有 nc/netcat/tftp/curl/telnet 的 ELF，且 busybox 自報的 48 個 applet 也沒有（對照組 uptime 有回應）。/bin/wget 確實存在，與預測相符。外洩本身未演示 | [emulation-2018.md](../notes/emulation-2018.md) |
 | P8-16 | Slowloris（S-2） | 11.12 | ★★★★☆ | 🟨 | W07 | ⬜ | — |
 | P8-17 | ARP MITM 竊聽明文憑證（S-3） | 11.12 | ★★★★☆ | 🟥 | W07 | ⬜ | — |
 | **P8-18** | 上傳 filename= 注入（S-11，白盒未讀） | 11.12 | ★★★★☆ | 🟦 | W07 | ⬜ | — |
@@ -802,7 +803,7 @@ W05 週計畫原本要另外建一份 `notes/prediction-scorecard.md`（12 條�
 
 | ID | 項目 | § | 可行性 | 出場證據 | 排程 | 結果 | 證據 |
 |---|---|---|---|---|---|---|---|
-| **P10-1** | config.dat 兩段式外洩（PROGRESS 開放 #8） | 13.1 | ★★★★☆ | 🟦 | W06 | ⬜ | — |
+| **P10-1** | config.dat 兩段式外洩（PROGRESS 開放 #8） | 13.1 | ★★★★☆ | 🟦 | W06 | 🔶 預測的前提錯了，方向比預測好：boa 啟動時就 open(/web/config.dat, O_RDWR|O_CREAT|O_TRUNC)，不需要 formSaveConfig。檔案是否有內容、是否 GET 得回來仍未測 | [emulation-2018.md](../notes/emulation-2018.md) |
 | P10-2 | config 檔名字典掃描（20+ 路徑） | 13.1 | ★★★☆☆ | 🟦 | W06 | ⬜ | — |
 | P10-3 | 未認證改管理密碼 | 13.2 | ★★★★☆ | 🟨 | W06 | ⬜ | — |
 | **P10-4** | 把密碼設成空字串 → 全機無認證（本專案獨家） | 13.2 | ★★★☆☆ | 🟥 | W06 | ⬜ | — |

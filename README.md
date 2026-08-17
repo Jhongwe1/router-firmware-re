@@ -9,7 +9,35 @@ trace **already-publicly-disclosed** vulnerabilities down to the responsible
 function in the binary.
 
 > 🚧 **In progress since 2026-07-30. G0 ✅ · G1 ✅ · G2 ✅ passed 2026-08-16 ·
-> G3 ✅ passed 2026-08-11 · G3.5 ⚠️ 4 of 5, 2026-08-16.**
+> G3 ✅ passed 2026-08-11 · G3.5 ✅ passed 2026-08-17 · G3.75 ⚠️ 3 of 5.**
+>
+> **Latest (W05, 2026-08-17): this unit's own firmware now runs on an x86 host,
+> with a byte-for-byte copy of its own flash standing in for `/dev/mtdblock0`.**
+> The obstacle everyone names for Realtek SDK emulation is the Lexra instruction
+> set; the actual obstacle was that `libapmib` reads flash partitions that do not
+> exist in a chroot — and it reads them with `lseek`+`read`, so the fix was to
+> supply a file. W02's dump is that file.
+>
+> Two instruments written for this project are now confirmed by the vendor's own
+> binaries running over the same bytes: `flash extr /web` writes **143 files
+> whose SHA-256s all match** what `fwrecon web` declared from a format with no
+> checksum in it, and `flash all` agrees with `fwrecon compcs` on **249 of 316
+> shared names**, with 66 more explained by four rendering rules and exactly one
+> left over. **`boa` creates `/web/config.dat` during start-up**, before it
+> listens — so the exposure half of CVE-2019-19822 on this hardware needs no
+> request at all, which is one step shorter than this repository had assumed.
+>
+> **`G3.5` closed on the bench**: the flash recovery path was executed —
+> write, read back to a *different* RAM address, erase, verify — and the drill
+> turned up something its own criterion did not ask about. The boot loader has
+> **no erase command at all**, so `FLW` must erase for itself, which points at a
+> whole-4-KiB read-modify-erase-program cycle. `H601` — this unit's MACs and
+> radio calibration, which exist nowhere else — is inside one such sector, and
+> so is the `HW_WLAN0_WSC_PIN` that W06's proof-of-concept writes.
+>
+> **Still nothing has been sent to the device over the network.** 25 of W05's 31
+> registered tests are outstanding for that reason, and the register prints the
+> list on demand rather than leaving it to a paragraph.
 >
 > **Latest (W04-2, 2026-08-16): the build this device actually runs has been
 > read, and it has a command-execution handler that neither downloadable image
@@ -33,8 +61,9 @@ function in the binary.
 > writes "without credentials" and the instruction-level read agrees with the
 > researcher. If they are right the vector is `PR:N` and the score 8.8 HIGH.
 >
-> Nothing has been sent to the device. That is G4's job, and **G3.5 is not
-> passed** — the flash recovery path has still never been executed.
+> Nothing has been sent to the device over the network. That is G4's job.
+> **G3.5 closed on 2026-08-17**, when the flash recovery path was finally
+> executed on the bench.
 > Two firmware images are unpacked and measured — **V2.1.2 (2015-08-25)** and
 > **V3.4.0 (2020-10-30)** — and they bracket both public disclosure events
 > affecting this device, which turns a teardown into a before/after comparison.
@@ -293,12 +322,15 @@ that is not backed by a command someone else can re-run.
   > `strstr` calls that has never been executed; it goes to TWCERT/CC if and only
   > if W05/W06 demonstrates it.
 
-- [ ] **G3.5 — every `boa` claim names the binary it was measured on** (W04-2) ⚠️ **4 of 5, 2026-08-16** ← [PROGRESS.md](PROGRESS.md#w04-2--2026-08-16)
+- [x] **G3.5 — every `boa` claim names the binary it was measured on** (W04-2) ✅ **passed 2026-08-17** ← [PROGRESS.md](PROGRESS.md#w04-2--2026-08-16)
   - [x] `root_form[]` + sink census for all three builds, each carrying its input's SHA-256
   - [x] [`notes/auth-flow-2018.md`](notes/auth-flow-2018.md) — the gate on the resident build, key branch read at **instruction level** because the decompiler raised three warnings on it
   - [x] [`notes/compcs-decode.md`](notes/compcs-decode.md) — the config region decoded; `TELNET_ENABLED = 0` with a second source
   - [x] G4's target chosen from evidence: `POST /boafrm/formSysCmd`
-  - [ ] **the `FLW` recovery path rehearsed** — not done, needs the hardware. **W05 does not start until it is**
+  - [x] **the `FLW` recovery path rehearsed** — executed 2026-08-17: write, read
+        back **to a different RAM address**, erase, verify. Verbatim transcript in
+        [`RUNBOOK.md` §8.9.1](RUNBOOK.md), and the drill overturned four things
+        the runbook asserted about it
 
   > ### ★ What W04-2 turned up
   >
@@ -331,10 +363,10 @@ that is not backed by a command someone else can re-run.
   > ⚠️ **Still entirely static.** Nothing has been sent to the device, no port
   > has been touched, and the phrase used throughout is *the code reads as*.
 
-- [ ] **G3.75 — nothing is sent to the device until the pre-engagement is done** (W05 Day 0) ⚠️ **2 of 5, 2026-08-17** ← [PROGRESS.md](PROGRESS.md#w05-day-0--2026-08-17)
-  - [ ] **the `FLW` recovery path rehearsed** — this is G3.5 #5, unchanged and not restated here; it is the one box that blocks everything below
-  - [ ] isolation verified — two MAC addresses on the segment and no third, WAN on a fake upstream
-  - [ ] **IoC pre-check** — this unit's live config against its own factory baseline, and the ports known botnets leave behind. **The success criterion was written before the check: the difference stays at 4 of 344 entries**
+- [ ] **G3.75 — nothing is sent to the device until the pre-engagement is done** (W05 Day 0) ⚠️ **3 of 5, 2026-08-17** ← [PROGRESS.md](PROGRESS.md#w05--2026-08-17)
+  - [x] **the `FLW` recovery path rehearsed** — this is G3.5 #5, cited and not restated. Closed 2026-08-17
+  - [ ] isolation verified — two MAC addresses on the segment and no third, WAN on a fake upstream. **The segment does not exist yet**: this laptop has no built-in Ethernet
+  - [ ] **IoC pre-check** — half. The success criterion was written before the check and the configuration half met it exactly: **the live config differs from this unit's own factory baseline in 4 of 343 entries**, no fifth. The ports half needs the segment
   - [x] **the prediction ledger is frozen** ← [`study/test-ledger.md`](study/test-ledger.md) — 128 registered tests, 98 carrying a written refutation condition, hashed and committed **before any request is served**
   - [x] **the disclosure register is written** ← [`docs/disclosure.md`](docs/disclosure.md) — eight candidate originals, what each is worth, and the rule that decides what gets published
 
@@ -412,6 +444,9 @@ that is not backed by a command someone else can re-run.
 | [`notes/credentials.md`](notes/credentials.md) | **Where the credentials actually are** — the backdoor account W01 concluded could not exist, and two shipped private keys |
 | [`notes/mib-and-config-dat.md`](notes/mib-and-config-dat.md) | The APMIB table recovered, and what `config.dat` is made of |
 | [`notes/formSysCmd-analysis.md`](notes/formSysCmd-analysis.md) | The CVE endpoint that is not there, and why three pieces of evidence pointed the wrong way |
+| [`notes/emulation-2018.md`](notes/emulation-2018.md) | **This unit's firmware running on an x86 host** — what was faked, whether each substitution distorts the result, and exactly where `boa` stops |
+| [`notes/oracle-design.md`](notes/oracle-design.md) | **Five observation channels for a blind injection**, four of them rehearsed under emulation — including one that points at the bytes that changed in SPI flash |
+| [`study/W05-bench-runsheet.md`](study/W05-bench-runsheet.md) | The 2026-08-17 bench session: what was run in what order, and the record card for each (Traditional Chinese) |
 | [`notes/w6cg-web-ui.md`](notes/w6cg-web-ui.md) | **The web UI the vendor actually shipped** — the page and the route are anti-correlated across three builds, and the 2015 fix was half a fix |
 | [`notes/skt-analysis.md`](notes/skt-analysis.md) | The 2015 backdoor decoded: port, magic words, and the one `iptables` line it exists to run |
 | [`reports/`](reports/) | Generated analysis: per-version reports, version diff, Ghidra string xrefs |
