@@ -31,7 +31,7 @@ schema_version = "1"
 # sha256 over (id, predict, refute) of every case that has a refutation.
 # Change a prediction and this must change in the same commit, where the diff
 # shows it. `python3 tools/rtcase.py freeze` prints the current value.
-sha256 = "d7a94f3f4b57c7e0ee089fe91c5d9fc5c9d21baa1e12afab19b72ec0dbd5c6ad"
+sha256 = "a9bd2761074e0b349726ec0ee96f3280e30a81e13a034643c1c3581dfc7f10be"
 committed = "2026-08-18"
 note = """W05 Day 0 — frozen before any request has been served to this device.
 
@@ -60,7 +60,16 @@ answered part of what they asked — and saying so is cheaper than re-measuring.
 P9-13 is new and it exists because P9-10 moved to W08. The half of P9-10 that is
 not irreversible — read the upgrade path, find out which header fields are
 actually checked — is W07 work and it is also plan Day 6's deliverable, which
-had no register row at all. One row now means one thing."""
+had no register row at all. One row now means one thing.
+
+P8-24 is new and was written from a line of `/bin/startup.sh` found while
+answering P8-8. It is frozen here before the experiment that settles it, and the
+experiment is a desktop one — corrupt both settings regions in the emulation
+profile's flash image and see what the boot script does. The prediction commits
+to "telnet ends up enabled" while naming the specific way it could be wrong
+(`flash reset1` running afterwards and overwriting the set), because that half
+is inference from the script's wording and not a measurement of what `flash
+default-sw` writes."""
 
 [schedule]
 # sha256 over (id, week) of every live case. `week` is deliberately NOT in
@@ -71,7 +80,7 @@ had no register row at all. One row now means one thing."""
 # breaking the plan or editing the field. Editing it quietly is
 # indistinguishable from moving the goalposts, so now it hashes.
 # `python3 tools/rtcase.py schedule` prints the current value.
-sha256 = "ec434779339200ae0fb271c161f9cfff180edbf275852343a079a49f05366a43"
+sha256 = "0384ce43144fec98721024035fa5d10023ba5de9ce5adaa0602bd3d8029199b4"
 committed = "2026-08-18"
 note = """The payload changed on 2026-08-17: it was (id, week) and is now
 (id, week, rescheduled_from, reschedule_date, reschedule_reason), so every
@@ -1578,6 +1587,22 @@ feasibility = 3
 exit_evidence = "other-build"
 week = "W07"
 cut_reason = '不可逆，而且它的作用是把一個已知後門重新裝進一台已經修掉它的裝置。要證明的性質（無韌體簽章、無 anti-rollback）已經由靜態分析建立，回刷不會讓那個結論更真。'
+
+[[case]]
+id = "P8-24"
+phase = "8"
+section = "11.5"
+title = "設定區失效時開機腳本自己開 telnet（fail-open，本專案獨家）"
+feasibility = 4
+exit_evidence = "static"
+week = "W07"
+star = true
+predict = '''`/bin/startup.sh` 由 `rcS` 直接呼叫，開頭是這個結構：`flash test-dsconf` 失敗**而且** `flash test-csconf` 也失敗時，走 `flash default-sw`，然後**明文寫著 `flash set TELNET_ENABLED 1`**。也就是說兩個設定區同時無效，這台會用出廠預設開機**並且自己把 telnet 打開**，而 `/etc/passwd.org` 裡的 `root` / `123456` 與 `onlime_r` / `12345`（uid 0）從 2015 到現在沒動過（W02 的三版對照）。
+
+**但這條不能只從腳本讀出來，因為它取決於 `flash` 的語義而不是腳本的字面：** `$LOADDEFSW` 之後還有一段 `test-csconf` 失敗就跑 `$LOADDS`（`flash reset1`，把 default 蓋回 current）。若 `default-sw` 只修好 COMPDS 而沒修好 COMPCS，那個 `reset1` 會把剛剛 `set` 的 `TELNET_ENABLED 1` 蓋掉，整條就不成立。預測是**成立**，理由是 `default-sw` 的名字與位置都指向它同時建立兩區，但這一半是推論不是量測。
+
+若成立，它翻掉 `P8-12` 的前提：那一條說鏈卡在「fwrecon 沒有 COMPCS encoder，做不出有效的設定檔」，而這裡要的是**無效**的設定區，那不需要 encoder。'''
+refute = '''兩區都填成無效之後開機，`TELNET_ENABLED` 仍然是 0 → 對腳本的讀法錯了，或 `reset1` 把它蓋掉了。**兩種都要分辨清楚**：跑完之後既要讀 `flash get TELNET_ENABLED`，也要 dump 兩個設定區看誰被寫過，否則「沒開」會被寫成「這條不存在」而實際上是「開了又被關掉」——後者是同一個缺陷的另一種形狀。另一個反證方向：`test-dsconf` / `test-csconf` 的失敗條件比 checksum 嚴格得多（例如只認某個 signature），使得攻擊者能造成的損壞不會被判為無效 → 那這條在模擬下成立而在真實攻擊面上不成立，要照這樣寫。'''
 
 [[case]]
 id = "P8-23"
