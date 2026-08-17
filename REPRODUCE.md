@@ -14,7 +14,7 @@ step, each with its expected output and its stop conditions.
 
 | tier | what you need | what you can check | roughly |
 |---|---|---|---|
-| **T1** | this clone and an internet connection | the two **published** firmware images, every report derived from them, and **205 checks that prove this project's own instruments can fail** | 30 min, most of it downloads |
+| **T1** | this clone and an internet connection | the two **published** firmware images, every report derived from them, and **199 checks that prove this project's own instruments can fail** | 30 min, most of it downloads |
 | **T2** | T1 **+ your own N150RT + a CP2102 serial adapter** (about US$3) | your unit's flash, its own boot loader, its own `boa`, the emulator — the same *procedures*, on *your* bytes | an afternoon |
 | **T3** | T2 **+ a USB Ethernet adapter + a segment you are willing to isolate** | the network behaviour: the authorisation gate, the endpoint census, the timing | a second afternoon |
 | **T-none** | — | **the specific byte-level results this repository reports** | not reproducible by anyone but the author, and the reason is below |
@@ -59,7 +59,7 @@ claim was measured on, which is what makes this split possible at all.
 
 ### The commands
 
-[`runsheet.md` `A1`](runsheet.md). In short:
+[`runsheet.md` `A1.2`](runsheet.md). In short:
 
 ```bash
 make doctor TIER=1     # every prerequisite, each failure naming its own fix
@@ -67,7 +67,7 @@ make setup             # the Linux-side toolchain
 make fetch             # the two published images, hash-verified
 make unpack            # carve and extract
 make recon             # every report a downloadable image supports
-make ci                # ← the 205 checks
+make ci                # ← the 199 checks
 ```
 
 ### Why `make ci` is the interesting one
@@ -81,8 +81,21 @@ Most of a reverse-engineering repository is assertions. This part is not:
 | `tools/test-console-dump.sh` | 18 | the flash reader parses a real console transcript, ignores the ASCII column that looks like more hex, and cannot emit the one boot-loader command that would be dangerous |
 | `tools/test-loader-unpack.sh` | 7 | the boot-loader unpacker refuses an image with no stream, with two streams, with a truncated stream, and one that decompresses to the wrong thing — plus a positive control |
 | `tools/test-qemu-env.sh` | 5 | the emulator's positive control can fail |
-| `tools/test-flash-tools.sh`, `tools/test-photo-tools.sh` | 17 | the hardware-side helpers, and photo redaction |
+| `tools/test-check-runsheet.sh` | 29 | the runsheet checker can fail: a flag no tool accepts, a step under the wrong station, an index disagreeing with a heading, **and a command fence in the section that is not allowed to hold one** |
+| `tools/test-flash-tools.sh`, `tools/test-photo-tools.sh` | 4 + 13 | the hardware-side helpers, and photo redaction |
 | `tools/fwrecon` pytest | 110 | the parsers |
+
+**124 guard cases across eight suites, plus 110 parser tests. `make ci` runs 89
+of the 124** — `test-console-dump.sh` (18), `test-photo-tools.sh` (13) and
+`test-flash-tools.sh` (4) are not wired into it. The first two need no hardware,
+**so that is a gap rather than a constraint**, and it is named here rather than
+hidden behind a total. Run them directly:
+
+```bash
+bash tools/test-console-dump.sh
+bash tools/test-flash-tools.sh
+bash tools/test-photo-tools.sh
+```
 
 Every one of those cases exists because **a check that cannot fail is a
 decoration that reports success**, and this project shipped one of those once
@@ -127,7 +140,8 @@ over the serial console — no SOIC-8 clip, no desoldering, and nothing written.
 
 ### The commands
 
-[`runsheet.md`](runsheet.md) `A0` → `A2` → `A3` → `A5`, then:
+[`runsheet.md`](runsheet.md) `A1.1` → `A1.3` → `A1.4` → then 第 2 站 in order
+(`A2.1` → `A2.3`), plus:
 
 ```bash
 make doctor TIER=2
@@ -137,7 +151,7 @@ make qemu-env          # the emulator (needs root)
 make qemu-test
 ```
 
-> **`A12` is the only irreversible section in the whole document**, and it will
+> **`A2.5` is the only irreversible section in the whole document**, and it will
 > not let you start without two agreeing dumps. Read it in full before running
 > any of it.
 
@@ -155,9 +169,9 @@ one people skip:
    host.** If it stays on the host, the host takes a DHCP lease from the device
    and may route through it; `ping` will still succeed and the only tell is
    `ttl=63`. In that state isolation cannot be verified, multicast does not
-   work at all, and two source addresses collapse into one. `runsheet.md` `A4`
+   work at all, and two source addresses collapse into one. `runsheet.md` `A3.1`
    proves the route is direct from the routing table instead of trusting a reply.
-3. **It is your own device, on a segment with nothing else on it.** `A6` verifies
+3. **It is your own device, on a segment with nothing else on it.** `A3.3` verifies
    that by counting MAC addresses in a capture — and it manufactures known
    traffic first, because *zero packets captured is not evidence of a quiet
    segment* until the link is known to deliver.
@@ -176,16 +190,18 @@ one people skip:
 
 ### The commands
 
-[`runsheet.md`](runsheet.md) `A6` → `A7` → `A8` → `A9` → `A10` → `A11`.
+**[`runsheet.md`](runsheet.md) 第 3 站, front to back** — `A3.1` → `A3.8`. The
+station numbering is the point: the leading digit is the state the board has to
+be in, so reading the station in order *is* a correct order to run it in.
 
 ```bash
 make doctor TIER=3
 ```
 
-> 🔴 **`A9` changes your device's configuration, and on this build it also
+> 🔴 **`A3.8` changes your device's configuration, and on this build it also
 > rewrites the factory-default region.** That is a finding, not a warning about
 > clumsiness: a write that reaches `COMPDS` means "restore factory defaults"
-> would restore whatever was last written. Take the `A5` snapshot first, both
+> would restore whatever was last written. Take the `A2.3` snapshot first, both
 > before and after, and attribute the difference with
 > `bash tools/config-attrib.sh <before> <after>`.
 

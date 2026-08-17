@@ -111,9 +111,20 @@ reader undefended.
 |---|---|---|
 | **`runsheet.md` Part A** | **the exact commands, verbatim expected output, stop conditions, the verify-after step, the gotcha at the point it bites** | edited freely |
 | **`runsheet.md` Part B** | which sections a week runs, in what order, plus its extras | **append-only** |
-| **`RUNBOOK.md` §8.12** | **why each step exists**, how it went wrong the first time, cross-week reasoning | edited freely, **no full command blocks** |
+| **`RUNBOOK.md` §8.12** | **why each step exists**, how it went wrong the first time, cross-week reasoning | edited freely, **zero command fences — CI enforces it** |
 | **`BENCH-LOG.md`** | what was actually typed and seen on a given day; the plan written *before* touching anything | **append-only** |
 
+- **Part A is four stations, and the station number IS the device state**:
+  `A1.x` desktop, `A2.x` stopped at `<RealTek>`, `A3.x` booted and serving,
+  `A4.x` wrapping up. So reading `A1.1` → `A4.2` front to back *is* a correct
+  order to run it in, and each station's entry costs one power cycle — which is
+  why its steps are done in one visit. Renumbered 2026-08-17 from a flat
+  `A0`–`A14` that had `A1.6` / `A8.5` / `A11.5` bolted in and whose document
+  order contradicted Part B's run order; the old→new table is `runsheet.md`
+  Part B `B-0`.
+- **A step heading ends with `（關 P0-2 · …）` or `（不關登記簿項目）`, and that
+  is the only place those ids live.** The front-page index repeats them and CI
+  checks the two agree, so the index is a pointer rather than a second owner.
 - **Never a per-week `W0N-bench-runsheet.md`.** W05 opened one; 580 of its 1,091
   lines were reusable procedure. That is what Part A / Part B replaces.
 - **`REPRODUCE.md`** is the stranger's front door: three tiers, and **what each
@@ -126,7 +137,13 @@ reader undefended.
   runsheet exists, every `tools/` path exists, **every flag appears in that
   tool's own `--help`**, every subcommand is real, every `§8.x.y` resolves, and
   every fence is tagged so "run this" and "you will see this" are never the same
-  thing. `tools/test-check-runsheet.sh` (15 cases) proves that checker can fail.
+  thing. It also holds the *split* to account: every step sits under its own
+  station, names one RUNBOOK section, and is named back by exactly one `§8.12.x`
+  — **and §8.12 may not contain a command fence at all.** That last rule exists
+  because §8.12 declared its commands had moved out and then carried twelve
+  blocks, four already refuted at the bench, invisible because the checker only
+  read `runsheet.md`. A section that may not hold a command cannot hold a stale
+  one. `tools/test-check-runsheet.sh` (29 cases) proves that checker can fail.
   The runsheet is hand-written on purpose; a command that no longer works is not
   a matter of taste.
 - **Because `BENCH-LOG.md` is verbatim, both §8.12 and the runsheet may be
@@ -148,6 +165,15 @@ reader undefended.
 - English: `README`, `REPRODUCE`, `PROGRESS`, `notes/`, `docs/`, `tools/`, commits.
   Traditional Chinese: `LOG.md`, `RUNBOOK.md`, `runsheet.md`, `BENCH-LOG.md`,
   `study/QA.md`, `plan/`.
+- **In the Chinese files, punctuation is fullwidth: `，：；（）「」`.** ASCII `,`
+  and `:` between CJK characters read as cramped and wrong, and the files had
+  drifted into a hybrid — fullwidth `。` beside halfwidth `,` — which is what
+  made `runsheet.md` feel off before anything structural was wrong with it.
+  `runsheet.md`, `RUNBOOK.md`, `LOG.md` and `study/QA.md` were normalised
+  2026-08-17. Two exceptions, both deliberate: **inside a code fence or inline
+  code nothing is touched** (`(Y)es , (N)o ?` is verbatim device output, and
+  `strcpy(全域, URI)` is C), and **`BENCH-LOG.md` is not normalised at all**
+  because it is append-only evidence.
 - A note answers a carried-forward question, gives the answer first with
   addresses, and ends with **how its first version was wrong**. Not optional.
 - `RUNBOOK.md`, `PROGRESS.md` and the README board move in the **same commit**

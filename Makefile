@@ -119,7 +119,7 @@ doctor: ## Is this machine ready? `make doctor` or `make doctor TIER=1`
 check-runsheet: ## Verify every command in runsheet.md still resolves
 	python3 tools/check-runsheet.py
 
-runsheet-test: ## Prove the runsheet checker can fail (15 cases)
+runsheet-test: ## Prove the runsheet checker can fail (29 cases)
 	bash tools/test-check-runsheet.sh
 
 rtcase: ## G3.75: the test register is frozen and every result carries evidence
@@ -128,7 +128,7 @@ rtcase: ## G3.75: the test register is frozen and every result carries evidence
 todo: ## What this week still owes: `make todo WEEK=W05`
 	python3 tools/rtcase.py todo $(if $(WEEK),--week $(WEEK),)
 
-rtcase-test: ## Prove the register gate can actually fail (22 cases)
+rtcase-test: ## Prove the register gate can actually fail (33 cases)
 	bash tools/test-rtcase.sh
 
 ledger: ## Regenerate test-ledger.md from the register + results

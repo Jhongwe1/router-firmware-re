@@ -214,7 +214,7 @@ if [ -n "$IFACE" ]; then
   fi
   addr="$(ip -br addr show "$IFACE" | awk '{print $3}')"
   if [ -n "$addr" ]; then ok "$IFACE has $addr"; else
-    skip "$IFACE has no address yet — runsheet.md A4 assigns 10.1.1.100/24"; fi
+    skip "$IFACE has no address yet — runsheet.md A3.1 assigns 10.1.1.100/24"; fi
 else
   bad "no enx* interface — the USB Ethernet adapter is not attached to this WSL instance" \
       "PowerShell:  usbipd attach --wsl --busid <the 0bda:8153 one>"
@@ -248,8 +248,8 @@ PY
   case "$direct" in
     direct) ok "10.1.1.1 resolves to a directly attached subnet — not through a gateway" ;;
     routed) bad "10.1.1.1 is reachable only through a gateway" \
-                "The adapter is on the Windows side. ping will still succeed and ttl will be 63. Attach it to WSL, then runsheet.md A4" ;;
-    *)      skip "no route to 10.1.1.1 yet — runsheet.md A4 adds one" ;;
+                "The adapter is on the Windows side. ping will still succeed and ttl will be 63. Attach it to WSL, then runsheet.md A3.1" ;;
+    *)      skip "no route to 10.1.1.1 yet — runsheet.md A3.1 adds one" ;;
   esac
 fi
 fi

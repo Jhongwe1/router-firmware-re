@@ -479,7 +479,7 @@ that is not backed by a command someone else can re-run.
 | Path | |
 |---|---|
 | [`REPRODUCE.md`](REPRODUCE.md) | **Start here.** Which claims you can verify with a clone alone, which need an N150RT of your own, and **which are not reproducible by anyone but the author — and why.** Also: the one five-minute check worth running first |
-| [`runsheet.md`](runsheet.md) | **The commands.** One section per step, front to back: what to paste, the **verbatim** output to compare against, a stop condition, and the gotcha that bites at that step. Physical actions marked. `make ci` verifies every command in it still resolves (Traditional Chinese) |
+| [`runsheet.md`](runsheet.md) | **The commands.** Four stations, and a step's number *is* the state the board has to be in (`A2.3` = stopped at `<RealTek>`), so front to back is a correct order to run it in. Per step: what to paste, the **verbatim** output to compare against, a stop condition, and the gotcha that bites there. Physical actions marked. `make ci` verifies every command still resolves (Traditional Chinese) |
 | [`RUNBOOK.md`](RUNBOOK.md) | **Why each step exists**, and how it went wrong the first time. The reference behind the runsheet — it holds the reasoning, the runsheet holds the commands, and neither repeats the other (Traditional Chinese) |
 | [`PROGRESS.md`](PROGRESS.md) | Gate status — the evidence behind every box above |
 | [`notes/anatomy-n150rt.md`](notes/anatomy-n150rt.md) | How the firmware is built: container format, flash map, binaries, mitigations |
@@ -534,7 +534,7 @@ make verify    # G0: every tool answers when called
 make fetch     # download + hash-verify the firmware (not redistributed here)
 make unpack    # carve and extract the root filesystems
 make recon     # regenerate everything under reports/
-make ci        # 205 checks — and 95 of them exist to prove the tools can refuse
+make ci        # 199 checks — and 89 of them exist to prove the tools can refuse
 make rtcase    # G3.75: the test register is frozen, every result carries evidence
 make ledger    # regenerate test-ledger.md from the register
 ```

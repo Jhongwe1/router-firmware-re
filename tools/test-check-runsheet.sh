@@ -27,21 +27,34 @@ bad() { echo "  FAIL  $1"; fail=$((fail + 1)); }
 # The checker resolves relative links against the runsheet's own directory, so
 # fixtures live at the repository root and are removed on exit.
 RS="rs-selftest-$$.md"
+RB="$TMP/rb-selftest.md"
 trap 'rm -rf "$TMP"; rm -f "$RS"' EXIT
 
-# A minimally valid runsheet: one step with the promised fields, one real make
-# target, one real tool with a real subcommand and a real flag, one resolvable
+write_good_runbook() { cp RUNBOOK.md "$RB"; }
+
+# A minimally valid runsheet: a front-page index, one station, one step under the
+# matching station carrying the four promised fields, one real make target, one
+# real tool with a real subcommand and a real flag, one resolvable
 # cross-reference, one tagged output block, and a Part B.
 write_good() {
   cat > "$RS" <<'MD'
 # fixture
 
-## A1 a step
+## 目錄
 
-| | |
-|---|---|
-| **層** | T1 |
-| **最後驗證** | 2026-08-17 |
+| 節 | 這一節做什麼 | 關掉的項目 |
+|---|---|---|
+| `A1.1` | a step | `P0-2` |
+
+# Part A — 程序
+
+## 第 1 站 · 桌面
+
+### A1.1 a step（關 `P0-2`）
+
+| 層 | 動到裝置 | 為什麼這一節存在 | 最後驗證 |
+|---|---|---|---|
+| T1 | 純讀 | §8.12.3 | 2026-08-17 |
 
 ```bash
 make ledger
@@ -56,8 +69,9 @@ See §8.12.3 and [`RUNBOOK.md`](RUNBOOK.md).
 
 # Part B — per week
 
-## B-W05
-nothing
+## B-W99
+A week with no executed tests, so the fixture carries no coverage obligation of
+its own. The coverage cases below switch this to a real week on purpose.
 MD
 }
 
@@ -65,6 +79,20 @@ MD
 expect_fail() {
   local label="$1" needle="$2" out rc
   out="$("$PY" tools/check-runsheet.py "$RS" 2>&1)"; rc=$?
+  if [ "$rc" -eq 0 ]; then
+    bad "$label — accepted, and it must not be"
+  elif printf '%s' "$out" | grep -qF "$needle"; then
+    ok "$label"
+  else
+    bad "$label — rejected for the WRONG reason:"; printf '%s\n' "$out" | sed 's/^/          /'
+  fi
+}
+
+# expect_fail_runbook <label> <needle> -- the §8.12 half. It is only checked for
+# the REAL runsheet, so these pass the real one with a doctored RUNBOOK copy.
+expect_fail_runbook() {
+  local label="$1" needle="$2" out rc
+  out="$("$PY" tools/check-runsheet.py runsheet.md --runbook "$RB" 2>&1)"; rc=$?
   if [ "$rc" -eq 0 ]; then
     bad "$label — accepted, and it must not be"
   elif printf '%s' "$out" | grep -qF "$needle"; then
@@ -123,16 +151,117 @@ sed -i 's|(`RUNBOOK.md`)|(NOT-A-FILE.md)|; s|\[`RUNBOOK.md`\](RUNBOOK.md)|[x](NO
 expect_fail "a link target that does not exist" "link target NOT-A-FILE.md does not exist"
 
 write_good
-sed -i '/^| \*\*最後驗證\*\*/d' "$RS"
-expect_fail "a step with no 最後驗證 field" "does not declare"
+sed -i '/^| 層 | 動到裝置/d' "$RS"
+expect_fail "a step with no four-field table" "declares no"
 
 write_good
 sed -i 's|2026-08-17|sometime last week|' "$RS"
 expect_fail "a 最後驗證 with no date in it" "names no date"
 
 write_good
+sed -i 's#| T1 | 純讀 | §8.12.3 |#| T1 | 純讀 | see the runbook |#' "$RS"
+expect_fail "a 為什麼 column naming no RUNBOOK section" "names no RUNBOOK section"
+
+write_good
 sed -i '/^# Part B/d' "$RS"
 expect_fail "no Part B section" "no \`# Part B\` section"
+
+echo
+echo "=== stations: the number IS the device state a step needs ==="
+
+# A step filed under the wrong station is a step a reader runs with the board in
+# the wrong state, and nothing else in the file would say so.
+write_good
+sed -i 's|^## 第 1 站 · 桌面|## 第 3 站 · 服務中|' "$RS"
+expect_fail "a step filed under a station that is not its own" "sits under"
+
+write_good
+sed -i '/^## 第 1 站/d' "$RS"
+expect_fail "a Part A with no station headings" "no \`## 第 N 站\` station headings"
+
+echo
+echo "=== the heading owns which tests a step closes ==="
+
+# Silence is indistinguishable from a forgotten field, so it is not allowed.
+write_good
+sed -i 's|^### A1.1 a step（關 `P0-2`）|### A1.1 a step|' "$RS"
+expect_fail "a step heading claiming neither （關 …） nor （不關登記簿項目）" \
+            "ends with neither"
+
+echo
+echo "=== the front-page index is a pointer, and a machine keeps it one ==="
+
+write_good
+sed -i '/^| `A1.1` | a step |/d' "$RS"
+expect_fail "an index that does not list a step that exists" "does not list A1.1"
+
+write_good
+"$PY" - "$RS" <<'PYEOF'
+import pathlib, sys
+p = pathlib.Path(sys.argv[1])
+p.write_text(p.read_text("utf-8").replace(
+    "| `A1.1` | a step | `P0-2` |", "| `A1.1` | a step | `P0-5` |"), "utf-8")
+PYEOF
+expect_fail "an index disagreeing with a heading about what it closes" \
+            "the 目錄 says A1.1 closes"
+
+write_good
+"$PY" - "$RS" <<'PYEOF'
+import pathlib, sys
+p = pathlib.Path(sys.argv[1])
+p.write_text(p.read_text("utf-8").replace(
+    "| `A1.1` | a step | `P0-2` |",
+    "| `A1.1` | a step | `P0-2` |\n| `A9.9` | invented | — |"), "utf-8")
+PYEOF
+expect_fail "an index row for a step that does not exist" "which is not a step"
+
+echo
+echo "=== the other half of the split: RUNBOOK.md §8.12 ==="
+
+# The rule that matters most here. §8.12 declared its commands had moved out and
+# then carried twelve blocks, four of them already refuted at the bench -- and
+# the checker could not see them because it only read runsheet.md.
+write_good_runbook
+"$PY" - "$RB" <<'PYEOF'
+import pathlib, re, sys
+p = pathlib.Path(sys.argv[1]); t = p.read_text("utf-8")
+i = t.index("### 8.12.2")
+p.write_text(t[:i] + "```bash\nAUTOBURN: 0\n```\n\n" + t[i:], "utf-8")
+PYEOF
+expect_fail_runbook "a command fence inside §8.12" "must contain no command fences"
+
+write_good_runbook
+"$PY" - "$RB" <<'PYEOF'
+import pathlib, sys
+p = pathlib.Path(sys.argv[1])
+p.write_text(p.read_text("utf-8").replace(
+    "### 8.12.2 抓 bootloader　→ `runsheet.md` `A2.2`",
+    "### 8.12.2 抓 bootloader"), "utf-8")
+PYEOF
+expect_fail_runbook "a §8.12 subsection naming no runsheet step" \
+                    "names 0 runsheet steps"
+
+write_good_runbook
+"$PY" - "$RB" <<'PYEOF'
+import pathlib, sys
+p = pathlib.Path(sys.argv[1])
+p.write_text(p.read_text("utf-8").replace(
+    "### 8.12.2 抓 bootloader　→ `runsheet.md` `A2.2`",
+    "### 8.12.2 抓 bootloader　→ `runsheet.md` `A2.3`"), "utf-8")
+PYEOF
+expect_fail_runbook "two §8.12 subsections claiming the same step" \
+                    "both claim to explain"
+
+write_good_runbook
+"$PY" - "$RB" <<'PYEOF'
+import pathlib, sys
+p = pathlib.Path(sys.argv[1])
+p.write_text(p.read_text("utf-8").replace(
+    "### 8.12.2 抓 bootloader　→ `runsheet.md` `A2.2`",
+    "### 8.12.2 抓 bootloader　→ `runsheet.md` `A9.9`"), "utf-8")
+PYEOF
+expect_fail_runbook "a §8.12 subsection naming a step that does not exist" \
+                    "which runsheet.md does not have"
 
 # A file with no commands at all: every check above would pass over nothing,
 # which is the shape of instrument bug 12.
@@ -143,6 +272,56 @@ p = pathlib.Path(sys.argv[1])
 p.write_text(re.sub(r"```bash.*?```", "", p.read_text("utf-8"), flags=re.S), "utf-8")
 PYEOF
 expect_fail "a runsheet with no commands at all" "no shell commands found at all"
+
+echo
+echo "=== coverage: an executed test with no procedure is a claim taken on trust ==="
+
+# A step claiming an id that is not in the register. A mapping naming P9-99 looks
+# exactly like coverage from a distance.
+# Both the heading and the index row, or the index/heading disagreement fires
+# first and this case would pass for a reason it is not testing.
+write_good
+sed -i 's|`P0-2`|`P99-99`|g' "$RS"
+expect_fail "a step claiming a test id the register does not have" \
+            "which is not in the register"
+
+# The direction that matters. The fixture already claims P0-2; switching Part B to
+# a week that really has results makes every OTHER result unreachable.
+write_good
+sed -i 's|## B-W99|## B-W05|' "$RS"
+out="$("$PY" tools/check-runsheet.py "$RS" 2>&1)"; rc=$?
+if [ "$rc" -eq 0 ]; then
+  bad "a runsheet covering W05 but claiming one test was accepted"
+elif printf '%s' "$out" | grep -qF "no step claims and no exemption names"; then
+  ok "every executed test of a covered week must be claimed by some step"
+else
+  bad "coverage gap reported for the wrong reason:"; printf '%s\n' "$out" | sed 's/^/          /'
+fi
+
+# The escape hatch has to work, or the only way to pass is to claim coverage you
+# do not have -- which is worse than an honest gap.
+write_good
+"$PY" - "$RS" <<'PYEOF'
+import json, pathlib, sys, tomllib
+p = pathlib.Path(sys.argv[1])
+reg = tomllib.loads(pathlib.Path("test-cases.toml").read_text("utf-8"))
+cases = {c["id"]: c for c in reg["case"]}
+done = [r["id"] for r in
+        json.loads(pathlib.Path("reports/test-results.json").read_text("utf-8"))["results"]]
+ids = sorted({c for c in done if c in cases
+              and str(cases[c].get("week")) == "W05"
+              and not str(cases[c].get("cut_reason", "")).strip()
+              and c != "P0-2"})          # P0-2 is the fixture's own claim
+s = p.read_text("utf-8").replace("## B-W99", "## B-W05")
+s += "\n<!-- no-procedure: " + " ".join(ids) + " — fixture -->\n"
+p.write_text(s, "utf-8")
+PYEOF
+if "$PY" tools/check-runsheet.py "$RS" >/dev/null 2>&1; then
+  ok "the no-procedure escape hatch is honoured when it names the gap"
+else
+  bad "the escape hatch did not work, so the only way to pass is to overclaim"
+  "$PY" tools/check-runsheet.py "$RS" 2>&1 | sed 's/^/          /'
+fi
 
 echo
 echo "=== fences: a reader must never confuse 'run this' with 'you will see this' ==="

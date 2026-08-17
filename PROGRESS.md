@@ -2243,3 +2243,87 @@ W04-2's list stands except #20, answered above. From the morning: #16, #17
     `/boafrm/formUpload.htm` is still blocked while `/boafrm/formLogin.htm` is
     not. Same function, three different uses of a string, and only one of them
     read.
+33. **Thirty-five guard cases are not wired into `make ci`** —
+    `test-console-dump.sh` (18), `test-photo-tools.sh` (13),
+    `test-flash-tools.sh` (4). The first two need no hardware, so this is a gap
+    rather than a constraint: the flash parser's guard suite — the one covering
+    the code path every byte of this unit's dump came through — is the largest
+    of the three and CI does not run it. Found while recounting the totals, not
+    by anything checking.
+34. **`tools/check-runsheet.py` reads two files, and there are more.**
+    `REPRODUCE.md`, `README.md` and `docs/` all carry command blocks that
+    nothing reads as commands. §8.12 was the case where an unread file held a
+    refuted command; there is no reason to think it is the only one.
+
+---
+
+## W05 close-out, second pass — 2026-08-17 (evening)
+
+**A documentation pass, and it found an instrument gap that mattered more than
+the formatting it set out to fix.**
+
+### Instrument bug 22 — the checker's blind spot held the bug it was written for
+
+`tools/check-runsheet.py` exists because on 2026-08-17 a step shipped with
+`AUTOBURN: 0`, which the boot loader rejects, and nothing in the repository read
+the commands as commands. **It reads `runsheet.md`. It did not read
+`RUNBOOK.md`.**
+
+`RUNBOOK.md` §8.12 opened by declaring that the commands had moved out to the
+runsheet — and then carried **twelve command blocks**, of which **four had
+already been refuted by the bench the same day**:
+
+| §8.12 said | The bench measured |
+|---|---|
+| `AUTOBURN: 0` / `IPCONFIG:10.1.1.1` | Both `Unknown command !` — instrument bug 19, recorded above, still live in the file that recorded it |
+| Rescue success = "`ping` answers" and "the MAC is this unit's" | Neither holds. No ICMP in the loader's stack; the MAC is synthesised from the IP |
+| "Linux always prints `Kernel command line:`" | The string is not in this kernel image at all, so it never prints |
+| Two terminals, one capturing and one polling | Two terminals cannot share a clock; `coldboot-timing.sh` exists for that reason |
+
+**The fix is not to check the commands there.** It is to forbid them: CI now
+fails if §8.12 contains any command fence, so a section that may not hold a
+command cannot hold a stale one. Paired with it, every step names one `§8.12.x`
+and every `§8.12.x` names exactly one step, one-to-one, checked from both ends.
+`tools/test-check-runsheet.sh` went from 15 cases to 29 — five of the new ones
+are for these rules, and each fails the checker on a doctored copy of the real
+RUNBOOK rather than a fixture, because the fixture is where the previous version
+of this bug hid.
+
+**Twenty-two recorded. Eighteen were caught by comparing two things that should
+have agreed; four by a check written to fail.** This one was neither: it was
+caught by asking what the checker does *not* read.
+
+### The runsheet was renumbered, and the reason is not tidiness
+
+Part A was `A0`–`A14` with `A1.6`, `A1.7`, `A8.5` and `A11.5` inserted later —
+numbers recording edit order rather than structure, plus an `A8.5-預告`
+subsection inside `A8` that was a different section from the `A8.5` after it.
+**The load-bearing defect was that the document's order was not the run order**:
+Part A read `A0`→`A14` while Part B's actual session ran
+`A0`→`A2`→`A3`→`A5`→`A4`→…, because `A5` needs the board stopped at `<RealTek>`
+and `A4` needs the network adapter. A stranger reading front to back would have
+run them in the wrong order and nothing in the file would have stopped them.
+
+**Part A is now four stations, and the first digit of a step is the device state
+it needs** — `A1.x` desktop, `A2.x` stopped at `<RealTek>`, `A3.x` booted and
+serving, `A4.x` wrapping up. Front to back is now a correct order by
+construction, and CI checks that a step sits under the station its own number
+names. Entering a station costs one power cycle, which is why its steps are
+grouped: the ordering mistakes this project has made were all steps run in the
+wrong device state. Old→new mapping is `runsheet.md` Part B `B-0`.
+
+### Corrections to the plan
+
+| Said | Actually |
+|---|---|
+| **`RUNBOOK.md` §8.12's own header:** "the commands moved out, this section is why only" | Twelve command blocks remained, four of them refuted the same day. The claim was made and not enforced, which is the shape of a self-check that reports success with nothing to work on |
+| **`runsheet.md` and `REPRODUCE.md`:** "95 guard cases, 205 checks" | Undercounted, and not reproducible from any command. `REPRODUCE.md`'s own per-suite table summed to 95 because it **omitted `test-check-runsheet.sh` entirely** — the guard suite for the checker that guards the runsheet. Measured: **124 guard cases across eight suites**, of which **`make ci` runs 89**; plus 110 parser tests = 199 for `make ci`. Every number now carries the command that recounts it |
+| **`Makefile`:** `runsheet-test` "(18 cases)", `rtcase-test` "(22 cases)" | 29 and 33. Help text that counts things drifts the moment a case is added, and nothing was reading it |
+
+### Deliberately not done in this pass
+
+| Item | Why |
+|---|---|
+| **Reformatting `BENCH-LOG.md`'s punctuation** | It is append-only and verbatim. Changing its punctuation is changing evidence, and the CJK/ASCII mix inside it is now a deliberate exception rather than an oversight |
+| ~~**`LOG.md` and `study/QA.md` punctuation**~~ | **Done, in its own commit** — 1,554 and 2,230 sites. Folding them into the restructure commit would have made `git blame` useless on both, so they went first and alone |
+| **Renumbering `§8.12.x`** | `BENCH-LOG.md` cites those numbers and is append-only, so they are frozen. Three numbering schemes still exist; the bridge between two of them is now machine-checked, and the third stays in the verbatim record |
