@@ -92,8 +92,8 @@ jobs:
       - name: The ledger matches the register it is generated from
         run: |
           python3 tools/rtcase.py render
-          git diff --exit-code -- study/test-ledger.md \
-            || { echo "study/test-ledger.md is out of date — run \`make ledger\`"; exit 1; }
+          git diff --exit-code -- test-ledger.md \
+            || { echo "test-ledger.md is out of date — run \`make ledger\`"; exit 1; }
 
   bench-guards:
     name: bench tooling refuses what it claims to refuse

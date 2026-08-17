@@ -27,12 +27,12 @@ Read it first.
 **2. `make todo WEEK=W05` — what the week owes.**
 
 ```bash
-make todo WEEK=W05        # -> tools/rtcase.py todo, reads study/test-cases.toml
+make todo WEEK=W05        # -> tools/rtcase.py todo, reads test-cases.toml
 ```
 
 Every registered test scheduled for that week and still outstanding — 31 for
 W05, 25 for W06, 60 for W07 — with its section and title. The same schedule is
-the top block of `study/test-ledger.md`, and `make ci` prints the per-week
+the top block of `test-ledger.md`, and `make ci` prints the per-week
 outstanding counts on every run. **This is the closure list**: a week is not
 finished while its rows are still `⬜`, and that is checkable in one command.
 
@@ -114,7 +114,7 @@ reader undefended.
   each step burned, and what is next.
 - **Because that record is verbatim, §8.12 may be refined freely** — the evidence
   does not depend on the procedure document still saying what it said.
-- Verdicts and evidence links stay owned by `study/test-cases.toml`, unchanged.
+- Verdicts and evidence links stay owned by `test-cases.toml`, unchanged.
 
 ## House style
 
@@ -136,12 +136,12 @@ reader undefended.
   as the work; a ticked box carries its evidence link. Hostile questions go to
   `study/QA.md`. Week branches, never `main`.
 - **One piece of state has exactly one owner.** `PROGRESS.md` owns gates, weeks
-  and carried-forward questions; `study/test-cases.toml` owns per-test
+  and carried-forward questions; `test-cases.toml` owns per-test
   prediction / refutation / result / evidence; the README board owns the gate
   checkboxes and one line of numbers. A gate may **cite** a test, never restate
   its row. This rule exists because the 2026-08-16 sync failure was one piece of
   state with two owners, and a 130-row matrix in two files would repeat it
-  weekly. `study/test-ledger.md` is **generated** — edit the register.
+  weekly. `test-ledger.md` is **generated** — edit the register.
 - **A test result is inadmissible without a refutation condition written
   first**, and `tools/rtcase.py check` enforces it in CI along with: an artefact
   that exists, no dynamic tick for a static reading, and no editing a prediction

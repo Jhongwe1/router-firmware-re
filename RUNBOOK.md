@@ -1664,7 +1664,7 @@ W05–W07 要對同一台機器跑一百多個測試。**這一節是那一百�
 2. **沒有事先寫下「失敗長什麼樣」的測試,事後一定會被讀成成功。** 回應到手的時候,
    讀的人已經知道自己想看到什麼了。
 
-所以:`study/test-cases.toml` 是唯一擁有單項狀態的檔案,`study/test-ledger.md`
+所以:`test-cases.toml` 是唯一擁有單項狀態的檔案,`test-ledger.md`
 是它生成出來的,`tools/rtcase.py check` 在 CI 裡擋。
 
 ### 8.10.2 三個指令
@@ -1716,7 +1716,7 @@ make ledger
 改了就得同時改 `[freeze].sha256`,**而且要在同一個 commit 裡**:
 
 ```bash
-python3 tools/rtcase.py freeze        # 印出新的雜湊,自己貼進 study/test-cases.toml
+python3 tools/rtcase.py freeze        # 印出新的雜湊,自己貼進 test-cases.toml
 python3 tools/rtcase.py check
 ```
 
@@ -1756,7 +1756,7 @@ UART console 當下輸出:
 | `record` 拒絕,說 `no refutation condition` | 那一項還沒寫反證。**先寫,不要先記結果** —— 這是刻意的 |
 | `check` 說 `artefact ... does not exist` | 證據連結指到不存在的檔。證據不能是裝飾 |
 | `check` 說 `has been edited since the result` | 有結果的項目被改了預測。要嘛把字改回去,要嘛連戳記一起改讓 diff 看得見 |
-| CI 說 `study/test-ledger.md is out of date` | 改了登記簿沒跑 `make ledger` |
+| CI 說 `test-ledger.md is out of date` | 改了登記簿沒跑 `make ledger` |
 | 本機 `python3` 說沒有 `tomllib` | Windows 側那顆是 3.10。走 WSL,或 `FWRE_PY=$HOME/fwre-work/venv/bin/python` |
 
 ### 8.10.7 這個 gate 自己會不會騙人
@@ -2370,7 +2370,7 @@ bash tools/test-rtcase.sh            # 而且這個 gate 真的擋得住東西(2
 | 1 | `FLW` 回復路徑演練過(＝ G3.5 #5,見 §8.9) | ❌ **還沒做,它擋住下面全部** |
 | 2 | 隔離驗證過:網段上只有兩個 MAC,WAN 接假上游 | ❌ 要在機台前做 |
 | 3 | IoC 預檢:設定 vs 出廠基準線 + 殭屍網路常用埠 | ❌ 要有機器。**判準先寫好了:差異維持在 4/344** |
-| 4 | 預測登記簿凍結 | ✅ `study/test-ledger.md`,128 項 / 98 項有反證 |
+| 4 | 預測登記簿凍結 | ✅ `test-ledger.md`,128 項 / 98 項有反證 |
 | 5 | 揭露登記簿寫好 | ✅ `docs/disclosure.md` |
 
 **5 條沒到齊之前,不准對這台送第一個封包。** 操作規程在 §8.10。
@@ -2843,7 +2843,7 @@ python3 tools/zipprefix.py <檔名>.zip -o out.bin --allow-partial
 make todo WEEK=W05                               # 這週還欠哪幾項(每天第一條)
 make rtcase                                      # gate:凍結 + 每筆結果都有證據
 make rtcase-test                                 # 對照:證明這個 gate 擋得住東西
-make ledger                                      # 重生成 study/test-ledger.md
+make ledger                                      # 重生成 test-ledger.md
 python3 tools/rtcase.py record --id P3-3 --date 2026-08-20 \
     --verdict confirmed --evidence dynamic --artefact poc/formSysCmd/README.md
 python3 tools/rtcase.py freeze                   # 改過預測之後,把新雜湊貼回登記簿

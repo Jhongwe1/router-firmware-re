@@ -47,7 +47,7 @@ sha256 = "REPLACED"
 [schedule]
 sha256 = "REPLACED"
 [ledger]
-output = "study/.rtcase-selftest.md"
+output = ".rtcase-selftest.md"
 [ledger.phase_titles]
 "0" = "Phase 0"
 [[case]]

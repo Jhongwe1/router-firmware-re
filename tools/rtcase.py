@@ -16,7 +16,7 @@ project has already had:
     looks like *before* sending anything, and to make it impossible to record a
     result for a test that has no such line.
 
-So: `study/test-cases.toml` is the single owner of per-test state, this script
+So: `test-cases.toml` is the single owner of per-test state, this script
 is the only thing that writes the readable form of it, and `check` is a CI gate.
 
 What the gate enforces, and why each one exists
@@ -100,7 +100,7 @@ except ModuleNotFoundError:  # pragma: no cover - the message is the point
     ) from None
 
 REPO = Path(__file__).resolve().parent.parent
-DEFAULT_REGISTER = REPO / "study/test-cases.toml"
+DEFAULT_REGISTER = REPO / "test-cases.toml"
 DEFAULT_RESULTS = REPO / "reports/test-results.json"
 
 SCHEMA_VERSION = "1"
@@ -517,7 +517,7 @@ def render(register_path: Path, results_path: Path) -> int:
     ledger = doc.get("ledger", {})
     latest = latest_results(load_results(results_path))
 
-    out_path = REPO / ledger.get("output", "study/test-ledger.md")
+    out_path = REPO / ledger.get("output", "test-ledger.md")
     phase_titles: dict[str, str] = {str(k): v for k, v in ledger.get("phase_titles", {}).items()}
     ev_labels: dict[str, str] = ledger.get("evidence_labels", {})
     vd_labels: dict[str, str] = ledger.get("verdict_labels", {})

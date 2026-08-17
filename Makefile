@@ -115,7 +115,7 @@ todo: ## What this week still owes: `make todo WEEK=W05`
 rtcase-test: ## Prove the register gate can actually fail (22 cases)
 	bash tools/test-rtcase.sh
 
-ledger: ## Regenerate study/test-ledger.md from the register + results
+ledger: ## Regenerate test-ledger.md from the register + results
 	python3 tools/rtcase.py render
 	python3 tools/rtcase.py check
 
