@@ -3016,9 +3016,15 @@ single tool — turns out to have a sibling: no claim from a single *run*.
 
 ### Where W07 stands, and what the next session does first
 
-The register reads **W07 2 of 56** — `P0-9` and `P4-7`. Fifteen cases moved to
+The register reads **W07 2 of 56** — `P4-7` and `P8-15`. Fifteen cases moved to
 W08 with the missing instrument named against each; `docs/lab-inventory.md` is
 the shopping list and its recommendation is about US$40 for the two that matter.
+
+> This paragraph named `P0-9` instead of `P8-15` when it was written, and
+> `P0-9`'s `week` field says `W06`. Corrected 2026-08-18 from the register,
+> which owns the field. The count was right and one of the two ids was not —
+> which is what restating a register row into prose does, and why the rule says
+> cite rather than restate.
 
 Nothing below needs re-deriving. In order:
 

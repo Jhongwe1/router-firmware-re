@@ -31,7 +31,7 @@ schema_version = "1"
 # sha256 over (id, predict, refute) of every case that has a refutation.
 # Change a prediction and this must change in the same commit, where the diff
 # shows it. `python3 tools/rtcase.py freeze` prints the current value.
-sha256 = "121550712670996a7c1e20816932c10a063a1a7b9804cb631199b050a8e76ef8"
+sha256 = "d7a94f3f4b57c7e0ee089fe91c5d9fc5c9d21baa1e12afab19b72ec0dbd5c6ad"
 committed = "2026-08-18"
 note = """W05 Day 0 — frozen before any request has been served to this device.
 
@@ -40,7 +40,27 @@ reproduction on an image anyone can download. They are frozen here *before* the
 environment they describe has been built, and the commit that adds them carries
 no result. That ordering is the whole claim: the prediction that a
 container-only flash cannot start boa is on the record before the measurement
-that settles it, and both of them can fail in either direction."""
+that settles it, and both of them can fail in either direction.
+
+2026-08-18, later the same day — eleven cases gained a `predict` and a `refute`
+they never had, and one case is new. Every one of them was scheduled for W07 and
+none could have carried a result: P6-12, P8-2, P8-4, P8-6, P8-7, P8-11, P8-14,
+P8-16, P8-19, P9-4, plus the new P9-13. `make todo WEEK=W07` had been printing
+"(no refutation condition yet)" against them since the register was built, which
+is the tool doing its job — but it is a warning, not a blocker, and eleven of
+W07's rows were therefore unrecordable while the week's plan scheduled them all
+for one bench visit. Writing them the night before the visit rather than after it
+is the entire point of this file, so they are written now, from evidence that
+already exists: the W05 full-range TCP sweep, P1-10's live UPnP, P10-3's
+unauthenticated password change, P2-7's per-request Basic auth, the rootfs
+binary inventory, and the boot log. Three of them (P6-12, P8-4, P8-6) are
+narrower than their titles suggest, because prior measurements had already
+answered part of what they asked — and saying so is cheaper than re-measuring.
+
+P9-13 is new and it exists because P9-10 moved to W08. The half of P9-10 that is
+not irreversible — read the upgrade path, find out which header fields are
+actually checked — is W07 work and it is also plan Day 6's deliverable, which
+had no register row at all. One row now means one thing."""
 
 [schedule]
 # sha256 over (id, week) of every live case. `week` is deliberately NOT in
@@ -51,7 +71,7 @@ that settles it, and both of them can fail in either direction."""
 # breaking the plan or editing the field. Editing it quietly is
 # indistinguishable from moving the goalposts, so now it hashes.
 # `python3 tools/rtcase.py schedule` prints the current value.
-sha256 = "edcf62806edbdff8f6dee89d4a8aa780957a31dc42f4d54d3bc5a4feabe02ba1"
+sha256 = "ec434779339200ae0fb271c161f9cfff180edbf275852343a079a49f05366a43"
 committed = "2026-08-18"
 note = """The payload changed on 2026-08-17: it was (id, week) and is now
 (id, week, rescheduled_from, reschedule_date, reschedule_reason), so every
@@ -82,7 +102,14 @@ because the schedule hash covers (id, week, rescheduled_from, reschedule_date,
 reschedule_reason) and not the prose that summarises them — so the register's
 own header went on asserting, for a day, the claim its own rows had already
 withdrawn, in the same file. Instrument bug 28, and the same shape as 23: a
-refuted claim surviving in a place no checker reads."""
+refuted claim surviving in a place no checker reads.
+
+2026-08-18, W07: one case moved, P9-10 → W08, and its reason is the only kind
+this project accepts for an irreversible step — ordering, not caution. The unit
+is the single point of failure for G2 and G4 and it is also the target of the
+twenty-odd W07 tests that have not run yet, so writing a modified image to its
+flash before those tests would be spending the week to buy one row. The half of
+P9-10 that is not irreversible became P9-13 and stays in W07."""
 
 [ledger]
 output = "test-ledger.md"
@@ -1149,6 +1176,8 @@ title = "其他 Realtek 診斷埠（20005 / 9999 / …）"
 feasibility = 2
 exit_evidence = "unverified"
 week = "W07"
+predict = 'TCP 側這一條已經被 `P1-2` 答完了：W05 跑的是 `nmap -sS -p-`，全 65535 個埠，開著的只有 80 / 52869 / 52881，所以 20005 / 9999 / 7777 / 8888 / 30005 / 4567 / 49152-49160 全部是關的，不需要重掃。**剩下的是 UDP，而 W05 的 UDP 只掃了十個埠**（`53,67,68,69,123,161,162,1900,5353,5555`）—— 20005 與 9999 從來沒有被 UDP 探測過。預期 UDP 側也全關，理由是這台的 55 個 ELF 裡沒有任何一支對應的診斷 daemon'
+refute = '任一個 UDP 埠有回應 → rootfs 的 ELF 清單漏了東西，與 `P6-4` 同一個結論，而那讓本專案所有「這台沒有 X」的說法一起失效。**反過來，沒有正對照的「全關」不算數**：同一輪裡必須有一個已知開著的 UDP 埠（1900 或 53）回應，否則 `nmap` 的 `open|filtered` 與真正的靜默無法分辨，那時「全關」量到的是鏈路而不是裝置'
 
 # ===========================================================================
 # Phase 7 — 無線層
@@ -1320,6 +1349,8 @@ title = "其他 7 個儲存型注入點"
 feasibility = 3
 exit_evidence = "unverified"
 week = "W07"
+predict = '扣掉 `P8-1` 的 DHCP hostname，另外七個是：無線 client 的 MAC / 名稱（`formWirelessTbl`）、UPnP `NewPortMappingDescription`、惡意 Beacon 的 SSID（Site Survey）、NetBIOS / mDNS 名稱、PPPoE server name、DDNS / NTP 回應、失敗登入的帳號名與 `User-Agent`（`formSysLog`）。**其中只有三個這一週測得到**：UPnP 描述欄（52869 開著，`P1-10` 已證實 miniigd 在跑）、`formSysLog` 那一組、以及 PPPoE server name（要架假 PPPoE，與 `P8-19` 同一趟）。惡意 Beacon 需要監聽模式網卡（已隨 `P7-3` 移到 W08），無線 client 名稱需要有裝置連上這台的 Wi-Fi，NetBIOS / mDNS 這台沒有對應 daemon —— 55 個 ELF 裡沒有 nmbd 也沒有 avahi。**每一個都先白盒讀模板再送封包**：docroot 的 143 個檔在 dump 裡，有沒有輸出編碼是讀得出來的'
+refute = '模板對這些欄位都做了輸出編碼 → 整組儲存型 XSS 收掉，而那是一個結論不是失敗。反過來，模板沒有編碼但實機送進去的值被截斷或消失 → 過濾發生在寫入端而不是輸出端，那要指出是哪一個 handler 做的，否則「有 XSS」與「送不進去」會被寫成同一件事'
 
 [[case]]
 id = "P8-3"
@@ -1341,6 +1372,8 @@ feasibility = 4
 exit_evidence = "presumed"
 week = "W07"
 caution = "會改掉 flash 裡的管理密碼。排在同一梯次最後，且要能用 P0-1 的備份還原"
+predict = '`P10-3` 已經在這台實機上證實：未認證 POST `/boafrm/formPasswordSetup`、表單裡一個現行密碼欄位都不帶，就改得掉管理密碼。所以這一條要測的**不是「改不改得掉」**——那是已知的——**而是跨站的那一半**：由受害者瀏覽器發出、`Origin` 與 `Referer` 指向攻擊者網域的表單 POST，會不會被同樣接受。`P2-7` 顯示這台從不送 `Set-Cookie`、授權是逐請求的 HTTP Basic，所以連「受害者要先登入」這個前提都不需要。預期完全成立'
+refute = '帶著外部 `Origin` / `Referer` 的 POST 行為與 `curl` 直送不同 → 存在某種來源檢查，`P8-3` 的前提要一起重寫；或密碼改掉了但新密碼登不進去 → 寫進 MIB 的欄位與登入路徑讀的欄位不是同一個，那比 CSRF 本身更值得追，因為它代表 `P10-3` 的「改掉了」是寫進了一個沒人讀的地方'
 
 [[case]]
 id = "P8-5"
@@ -1362,6 +1395,8 @@ title = "DNS rebinding 完整鏈"
 feasibility = 3
 exit_evidence = "unverified"
 week = "W07"
+predict = '這一條整條押在 `P8-5` 上：`check_host` 若不驗 Host，rebinding 在協定層成立。**但這台上 rebinding 的價值比手冊寫的低，而理由是本專案自己量出來的**——`P2-7` 已證實授權是逐請求的 HTTP Basic、這台從不送 `Set-Cookie`，而 `P2-1` 證實 `/boafrm/*` 在門外。攻擊者要的動作用 `P8-3` 的盲打 CSRF 就做得到，rebinding 只多買到一件事：**讀得到回應內容**，也就是把 `/config.dat` 抓回去'
+refute = '`P8-5` 顯示 Host 被檢查 → 這條在前提上就不成立，先解 Host 再談。或鏈建起來了但瀏覽器沒有重新解析（DNS pinning）→ 那是瀏覽器的行為不是這台的性質，要記成方法限制，**不准寫成「這台不受 rebinding 影響」**'
 
 [[case]]
 id = "P8-7"
@@ -1372,6 +1407,8 @@ feasibility = 3
 exit_evidence = "presumed"
 week = "W07"
 caution = "只在隔離網段做，WAN 側接的是假 ISP。真的把管理介面推上網際網路不在授權範圍"
+predict = '52869/tcp 開著（`P1-2`），且 `P1-10` 證實 miniigd 在跑，所以 `AddPortMapping` 打得到。預期 `NewInternalClient` 不會被驗證等於請求來源 IP，因此可以把 WAN 的一個埠映射到路由器自己的 `10.1.1.1:80`，而 `NewLeaseDuration=0` 讓它不過期。若成立，本手冊裡所有標成 LAN-only 的東西**在協定層上**都變成 WAN 可達'
+refute = '`AddPortMapping` 回 SOAP error，或映射建起來但 `NewInternalClient` 被強制改寫成請求來源 IP → 這個版本做了來源檢查，那要記下 miniigd 的版本。**版本要從 binary 認，不准從 banner 認**：`P1-10` 已經發現這台的 miniigd 自報 `Server: miniupnpd/1.4`，那是另一個 codebase 的名字。另一種反證是映射建起來了但 WAN 側打不通 → 那是 iptables 沒有跟著開，映射與轉發是兩件事'
 
 [[case]]
 id = "P8-8"
@@ -1415,6 +1452,8 @@ title = "假 NTP / 假 DDNS / 假 DNS 回應（SSRF 類）"
 feasibility = 3
 exit_evidence = "unverified"
 week = "W07"
+predict = '三類主動連線的 binary 全都在這台的 rootfs 裡：`/bin/ntpclient`、`/bin/ntp_inet`、`/bin/ntp.sh`；`/bin/ddns_inet`、`/bin/updatedd`、`/bin/ddns.sh`；`/bin/dnrd`、`/bin/dnsmasq`、`/bin/dns_protocl`。**但這一週能測到的只有觸發與觀測那一半**：要證明畸形回應會打壞解析器，得先讀那幾支 binary，而一支都沒讀過。預期 NTP 與 DDNS 在被啟用後會主動對外連線，流量是明文，在隔離網段上完整可觀測'
+refute = '隔離網段上抓不到任何 NTP 或 DDNS 的對外請求 → 這些 client 沒有被啟動，或觸發條件不是「WAN 連上」。那時**要先答出誰啟動它們、條件是什麼**，答不出來這條的判定就沒有基礎 —— 與 `P6-7` 對 `cwmpClient` 的要求同一個標準'
 
 [[case]]
 id = "P8-12"
@@ -1447,6 +1486,8 @@ feasibility = 4
 exit_evidence = "presumed"
 week = "W07"
 caution = "只掃隔離網段內自己的兩台。這一項的價值是論證影響範圍，不是真的去掃東西"
+predict = '`P3-3` 已在這台實機上確認 `formSysCmd` 未認證命令執行成立，`P8-15` 已盤點過命令面：rootfs 沒有 `nc` / `tftp` / `curl`，busybox 自報的 48 個 applet 也沒有，但 `/bin/wget`、`/bin/ping`、`/bin/traceroute`、`/bin/nslookup` 都在。**所以偵察做得到，但做法不是 `nmap`**，是拿 `ping` 的回傳碼與 `wget` 的連線行為當 oracle。這一項的價值是論證影響範圍：這台本身就是一台內網掃描器，而它坐在 NAT 的內側'
+refute = '`ping` 或 `wget` 在裝置上跑得起來卻沒有可觀測的回傳差異 → `P8-15` 的命令盤點漏掉了「存在」與「可用」的差別，那一條要補。或掃描輸出取不回來 → `P3-3` 的 docroot oracle 對多行輸出不適用，那是方法限制，要寫清楚而不是算成「掃不到」'
 
 [[case]]
 id = "P8-15"
@@ -1467,6 +1508,9 @@ title = "Slowloris（S-2）"
 feasibility = 4
 exit_evidence = "presumed"
 week = "W07"
+caution = "打完之後 boa 可能不會自己回來。排在同一梯次會弄掉 boa 的那幾項旁邊，不要排在需要 web 服務活著的測試前面"
+predict = 'Boa 0.94 是單行程 `select()` 迴圈，連線上限由編譯期常數與 `getrlimit` 決定，所以半開連線佔滿之後管理介面應該完全不回應。**但這一條的觀測面要先講清楚，否則量到的東西會被歸錯**：`P4-1` / `P4-3` 已經證實這台一個請求就能讓 `boa` 永久消失，所以「打完之後 80 埠不回應」在這台上有兩個成因。判定必須包含**停止攻擊之後服務自己回來**——會回來的是 DoS，不回來的是 `P4-*` 的崩潰'
+refute = '停止攻擊後服務沒有自己恢復 → 那不是 Slowloris，是把 `boa` 打死了，結果要歸到 `P4-*` 而不是這裡。或連線數拉到上限而管理介面照常回應 → 這個 build 不是單行程模型，`boa` 的連線處理要回頭讀'
 
 [[case]]
 id = "P8-17"
@@ -1499,6 +1543,8 @@ title = "WAN 側 DHCP / PPPoE 攻擊（S-7 / S-8）"
 feasibility = 3
 exit_evidence = "unverified"
 week = "W07"
+predict = '兩條路都存在：`/bin/udhcpc` 與 `/usr/share/udhcpc/eth1.{sh,bound,renew,deconfig}`（`eth1` 是 WAN），以及 `/bin/pppd`、`/bin/pppoe.sh`、`/bin/pppoe_conn_patch.sh`、`/bin/pppoe_disc_patch.sh`。**udhcpc 那條特別值得看**，因為 `eth1.bound` 是一支 shell 腳本，而 DHCP 回應裡的 hostname / domain / classless-route 是攻擊者完全可控的字串 —— 若腳本把它們不加引號地展開，那是一條**繞過 `boa` 的注入路徑**，與 `P8-8` 同一個類別而且從 WAN 側就打得到。先白盒讀 `eth1.bound`，再決定要不要架假 DHCP server'
+refute = '讀完發現 `eth1.bound` 對所有 DHCP 提供的值都加了引號，或只透過 `flash set` 寫進 MIB 而不做字串展開 → 這條收掉，而那是一個結論。或架起假 server 之後這台根本不從 WAN 要 DHCP → WAN 模式預設不是 DHCP，要先從 COMPCS 確認 `WAN_DHCP` 的值，不能從「它沒有要位址」推論成「它沒有這個功能」'
 
 [[case]]
 id = "P8-20"
@@ -1590,6 +1636,8 @@ title = "搶重開機瞬間的救援窗口上傳韌體"
 feasibility = 2
 exit_evidence = "unverified"
 week = "W07"
+predict = '開機記錄（`dumps/uart-boot.log`）顯示 loader 印完 `---RealTek(RTL8196E)at 2014.04.22...` 之後**直接** `Jump to image start=0x80500000`，中間沒有任何網路初始化、沒有等待提示、沒有倒數。`P9-3` 進得去救援模式，但那是靠序列埠連續送 ESC 打斷開機才進去的，而 `reports/bootloader-unit-2018.json` 裡的 `IPCONFIG` / `AUTOBURN` / `LOADADDR` / TFTP 字串全部屬於命令模式。所以預期**這個救援窗口不是遠端可達的**：TFTP 堆疊只在命令模式下起來，而進命令模式需要 UART'
+refute = '在一次重開機期間，隔離網段上的主機對 loader 送 ARP 或 TFTP 請求得到回應，**而全程沒有碰序列埠** → loader 在 Linux 之前就服務網路。那麼任何能讓這台重開機的人（`P3-3` 的 `formSysCmd` 就可以）都能從 LAN 改寫韌體，這一條的嚴重度要整個上調，而且它會變成本專案最嚴重的發現。觀測要用被動 tcpdump 全程錄，不能只看主動探測有沒有回應 —— 窗口若只有幾百毫秒，主動探測會錯過它而被動錄不會'
 
 [[case]]
 id = "P9-5"
@@ -1668,8 +1716,13 @@ section = "12.7"
 title = "改造韌體回刷 / implant"
 feasibility = 3
 exit_evidence = "presumed"
-week = "W07"
+week = "W08"
+rescheduled_from = "W07"
+reschedule_date = "2026-08-18"
+reschedule_reason = '''全 W07 唯一「最高風險且不可逆」的一項，而這台是 G2 與 G4 的單點故障，同時還是 W07 剩下二十幾項網路測試的靶。把不可逆的動作排在會用到那台機器的測試前面，是拿整週去換一項。所以 W07 只做到不可逆之前為止 —— 產生改造映像、從 binary 讀出升級路徑實際檢查哪幾個欄位 —— 那一半獨立成 P9-13；真正的回刷排在 W08 開頭，那時 W07 的量測都已經完成，而 P9-3 的 TFTP 救援路徑與 P0-3 的 FLW 寫回路徑都已經演練過，brick 之後有兩條回來的路。'''
 caution = "最高風險且不可逆。IMG_HEADER_T 的欄位順序已經在 tools/fwrecon/src/fwrecon/rtlimage.py 裡，不要重新猜"
+predict = '`P9-13` 若讀出升級路徑只驗 checksum 不驗簽章，那麼一個用 `fwrecon` 重組、checksum 算對的映像會被接受，implant 成立。回刷管道有兩條：web 的升級 handler，以及 boot loader 的 `IPCONFIG` + `AUTOBURN 1` + TFTP。**預期用後者**，因為它不經過 `boa`，失敗時人就已經在主控台前面'
+refute = '改造映像被拒絕 → `P9-13` 讀出來的檢查欄位不完整，回去讀，不要用試錯法逼它接受。或映像被接受但開機不起來 → 檢查通過不等於映像正確，那時 `P9-3` 的 TFTP 救援是唯一的路，而「救援路徑沒被演練過就不做這一項」是這條改期理由的全部內容'
 
 [[case]]
 id = "P9-11"
@@ -1694,6 +1747,18 @@ week = "W08"
 rescheduled_from = "W07"
 reschedule_date = "2026-08-18"
 reschedule_reason = '''需要 SPI 燒錄器與 SOIC-8 夾具，本實驗室沒有。這一項的價值不在「再讀一次」，而在**第二支獨立儀器**：目前 flash 的每一個 byte 級主張都只有一個來源 —— 透過 boot loader 自己的 FLR 指令、走裝置自己的 UART。兩次全讀 byte 相同是很強的內部檢查，但兩次都走同一條路。本 repo 的第一條證據規則就是「沒有單一工具的主張」，所以這一項是拿來修補那個弱點的，不是重複勞動。採購與電壓陷阱（常見 CH341A 板子對資料線輸出 5V，而這顆 flash 是 3.3V）見 docs/lab-inventory.md。'''
+
+[[case]]
+id = "P9-13"
+phase = "9"
+section = "12.7"
+title = "韌體映像驗收檢查：這個 build 實際驗哪幾個欄位（純靜態，不回刷）"
+feasibility = 4
+exit_evidence = "unverified"
+week = "W07"
+star = true
+predict = '`P9-10` 改期到 W08 之後，留在 W07 的是它不可逆之前的那一半，而那一半本身就是 plan Day 6 的交付物：升級路徑到底檢查什麼。W01 的 `P0-7` 已經從兩個廠商映像還原出 `IMG_HEADER_T`（`tools/fwrecon/src/fwrecon/rtlimage.py`），欄位裡有 `hdr_chksum` 與 `chksum`。預期這個 build **只驗 checksum、不驗簽章、也不驗 `hw_version` 的 anti-rollback** —— 但「幾乎確定沒有簽章」不是結論，**要指到那個比對的位址，或者指出檢查應該在的位置而它不在**。同一個問題要對兩條回刷管道各答一次：web 的升級 handler，以及 boot loader 的 `AUTOBURN` 路徑，因為它們是兩份程式碼'
+refute = '讀出來發現有簽章驗證或 `hw_version` 比對 → `P9-10` 的 W08 計畫要整個重寫，而那比「沒有簽章」有意思得多。或兩條管道的檢查嚴格程度不同 → 那本身是發現：較鬆的那條就是實際的攻擊面，而它可能不是大家會去看的那條'
 
 # ===========================================================================
 # Phase 10 — 設定層
