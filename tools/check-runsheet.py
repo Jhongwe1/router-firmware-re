@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Check that every command in runsheet.md still resolves.
+"""Check that every command in runsheet.md still resolves, and that the split
+between runsheet.md and RUNBOOK.md §8.12 is real rather than claimed.
 
 Why this exists
 ---------------
@@ -14,21 +15,31 @@ the repository:
   * every `make <target>` names a target the Makefile defines;
   * every `tools/<x>` path exists;
   * every flag passed to one of this project's own Python tools appears in that
-    tool's own argparse definition, and every subcommand it names is a real
-    subcommand;
+    tool's own argparse definition, and every subcommand it names is real;
   * every `§8.x.y` cross-reference resolves to a heading in RUNBOOK.md;
   * every relative link resolves to a file that exists;
   * every fenced block is tagged, so "run this" and "this is what you will see"
     are never the same thing to a reader;
-  * every step declares the six fields the file's own preamble promises, and
-    names the date its commands were last actually run.
+  * every step sits under a station whose number matches its own, declares the
+    four fields the file's own preamble promises, and names the date its commands
+    were last actually run;
+  * the front-page index names exactly the steps that exist, closing exactly the
+    tests their headings claim;
+  * **§8.12 of RUNBOOK.md contains no command fences at all**, and every one of
+    its subsections is paired one-to-one with a step.
 
-The last one is the reason this is worth having rather than being a tidiness
+The last two are the reason this is worth having rather than being a tidiness
 check. On 2026-08-17 a step was written into `RUNBOOK.md` with the command
 `AUTOBURN: 0`, which the boot loader rejects -- the help text is not the syntax.
 A reader following it would have stopped at the first device command in that
 section. Nothing in the repository could have caught it, because nothing was
 reading the commands as commands.
+
+And when §8.12 was finally measured, it opened by declaring that the commands
+had moved out to `runsheet.md` -- and then carried twelve command blocks, four of
+which the bench had already refuted. The fix is not to check the commands there.
+It is to forbid them: a section that may not hold a command cannot hold a stale
+one. That is the `no command fences` rule below.
 
 What it deliberately does NOT check
 -----------------------------------
@@ -44,6 +55,7 @@ Usage:  python3 tools/check-runsheet.py [runsheet.md]
 from __future__ import annotations
 
 import argparse
+import contextlib
 import re
 import subprocess
 import sys
@@ -51,15 +63,32 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
 
-# Steps are `## A<n> <title>` in Part A. Part B is a per-week composition list
-# and carries no commands of its own, so it is not held to the step anatomy.
-STEP_RE = re.compile(r"^## (A\d+(?:\.\d+)?) ")
+# Part A is four stations; a step is `### A<station>.<n>`. The first digit is the
+# device state the step needs, which is why it is worth checking that a step sits
+# under the matching station heading: a step filed under the wrong station is a
+# step a reader will run with the board in the wrong state.
+STEP_RE = re.compile(r"^### (A(\d+)\.\d+) ")
+STATION_RE = re.compile(r"^## 第 (\d+) 站")
+SUBSTEP_RE = re.compile(r"^#### (A\d+(?:\.\d+)+)")
 FENCE_RE = re.compile(r"^```(\w*)")
 
-# The fields the file's own preamble promises a reader. `層` and `最後驗證` are
-# required of every step; the rest are required only where they apply, and a
-# missing stop condition on a step that can fail is a judgement this cannot make.
-REQUIRED_FIELDS = ("**層**", "**最後驗證**")
+# Every step heading ends with the tests it closes, or says it closes none. That
+# is the single place those ids live: the metadata table below does not repeat
+# them, so there is nothing to drift against.
+#
+# This checker reads a Traditional Chinese document, so fullwidth parentheses are
+# the thing being matched rather than a mistyped ASCII one. Ruff cannot tell those
+# apart, so they are declared here once and every message below is built from
+# these names instead of repeating the literal.
+CLOSES = "（關"                    # noqa: RUF001
+CLOSES_RE = re.compile(CLOSES + r"\s*(.+?)）\s*$")   # noqa: RUF001
+NOCLOSE = "（不關登記簿項目）"      # noqa: RUF001
+CLOSES_SHOWN = CLOSES + " …）"     # noqa: RUF001  — how it reads in a message
+
+META_HEADER = "| 層 | 動到裝置 | 為什麼這一節存在 | 最後驗證 |"
+
+RUNBOOK_812_SUB = re.compile(r"^### (8\.12\.(\d+))\b(.*)$")
+COMMAND_LANGS = {"bash", "sh", "powershell", "shell", "ps1", ""}
 
 # This project's own tools, checked against their own --help.
 OWN_TOOLS = {
@@ -75,8 +104,8 @@ def makefile_targets() -> set[str]:
     return {m.group(1) for m in re.finditer(r"(?m)^([a-zA-Z0-9_-]+):", text)}
 
 
-def runbook_headings() -> set[str]:
-    text = (REPO / "RUNBOOK.md").read_text("utf-8")
+def runbook_headings(runbook: Path) -> set[str]:
+    text = runbook.read_text("utf-8")
     out = set()
     for m in re.finditer(r"(?m)^#{2,4}\s+(\d+(?:\.\d+)*)", text):
         out.add(m.group(1))
@@ -109,14 +138,93 @@ def tool_help(tool: str) -> str:
     return "\n".join(parts)
 
 
-def check(path: Path) -> int:
+def check_runbook_812(path: Path, errors: list[str], step_ids: list[str],
+                      why: dict[str, str]) -> None:
+    """§8.12 holds no commands, and pairs one-to-one with the steps.
+
+    Both halves of that sentence were false on 2026-08-17 and neither was
+    visible: the section said the commands had moved, twelve blocks said
+    otherwise, and no step named the subsection that explained it.
+    """
+    lines = path.read_text("utf-8").split("\n")
+    try:
+        start = next(i for i, s in enumerate(lines) if s.startswith("## 8.12 "))
+    except StopIteration:
+        errors.append(f"{path.name}: no `## 8.12` section — the runsheet's 為什麼 "
+                      "column points into it")
+        return
+    end = next((i for i in range(start + 1, len(lines))
+                if lines[i].startswith("## ") and not lines[i].startswith("## 8.12")),
+               len(lines))
+
+    in_fence = False
+    for i in range(start, end):
+        bare = re.sub(r"^(?:\s*>)+\s?", "", lines[i])
+        if not bare.startswith("```"):
+            continue
+        if not in_fence:
+            lang = (FENCE_RE.match(bare).group(1) if FENCE_RE.match(bare) else "")
+            if lang.lower() in COMMAND_LANGS:
+                errors.append(
+                    f"{path.name}:{i + 1}: §8.12 must contain no command fences "
+                    f"(found ```{lang or '<untagged>'}). Commands belong in "
+                    "runsheet.md; this section owns why they exist. A section "
+                    "that may not hold a command cannot hold a stale one")
+        in_fence = not in_fence
+
+    # one-to-one with the steps
+    named: dict[str, str] = {}
+    for i in range(start, end):
+        m = RUNBOOK_812_SUB.match(lines[i])
+        if not m:
+            continue
+        sub, num, tail = m.group(1), m.group(2), m.group(3)
+        if num == "0":                      # 8.12.0 is a pointer, not a step's why
+            continue
+        ids = re.findall(r"`(A\d+\.\d+)`", tail)
+        if len(ids) != 1:
+            errors.append(
+                f"{path.name}:{i + 1}: §{sub} names {len(ids)} runsheet steps in "
+                "its heading, and it must name exactly one. Without it, a reader "
+                "in one file cannot find the other half in the other")
+            continue
+        if ids[0] not in step_ids:
+            errors.append(f"{path.name}:{i + 1}: §{sub} names step {ids[0]}, "
+                          "which runsheet.md does not have")
+            continue
+        if ids[0] in named:
+            errors.append(f"{path.name}:{i + 1}: §{sub} and §{named[ids[0]]} both "
+                          f"claim to explain {ids[0]}")
+            continue
+        named[ids[0]] = sub
+        want = f"§{sub}"
+        if want not in why.get(ids[0], ""):
+            errors.append(
+                f"{path.name}:{i + 1}: §{sub} says it explains {ids[0]}, but that "
+                f"step's 為什麼 column names {why.get(ids[0], '(nothing)')!r}. "
+                "The pairing has to hold from both ends or one of them is wrong")
+
+    # And the other direction: a step may point at §8.12.N only if §8.12.N points
+    # back. Without this, a step could name a subsection that explains a
+    # different step and nothing would say so from the runsheet's side.
+    back = {v: k for k, v in named.items()}
+    for step, cell in sorted(why.items()):
+        for sub in re.findall(r"§\s?(8\.12\.\d+)", cell):
+            if named.get(step) != sub:
+                errors.append(
+                    f"runsheet.md: step {step} names §{sub} as its 為什麼, but "
+                    f"§{sub} names {back.get(sub, 'nothing')}. "
+                    "One of the two is pointing at the wrong half")
+
+
+def check(path: Path, runbook: Path) -> int:
     text = path.read_text("utf-8")
     lines = text.splitlines()
     errors: list[str] = []
     warnings: list[str] = []
 
     targets = makefile_targets()
-    headings = runbook_headings()
+    headings = runbook_headings(runbook)
     helps: dict[str, str] = {}
 
     # ---- fences and command extraction ---------------------------------
@@ -231,36 +339,123 @@ def check(path: Path) -> int:
             if not (path.parent / tgt).exists():
                 errors.append(f"{path.name}:{i}: link target {tgt} does not exist")
 
-    # ---- step anatomy --------------------------------------------------
-    steps: list[tuple[str, int]] = []
+    # ---- stations and step anatomy -------------------------------------
+    steps: list[tuple[str, int, str]] = []      # id, line, heading
+    station_at: dict[int, int] = {}             # line -> station number
     for i, line in enumerate(lines, 1):
+        m = STATION_RE.match(line)
+        if m:
+            station_at[i] = int(m.group(1))
         m = STEP_RE.match(line)
         if m:
-            steps.append((m.group(1), i))
+            steps.append((m.group(1), i, line))
     if not steps:
-        errors.append(f"{path.name}: no `## A<n>` steps found — the file's shape changed")
+        errors.append(f"{path.name}: no `### A<station>.<n>` steps found — "
+                      "the file's shape changed")
+    if not station_at:
+        errors.append(f"{path.name}: no `## 第 N 站` station headings found. "
+                      "The station number IS the device state a step needs, so "
+                      "without them a reader has no way to know it")
+
+    closes: dict[str, list[str]] = {}
+    why: dict[str, str] = {}
     partb = text.find("# Part B")
-    for j, (name, ln) in enumerate(steps):
-        end = steps[j + 1][1] if j + 1 < len(steps) else len(lines)
+    for j, (name, ln, heading) in enumerate(steps):
+        end = steps[j + 1][1] if j + 1 < len(steps) else (
+            len(lines) if partb < 0 else next(
+                (i for i, s in enumerate(lines, 1) if s.startswith("# Part B")),
+                len(lines)))
         body = "\n".join(lines[ln:end])
-        # Only steps that ask a reader to run something. A14 is a symptom/cause
-        # table: demanding "was this last verified?" of a troubleshooting index
-        # would be a field filled in to satisfy a checker, which is worse than
-        # no field.
-        if not any(ln <= c <= end for c, _ in commands):
+
+        # the station the step is filed under must match its own first digit
+        want = int(name[1:].split(".")[0])
+        current = None
+        for line_no in sorted(station_at):
+            if line_no < ln:
+                current = station_at[line_no]
+        if current is not None and current != want:
+            errors.append(
+                f"{path.name}:{ln}: step {name} sits under 第 {current} 站. "
+                f"Its number says 第 {want} 站, and the number is what tells a "
+                "reader what state the board has to be in")
+
+        # what it closes: from the heading, and nowhere else
+        m = CLOSES_RE.search(heading)
+        if m:
+            ids = re.findall(r"P\d+-\d+", m.group(1))
+            if not ids:
+                errors.append(f"{path.name}:{ln}: step {name}'s {CLOSES_SHOWN} "
+                              "names no test id")
+            closes[name] = ids
+        elif NOCLOSE in heading:
+            closes[name] = []
+        else:
+            errors.append(
+                f"{path.name}:{ln}: step {name}'s heading ends with neither "
+                f"{CLOSES_SHOWN} nor {NOCLOSE}. Silence there is indistinguishable "
+                "from a forgotten field, and the coverage check below is only "
+                "as good as that distinction")
+
+        # the four-field table
+        if META_HEADER not in body:
+            errors.append(
+                f"{path.name}:{ln}: step {name} declares no "
+                "層/動到裝置/為什麼這一節存在/最後驗證 table. The preamble "
+                "promises a reader every step carries those four")
             continue
-        for field in REQUIRED_FIELDS:
-            if field not in body:
-                errors.append(
-                    f"{path.name}:{ln}: step {name} does not declare {field}. "
-                    "The preamble promises a reader every step carries it")
-        m = re.search(r"\*\*最後驗證\*\*\s*\|\s*([^|\n]+)", body)
-        if m and not re.search(r"\d{4}-\d{2}-\d{2}", m.group(1)):
+        rows = [r for r in body.split("\n")
+                if r.startswith("|") and "---" not in r and r != META_HEADER]
+        if not rows:
+            errors.append(f"{path.name}:{ln}: step {name}'s table has a header "
+                          "and no row")
+            continue
+        cells = [c.strip() for c in rows[0].strip("|").split("|")]
+        if len(cells) != 4:
+            errors.append(f"{path.name}:{ln}: step {name}'s table row has "
+                          f"{len(cells)} cells, expected 4")
+            continue
+        why[name] = cells[2]
+        if not re.search(r"§\s?\d+(\.\d+)*", cells[2]):
+            errors.append(
+                f"{path.name}:{ln}: step {name}'s 為什麼這一節存在 names no "
+                "RUNBOOK section. Two files only divide the work if each points "
+                "at the other")
+        if not re.search(r"\d{4}-\d{2}-\d{2}", cells[3]):
             errors.append(
                 f"{path.name}:{ln}: step {name}'s 最後驗證 names no date. "
                 "A reader has to know how old these commands are")
     if partb < 0:
         errors.append(f"{path.name}: no `# Part B` section — per-week run orders live there")
+
+    # ---- the front-page index ------------------------------------------
+    #
+    # The index repeats the ids in the headings, and repetition is exactly what
+    # this repository forbids -- unless a machine keeps the two the same. This is
+    # that machine, so the index is a pointer rather than a second owner.
+    idx: dict[str, list[str]] = {}
+    part_a_line = next((k for k, s in enumerate(lines, 1)
+                        if s.startswith("# Part A")), len(lines))
+    for line in lines[:part_a_line]:
+        m = re.match(r"^\|\s*`(A\d+\.\d+)`\s*\|(.*)\|(.*)\|\s*$", line)
+        if m:
+            idx[m.group(1)] = re.findall(r"P\d+-\d+", m.group(3))
+    if steps:
+        if not idx:
+            errors.append(f"{path.name}: no front-page index rows found. The 目錄 "
+                          "is how a reader sees the whole procedure at once")
+        missing = [s for s, _, _ in steps if s not in idx]
+        surplus = [s for s in idx if s not in {x for x, _, _ in steps}]
+        if missing:
+            errors.append(f"{path.name}: the 目錄 does not list {', '.join(missing)}")
+        if surplus:
+            errors.append(f"{path.name}: the 目錄 lists {', '.join(surplus)}, "
+                          "which is not a step")
+        for s, _, _ in steps:
+            if s in idx and set(idx[s]) != set(closes.get(s, [])):
+                errors.append(
+                    f"{path.name}: the 目錄 says {s} closes "
+                    f"{sorted(idx[s]) or '—'} but its heading says "
+                    f"{sorted(closes.get(s, [])) or '—'}")
 
     # ---- coverage: 27 results should mean 27 reproducible paths ---------
     #
@@ -291,18 +486,15 @@ def check(path: Path) -> int:
                     _json.loads(results.read_text("utf-8")).get("results", [])}
 
         claimed: dict[str, list[str]] = {}
-        for j, (name, ln) in enumerate(steps):
-            end = steps[j + 1][1] if j + 1 < len(steps) else len(lines)
-            for k in range(ln, end):
-                if "**關掉的項目**" not in lines[k - 1]:
-                    continue
-                for cid in re.findall(r"\b(P\d+-\d+)\b", lines[k - 1]):
-                    claimed.setdefault(cid, []).append(name)
+        for name, ids in closes.items():
+            for cid in ids:
+                claimed.setdefault(cid, []).append(name)
         if not claimed:
             errors.append(
                 f"{path.name}: no step claims to close any registered test. "
-                "Either the 關掉的項目 field was removed or its shape changed, and "
-                "the coverage check below would then pass over nothing")
+                f"Either the {CLOSES_SHOWN} annotation was removed or its shape "
+                "changed, and the coverage check below would then pass over "
+                "nothing")
 
         for cid, where in sorted(claimed.items()):
             if cid not in cases:
@@ -330,12 +522,22 @@ def check(path: Path) -> int:
                 f"{path.name}: {len(gap)} executed test(s) that no step claims "
                 f"and no exemption names: {', '.join(gap)}.\n"
                 "        A result nobody can reach a procedure for is a claim a "
-                "reader has to take on trust. Add it to a step's 關掉的項目, or "
+                f"reader has to take on trust. Add it to a step's {CLOSES_SHOWN}, or "
                 "name it in the `<!-- no-procedure: ... -->` block with a reason.")
         covered = len(owed & set(claimed))
     else:
         covered = 0
         warnings.append(f"{path.name}: no register or results file; coverage unchecked")
+
+    # ---- the other half of the split -----------------------------------
+    #
+    # Only for the real runsheet: a synthetic fixture has one step, and holding
+    # the whole of §8.12 to a one-to-one pairing with it would make every
+    # fixture-based case fail for the same unrelated reason. The guard suite
+    # exercises this half by passing the real runsheet with a doctored
+    # `--runbook`.
+    if path.resolve() == (REPO / "runsheet.md").resolve():
+        check_runbook_812(runbook, errors, [s for s, _, _ in steps], why)
 
     # ---- report --------------------------------------------------------
     for w in warnings:
@@ -344,23 +546,30 @@ def check(path: Path) -> int:
         for e in errors:
             print(f"  FAIL  {e}", file=sys.stderr)
         return 1
-    print(f"runsheet OK — {len(steps)} steps, {len(commands)} command lines, "
-          f"{len(seen_make)} make targets, {len(helps)} tools checked against "
-          f"their own --help, {untagged} untagged fences, "
-          f"{covered} executed tests reachable")
+    print(f"runsheet OK — {len(steps)} steps in {len(station_at)} stations, "
+          f"{len(commands)} command lines, {len(seen_make)} make targets, "
+          f"{len(helps)} tools checked against their own --help, "
+          f"{untagged} untagged fences, {covered} executed tests reachable")
     return 0
 
 
 def main(argv: list[str]) -> int:
+    for s in (sys.stdout, sys.stderr):
+        with contextlib.suppress(AttributeError, ValueError):
+            s.reconfigure(encoding="utf-8", errors="replace")
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("runsheet", nargs="?", default=str(REPO / "runsheet.md"),
                     type=Path)
+    ap.add_argument("--runbook", default=str(REPO / "RUNBOOK.md"), type=Path,
+                    help="the other half of the split; override it to let the "
+                         "guard suite prove the §8.12 rules can fail")
     args = ap.parse_args(argv[1:])
-    if not args.runsheet.is_file():
-        print(f"no such file: {args.runsheet}", file=sys.stderr)
-        return 2
-    return check(args.runsheet)
+    for f in (args.runsheet, args.runbook):
+        if not f.is_file():
+            print(f"no such file: {f}", file=sys.stderr)
+            return 2
+    return check(args.runsheet, args.runbook)
 
 
 if __name__ == "__main__":
