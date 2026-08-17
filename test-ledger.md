@@ -53,10 +53,10 @@ W05 週計畫原本要另外建一份 `notes/prediction-scorecard.md`（12 條�
 |---|---|
 | 登記項目 | **134**（排入 125，砍掉 9） |
 | 已寫反證條件（凍結） | **117** / 125 |
-| 已執行 | **60** |
+| 已執行 | **62** |
 | 其中以真機動態證據收掉 | **43** |
-| 其中以模擬環境執行收掉（**不是矽上**） | **10** |
-| 判定成立 / 判定不成立 | **34** / **13** |
+| 其中以模擬環境執行收掉（**不是矽上**） | **11** |
+| 判定成立 / 判定不成立 | **35** / **14** |
 | 凍結雜湊 | `a9bd2761074e0b349726ec0ee96f3280e30a81e13a034643c1c3581dfc7f10be` |
 
 ## 排程：哪一週要打掉哪些
@@ -70,7 +70,7 @@ W05 週計畫原本要另外建一份 `notes/prediction-scorecard.md`（12 條�
 | **W04-2** | Phase 0 | 2 / 2 | `▰▰▰▰▰▰▰▰▰▰` |
 | **W05** | Phase 0, 1, 2, 3, 6, 9 | 27 / 27 | `▰▰▰▰▰▰▰▰▰▰` |
 | **W06** | Phase 0, 2, 3, 4, 5, 10 | 20 / 20 | `▰▰▰▰▰▰▰▰▰▰` |
-| **W07** | Phase 1, 2, 3, 4, 5, 6, 8, 9, 10 | 8 / 57 | `▰▱▱▱▱▱▱▱▱▱` |
+| **W07** | Phase 1, 2, 3, 4, 5, 6, 8, 9, 10 | 10 / 57 | `▰▰▱▱▱▱▱▱▱▱` |
 | **W08** | Phase 7, 9 | 0 / 16 | `▱▱▱▱▱▱▱▱▱▱` |
 
 ## 圖例
@@ -255,7 +255,7 @@ W05 週計畫原本要另外建一份 `notes/prediction-scorecard.md`（12 條�
 | P2-6 | HTTP 協定層畸形（0.9 風格 / 版本號 / chunked） | 5.6 | ★★★☆☆ | 🟦 | W06 | ✅ Boa 0.94 answers malformed requests with 400 rather than mis-parsing them, which is what the prediction said. GET / with no version returns a bare HTTP/0.9 body with no status line; HTTP/9.9 returns 400; a chunked POST returns 400; and an HTTP/1.1 request with no Host header returns 200 where RFC 2616 requires 400 — a spec deviation, not a memory-safety one. The server survived all four. | [BENCH-LOG.md](BENCH-LOG.md) |
 | P2-7 | 認證狀態的邏輯繞過（session 模型 T-1~T-4） | 5.7 | ★★★☆☆ | 🟨 | W05 | ❌ 預測的『這台沒有 session』那半是對的，但**它指名的機制是錯的**，而反證條件逐字成立。10.1.1.100 認證成功之後：.101 不帶憑證 302、.100 不帶憑證 302、.101 帶憑證 200。formLogin 一個 cookie 都沒設，而且裝置從來不送 Set-Cookie。所以授權是**每個請求各自的 HTTP Basic**，0x004899d8 不是全機共用的授權狀態 —— PROGRESS 開放 #9 的問法要改 | [BENCH-LOG.md](BENCH-LOG.md) |
 | P2-8 | 憑證直闖：admin/admin 與 Basic Auth | 5.8 | ★★★★★ | 🟥 | W05 | ✅ admin/admin —— 從這台自己 flash 的 COMPCS 解出來的明文，經 HTTP Basic 直接認證成功（/password.htm 302→200），並開啟其餘 68 個被擋頁面。CVE-2019-19823 端到端。反證條件（連續 50 次錯誤後被鎖）沒有觸發：50 次全部拒絕，第 51 次用正確密碼仍然 200，無鎖定、無失敗計數 | [BENCH-LOG.md](BENCH-LOG.md) |
-| P2-9 | 未初始化的第二對憑證緩衝區（sp+0x18 / sp+0x38） | 5.8 | ★☆☆☆☆ | 🟥 | W07 | ⬜ | — |
+| P2-9 | 未初始化的第二對憑證緩衝區（sp+0x18 / sp+0x38） | 5.8 | ★☆☆☆☆ | 🟥 | W07 | 🟪 Fired. process_header_end compares supplied credentials against TWO pairs: strcmp(user, sp+0x18) at 0x0040bd48 and its partner sp+0x38 at 0x0040bd90 grant req->0xb0 = 2, while the real pair from apmib_get(0xb6)/apmib_get(0xb7) at sp+0x58/sp+0x78 grants 1. Across the whole 1964-byte function the only instructions touching sp+0x18 and sp+0x38 are three reads - no sw, sb, sh, no apmib_get, no strcpy. A Basic header with both fields empty returns 200/333 on a gated page, byte-identical to the real credentials, while empty-user-with-password, user-with-empty-password, wrong-user-wrong-password and admin-with-wrong-password all return 302 and no-Authorization returns 302. Stored credentials were admin/admin, BOTH NON-EMPTY, read back through the vendor flash binary in the same run, so this is not D-4 (the branch at 0x0040bd18 was not taken). /password.htm goes 302 unauthenticated to 200 with 5332 bytes. Reproduces on the PUBLISHED v2.1.2 profile too - different binary, synthesised flash, credentials set first because its defaults are empty and trip D-4 instead. NOT ESTABLISHED, and the note says so at length: prior art unsearched, what level 2 buys over level 1 unread, whether the buffers can hold CHOSEN bytes unknown, and everything so far is emulation on two profiles but one emulator. Device confirmation is three requests and no power cycle. | [uninit-credential-pair.md](notes/uninit-credential-pair.md) |
 | P2-10 | 登入計時預言（timing oracle） | 5.9 | ★☆☆☆☆ | 🟦 | W07 | ⬜ | — |
 
 <details><summary>Phase 2 的預測與反證條件（10/10 項已凍結）</summary>
@@ -884,7 +884,7 @@ W05 週計畫原本要另外建一份 `notes/prediction-scorecard.md`（12 條�
 | P10-2 | config 檔名字典掃描（20+ 路徑） | 13.1 | ★★★☆☆ | 🟦 | W06 | ✅ 156 paths: the 143 names in this unit own w6cg bundle plus 13 suspects that are not in it. Of the 13, only config.dat answers 200, and it is the only 200 in the whole scan that is not a bundle name — boa creates it at start-up. Distribution 83x302 / 73x200. The three 000 in the raw output were the scan own liveness-control lines, which had been formatted with a leading 000 to align the columns and were therefore indistinguishable from failures. | [BENCH-LOG.md](BENCH-LOG.md) |
 | P10-3 | 未認證改管理密碼 | 13.2 | ★★★★☆ | 🟨 | W06 | ✅ Confirmed in its strongest form and at the first attempt. The form carries Cusername/Cpassword fields for the CURRENT credentials; the handler does not check them. An unauthenticated POST to /boafrm/formPasswordSetup carrying no current-password field at all changed the administrator password: old credentials went 200 to 302 and the new ones 302 to 200. So the chain is shorter than planned — reading the password out of config.dat first is not necessary. | [BENCH-LOG.md](BENCH-LOG.md) |
 | **P10-4** | 把密碼設成空字串 → 全機無認證（本專案獨家） | 13.2 | ★★★☆☆ | 🟥 | W06 | ✅ With USER_PASSWORD empty, password.htm returns 200 and 5322 bytes of real HTML with no Authorization header at all, and home.htm, wlbasic.htm, ddns.htm and status.htm likewise. A WRONG password also returns 200, so the comparison is skipped entirely rather than matching empty against empty. That is the beq at 0x0040bd18 as W04-2 read it. With P10-3 this is a complete unauthenticated takeover: docs/disclosure.md D-4 says reachability matters more than the branch, and the path exists. First run of this test built its URLs from a loop variable the WSL dispatch strips, so four requests all went to / and four 200s nearly became a headline. | [BENCH-LOG.md](BENCH-LOG.md) |
-| **P10-7** | 出廠私鑰 /etc/privateKey.key（未讀） | 13.4 | ★★★☆☆ | 🟦 | W07 | ⬜ | — |
+| **P10-7** | 出廠私鑰 /etc/privateKey.key（未讀） | 13.4 | ★★★☆☆ | 🟦 | W07 | ❌ The premise is wrong for this unit and the answer is that the key is unusable. The register said the rootfs has two factory private keys; that is a statement about V2.1.2 plus V3.4.0. THIS unit has one: /etc/dropbear_rsa_host_key, 282 bytes, dropbear wire format, ssh-rsa with a 0x81-byte modulus so 1024-bit. /etc/privateKey.key is V3.4.0 only. And there is no SSH daemon in the rootfs at all - no dropbear, no dropbearmulti, no sshd among the binaries - while sysconf still does mkdir /var/dropbear and copies the key there at boot. So the key ships, is installed on every boot, and nothing can present it; P6-11 measured port 22 closed on the device, which is the same conclusion from the other side. It stays a shipped-identical-key class item for OTHER models that do run dropbear, which is a P8-21 question, not this unit. | [n150rt-unit-2018.json](reports/n150rt-unit-2018.json) |
 | **P10-10** | 收工還原 + 基準線比對 | 13.7 | ★★★★★ | — | W06 | ✅ Not one unattributable byte. Four 64 KiB snapshots were taken through the boot loader across the session. H601 (0x6000-0x8000): nine bytes moved and all nine came back — the eight ASCII digits of HW_WLAN0_WSC_PIN plus the region checksum at 0x006493, which the device recomputed itself. The final read is byte-identical BOTH to the pre-injection snapshot AND to the 2026-08-16 full dump, taken before this project had ever written to the device. The boot loader region never moved at all. COMPDS and COMPCS differ, and every field is named: COMPCS moved in exactly two, SYSCMD_SELECT and WPS_FIRST, which are the two handlers that were fired; COMPDS moved in twenty-five, all converging on COMPCS values, which is D-10 and not a side effect of any single test. New baseline for the next session: COMPCS vs COMPDS differ in 0 of 343. And a procedure correction that cost nothing to learn but would have cost a session to guess: restoring COMPDS at the START of a bench session is pointless, because any POST rewrites it from COMPCS before the session ends. It belongs at the end. | [BENCH-LOG.md](BENCH-LOG.md) · [runsheet.md](runsheet.md) |
 
 <details><summary>Phase 10 的預測與反證條件（6/6 項已凍結）</summary>
