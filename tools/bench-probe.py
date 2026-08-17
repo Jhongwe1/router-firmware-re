@@ -174,8 +174,63 @@ def urlencode(params: dict[str, str]) -> bytes:
 # --------------------------------------------------------------------------
 # the control
 # --------------------------------------------------------------------------
+def route_to(host: str) -> dict[str, Any]:
+    """Is `host` on a directly-connected subnet, and on which interface?
+
+    This is here because "the device answers" is not the same as "I am on its
+    segment", and the difference is invisible in an HTTP response. On
+    2026-08-17 the USB Ethernet adapter came up on the *Windows* side while the
+    tests were being driven from WSL: `ping 10.1.1.1` succeeded and everything
+    looked fine, and the only tell was `ttl=63` where a directly attached Linux
+    host answers 64. Through that path SSDP cannot work at all (multicast does
+    not cross the NAT), two source addresses collapse into one, and a raw-socket
+    scan measures the NAT rather than the device -- while the transcript would
+    have recorded none of it.
+    """
+    out: dict[str, Any] = {"target": host, "direct": None, "iface": None,
+                           "via": None}
+    try:
+        packed = socket.inet_aton(host)
+    except OSError:
+        return out
+    target = int.from_bytes(packed, "big")
+    # /proc/net/route carries the *main* table only; the loopback route lives in
+    # the local table and is absent from it, so 127/8 would otherwise fall
+    # through to the default route and be reported as reached via a gateway.
+    # Found by the guard suite on this function's first run.
+    if packed[0] == 127:
+        out.update(direct=True, iface="lo")
+        return out
+    best = -1
+    try:
+        with open("/proc/net/route", encoding="ascii") as fh:
+            next(fh)
+            for line in fh:
+                f = line.split()
+                if len(f) < 8:
+                    continue
+                iface, dest, gw, mask = f[0], f[1], f[2], f[7]
+                # /proc/net/route is little-endian hex
+                d = int.from_bytes(bytes.fromhex(dest), "little")
+                g = int.from_bytes(bytes.fromhex(gw), "little")
+                m = int.from_bytes(bytes.fromhex(mask), "little")
+                if (target & m) != d:
+                    continue
+                bits = bin(m).count("1")
+                if bits > best:
+                    best = bits
+                    out["iface"] = iface
+                    out["direct"] = (g == 0)
+                    out["via"] = None if g == 0 else str(
+                        socket.inet_ntoa(g.to_bytes(4, "big")))
+    except OSError as e:
+        out["error"] = f"{type(e).__name__}: {e}"
+    return out
+
+
 def control(host: str, port: int) -> dict[str, Any]:
-    """The device answers, and answers as the thing we think it is.
+    """The device answers, answers as the thing we think it is, and is on our
+    segment.
 
     Re-run between groups. A run whose second half is all failures because the
     web server died in the first half must not read as a finding about the
@@ -184,16 +239,29 @@ def control(host: str, port: int) -> dict[str, Any]:
     r = raw_request(host, port, "GET", "/")
     ok = r.get("status") is not None
     server = r.get("response_headers", {}).get("Server", "")
-    return {"probe": "control", "reachable": ok, "server": server, **r}
+    return {"probe": "control", "reachable": ok, "server": server,
+            "route": route_to(host), **r}
 
 
-def require_control(host: str, port: int, where: str) -> dict[str, Any]:
+def require_control(host: str, port: int, where: str,
+                    need_direct: bool = False) -> dict[str, Any]:
     c = control(host, port)
     if not c["reachable"]:
         raise ProbeError(
             f"control failed {where}: {c.get('error') or 'no HTTP status line'}.\n"
             "  Stopping. Results recorded after an unreachable control describe "
             "the state of the web server, not the state of the endpoint."
+        )
+    rt = c.get("route", {})
+    if rt.get("direct") is False and need_direct:
+        raise ProbeError(
+            f"control failed {where}: {host} is reached via {rt.get('via')} on "
+            f"{rt.get('iface')}, not on a directly connected subnet.\n"
+            "  This group needs to be on the device's segment. Broadcast and "
+            "multicast do not cross a router, and a negative result would look "
+            "exactly like the service being absent.\n"
+            "  If the adapter is attached to the host rather than here: "
+            "`usbipd attach --wsl --busid <id>`."
         )
     return c
 
@@ -393,7 +461,11 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         if args.group != "control":
-            require_control(args.host, args.port, "before the run")
+            # SSDP is the group that cannot survive a router in the path at all,
+            # so it refuses; the rest warn, because a warning that stops work is
+            # worse than one that is read.
+            require_control(args.host, args.port, "before the run",
+                            need_direct=(args.group == "ssdp"))
         records = GROUPS[args.group](args.host, args.port, args.allow_post)
         if args.group not in ("control", "ssdp"):
             # The spread goes first: `control()` sets "probe" itself, so putting
@@ -425,6 +497,18 @@ def main(argv: list[str] | None = None) -> int:
         else:
             code = st if st is not None else "---"
             print(f"  {code:>4}  {lab:<46} {r.get('body_bytes', 0):>6}B{extra} {err}")
+
+    rt = next((r.get("route") for r in records if r.get("route")), None)
+    if rt:
+        if rt.get("direct"):
+            print(f"  route: {args.host} is directly attached on {rt['iface']}")
+        elif rt.get("direct") is False:
+            print(f"\n  ⚠ {args.host} is reached via {rt.get('via')} on "
+                  f"{rt.get('iface')} — NOT directly attached.\n"
+                  "    Every result above is a measurement of that path as much "
+                  "as of the device.\n"
+                  "    Source-address behaviour, broadcast, multicast and raw "
+                  "scans are all unreliable through it.", file=sys.stderr)
 
     if args.output:
         Path(args.output).write_text(json.dumps(doc, indent=1, ensure_ascii=False), "utf-8")

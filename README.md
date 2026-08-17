@@ -35,9 +35,14 @@ function in the binary.
 > radio calibration, which exist nowhere else — is inside one such sector, and
 > so is the `HW_WLAN0_WSC_PIN` that W06's proof-of-concept writes.
 >
-> **Still nothing has been sent to the device over the network.** 25 of W05's 31
-> registered tests are outstanding for that reason, and the register prints the
-> list on demand rather than leaving it to a paragraph.
+> **The device has now answered its first HTTP request** — `Server:
+> Boa/0.94.14rc21`, which is what three builds' string tables said it would be.
+> That is one line of one test. **24 of W05's 31 registered tests are still
+> outstanding**, because the laptop driving them is not on the device's segment:
+> its USB Ethernet adapter came up on the Windows side, so the packets are
+> routed rather than local. The tell was `ttl=63` where a directly attached host
+> answers 64, and the prober now derives the same fact from `/proc/net/route`
+> and says so — see [Open, carried forward](PROGRESS.md#w05--2026-08-17).
 >
 > **Latest (W04-2, 2026-08-16): the build this device actually runs has been
 > read, and it has a command-execution handler that neither downloadable image

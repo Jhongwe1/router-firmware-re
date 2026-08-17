@@ -78,6 +78,29 @@ PYEOF
 if [ $? -eq 0 ]; then pass=$((pass + 1)); else bad "endpoint list"; fi
 
 echo
+echo "=== the control knows the difference between reachable and on the segment ==="
+"$PY" - <<'PYEOF'
+import importlib.util, pathlib, sys
+spec = importlib.util.spec_from_file_location("bp", pathlib.Path("tools/bench-probe.py"))
+bp = importlib.util.module_from_spec(spec); spec.loader.exec_module(bp)
+
+lo = bp.route_to("127.0.0.1")
+assert lo["direct"] is True, f"loopback should be directly attached: {lo}"
+
+# A public address must never be claimed as directly attached. On a host with a
+# default route this resolves through a gateway; on one without, it resolves to
+# nothing. Either is acceptable; "direct" is not.
+pub = bp.route_to("8.8.8.8")
+assert pub["direct"] is not True, f"a routed address claimed as direct: {pub}"
+
+bad = bp.route_to("not-an-address")
+assert bad["direct"] is None, f"a non-address should not resolve: {bad}"
+print(f"  ok    directly attached vs routed is decided from /proc/net/route "
+      f"(lo={lo['iface']}, 8.8.8.8 via {pub.get('via')})")
+PYEOF
+if [ $? -eq 0 ]; then pass=$((pass + 1)); else bad "route classification"; fi
+
+echo
 echo "=== the control: a probe run against a server that really answers ==="
 PORT=18080
 "$PY" - "$PORT" "$TMP" <<'PYEOF' &

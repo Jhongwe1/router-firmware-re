@@ -151,6 +151,28 @@
       ],
       "note": "命令盤點那半收掉，兩個來源：rootfs 裡沒有 nc/netcat/tftp/curl/telnet 的 ELF，且 busybox 自報的 48 個 applet 也沒有（對照組 uptime 有回應）。/bin/wget 確實存在，與預測相符。外洩本身未演示",
       "case_freeze_sha256": "3aa282e70dd6067c2eb7578820f3f7e274c0f2eb60b79cd17ec63b486d85f544"
+    },
+    {
+      "id": "P1-1",
+      "date": "2026-08-17",
+      "verdict": "confirmed",
+      "evidence_kind": "dynamic",
+      "artefacts": [
+        "study/W05-bench-runsheet.md"
+      ],
+      "note": "DHCP 派到 10.1.1.10/24（預測的池子 10.1.1.10–254 的第一個位址），10.1.1.1 回應 ICMP 3/3。但回應 TTL=63 不是 64 —— 網路卡起在 Windows 側，WSL 是繞過去的，所以 P0-4/P1-10/P2-7 在 usbipd attach 之前都不能測",
+      "case_freeze_sha256": "65123dc6cc2b3e98c89449d3078b1805ab4d90e850490dfdcbdccd5d837d233d"
+    },
+    {
+      "id": "P1-3",
+      "date": "2026-08-17",
+      "verdict": "partial",
+      "evidence_kind": "dynamic",
+      "artefacts": [
+        "study/W05-bench-runsheet.md"
+      ],
+      "note": "前半成立：GET / 回 200，Server: Boa/0.94.14rc21，與三版字串表一致。後半（未認證可取頁面是那 143 檔的子集）未測。⚠️ 這個請求在 G3.75 未滿的情況下送出，而且路徑是繞經 Windows 的（TTL 63），記在 PROGRESS 的 process failure 一節",
+      "case_freeze_sha256": "38182b87d435164103d9151a65db5af7ab28839fb482d6c42c6d906ba0a238ad"
     }
   ],
   "register": "study/test-cases.toml",

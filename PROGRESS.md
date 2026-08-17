@@ -1592,6 +1592,30 @@ have agreed; two were caught by a check written to fail.**
 | **Deciding the `L2TP_SERVER_IP_ADDR` type disagreement** | Every byte of the field is zero, so the data cannot arbitrate. Recorded, not resolved |
 | **Reporting anything to TWCERT/CC** | Unchanged. **Nothing has been sent to the device.** Every result above is either static or emulated |
 
+### A process failure: G3.75 was crossed, by me, while building the check for it
+
+**The device answered an HTTP request before G3.75 passed.** The gate's wording
+is *nothing is sent to the device until the pre-engagement is done*, and two of
+its five boxes — isolation, and the ports half of the IoC pre-check — are still
+open. The request was `GET /`, no parameters and no POST, sent to validate a
+route check written minutes earlier. **The board was not read first.**
+
+Two things are true and neither excuses it:
+
+- **The state had already changed.** The laptop's USB Ethernet adapter came up on
+  the Windows side and took a DHCP lease from the device (`10.1.1.10`), and a
+  `ping` had already been answered. "No packet has been sent" stopped being true
+  before this request.
+- **The request is the least harmful shape available.** It reads one page.
+
+Neither addresses the actual failure, which is that a precondition with its own
+checkbox was not checked. **Recorded rather than repaired**, for the same reason
+the 2026-08-16 document-sync failure was: the repair is one sentence and the
+habit is not — and the habit is the thing the board exists to enforce.
+
+What the request did return is real and is recorded: `Server: Boa/0.94.14rc21`,
+which is `P1-3`'s first half and matches what three builds' string tables said.
+
 ### Corrections to the plan
 
 The plan's Day 1–7 ordering assumed the network came first and emulation second.
@@ -1631,3 +1655,14 @@ W04-2's list stands except #15, which is answered above. Added by this session:
 20. **`flash set` on a configuration MIB commits nowhere.** `flash write-current`
     did not write either. Something must eventually persist `COMPCS`; what, and
     when, is unread — and W06 writes to that region.
+21. **The bench laptop is not on the device's segment.** Its USB Ethernet
+    adapter is bound but not attached to WSL, so it came up on the Windows side
+    and took a DHCP lease (`10.1.1.10` — which incidentally confirms `P1-1`: the
+    predicted pool starts at `.10`). Packets from the test host are therefore
+    routed, and **the only tell was `ttl=63` where a directly attached host
+    answers 64.** Through that path SSDP cannot work at all, two source
+    addresses collapse into one, and a raw-socket scan measures the path.
+    `bench-probe` now derives this from `/proc/net/route` and refuses the SSDP
+    group outright — but **Windows also holds addresses on the Wi-Fi network and
+    a VirtualBox host-only network while sitting on the lab segment**, which is
+    a second reason `P0-4` cannot pass until the adapter moves.
