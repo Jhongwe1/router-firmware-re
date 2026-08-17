@@ -323,6 +323,39 @@ else
   "$PY" tools/check-runsheet.py "$RS" 2>&1 | sed 's/^/          /'
 fi
 
+# Instrument bug 31, 2026-08-18. The checker used re.search, which takes the
+# FIRST match -- and the appendix paragraph that *documents* this escape hatch
+# quotes the marker inline, so it parsed as an empty exemption block sitting
+# above the real one. Two exempted cases were reported as unexempted and the
+# block naming them was never read. The prose describing a mechanism is not the
+# mechanism, and only one of them was being looked at.
+write_good
+"$PY" - "$RS" <<'PYEOF'
+import json, pathlib, sys, tomllib
+p = pathlib.Path(sys.argv[1])
+reg = tomllib.loads(pathlib.Path("test-cases.toml").read_text("utf-8"))
+cases = {c["id"]: c for c in reg["case"]}
+done = [r["id"] for r in
+        json.loads(pathlib.Path("reports/test-results.json").read_text("utf-8"))["results"]]
+ids = sorted({c for c in done if c in cases
+              and str(cases[c].get("week")) == "W05"
+              and not str(cases[c].get("cut_reason", "")).strip()
+              and c != "P0-2"})
+s = p.read_text("utf-8").replace("## B-W99", "## B-W05")
+# The decoy: a documentation mention, EARLIER in the file than the real block.
+s = s.replace("# fixture",
+              "# fixture\n\nAnything with no procedure goes in a "
+              "`<!-- no-procedure: ... -->` block with a reason.\n")
+s += "\n<!-- no-procedure: " + " ".join(ids) + " — fixture -->\n"
+p.write_text(s, "utf-8")
+PYEOF
+if "$PY" tools/check-runsheet.py "$RS" >/dev/null 2>&1; then
+  ok "a prose mention of the marker does not shadow the real block"
+else
+  bad "the documentation of the escape hatch defeated the escape hatch"
+  "$PY" tools/check-runsheet.py "$RS" 2>&1 | sed 's/^/          /'
+fi
+
 echo
 echo "=== fences: a reader must never confuse 'run this' with 'you will see this' ==="
 write_good

@@ -607,8 +607,33 @@
       ],
       "note": "Not one unattributable byte. Four 64 KiB snapshots were taken through the boot loader across the session. H601 (0x6000-0x8000): nine bytes moved and all nine came back — the eight ASCII digits of HW_WLAN0_WSC_PIN plus the region checksum at 0x006493, which the device recomputed itself. The final read is byte-identical BOTH to the pre-injection snapshot AND to the 2026-08-16 full dump, taken before this project had ever written to the device. The boot loader region never moved at all. COMPDS and COMPCS differ, and every field is named: COMPCS moved in exactly two, SYSCMD_SELECT and WPS_FIRST, which are the two handlers that were fired; COMPDS moved in twenty-five, all converging on COMPCS values, which is D-10 and not a side effect of any single test. New baseline for the next session: COMPCS vs COMPDS differ in 0 of 343. And a procedure correction that cost nothing to learn but would have cost a session to guess: restoring COMPDS at the START of a bench session is pointless, because any POST rewrites it from COMPCS before the session ends. It belongs at the end.",
       "case_freeze_sha256": "7f1a5d3a229dc909ba81d7eda712f68dba3d19f38a150bb97ab9fc2259e6cc7a"
+    },
+    {
+      "id": "P0-11",
+      "date": "2026-08-18",
+      "verdict": "confirmed",
+      "evidence_kind": "emulated",
+      "artefacts": [
+        "reports/mkflash-2.1.2.json",
+        "poc/05-l2-published-image.md",
+        "tools/mkhwsetting.py"
+      ],
+      "note": "預測命中，連拒絕訊息的字串都對。只由公開容器（w6cg@0x010000 / cr6c@0x060000 / r6cr@0x180000）填出來的 flash，apmib_init() 印 Invalid hw setting signature [sig=  ]! 然後 Initialize AP MIB failed! —— flash 前 64 KiB（boot loader / H601 / COMPDS / COMPCS）出廠燒錄，不在任何可下載映像裡。合成三段（H601 1172 B、COMPDS/COMPCS 各 3909 B，payload 全零、checksum 依廠商規則算、LZSS 用廠商自己的 decoder 反覆驗過）之後 apmib 起來了：2399 行 MIB，boa bind，login.htm 200 / blank.htm 302 閘門行為與實機一致。映像本身提供 82.9% 的 flash，144/144 網頁全部由公開容器解出。附帶量到：libapmib 沒有內建 HW setting 預設值（所以硬失敗），而廠商自己的 flash default 在 qemu-user 下 SIGBUS（si_addr=0x004332a7，實機 MIPS kernel 的 trap handler 會修）。H601 格式（H6/01/u16 len=1166/payload 8-bit sum=0）獨立推導出來，其末位元組就是 W06 用 diff 找到的 0x6493。",
+      "case_freeze_sha256": "8bd00d69f4229512a241e337de04cd74433bbe1439038808aa1aa04aa4535c0b"
+    },
+    {
+      "id": "P3-14",
+      "date": "2026-08-18",
+      "verdict": "confirmed",
+      "evidence_kind": "emulated",
+      "artefacts": [
+        "poc/05-l2-published-image.md",
+        "reports/mkflash-2.1.2.json"
+      ],
+      "note": "未認證 POST /boafrm/formWsc（localPin），在只用公開映像建起來的環境裡命令執行成立。主要證據是 qemu 自己的 syscall trace：fork() 之後 execve(\"/bin/sh\",{\"sh\",\"-c\",\"flash set HW_WLAN0_WSC_PIN 1;cat /etc/version > /var/web/l2pin.txt;#\"}) —— 內插後的字串逐字可見。第二通道是 docroot：檔案存在，內容是 TOTOLINK-N150RT-V2.1.2，也就是這個公開 build 自己報出自己的版本。判別對照兩發，同一 handler 同一 session 同一請求形狀：peerPin 沒有、targetAPSsid 沒有、只有 localPin 有 —— 與 W06 在 2018 build 實機上的三向判別完全一致（P3-1 refuted / P3-4 不是注入 / P3-5 confirmed），兩個相隔五年的 build 對「哪一個參數是缺陷」給出同一個答案。陷阱：boa 處理完這個 handler 就死（HTTP 000），一個 server instance 只能打一發；第一次量測先送了對照發、把 server 打死，於是把真正的 payload 記成沒有反應 —— 那是治具的空結果，不是韌體的。",
+      "case_freeze_sha256": "f81d07b36e0e09f07e9adbf2b641577615db1c78c4bc8f7dac907aaf5e007902"
     }
   ],
   "register": "test-cases.toml",
-  "register_freeze_sha256": "69c342dce863dcc7d2450d3f45f97ad2b3753296a2c8756a54ec27604caffc55"
+  "register_freeze_sha256": "121550712670996a7c1e20816932c10a063a1a7b9804cb631199b050a8e76ef8"
 }

@@ -30,6 +30,17 @@ Several producers write into reports/, on purpose:
                                           (shape only here; admissibility is
                                            `rtcase check`, which needs the
                                            register)
+  tools/mkflash.py                     -> carries "producer": "mkflash"
+                                          (a provenance map for a rebuilt flash
+                                           image. The check that matters is that
+                                           every *overlay* names an origin: an
+                                           overlay is by definition a range the
+                                           published image does not supply, and
+                                           an unnamed one is indistinguishable
+                                           from a byte lifted off a physical
+                                           unit — which would silently void the
+                                           whole "anyone can rebuild this" claim
+                                           G4 clause 3a rests on)
 
 An unrecognised file is an error rather than something to skip. A stray or
 half-written report in a directory that is presented as the project's results
@@ -72,7 +83,7 @@ def main(argv: list[str]) -> int:
         return 1
 
     errors: list[str] = []
-    counts = {"fwrecon": 0, "ghidra": 0, "rtcase": 0}
+    counts = {"fwrecon": 0, "ghidra": 0, "rtcase": 0, "mkflash": 0}
 
     for path in files:
         try:
@@ -100,6 +111,40 @@ def main(argv: list[str]) -> int:
                 for field in ("id", "date", "verdict", "evidence_kind", "case_freeze_sha256"):
                     if not res.get(field):
                         errors.append(f"{path.name}: results[{i}] missing {field!r}")
+
+        # Provenance reports from tools/mkflash.py. Checked here rather than
+        # exempted, because the single load-bearing claim of the L2 environment
+        # is "every byte in this image came from a download, or is named". An
+        # overlay is a byte range that did *not* come from the download, so an
+        # overlay without an origin is exactly the failure this file must catch:
+        # the image would still build, still boot, and quietly depend on
+        # something a stranger cannot obtain.
+        elif str(doc.get("producer", "")) == "mkflash":
+            counts["mkflash"] += 1
+            for field in ("container", "container_sha256", "flash_size", "ranges", "gaps"):
+                if doc.get(field) in (None, "", []):
+                    errors.append(f"{path.name}: missing required field {field!r}")
+            ranges = doc.get("ranges") or []
+            for i, rng in enumerate(ranges):
+                prov = rng.get("provenance")
+                if prov not in ("published-image", "overlay"):
+                    errors.append(
+                        f"{path.name}: ranges[{i}] provenance is {prov!r}, must be "
+                        f"'published-image' or 'overlay'")
+                if not rng.get("sha256"):
+                    errors.append(f"{path.name}: ranges[{i}] has no sha256")
+                if prov == "overlay" and not str(rng.get("origin", "")).strip():
+                    errors.append(
+                        f"{path.name}: ranges[{i}] at {rng.get('flash_offset_hex')} is an "
+                        f"overlay with no origin. An overlay is the part of the image "
+                        f"that is NOT in the download; unnamed, it is indistinguishable "
+                        f"from something lifted off a physical unit")
+            covered, blank = doc.get("covered_bytes"), doc.get("blank_bytes")
+            size = doc.get("flash_size")
+            if None not in (covered, blank, size) and covered + blank != size:
+                errors.append(
+                    f"{path.name}: covered {covered} + blank {blank} != flash_size "
+                    f"{size}, so the provenance map does not account for every byte")
 
         elif "schema_version" in doc:
             counts["fwrecon"] += 1
@@ -251,7 +296,8 @@ def main(argv: list[str]) -> int:
         return 1
 
     print(f"reports OK — {counts['fwrecon']} fwrecon (schema {expected}), "
-          f"{counts['ghidra']} Ghidra, {counts['rtcase']} rtcase")
+          f"{counts['ghidra']} Ghidra, {counts['rtcase']} rtcase, "
+          f"{counts['mkflash']} mkflash")
     return 0
 
 

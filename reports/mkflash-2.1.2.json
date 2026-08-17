@@ -1,0 +1,117 @@
+{
+  "producer": "mkflash",
+  "schema_version": "1",
+  "container": "/home/key/fwre-work/firmware/TOTOLINK-N150RT-V2.1.2-B20150825.1601.web",
+  "container_sha256": "06e5fbffb38f919a71336605faf5d5c0656b3f8d5ba4684746f917c395ecff88",
+  "flash_size": 4194304,
+  "covered_bytes": 3477956,
+  "blank_bytes": 716348,
+  "ranges": [
+    {
+      "tag": "h601.bin",
+      "flash_offset": 24576,
+      "flash_offset_hex": "0x006000",
+      "length": 1172,
+      "header_in_flash": null,
+      "provenance": "overlay",
+      "origin": "synthesised from public artefacts by tools/mkhwsetting.py (H601) and tools/mkcompds.py (COMPDS/COMPCS); all-zero payloads, no data from any physical unit",
+      "sha256": "77b10325eff9f8e36fe33bd51f7b9ee90389da2c174aef9e02e4f0eab6cd9c5b"
+    },
+    {
+      "tag": "compds.bin",
+      "flash_offset": 32768,
+      "flash_offset_hex": "0x008000",
+      "length": 3909,
+      "header_in_flash": null,
+      "provenance": "overlay",
+      "origin": "synthesised from public artefacts by tools/mkhwsetting.py (H601) and tools/mkcompds.py (COMPDS/COMPCS); all-zero payloads, no data from any physical unit",
+      "sha256": "0465ab6c6f0fa26a1f99ef2a76780f75cb2d0c5f7d4b3e8282c4027a5c6d35c3"
+    },
+    {
+      "tag": "compcs.bin",
+      "flash_offset": 49152,
+      "flash_offset_hex": "0x00c000",
+      "length": 3909,
+      "header_in_flash": null,
+      "provenance": "overlay",
+      "origin": "synthesised from public artefacts by tools/mkhwsetting.py (H601) and tools/mkcompds.py (COMPDS/COMPCS); all-zero payloads, no data from any physical unit",
+      "sha256": "f2b69b841ec82ce91f5d70bbb6b3b7cc890f29492f5265cce677dfa6b5e3fb71"
+    },
+    {
+      "tag": "w6cg",
+      "flash_offset": 65536,
+      "flash_offset_hex": "0x010000",
+      "length": 308882,
+      "header_in_flash": true,
+      "provenance": "published-image",
+      "sha256": "721e591ea9e51e959d3131f465450010eb4963425aa225af23a40d9a143ac4b8"
+    },
+    {
+      "tag": "cr6c",
+      "flash_offset": 393216,
+      "flash_offset_hex": "0x060000",
+      "length": 985106,
+      "header_in_flash": true,
+      "provenance": "published-image",
+      "sha256": "23030d1a093ca74df9cd406fa87463eb6bf966524b81fda0eea17f2eb6abebfd"
+    },
+    {
+      "tag": "r6cr",
+      "flash_offset": 1572864,
+      "flash_offset_hex": "0x180000",
+      "length": 2174978,
+      "header_in_flash": false,
+      "provenance": "published-image",
+      "sha256": "7339026f1a1004566323a76fe9ea66b1555f1845fe99e56149980da6f3b39167"
+    }
+  ],
+  "gaps": [
+    {
+      "start": 0,
+      "start_hex": "0x000000",
+      "length": 24576,
+      "provenance": "blank (0xFF) -- in no published image"
+    },
+    {
+      "start": 25748,
+      "start_hex": "0x006494",
+      "length": 7020,
+      "provenance": "blank (0xFF) -- in no published image"
+    },
+    {
+      "start": 36677,
+      "start_hex": "0x008f45",
+      "length": 12475,
+      "provenance": "blank (0xFF) -- in no published image"
+    },
+    {
+      "start": 53061,
+      "start_hex": "0x00cf45",
+      "length": 12475,
+      "provenance": "blank (0xFF) -- in no published image"
+    },
+    {
+      "start": 374418,
+      "start_hex": "0x05b692",
+      "length": 18798,
+      "provenance": "blank (0xFF) -- in no published image"
+    },
+    {
+      "start": 1378322,
+      "start_hex": "0x150812",
+      "length": 194542,
+      "provenance": "blank (0xFF) -- in no published image"
+    },
+    {
+      "start": 3747842,
+      "start_hex": "0x393002",
+      "length": 446462,
+      "provenance": "blank (0xFF) -- in no published image"
+    }
+  ],
+  "note": "Every range marked published-image is reconstructed from the container named above and from nothing else. Ranges marked overlay are not in that container; their origin field says where they came from. Gaps are 0xFF and are in no published image.",
+  "structure_verified_against": "/home/key/fwre-work/dumps/flash-n150rt-console-1.bin",
+  "structure_problems": [],
+  "out": "/home/key/fwre-work/qemu-env-v2.1.2-flash.bin",
+  "out_sha256": "0d10c63fb86082a0cbf552f305d1134491513b001b49a026dbdce435f5578af5"
+}

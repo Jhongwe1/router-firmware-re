@@ -32,24 +32,82 @@ set -euo pipefail
 # three unrelated "failures" that were all this one line.)
 _home_of() { getent passwd "$1" 2>/dev/null | cut -d: -f6; }
 WORK="${FWRE_WORK:-$(_home_of "${SUDO_USER:-$(id -un)}")/fwre-work}"
-ROOTFS="$WORK/extracted/unit-2018/squashfs-root"
-ENVDIR="$WORK/qemu-env-2018"
-DUMP="$WORK/dumps/flash-n150rt-console-1.bin"
+REPO="$(cd "$(dirname "$0")/.." && pwd)"
+
+# This unit's own dump. Used ONLY as a second source for layout checks, never as
+# an input to a built image -- see cmd_mkflash. Absent on anybody else's desk,
+# and everything that touches it has to cope with that.
+DUMPREF="$WORK/dumps/flash-n150rt-console-1.bin"
+
+# ------------------------------------------------------------- profiles ----
+# Two environments, and the difference between them is the whole of G4's third
+# clause.
+#
+#   unit-2018   the build this unit actually runs, standing on this unit's own
+#               flash dump. Everything W05 and W06 measured under emulation was
+#               measured here. A stranger cannot reproduce it: neither the
+#               rootfs nor the flash is downloadable.
+#
+#   v2.1.2      a published image, and nothing else. The rootfs comes out of
+#               the .web container; the flash is rebuilt from the same container
+#               by tools/mkflash.py, which places each section at the burnAddr
+#               the container declares and leaves everything else 0xFF. That
+#               "everything else" is the first 64 KiB -- boot loader, H601,
+#               COMPDS, COMPCS -- and it is in no image anybody can download.
+#
+# Adding a profile means declaring FLASH_ORIGIN and a CONTROL set that can fail.
+# A profile whose control cannot fail is not a second environment, it is a
+# second way to believe the first one.
+PROFILE="${QEMU_PROFILE:-unit-2018}"
+if [ "${1:-}" = "--profile" ]; then
+  [ -n "${2:-}" ] || { echo "${0##*/}: --profile needs a name" >&2; exit 2; }
+  PROFILE="$2"; shift 2
+fi
+
+case "$PROFILE" in
+  unit-2018)
+    ROOTFS="$WORK/extracted/unit-2018/squashfs-root"
+    ENVDIR="$WORK/qemu-env-2018"
+    DUMP="$WORK/dumps/flash-n150rt-console-1.bin"
+    # The only backup of this unit's H601 block. If this hash does not match,
+    # the input is not the image every finding in this repository was measured
+    # on.
+    DUMP_SHA256="a800059a9b8c414df026a22b8423a5939d0f9bb793109d0f7ce086f6810f37ea"
+    DUMP_ORIGIN="this unit's own flash, read out through the boot loader on 2026-08-16"
+    # Positive control: values this unit's configuration is known to hold, read
+    # in W04-2 by a decoder that shares no code with the vendor's binary. If the
+    # environment is wired up wrongly -- wrong image, empty device file, stale
+    # shared memory -- these stop matching, and the run stops.
+    declare -a CONTROL=(
+      "TELNET_ENABLED=0"
+      "IP_ADDR=10.1.1.1"
+      'USER_NAME="admin"'
+    )
+    MIB_MIN=2000
+    DOCROOT_EXPECT=143
+    ;;
+  v2.1.2)
+    ROOTFS="$WORK/extracted/v2.1.2/squashfs-root"
+    ENVDIR="$WORK/qemu-env-v2.1.2"
+    DUMP="$WORK/qemu-env-v2.1.2-flash.bin"
+    DUMP_SHA256="0d10c63fb86082a0cbf552f305d1134491513b001b49a026dbdce435f5578af5"
+    DUMP_ORIGIN="rebuilt by \`$0 --profile v2.1.2 mkflash\` from the published V2.1.2-B20150825 container, plus three synthesised regions -- H601 at 0x6000 and COMPDS/COMPCS at 0x8000/0xC000, all with zeroed payloads. reports/mkflash-2.1.2.json names every byte range and where it came from"
+    # Left empty on purpose until measured. The values this environment holds
+    # are whatever the *published* image defaults to, and this project has never
+    # read them; borrowing unit-2018's would be asserting that a build we have
+    # not started agrees with one we have. `check` refuses an empty CONTROL
+    # rather than passing over it, which is instrument bug 12's shape and the
+    # reason that refusal is written down.
+    declare -a CONTROL=()
+    MIB_MIN=0
+    DOCROOT_EXPECT=144
+    ;;
+  *)
+    echo "${0##*/}: unknown profile '$PROFILE' (have: unit-2018, v2.1.2)" >&2
+    exit 2 ;;
+esac
+
 PRISTINE="$ENVDIR/.mtd-pristine.bin"
-
-# The only backup of this unit's H601 block. If this hash does not match, the
-# input is not the image every finding in this repository was measured on.
-DUMP_SHA256="a800059a9b8c414df026a22b8423a5939d0f9bb793109d0f7ce086f6810f37ea"
-
-# Positive control: values this unit's configuration is known to hold, read in
-# W04-2 by a decoder that shares no code with the vendor's binary. If the
-# environment is wired up wrongly -- wrong image, empty device file, stale
-# shared memory -- these stop matching, and the run stops.
-declare -a CONTROL=(
-  "TELNET_ENABLED=0"
-  "IP_ADDR=10.1.1.1"
-  'USER_NAME="admin"'
-)
 
 die() { printf '%s: %s\n' "${0##*/}" "$*" >&2; exit 1; }
 note() { printf '  %s\n' "$*"; }
@@ -61,10 +119,76 @@ verify_dump() {
   local got
   got="$(sha256sum "$DUMP" | cut -d' ' -f1)"
   [ "$got" = "$DUMP_SHA256" ] || die \
-    "flash dump hash mismatch
+    "flash image hash mismatch for profile '$PROFILE'
        expected $DUMP_SHA256
        got      $got
-     This file is the only copy of this unit's H601 block. Not proceeding."
+     This image is: $DUMP_ORIGIN
+     Not proceeding."
+}
+
+# -------------------------------------------------------------- mkflash ----
+# Construct the profile's flash image from artefacts a stranger can obtain.
+#
+# This exists as a subcommand rather than as a paragraph in the runsheet because
+# G4 clause 3a's entire claim is "anyone can do this". A claim like that is
+# worth what its command line is worth: the steps are deterministic, so the
+# image has a fixed sha256, and the profile above pins it. If someone runs this
+# and gets a different hash, one of the two of us has a different container.
+cmd_mkflash() {
+  [ "$PROFILE" = "v2.1.2" ] || die \
+    "profile '$PROFILE' does not build its flash -- it stands on a real dump
+     read off the hardware ($DUMP). There is nothing here to construct."
+
+  local img="$WORK/firmware/TOTOLINK-N150RT-V2.1.2-B20150825.1601.web"
+  local parts="$WORK/l2-parts"
+  [ -f "$img" ] || die "no published container at $img (make fetch)"
+  mkdir -p "$parts"
+
+  # The structure checks read this unit's dump, and requiring one would defeat
+  # the point of the profile: a stranger has no dump, so a build that insists on
+  # one is not the reproduction path clause 3a asks for. They are therefore
+  # optional -- and their absence is *said*, because a check that quietly does
+  # not run is indistinguishable from a check that passed.
+  local -a vstruct=() vfmt=()
+  if [ -f "$DUMPREF" ]; then
+    vstruct=(--verify-structure-against "$DUMPREF")
+    vfmt=(--verify-format-against "$DUMPREF")
+    note "cross-checking layout against $DUMPREF"
+  else
+    note "no reference dump at $DUMPREF -- building WITHOUT the structure checks."
+    note "That is the normal case for anyone who does not own one of these units."
+  fi
+
+  # 1. The hardware setting. Bootstrap only: structurally valid, semantically
+  #    empty, and enough for apmib_init() to get past its first check.
+  python3 "$REPO/tools/mkhwsetting.py" --out "$parts/h601.bin" \
+    "${vfmt[@]}" || die "mkhwsetting failed"
+
+  # 2 and 3. The two settings blocks. The length is not a guess: libapmib prints
+  #    `Expect [sig=6G, ver=3, len=32858]!` when it rejects a bad one, so the
+  #    number below is the library's own statement of what it wants.
+  python3 "$REPO/tools/mkcompds.py" --out "$parts/compds.bin" --kind compds --length 32858 \
+    || die "mkcompds (COMPDS) failed"
+  python3 "$REPO/tools/mkcompds.py" --out "$parts/compcs.bin" --kind compcs --length 32858 \
+    || die "mkcompds (COMPCS) failed"
+
+  python3 "$REPO/tools/mkflash.py" \
+    --image "$img" --out "$DUMP" --json "$REPO/reports/mkflash-2.1.2.json" \
+    "${vstruct[@]}" \
+    --overlay "$parts/h601.bin@0x6000" \
+    --overlay "$parts/compds.bin@0x8000" \
+    --overlay "$parts/compcs.bin@0xC000" \
+    --overlay-origin "synthesised from public artefacts by tools/mkhwsetting.py (H601) and tools/mkcompds.py (COMPDS/COMPCS); all-zero payloads, no data from any physical unit" \
+    || die "mkflash failed"
+
+  local got; got="$(sha256sum "$DUMP" | cut -d' ' -f1)"
+  if [ "$got" = "$DUMP_SHA256" ]; then
+    note "sha256 matches the pinned value -- this build is bit-reproducible"
+  else
+    echo "  NOTE: sha256 is $got, the profile pins $DUMP_SHA256." >&2
+    echo "        If a generator changed on purpose, update DUMP_SHA256 in the" >&2
+    echo "        same commit so the change appears in the diff." >&2
+  fi
 }
 
 # ---------------------------------------------------------------- build ----
@@ -78,7 +202,27 @@ cmd_build() {
   command -v qemu-mips-static >/dev/null || die "qemu-mips-static not installed"
   need_root
 
-  rm -rf "$ENVDIR"
+  # A previous build leaves /proc mounted inside the environment, and `rm -rf`
+  # then walks into a live procfs: it fails on every entry it cannot remove,
+  # returns non-zero, and leaves a half-deleted tree. The copy that follows then
+  # merges into the wreckage and the *next* command reports
+  # `./qemu-mips-static: No such file or directory` -- a message that points
+  # nowhere near the cause. Found on the first v2.1.2 rebuild, 2026-08-18.
+  #
+  # Unmount first, and refuse to delete if the unmount did not take. `rm -rf`
+  # through a live mountpoint is the mechanism by which a tool deletes things
+  # outside the directory it was aimed at, so this is a refusal and not a retry.
+  if [ -d "$ENVDIR" ]; then
+    if mountpoint -q "$ENVDIR/proc"; then
+      umount "$ENVDIR/proc" 2>/dev/null || true
+    fi
+    if mountpoint -q "$ENVDIR/proc"; then
+      die "$ENVDIR/proc is still a mountpoint after umount.
+     Not running rm -rf through it. Unmount it by hand and re-run:
+       sudo umount $ENVDIR/proc"
+    fi
+    rm -rf "$ENVDIR"
+  fi
   cp -a "$ROOTFS" "$ENVDIR"
   cp "$(command -v qemu-mips-static)" "$ENVDIR/qemu-mips-static"
 
@@ -117,8 +261,11 @@ cmd_build() {
   # which reads the w6cg bundle straight out of the device file above.
   chroot "$ENVDIR" ./qemu-mips-static /bin/flash extr /web >/dev/null 2>&1 || true
 
-  echo "built $ENVDIR"
-  note "docroot files: $(find "$ENVDIR/var/web" -type f | wc -l)   (expect 143)"
+  echo "built $ENVDIR  (profile $PROFILE)"
+  # The count comes from the web bundle report for this build, not from a
+  # constant: 143 for unit-2018 and 144 for V2.1.2, and hard-coding either one
+  # makes the other look broken.
+  note "docroot files: $(find "$ENVDIR/var/web" -type f | wc -l)   (bundle declares $DOCROOT_EXPECT)"
   cmd_check
 }
 
@@ -147,6 +294,16 @@ cmd_reset() {
 cmd_check() {
   need_root
   local rc=0 want got n tmp
+  # An empty control set would let every loop below iterate zero times and the
+  # function return success -- instrument bug 12 exactly, a check that reports
+  # a pass when it has nothing to check. A profile with no controls is an
+  # uncalibrated profile and it says so.
+  if [ "${#CONTROL[@]}" -eq 0 ]; then
+    die "profile '$PROFILE' declares no positive control, so this check would
+     pass over an empty set and prove nothing. Measure the values this image
+     actually holds -- \`$0 --profile $PROFILE run /bin/flash all\` -- confirm
+     them against a second source, then pin them in CONTROL."
+  fi
   tmp="$(mktemp)"; trap 'rm -f "$tmp"' RETURN
 
   # Deliberately a file, not `printf ... | grep`. Under `set -o pipefail`,
@@ -171,7 +328,7 @@ cmd_check() {
 
   n="$(grep -c '=' "$tmp" || true)"
   note "MIB lines from the vendor binary: $n"
-  [ "$n" -gt 2000 ] || { echo "  control FAILED: too few MIB lines ($n)" >&2; rc=1; }
+  [ "$n" -gt "$MIB_MIN" ] || { echo "  control FAILED: too few MIB lines ($n, want > $MIB_MIN)" >&2; rc=1; }
   [ "$rc" -eq 0 ] || die "positive control failed - every result from this environment is suspect"
   echo "positive control passed"
 }
@@ -289,6 +446,7 @@ PY
 }
 
 case "${1:-}" in
+  mkflash) shift; cmd_mkflash "$@" ;;
   build) shift; cmd_build "$@" ;;
   reset) shift; cmd_reset "$@" ;;
   check) shift; cmd_check "$@" ;;
@@ -297,9 +455,20 @@ case "${1:-}" in
   serve) shift; cmd_serve "$@" ;;
   stop)  shift; cmd_stop  "$@" ;;
   *) cat >&2 <<EOF
-usage: sudo $0 {build|reset|check|diff|run|serve|stop ...}
+usage: sudo $0 [--profile NAME] {build|reset|check|diff|run|serve|stop ...}
 
-  build   create $ENVDIR from the unit-2018 rootfs + this unit's flash dump
+  --profile NAME   which firmware to stand up. Default unit-2018.
+        unit-2018  the build this unit runs, on this unit's own flash dump.
+                   Not reproducible by anyone else: neither half is downloadable.
+        v2.1.2     a published image and nothing else -- rootfs from the .web
+                   container, flash rebuilt from the same container by
+                   tools/mkflash.py. This is the profile G4 clause 3a is about.
+        Currently: $PROFILE -> $ENVDIR
+
+  mkflash construct the profile's flash image from a published container plus
+          synthesised settings regions. v2.1.2 only; unit-2018 stands on a
+          real dump and refuses
+  build   create $ENVDIR from the $PROFILE rootfs + its flash image
   reset   restore the flash image AND drop the SysV shm/sem the MIB cache uses
   check   positive control: three known values, read back through /bin/flash
   diff    what changed in the flash image, and whether 0x6493 still balances

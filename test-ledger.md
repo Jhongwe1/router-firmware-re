@@ -53,10 +53,10 @@ W05 週計畫原本要另外建一份 `notes/prediction-scorecard.md`（12 條�
 |---|---|
 | 登記項目 | **132**（排入 123，砍掉 9） |
 | 已寫反證條件（凍結） | **104** / 123 |
-| 已執行 | **51** |
+| 已執行 | **53** |
 | 其中以真機動態證據收掉 | **43** |
-| 其中以模擬環境執行收掉（**不是矽上**） | **4** |
-| 判定成立 / 判定不成立 | **28** / **11** |
+| 其中以模擬環境執行收掉（**不是矽上**） | **6** |
+| 判定成立 / 判定不成立 | **30** / **11** |
 | 凍結雜湊 | `121550712670996a7c1e20816932c10a063a1a7b9804cb631199b050a8e76ef8` |
 
 ## 排程：哪一週要打掉哪些
@@ -69,7 +69,7 @@ W05 週計畫原本要另外建一份 `notes/prediction-scorecard.md`（12 條�
 | **W02** | Phase 0, 9 | 2 / 2 | `▰▰▰▰▰▰▰▰▰▰` |
 | **W04-2** | Phase 0 | 2 / 2 | `▰▰▰▰▰▰▰▰▰▰` |
 | **W05** | Phase 0, 1, 2, 3, 6, 9 | 27 / 27 | `▰▰▰▰▰▰▰▰▰▰` |
-| **W06** | Phase 0, 2, 3, 4, 5, 10 | 18 / 20 | `▰▰▰▰▰▰▰▰▰▱` |
+| **W06** | Phase 0, 2, 3, 4, 5, 10 | 20 / 20 | `▰▰▰▰▰▰▰▰▰▰` |
 | **W07** | Phase 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 | 1 / 71 | `▱▱▱▱▱▱▱▱▱▱` |
 
 ## 圖例
@@ -98,7 +98,7 @@ W05 週計畫原本要另外建一份 `notes/prediction-scorecard.md`（12 條�
 | P0-8 | 開機腳本審閱：找 MIB 值被拼進 shell 的地方 | 3.8.5 | ★★★★☆ | 🟥 | W04-2 | 🔶 rcS 已審；但 /bin/*.sh 的 MIB→shell 內插普查沒有寫進任何 committed note，P8-8 目前無可引用證據 | [skt-analysis.md](notes/skt-analysis.md) · [credentials.md](notes/credentials.md) |
 | P0-9 | qemu / FirmAE 模擬環境（桌機 fuzz 用） | 3.8.6 | ★★☆☆☆ | 🟧 | W06 | 🟪 boa serves under qemu-user after all, and W05 finding 6 was too strong. The alignment trap is real but confined to one path: -strace shows SIGBUS at an odd address (si_addr=0x00492b41) immediately after open("/web/config.dat",O_RDWR|O_CREAT|O_TRUNC) at start-up, i.e. while GENERATING config.dat, not while serving. Make that one open() fail (config.dat is a directory) and boa prints Create config file error!, binds, and answers: login.htm 200 (exempt), blank.htm 302 (gated), status.htm 200/30087B - the gate model W04-2 read at instruction level, reproduced with no device attached. POST /boafrm/formSysCmd with sysCmd=cat /etc/version > /var/web/w06emu.txt;# returns the build string through the docroot oracle, and the same POST without the ;# idiom yields HTTP 204 0 bytes - the empty-file trap predicted from the format string %s 2>&1 > %s. Controls: /bin/flash get IP_ADDR works, guest /bin/wget completes HTTP against a host server, the target file 302s before the test, and a POST carrying no sysCmd creates nothing. Desktop fuzz route is open. Cost, stated: /config.dat cannot be fetched from the emulated server because the file standing in for it is the directory that keeps boa alive, so chain links 1-2 stay device-only. tools/qemu-env.sh serve refuses to report success unless both gate controls hold. | [qemu-env.sh](tools/qemu-env.sh) · [emulation-2018.md](notes/emulation-2018.md) |
 | **P0-10** | 每次動手前抓 64 KiB 設定區快照（0x0–0x10000） | 3.2 | ★★★★★ | 🟥 | W05 | 🔶 基準快照已取，與 8/16 完整 dump 的前 64 KiB 逐 byte 相同。反證條件要一次寫入後的差分，那是 W06 | [BENCH-LOG.md](BENCH-LOG.md) |
-| P0-11 | L2：只用公開映像建立模擬環境（不含任何本機專屬產物） | 3.8.6 | ★★★☆☆ | 🟥 | W06 | ⬜ | — |
+| P0-11 | L2：只用公開映像建立模擬環境（不含任何本機專屬產物） | 3.8.6 | ★★★☆☆ | 🟥 | W06 | 🟪 預測命中，連拒絕訊息的字串都對。只由公開容器（w6cg@0x010000 / cr6c@0x060000 / r6cr@0x180000）填出來的 flash，apmib_init() 印 Invalid hw setting signature [sig=  ]! 然後 Initialize AP MIB failed! —— flash 前 64 KiB（boot loader / H601 / COMPDS / COMPCS）出廠燒錄，不在任何可下載映像裡。合成三段（H601 1172 B、COMPDS/COMPCS 各 3909 B，payload 全零、checksum 依廠商規則算、LZSS 用廠商自己的 decoder 反覆驗過）之後 apmib 起來了：2399 行 MIB，boa bind，login.htm 200 / blank.htm 302 閘門行為與實機一致。映像本身提供 82.9% 的 flash，144/144 網頁全部由公開容器解出。附帶量到：libapmib 沒有內建 HW setting 預設值（所以硬失敗），而廠商自己的 flash default 在 qemu-user 下 SIGBUS（si_addr=0x004332a7，實機 MIPS kernel 的 trap handler 會修）。H601 格式（H6/01/u16 len=1166/payload 8-bit sum=0）獨立推導出來，其末位元組就是 W06 用 diff 找到的 0x6493。 | [mkflash-2.1.2.json](reports/mkflash-2.1.2.json) · [05-l2-published-image.md](poc/05-l2-published-image.md) · [mkhwsetting.py](tools/mkhwsetting.py) |
 
 <details><summary>Phase 0 的預測與反證條件（11/11 項已凍結）</summary>
 
@@ -330,7 +330,7 @@ W05 週計畫原本要另外建一份 `notes/prediction-scorecard.md`（12 條�
 | P3-11 | download.cgi QUERY_STRING 注入 | 6.6 | ★☆☆☆☆ | 🟨 | W07 | ⬜ | — |
 | P3-12 | Beastmode 家族 /cgi-bin/* 注入 | 6.6 | ★☆☆☆☆ | 🟨 | W07 | ⬜ | — |
 | **P3-13** | 未認證的設定「寫入」端點盤點（不要只找讀的） | 6.7 | ★★★★☆ | 🟥 | W05 | ✅ bench-probe writes,**GET only,一個 handler 都沒有執行**(GET 在這個 build 上走不到 handleForm)。全部 57 個 /boafrm/formX → 302 → home.htm(門沒跑);全部 57 個 /boafrm/formX.htm → 302 → login.htm(門跑了,擋掉)。測試自己點名的三個(formUpload / formPasswordSetup / formSaveConfig)與其餘 54 個完全同一種行為,所以反證條件「寫入類被擋而讀取類沒被擋」不成立。唯一例外是 formLogin.htm 回 404 而非 302 —— 因為 `formLogin` 在閘門的豁免清單上(W04-2 在指令層級讀出的 11 個字串之一),路徑含有它就豁免,門不跑,落到檔案層找不到檔。**那是閘門模型預測的第 57 個資料點,而它沒有被擬合過。** | [BENCH-LOG.md](BENCH-LOG.md) |
-| P3-14 | L2：`localPin` 命令注入在公開映像 V2.1.2 上重現 | 6.1 | ★★★☆☆ | 🟥 | W06 | ⬜ | — |
+| P3-14 | L2：`localPin` 命令注入在公開映像 V2.1.2 上重現 | 6.1 | ★★★☆☆ | 🟥 | W06 | 🟪 未認證 POST /boafrm/formWsc（localPin），在只用公開映像建起來的環境裡命令執行成立。主要證據是 qemu 自己的 syscall trace：fork() 之後 execve("/bin/sh",{"sh","-c","flash set HW_WLAN0_WSC_PIN 1;cat /etc/version > /var/web/l2pin.txt;#"}) —— 內插後的字串逐字可見。第二通道是 docroot：檔案存在，內容是 TOTOLINK-N150RT-V2.1.2，也就是這個公開 build 自己報出自己的版本。判別對照兩發，同一 handler 同一 session 同一請求形狀：peerPin 沒有、targetAPSsid 沒有、只有 localPin 有 —— 與 W06 在 2018 build 實機上的三向判別完全一致（P3-1 refuted / P3-4 不是注入 / P3-5 confirmed），兩個相隔五年的 build 對「哪一個參數是缺陷」給出同一個答案。陷阱：boa 處理完這個 handler 就死（HTTP 000），一個 server instance 只能打一發；第一次量測先送了對照發、把 server 打死，於是把真正的 payload 記成沒有反應 —— 那是治具的空結果，不是韌體的。 | [05-l2-published-image.md](poc/05-l2-published-image.md) · [mkflash-2.1.2.json](reports/mkflash-2.1.2.json) |
 
 <details><summary>Phase 3 的預測與反證條件（15/15 項已凍結）</summary>
 

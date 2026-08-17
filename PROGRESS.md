@@ -2646,3 +2646,184 @@ the test register.
     it cannot become a back door for filling in predictions afterwards. That is
     the whole reason the freeze exists, so this is not a small change and it is
     not being made at one in the morning.
+
+---
+
+## W07 Day 0 — G4 closed — 2026-08-18
+
+**G4 passes at five of five, and the third clause was split rather than
+satisfied.** `3a` — an L2 path for the command-injection *primitive*, on an image
+anyone can download — is met. `3b` — an L2 path for the *L1 chain* — is closed as
+**impossible by construction**: `formSysCmd` is in this unit's `root_form[]` at
+`0x0044ee2c` and in neither published image. A CVE that names a build nobody can
+download is not reproducible by anybody who does not already own one, and that
+is a property of the disclosure rather than a shortfall in the work.
+
+The register reads **W06 20 of 20**. It read 18 of 18 yesterday with the same
+clause open, because the clause had no case behind it — open item #41's counting
+failure, one register over.
+
+### The environment, and what a download does not contain
+
+The published V2.1.2 container has exactly three sections, each declaring the
+flash offset it burns to: `w6cg`@`0x010000`, `cr6c`@`0x060000`, `r6cr`@`0x180000`.
+**The first 64 KiB is in none of them.** Boot loader, `H601`, `COMPDS` and
+`COMPCS` are written at manufacture. A flash built from the container alone gets
+exactly this far:
+
+```text
+Invalid hw setting signature [sig=  ]!
+Initialize AP MIB failed!
+```
+
+which is `P0-11`'s prediction — frozen and committed before the environment
+existed — down to the string. 82.9 % of the image is reconstructed from the
+download; three regions are synthesised with zeroed payloads and **no byte comes
+from any physical unit**. [`reports/mkflash-2.1.2.json`](reports/mkflash-2.1.2.json)
+names every range and its origin.
+
+`libapmib` states its own requirement when it refuses the next check —
+`Expect [sig=6G, ver=3, len=32858]!` — and 32,858 is not this unit's 45,218. The
+two builds do not agree on how large the MIB is.
+
+### The chain link, and the controls that carry it
+
+An unauthenticated `POST /boafrm/formWsc` carrying `localPin` executed a command.
+The primary evidence is `qemu`'s own syscall trace, because the HTTP response
+carries nothing:
+
+```text
+3540 fork() = 3550
+3550 execve("/bin/sh",{"sh","-c",
+     "flash set HW_WLAN0_WSC_PIN 1;cat /etc/version > /var/web/l2pin.txt;#",NULL})
+```
+
+The second channel is the document root: the file exists and holds
+`TOTOLINK-N150RT-V2.1.2` — **the published build naming itself through a command
+it was made to run**.
+
+| same handler, same session, one field different | executed |
+|---|---|
+| `localPin` | **yes** |
+| `peerPin` | no |
+| `targetAPSsid` | no |
+
+That is the **same three-way discrimination W06 measured on silicon** — `P3-1`
+refuted, `P3-4` not an injection, `P3-5` confirmed. Two environments five years
+of firmware apart agree on which parameter is the defect.
+
+### An independent confirmation nobody planned
+
+`serve` refused to report the server up: `login.htm` 200 but `blank.htm` **200
+instead of 302**, so the gate was not gating. The environment was not broken —
+the synthetic MIB has an empty `USER_PASSWORD`, and with no password configured
+the gate lets everything through:
+
+| `USER_PASSWORD` | `blank.htm` |
+|---|---|
+| `""` | **200** — ungated |
+| set through the vendor's own `flash set` | **302** — gated |
+
+`P10-4` — *setting the admin password to empty leaves the whole device
+unauthenticated* — was this project's own finding on the 2018 build. It is now
+confirmed on a **different build, from a published image**, and it arrived
+because a control refused to lie about an environment.
+
+### Why Realtek SDK userland resists emulation, measured rather than asserted
+
+The vendor's own `flash default` generates a real configuration "from hard code".
+It **cannot run under `qemu-user`**: `SIGBUS`, `si_addr=0x004332a7`, an unaligned
+store at an odd address. The device's MIPS kernel fixes those in its trap
+handler; `qemu-user` raises the signal. The same trap is why `flash set` prints
+`Bus error` **after** its write has already landed, and why `boa` does not
+survive the handler it just executed a command for.
+
+This generalises past this device, and it is why "just run the firmware under
+qemu" fails so often on this SDK: the userland depends on a kernel service that
+user-mode emulation does not provide.
+
+### Instrument work
+
+| | |
+|---|---|
+| [`tools/mkflash.py`](tools/mkflash.py) | Builds a flash image from a published container and emits a provenance map — every range labelled `published-image`, `overlay` (mandatory origin string, sha256) or blank `0xFF`. Refuses overlapping sections, an overlay colliding with the image, a section below the `0x010000` floor, and a magic that is not where the section table said it would be |
+| [`tools/mkhwsetting.py`](tools/mkhwsetting.py) | A structurally valid, content-free `H601`. `--verify-format-against` re-derives the header from a real dump and compares **structure only** — no payload byte is read, printed or compared, because that region is per-unit |
+| [`tools/mkcompds.py`](tools/mkcompds.py) + `fwrecon.compcs.lzss_encode` | The encoder this project has never had. `P8-12` has been parked as "blocked, `fwrecon` has no encoder" since the register was written, and it is no longer blocked. Every region is round-tripped through the vendor's **own** decoder before it is written |
+| `qemu-env.sh --profile` | Two environments: `unit-2018` unchanged and re-verified, `v2.1.2` new. A profile must declare where its flash came from and a control that can fail; the new one refuses to `check` at all until its controls are measured |
+| `qemu-env.sh mkflash` | The whole L2 build as one deterministic command with its sha256 pinned, so "anyone can do this" is checkable rather than asserted |
+
+### Instrument bugs 28 through 30
+
+**28. A refuted claim living in the register's own header.** `[schedule].note`
+still read *"P0-9 refuted — boa cannot complete one GET under qemu-user"*. P0-9
+came back `confirmed` on 2026-08-17 and every **hashed** field was corrected that
+night. The note was not, because the schedule hash covers
+`(id, week, rescheduled_from, reschedule_date, reschedule_reason)` and not the
+prose that summarises them. The register's own header therefore asserted, for a
+day, the claim its own rows twenty lines below had already withdrawn. Same shape
+as bug 23, one file further in.
+
+**29. `rm -rf` through a live mountpoint.** `cmd_build` deletes the environment
+before rebuilding, and a previous build leaves `/proc` mounted inside it. The
+delete failed on every procfs entry and left a half-deleted tree; the copy merged
+into the wreckage and the *next* command reported `./qemu-mips-static: No such
+file or directory`. **The message pointed nowhere near the cause.** It now
+unmounts first and refuses to delete if the unmount did not take — a refusal
+rather than a retry, because `rm -rf` through a live mountpoint is how a tool
+deletes things outside the directory it was aimed at.
+
+**30. The vendor's constant, copied, would have been a heap overflow.** The
+encoder defaulted `comp_rate` to 7 because that is what the vendor's images
+carry. It is not a format field — `libapmib` does `malloc(comp_rate * comp_len)`
+and does not check — and 7 suits the vendor's 6.05× on a real configuration. An
+all-zero blob compresses 8.4×, so 7 would have had the library allocate 27,279
+bytes and decode 32,866 into it. Caught by a check written into the encoder
+before it was ever run. **Copying the vendor's constant looked like fidelity.**
+
+### A measurement failure, and what caught it
+
+The first `localPin` run reported **no execution**, which would have refuted
+`P3-14`. It was wrong, and the harness caused it: the script fired a *control*
+request first, `boa` does not survive this handler, and the real payload went to
+a dead server. Both requests returned `HTTP 000`, and the null looked exactly
+like a negative result.
+
+What caught it was refusing to accept "it did not work" without a location.
+Under `-strace` the `execve` was on screen with the interpolated string in it.
+**A negative result whose mechanism you cannot name is not a result yet** — and
+this one was a paragraph away from being written down as the refutation of a
+claim that is true.
+
+### Deliberately not done
+
+| Item | Why |
+|---|---|
+| An LD_PRELOAD unaligned-access fixup for `qemu-user` | It would let `flash default` run and give the L2 environment a real configuration. It is also a MIPS-BE cross-compilation project (`P5-4`) against uClibc, and 3a does not need it — the injection reproduces without it |
+| `qemu-system-mips` with the container's own kernel | The correct fix, since the kernel is what does the fixup. RTL8196 is not a QEMU machine model, so it is a research project rather than an afternoon |
+| Concluding anything about shipped defaults from this environment | Every value in the synthetic MIB is zero. It is not a configuration, and `poc/05`'s scope table says so |
+
+### Open, carried forward
+
+43. **Does `boa` survive `formWsc` on the *device*?** Under emulation it does
+    not. W06 measured a one-request outage on a **different** handler (`D-11`).
+    Whether they share a mechanism is unmeasured, and the question is sharper now
+    than it was, because emulation yields a fault address and the device does not.
+44. **How much of the MIB does a handler actually need?** The synthetic
+    configuration is all zeros and `formWsc` ran anyway. Which handlers tolerate
+    an empty MIB and which crash on it would map how much of this firmware is
+    reachable from a download alone.
+45. **`libapmib` has no compiled-in hardware-setting default.** `apmib_init()`
+    fails hard rather than falling back, which is why a blank flash is fatal and
+    why the factory programming jig is load-bearing. Whether the *software*
+    defaults have a compiled-in fallback is a separate question, and `flash
+    default`'s existence suggests they do.
+46. **A desk procedure has no machine-checked home.** `check-runsheet.py`
+    enforces "every executed test has a procedure that reaches it" by reading
+    `runsheet.md` — and `runsheet.md` is the *bench* document, its four stations
+    being four device states. `P0-11` and `P3-14` needed no device, so they went
+    into the `no-procedure` exemption despite having a perfectly good procedure
+    in `poc/05` and `REPRODUCE.md` T1. The exemption is honest but it is the
+    wrong shape: it says "there is no procedure" when what is true is "the
+    procedure is not in this file". The bench half is checked and the desk half
+    is not, and W07 is mostly desk work — so this gets worse before it gets
+    better.
