@@ -3645,14 +3645,40 @@ sudo tcpdump -i eth1 -s0 -w dumps/w07-creds.pcap 'host 10.1.1.1 and tcp port 80'
 
 **在按下去之前，這一場所有的紀錄卡都要先寫完。**
 
-前後各一份 `H601` 快照，而且這一步不可以省：
+> 🔴 **這一節原本自己帶一個 `H601` dump 命令，而它指的位址是錯的。**
+> 它寫 `--flash 0x3F0000`，但 `H601` 在 **`0x006000`** —— `A2.3.1` 的分區圖
+> 自己就是這樣畫的，`notes/flash-layout.md` 也是，而 `0x3F0000` 在這顆 flash 上
+> 是**抹除區，4,096 個 byte 全部 `FF`**。所以那一版的「前後各一份、不可以省的
+> 一步」比較的是 `0xFF` 對 `0xFF`：**一個不可能失敗的對照組，而且正好架在這一列
+> 唯一真正在問的那一格上。** 2026-08-19 進站前發現，按鈕還沒按。
+> 同一份命令也帶 `--at-prompt`，那是第 2 站的狀態 —— 一個第 3 站的步驟執行不了它。
+
+**所以這一節不再自己抓快照，它引用 `A2.3`。** `A2.3` 的 64 KiB 從 `0x0` 開始，
+`H601` 本來就在裡面（`0x006000`–`0x006FFF`）。要比的兩份是：
+
+| | 哪一份 | 怎麼來的 |
+|---|---|---|
+| 前 | 進站時 `A2.3` 那一份 | 已經有七份，`0x6000` 那 4 KiB **byte 完全相同**（2026-08-16 到 2026-08-18） |
+| 後 | reset 之後**再進一次第 2 站**跑 `A2.3` | 按鈕自己會重開機，所以回第 2 站是順路 |
 
 ```bash
-python3 tools/console-dump.py dump --at-prompt --flash 0x3F0000 --length 0x1000 \
-        --ram 0x80560000 --chunk 512 -o dumps/w07-h601-pre.bin
+cmp <(dd if="$HOME/fwre-work/dumps/BEFORE.bin" bs=1 skip=24576 count=4096 status=none) \
+    <(dd if="$HOME/fwre-work/dumps/AFTER.bin" bs=1 skip=24576 count=4096 status=none) \
+  && echo "H601 UNCHANGED"
 ```
 
-**預期**：`COMPCS` 變回 `COMPDS`，而 **`H601` UNCHANGED**。
+> 🔴 **`24576` 就是 `0x006000`，十進位** —— `dd` 的 `skip` 不吃 `0x`，`A3.6.2`
+> 已經為同一個理由踩過一次。
+
+**便宜的第二來源，而且不用多一次上電**：按鈕前後各從 `A3.23` 開的 telnet root
+shell 跑一次 `flash allhw`（`/bin/flash` 自己的 usage：`allhw -- dump all hw
+flash parameters`）。那是解碼後的視圖不是原始 bytes，所以它不取代上面的 `cmp`；
+它的價值是**同一次進站就答得出來**。
+
+**預期**：`test-cases.toml` 的 `P9-9` 是擁有者，這一節不重述它。預測 2026-08-19
+改過 —— `COMPDS` 自己被 W05 那一輪 POST 寫壞了，所以「`COMPCS` 變回 `COMPDS`」
+今天已經成立、按下去分不出有沒有作用；freeze 雜湊在同一個 commit 裡改。
+
 `H601` 放的是這一台獨有的 MAC 與射頻校準 —— 如果 reset 把它蓋掉，
 **這台就永久地不再是它自己了，而且不會有任何錯誤訊息。**
 

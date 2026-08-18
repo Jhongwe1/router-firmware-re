@@ -53,11 +53,11 @@ W05 週計畫原本要另外建一份 `notes/prediction-scorecard.md`（12 條�
 |---|---|
 | 登記項目 | **135**（排入 126，砍掉 9） |
 | 已寫反證條件（凍結） | **118** / 126 |
-| 已執行 | **107** |
+| 已執行 | **108** |
 | 其中以真機動態證據收掉 | **73** |
 | 其中以模擬環境執行收掉（**不是矽上**） | **20** |
-| 判定成立 / 判定不成立 | **61** / **17** |
-| 凍結雜湊 | `ef7ab66d86f1c3de35a654e7dd76711cbce7853241594462043a829fc9ff27b7` |
+| 判定成立 / 判定不成立 | **62** / **17** |
+| 凍結雜湊 | `ea8cf7335c6ae448ce3c35b0c03e212970bd5ef612f0b53e329e2d2a2cc7f7e6` |
 
 ## 排程：哪一週要打掉哪些
 
@@ -70,7 +70,7 @@ W05 週計畫原本要另外建一份 `notes/prediction-scorecard.md`（12 條�
 | **W04-2** | Phase 0 | 2 / 2 | `▰▰▰▰▰▰▰▰▰▰` |
 | **W05** | Phase 0, 1, 2, 3, 6, 9 | 27 / 27 | `▰▰▰▰▰▰▰▰▰▰` |
 | **W06** | Phase 0, 2, 3, 4, 5, 10 | 20 / 20 | `▰▰▰▰▰▰▰▰▰▰` |
-| **W07** | Phase 1, 2, 3, 4, 5, 6, 8, 9, 10 | 55 / 58 | `▰▰▰▰▰▰▰▰▰▱` |
+| **W07** | Phase 1, 2, 3, 4, 5, 6, 8, 9, 10 | 56 / 58 | `▰▰▰▰▰▰▰▰▰▰` |
 | **W08** | Phase 7, 9 | 0 / 16 | `▱▱▱▱▱▱▱▱▱▱` |
 
 ## 圖例
@@ -438,7 +438,7 @@ W05 週計畫原本要另外建一份 `notes/prediction-scorecard.md`（12 條�
 | P4-3 | submit-url 100-byte 階梯掃描 | 7.2 | ★★★★★ | 🟥 | W06 | ❌ Refuted with a positive witness rather than with an absence. formNtp echoes submit-url into its Location header, so the value is provably reaching the code that consumes it: 8 bytes echo 7 As, 800 bytes echo 799 As, with no truncation at 100 and no crash, no reboot and no observable change at any length. So on this build submit-url is not the lastUrl[100] idiom W04 measured on V2.1.2. formSelLang was the wrong witness — it redirects to a hardcoded countDownPage.htm whatever you send, which is why an earlier round measured nothing. | [BENCH-LOG.md](BENCH-LOG.md) |
 | **P4-4** | ifname / wlan_id 的 20-byte 階梯（偏移與 100 那組完全不同） | 7.2 | ★★★★★ | 🟥 | W06 | ❌ ifname and wlan_id at 16, 20, 24, 40, 80, 120 and 160 bytes on formWlanSetup: 200 every time, server alive every time. The 20-byte buffer class R3 separates from the 100-byte one produces no observable difference here either. | [BENCH-LOG.md](BENCH-LOG.md) |
 | P4-5 | stack 溢位群（12 個函式、20+ 參數） | 7.3 | ★★★★☆ | 🟥 | W07 | 🟪 登記時寫的是「12 個函式、20+ 參數」，這台的閘門報的是 11 個函式、17 個參數（134 個 finding 裡 22 個的目的地是堆疊）。長度階梯 8/100/260/800/4096 逐一送：只有 formWsc 的 localPin 會死，260 活、800 死。反證條件寫「崩潰但 epc 不可控 → 覆寫的不是返回位址」——不成立：epc 完全可控，見 P5-1。 | [paramfuzz-unit-2018.json](reports/paramfuzz-unit-2018.json) · [crash-triage-unit-2018-wsc.json](reports/crash-triage-unit-2018-wsc.json) · [paramfuzz.py](tools/paramfuzz.py) · [crash-triage.py](tools/crash-triage.py) |
-| P4-6 | 已知 CVE 溢位端點逐一驗（12 條） | 7.4 | ★★★☆☆ | 🟨 | W07 | ⬜ | — |
+| P4-6 | 已知 CVE 溢位端點逐一驗（12 條） | 7.4 | ★★★☆☆ | 🟨 | W07 | 🟥 Sixteen advisory rows name a form endpoint; ten of them are the 2025 series. Measured mechanically against this unit's own root_form[] (57 entries) and the same table across all six scanned builds, by tools/cve-endpoints.py, which reads the advisory list out of notes/cve-status.md rather than carrying a second copy. Result: six match verbatim (3987, 4462, 3993 on formWsc; 3990 on formVlan; 3991 on formWdsEncrypt; and formSysCmd for 2024-51228 / 2019-19824). ONE differs only by case - 3989 publishes Hostname, this handler at 0041af20 references hostname - and a form field name is case-sensitive here, so a verbatim reproduction sends a field the handler never reads. ONE differs by name: 3988 publishes service_type on formPortFw, and the handler at 0041d110 references comment and no service_type, which is exactly what the prediction said. THREE name a route that exists in NONE of the six builds: /boa/formWSC (6299), /boafrm/formWlwds (3992) and /boafrm/fromStaticDHCP (3995) - and for the last two the tool names the neighbour, formWlWds (capital W) and formStaticDHCP (form, not from), so the published spellings are a transcription error and a typo rather than a different defect. CVE-2019-19825's getSanvas is likewise absent: this build's formLogin at 0044ef68 references username and userpass only. The refutation condition ('the published parameter names work here too, so the difference is report wording') did NOT fire: four of the ten 2025-series form rows do not address anything that exists on this build, and one addresses a field name that differs in case. Static: a name among a handler's referenced strings means the handler mentions it, not that it reads it from the request and not that the overflow reproduces. Three controls held - formSysCmd/sysCmd found, a synthetic endpoint and a synthetic parameter both absent, 33 advisory rows parsed against a floor of 15. | [cve-endpoints-unit-2018.json](reports/cve-endpoints-unit-2018.json) · [cve-endpoints.py](tools/cve-endpoints.py) · [ghidra-formtable-unit-2018.json](reports/ghidra-formtable-unit-2018.json) |
 | **P4-7** | submit-url 全 57 端點通殺 + 存活探針 | 7.5 | ★★★☆☆ | 🟥 | W07 | 🟪 第 2 次 第二次結果，與 08-18 稍早那一次是不同的問題。帶 --alignfix 與每發還原、body 完全空白重掃 58 個端點：5 個死、53 個活、59 次重啟 0 次失敗，三個對照全成立。配合 --param 'submit-url=/wireless.htm' 那一輪只死 formSchedule，兩輪的差集直接指認出參數缺席這一類。R3 指認 36 個共用 submit-url 慣用語，而只有 5 個在無參數 POST 下真的走到那個 tail；另外 42 個更早就 return。 | [handler-sweep-unit-2018-noparam.json](reports/handler-sweep-unit-2018-noparam.json) · [handler-sweep.py](tools/handler-sweep.py) |
 | P4-8 | 超長 HTTP 標頭 / 參數數量炸彈 / Range | 7.6 | ★★★☆☆ | 🟦 | W07 | ❌ 反證條件成立。8192 bytes 的 request line、8192 bytes 的單一標頭、200 個標頭、1000 個參數、100000 個參數、400 位數的 Range —— 六發全部沒有讓 server 消失。預測寫的是「標頭緩衝區與 param 陣列都是固定大小」，而 10 萬個參數正常處理，所以那條收掉。**這是模擬環境的結果，實機的協定層另有 P2-6 已量。** | [paramfuzz-unit-2018.json](reports/paramfuzz-unit-2018.json) |
 | P4-9 | boofuzz 系統化 fuzz | 7.7 | ★★★★☆ | — | W07 | 🟪 端點用還原出來的 root_form[]、參數名用 BoaGate 逐一指認的，預測成立。208 個請求、8 個死亡、0 個 harness 異常。反證條件（跑滿一輪零崩潰而正對照也沒被抓到）沒有觸發：負對照 formSchedule 被正確標記為死亡，正對照 formNtp 活著。**這條反證條件是 2026-08-18 開火前改過的** —— 原文點名 P4-3 的已知崩潰，而 P4-3 在這台已判 refuted，那個對照不存在。理由在 PROGRESS § Corrections。 | [paramfuzz-unit-2018.json](reports/paramfuzz-unit-2018.json) · [paramfuzz.py](tools/paramfuzz.py) |
@@ -873,8 +873,8 @@ W05 週計畫原本要另外建一份 `notes/prediction-scorecard.md`（12 條�
 
 **P9-9 — Reset 按鈕行為**
 
-- 預測：reset 會把 COMPCS 覆寫回 COMPDS；但 H601 那塊（MAC 與射頻校正）不在其中，reset 不會還原它
-- **反證：reset 之後 H601 的內容改變 → 出廠區的範圍判斷錯了，這會直接影響 P0-3 的風險評估**
+- 預測：按鈕的路徑是靜態讀出來的：`/bin/reload`（昨晚 `ps` 裡 PID 291，活著）輪詢 `/proc/load_default`，命中之後印 `Going to Reload Default` 並執行 `flash default-sw`；而 `/bin/flash` 自己的 usage 把兩件事分開寫——`default` 是「write all flash parameters from hard code」，`reset` 才是「reset current setting to default」。按鈕走的是前者，所以它寫的是編譯進去的硬編碼表，不是 flash 上那塊已經被本專案自己弄壞的 `DEFAULT_SETTING` 區。於是預測三段，三段都要對：（1）reset 之後 `COMPCS` 的 `DHCP_MTU_SIZE` 回到 `1500`、`UPNP_ENABLED` 回到 `1`、`ALG_SIP_ENABLED` 回到 `1`，即使 `COMPDS` 自己這三格仍然是 0；（2）`H601`（0x3F0000，這台獨有的 MAC 與射頻校準）前後兩份快照 byte 相同，因為 `-sw` 是 software setting，HW setting 不在其中；（3）因此 WAN 在 reset 後的第一次開機就能送出 DISCOVER——那是 `P8-19` 那條「一發未認證 POST 造成持久性 WAN DoS」的第三個獨立驗證，而且是唯一一個不需要動手改任何東西的。
+- **反證：（a）reset 之後那三個欄位仍然是 0 → 按鈕的復原來源是 flash 上的 `DEFAULT_SETTING` 區，不是硬編碼表，而那個區是本專案 W05 那一輪未認證、參數缺席的 POST 寫壞的。那時 `P8-19` 要從「跨越所有重開機」升級成「跨越原廠重置」：一個未認證請求把裝置推進一個連廠商自己的復原路徑都出不來的狀態，唯一的回頭路是寫 flash。同時 `/bin/reload` → `flash default-sw` 這條靜態讀法對 `-sw` 的解釋是錯的，要回去讀 `/bin/flash` 的 argv 分派。（b）reset 之後 `H601` 的內容改變 → 出廠區的範圍判斷錯了，這會直接影響 `P0-3` 的風險評估（原條件，不變；這是這一列真正在問的那一格）。模擬環境不能答任何一邊：按鈕是 GPIO，`/proc/load_default` 在 `qemu-user` 下不存在。**
 
 **P9-10 — 改造韌體回刷 / implant**
 

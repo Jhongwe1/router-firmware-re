@@ -2520,3 +2520,148 @@ T-63  P6-10  WAN 一斷，dnsspoof 就接管整個網段                2026-08-
    三列唯一的路——這個 build 的網頁介面沒有任何一頁可以設它們。
 3. **路由注入**（DHCP opt 33 / 121 / 249）：要在網卡插 WAN 埠**之前**先讓 `udhcpc` 到期，
    或改用「先拔線再插線」逼它重新 DISCOVER。
+
+# 2026-08-19（三）W07 收尾場次 —— 計畫，寫在插電之前
+
+**這一則寫在裝置上電之前，而且它推翻了上一則「下一場從哪裡開始」的其中兩條。**
+推翻的依據全部來自桌面：昨晚第 2 站留下的 `config-region-20260818-1927-pre.bin`
+解出來的內容，以及 `/bin/reload` 與 `/bin/flash` 的字串。**一個 byte 都還沒動到裝置。**
+
+今晚只有一個裝置目標：`P9-9`。登記簿 W07 是 56 / 58（`P4-6` 今天在桌面關掉），
+剩 `P9-9` 與 `P5-2`，而 `P5-2` 是刻意不做的那一列。
+
+## 一、上一則寫的「唯一的路」不成立，而正確的說法是相反的
+
+上一則說：`UPNP_ENABLED` / `ALG_SIP_ENABLED` 從第 2 站寫回 1「是 `P6-1`、`P8-7`、
+`P6-5` 三列唯一的路」。
+
+**那三列在昨晚就已經以 `na`（dynamic）登記結案了。** `python3 tools/rtcase.py
+todo --week W07` 今天只列 `P4-6`（今天關掉）、`P5-2`、`P9-9`。所以寫 flash 不是
+W07 收尾的必要條件，它是加值 —— 而它要動的是 `A2.5` / `A2.6`，全 repo 唯一不可逆
+的一節，而且 `PROGRESS.md` 自己記著那個 `FLW` 演練**沒有真的排練過**。
+
+**今晚的決定（作者，寫在插電前）**：只有在 reset 之後連 `DHCP_MTU_SIZE` 都沒有
+回到 1500 的情況下才寫 flash —— 那時它是修復不是加值。若 WAN 救回來了，
+`UPNP` / `ALG_SIP` 留給 W08，連同 `FLW` 演練一起排。
+
+## 二、`A3.24` 的 `H601` 快照量的是抹除區，而那是一個不可能失敗的對照組
+
+`A3.24` 原本要求前後各一份 `H601` 快照，並且說那是「唯一不可以省的一步」。
+它給的命令是 `--flash 0x3F0000 --length 0x1000`。
+
+**`H601` 在 `0x006000`。** 三個來源同意：`runsheet.md` `A2.3.1` 的分區圖自己就是
+這樣畫的、`notes/flash-layout.md` 第 134 行、以及公開 Realtek SDK `apmib.h` 的
+`HW_SETTING_OFFSET 0x6000`。實際去讀 `flash-n150rt-console-1.bin`：
+
+```text
+00006000: 4836 3031 048e 0214 4d67 2e01 ec14 4d67  H601....Mg....Mg
+003f0000: ffff ffff ffff ffff ffff ffff ffff ffff  ................
+
+0x6000     4093 non-FF bytes of 4096
+0x3F0000      0 non-FF bytes of 4096
+```
+
+所以那一版的「不可以省的一步」，比的是 `0xFF` 對 `0xFF`。**它會永遠回報
+UNCHANGED，包括在 reset 真的把 `H601` 蓋掉的那個世界裡** —— 而 `P9-9` 的反證條件
+就是「reset 之後 `H601` 的內容改變」。**一個不可能失敗的對照組，正好架在這一列
+唯一真正在問的那一格上。**
+
+同一份命令還帶 `--at-prompt`（第 2 站的狀態），而 `A3.24` 掛在第 3 站，
+所以照文件順序根本執行不了。`check-runsheet.py` 今天加了一條機械規則
+（一個步驟的**命令**若需要別站的裝置狀態，就要在前面明確把讀者送去那一站），
+`tools/test-check-runsheet.sh` 35 → 38 個案例，其中一個證明 `A3.8` 那種
+「回 A2.2 搶 bootloader」的合法繞路不會被誤殺。
+
+**修法是引用不是重寫**：`A2.3` 的 64 KiB 從 `0x0` 開始，`H601` 本來就在裡面。
+而「前」那一份**已經有七份**，`0x6000` 起 4 KiB 的 sha256 前 24 字元在
+2026-08-16 到 2026-08-18 之間完全相同：
+
+```text
+flash-n150rt-console-1.bin           afc5e91d5c095dd19db761e6
+flash-n150rt-console-2.bin           afc5e91d5c095dd19db761e6
+config-region-20260817-0733.bin      afc5e91d5c095dd19db761e6
+config-region-20260817-post.bin      afc5e91d5c095dd19db761e6
+w06-S1-pre.bin                       afc5e91d5c095dd19db761e6
+w06-S4-final.bin                     afc5e91d5c095dd19db761e6
+config-region-20260818-1927-pre.bin  afc5e91d5c095dd19db761e6
+```
+
+**橫跨三天、五次上電、兩次 flash 寫入的穩定基準線**，比原本設計的一對前後快照強。
+
+## 三、`COMPDS` 自己被寫壞了，所以 `P9-9` 的預測今天沒有鑑別力 —— 已改，freeze 一起改
+
+把昨晚那份 64 KiB 的兩個區都用 `fwrecon compcs` 解出來，對 2026-08-16 的原始讀值：
+
+| | `COMPDS`（出廠預設） | `COMPCS`（現行） |
+|---|---|---|
+| `DHCP_MTU_SIZE` | 1500 → **0** | 1500 → **0** |
+| `UPNP_ENABLED` | 1 → **0** | 1 → **0** |
+| `ALG_SIP_ENABLED` | 1 → **0** | 1 → **0** |
+| `SSH_ENABLED` | 1 → **0** | 1 → **0** |
+| 總計偏離 | **25 / 343** | 21 / 343 |
+| `COMPDS` vs `COMPCS`（今天） | **0 / 343** | |
+
+**W05 那一輪未認證、參數缺席的 POST 不只改了現行設定，它改了出廠預設。**
+
+於是原預測「reset 會把 `COMPCS` 覆寫回 `COMPDS`」**今天已經成立**，按下去分不出
+「reset 有作用」與「reset 什麼都沒做」。預測在 `test-cases.toml` 改過了，
+`amended = "2026-08-19"` 與 `amend_reason` 寫在同一格，freeze 雜湊
+`ef7ab66d…` → `ea8cf733…` 在同一個 commit。**改在按鈕之前、任何結果之前。**
+
+新預測的依據是靜態讀出來的按鈕路徑：`/bin/reload`（昨晚 `ps` 裡 PID 291，活著）
+輪詢 `/proc/load_default`，命中之後印 `Going to Reload Default` 並執行
+`flash default-sw`；而 `/bin/flash` 自己的 usage 把兩件事分開寫 ——
+`default` 是「write all flash parameters **from hard code**」，`reset` 才是
+「reset current setting to default」。**按鈕走的是前者。**
+
+**兩個答案都是結果**：回到 1500 / 1 / 1，`P8-19` 拿到第三個獨立驗證；
+仍然是 0，那就是一發未認證 POST 把裝置推進一個**連原廠復原按鈕都出不來**的狀態。
+
+## 四、今晚的順序，以及每一步為什麼在那個位置
+
+| # | 站 | 做什麼 | 為什麼在這裡 |
+|---|---|---|---|
+| 1 | 桌面 | `make doctor` | 已跑，見第六節 |
+| 2 | 第 2 站 | `A2.3` 64 KiB 快照（`-pre`）+ IoC 預檢 | 這是 `H601` 的「前」與 `COMPCS`/`COMPDS` 的「前」，一份檔案兩個用途。**IoC 基準是 0 / 343 不是 4 / 343** —— 昨晚那一格差點中止全場 |
+| 3 | 第 3 站 | `make liveness` | **新工具的第一次實戰。** 一發未認證 `GET /config.dat` 就答出三個欄位現在是不是 0。這也是開放題 #73 的正面回答 |
+| 4 | 第 3 站 | 命令注入起 `telnetd -l /bin/sh` | `A3.23` 的理由：崩潰之後要有地方站。今晚不是為了崩潰，是為了 `flash allhw` |
+| 5 | 第 3 站 | `flash allhw` → 存檔（reset 前） | `H601` 的便宜第二來源，**同一次進站就答得出來**。不取代第 2 站的 `cmp` |
+| 6 | 第 3 站 | **按 reset 按鈕** | `T-64`。按之前所有卡片寫完 |
+| 7 | 第 3 站 | `make liveness` 再一次 + `flash allhw` 再一次 | 欄位回來了沒有；`H601` 動了沒有 |
+| 8 | 第 3 站 | 網路卡改插 WAN 埠 + 假 DHCP server | **行為那一半。** 欄位讀到 1500 與「它真的送得出 DISCOVER」差一個 MTU 0 的教訓 |
+| 9 | 第 2 站 | `A2.3` 再一份（`-post`） | `H601` 的權威逐 byte 比對，以及 reset 後的 `COMPCS`/`COMPDS` |
+| 10 | 第 4 站 | `A4.1` 登記、`A4.2` | 收工 |
+
+**第 8 步的決定寫在插電前**：作者選「要做」。理由是開放題 #73 的整個內容就是
+「沒有任何量測會問這台還能不能路由」，而今晚是第一次有機會正面回答它。
+
+## 五、進站前就成立的禁令，逐條抄在這裡
+
+1. **`telnetd -l /bin/sh` 是一個沒有認證的 root shell。收工一定要斷電。**
+   昨晚它在 port 23 上跑了一整晚。
+2. **按 reset 之前，這一場所有的紀錄卡都要先寫完。** reset 之後，任何一張
+   「等一下再補」的卡都失去了可以回頭驗證的環境。
+3. **每一張卡片的反證欄不可以空白，而且引號 `「」` 之後要有「實際看到」那一半。**
+   `tools/check-benchlog.py` 用 `rfind("」")` 判，句尾放引號會被擋。
+   今晚的卡片從 **`T-64`** 開始編。
+4. **不寫 flash，除非 reset 連 `DHCP_MTU_SIZE` 都沒救回來**（第一節的決定）。
+5. **`formWsc` 仍然是 `HAZARDOUS`**，今晚沒有任何理由碰它。
+6. **IoC 預檢的成功條件是 0 / 343，不是 4 / 343。** 那個數字自 W05 下午起就是 0，
+   而 `runsheet.md` `A2.3.4` 的**範例值**是 4 —— 昨晚就是抄那個範例抄錯的。
+
+## 六、插電之前已經做完、而且驗過的事
+
+| 做了什麼 | 驗證 |
+|---|---|
+| `usbipd attach --wsl` 兩個裝置 | `1-1 10c4:ea60` 與 `2-4 0bda:8153` 都是 `Attached`；WSL 裡 `/dev/ttyUSB0` 可讀可寫、`enxfc19286184c9` 在 `ip -br link` 裡 |
+| WSL VM keepalive | `wsl -d Ubuntu-24.04 -- sleep 7200` 掛著。第一次 attach 失敗就是因為 VM 沒在跑 |
+| `make doctor` tier 3 | **6 ok、4 not applicable、0 to fix**。四個 n/a 全是「網卡還沒設位址、還沒有路由、裝置還沒上電」 |
+| `make doctor` 的新一節 | 「tier 3 — the device can still do its job」現在存在，而且在裝置沒上電時回報 `--`（沒有量到東西），不是 ok 也不是 FAIL |
+| 桌面側 W07 收尾 | `P4-6` 已登記（static，`reports/cve-endpoints-unit-2018.json`）；開放題 #72 的儀器修好並重跑；開放題 #73 的儀器建好 |
+| 14 個 guard suite | 全綠，含新的 `liveness-test`（19 例）與擴充後的 `runsheet-test`（38 例） |
+| 登記簿 | `rtcase check` green，freeze `ea8cf733…`，W07 56 / 58 |
+
+**網卡留在 WSL 裡不是方便問題。** 它若留在 Windows 側，Windows 會從這台拿到 DHCP
+位址，測試會看起來正常而唯一的破綻是 `ttl=63` 不是 64 —— 儀器 bug 21。
+今晚第 8 步要把網卡改插 WAN 埠，那條規則在那一步同樣成立。
+

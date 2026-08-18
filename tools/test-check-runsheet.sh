@@ -453,6 +453,71 @@ p.write_text(p.read_text("utf-8") + "\n> ```bash\n> make no-such-target-in-a-quo
 PYEOF
 expect_fail "a command hidden inside a blockquoted fence" "no-such-target-in-a-quote"
 
+
+echo
+echo "=== the station number IS the device state, and commands prove it ==="
+
+# A3.24 carried `console-dump.py dump --at-prompt` for every revision up to
+# 2026-08-19 while sitting under 第 3 站. --at-prompt means the board is halted
+# at <RealTek>, which is 第 2 站. Reading A1.1 -> A4.2 front to back is supposed
+# to BE a correct order to run it in; a step whose commands need another
+# station's device state breaks that quietly, and the station-heading check
+# above could not see it because the heading was fine.
+write_good
+"$PY" - "$RS" <<'PYEOF'
+import sys
+p = sys.argv[1]
+s = open(p, encoding="utf-8").read()
+s = s.replace("""```bash
+make ledger""", """```bash
+python3 tools/console-dump.py dump --at-prompt --flash 0x0 --length 0x10000 -o /tmp/x.bin
+make ledger""")
+open(p, "w", encoding="utf-8").write(s)
+PYEOF
+expect_fail "a 第 3 站 command inside a 第 1 站 step" "cannot be run where the document puts it"
+
+# ...and the escape hatch, because A3.8 does this legitimately: its recovery
+# path says "回 A2.2 搶 bootloader（要斷電重開）" and then gives a boot-loader
+# command. Naming the station you are sending the reader to is what makes that
+# correct, so naming it is what the checker accepts.
+write_good
+"$PY" - "$RS" <<'PYEOF'
+import sys
+p = sys.argv[1]
+s = open(p, encoding="utf-8").read()
+s = s.replace("""```bash
+make ledger""", """先回 A2.2 搶 bootloader（要斷電重開），然後：
+
+```bash
+python3 tools/console-dump.py dump --at-prompt --flash 0x0 --length 0x10000 -o /tmp/x.bin
+make ledger""")
+open(p, "w", encoding="utf-8").write(s)
+PYEOF
+if "$PY" tools/check-runsheet.py "$RS" >/dev/null 2>&1; then
+  ok "a deliberate detour that names the station it sends you to is accepted"
+else
+  bad "the detour escape hatch does not work, so A3.8 cannot be written correctly"
+  "$PY" tools/check-runsheet.py "$RS" 2>&1 | sed 's/^/          /'
+fi
+
+# The other direction: a boot-loader step cannot curl the web server, because
+# nothing is served until the board has booted.
+write_good
+"$PY" - "$RS" <<'PYEOF'
+import sys
+p = sys.argv[1]
+s = open(p, encoding="utf-8").read()
+s = s.replace("## 第 1 站 · 桌面", "## 第 2 站 · 停在 <RealTek>")
+s = s.replace("### A1.1 a step", "### A2.1 a step")
+s = s.replace("| `A1.1` |", "| `A2.1` |")
+s = s.replace("""```bash
+make ledger""", """```bash
+curl -s http://10.1.1.1/config.dat -o /tmp/c.dat
+make ledger""")
+open(p, "w", encoding="utf-8").write(s)
+PYEOF
+expect_fail "a curl at the device inside a boot-loader step" "nothing is served until the board has booted"
+
 echo
 echo "  $pass passed, $fail failed"
 [ "$fail" -eq 0 ] || exit 1

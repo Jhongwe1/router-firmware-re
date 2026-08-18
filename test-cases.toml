@@ -31,7 +31,7 @@ schema_version = "1"
 # sha256 over (id, predict, refute) of every case that has a refutation.
 # Change a prediction and this must change in the same commit, where the diff
 # shows it. `python3 tools/rtcase.py freeze` prints the current value.
-sha256 = "ef7ab66d86f1c3de35a654e7dd76711cbce7853241594462043a829fc9ff27b7"
+sha256 = "ea8cf7335c6ae448ce3c35b0c03e212970bd5ef612f0b53e329e2d2a2cc7f7e6"
 committed = "2026-08-18"
 note = """W05 Day 0 — frozen before any request has been served to this device.
 
@@ -1788,8 +1788,10 @@ week = "W07"
 rescheduled_from = "W05"
 reschedule_date = "2026-08-17"
 reschedule_reason = '''破壞性，而且它銷毀的是別的測試正在用的證據：reset 會用 COMPDS 蓋掉 COMPCS，而「COMPCS 與 COMPDS 差 4 / 343」是每一場動手前 IoC 預檢的凍結成功條件。在那個差異還被引用的期間跑這一項，等於把自己的對照組刪掉。排到 W07 末，那時候它不再被引用。理由與 PROGRESS.md § Deliberately not done in W05 所記的同一條。'''
-predict = 'reset 會把 COMPCS 覆寫回 COMPDS；但 H601 那塊（MAC 與射頻校正）不在其中，reset 不會還原它'
-refute = 'reset 之後 H601 的內容改變 → 出廠區的範圍判斷錯了，這會直接影響 P0-3 的風險評估'
+amended = "2026-08-19"
+amend_reason = '''原預測是「reset 會把 COMPCS 覆寫回 COMPDS」，而 2026-08-19 桌面上解出昨晚第 2 站那份 `config-region-20260818-1927-pre.bin` 之後，那個預測**在今天沒有鑑別力**：兩個區的 343 個具名欄位差 0 個，所以「reset 之後 COMPCS 等於 COMPDS」已經成立，按下去分不出「reset 有作用」與「reset 什麼都沒做」。同一份解碼也顯示 `COMPDS` 自己被寫壞了（對 2026-08-16 原始讀值 25/343 個欄位偏離，含 `DHCP_MTU_SIZE 1500→0`、`UPNP_ENABLED 1→0`、`ALG_SIP_ENABLED 1→0`），所以「reset 會不會把 WAN 救回來」變成一個真的有兩個答案的問題。改預測在按鈕之前、在任何結果之前，freeze 雜湊同一個 commit 一起改。'''
+predict = '''按鈕的路徑是靜態讀出來的：`/bin/reload`（昨晚 `ps` 裡 PID 291，活著）輪詢 `/proc/load_default`，命中之後印 `Going to Reload Default` 並執行 `flash default-sw`；而 `/bin/flash` 自己的 usage 把兩件事分開寫——`default` 是「write all flash parameters from hard code」，`reset` 才是「reset current setting to default」。按鈕走的是前者，所以它寫的是編譯進去的硬編碼表，不是 flash 上那塊已經被本專案自己弄壞的 `DEFAULT_SETTING` 區。於是預測三段，三段都要對：（1）reset 之後 `COMPCS` 的 `DHCP_MTU_SIZE` 回到 `1500`、`UPNP_ENABLED` 回到 `1`、`ALG_SIP_ENABLED` 回到 `1`，即使 `COMPDS` 自己這三格仍然是 0；（2）`H601`（0x3F0000，這台獨有的 MAC 與射頻校準）前後兩份快照 byte 相同，因為 `-sw` 是 software setting，HW setting 不在其中；（3）因此 WAN 在 reset 後的第一次開機就能送出 DISCOVER——那是 `P8-19` 那條「一發未認證 POST 造成持久性 WAN DoS」的第三個獨立驗證，而且是唯一一個不需要動手改任何東西的。'''
+refute = '''（a）reset 之後那三個欄位仍然是 0 → 按鈕的復原來源是 flash 上的 `DEFAULT_SETTING` 區，不是硬編碼表，而那個區是本專案 W05 那一輪未認證、參數缺席的 POST 寫壞的。那時 `P8-19` 要從「跨越所有重開機」升級成「跨越原廠重置」：一個未認證請求把裝置推進一個連廠商自己的復原路徑都出不來的狀態，唯一的回頭路是寫 flash。同時 `/bin/reload` → `flash default-sw` 這條靜態讀法對 `-sw` 的解釋是錯的，要回去讀 `/bin/flash` 的 argv 分派。（b）reset 之後 `H601` 的內容改變 → 出廠區的範圍判斷錯了，這會直接影響 `P0-3` 的風險評估（原條件，不變；這是這一列真正在問的那一格）。模擬環境不能答任何一邊：按鈕是 GPIO，`/proc/load_default` 在 `qemu-user` 下不存在。'''
 
 [[case]]
 id = "P9-10"
