@@ -5112,6 +5112,25 @@ harness now carries the rule that a payload must never appear on a command line 
 and the wider version, which this bug is the proof of, is that **a backtick is
 never inert: some layer between the keyboard and the destination will run it.**
 
+**And the fix had the same shape as the bug, one layer down.** `workflow_parses()`
+uses PyYAML, **which a GitHub runner's `setup-python` does not ship** — so on the
+remote, the check that exists to validate this workflow reported *"the workflow
+was NOT parsed"* and skipped. Honestly reported, and skipped in **exactly the
+environment whose parser is about to judge the file**. Two of the new guard cases
+then failed there while passing on WSL, which is what surfaced it: the suite went
+red remotely on a repository whose `make ci` was green.
+
+Fixed twice over, because the two halves are different problems. The workflow now
+installs PyYAML, so the parse check actually runs where it matters. And the guard
+suite **skips** those two cases when no parser is present rather than failing or
+quietly dropping them — verified by shimming `yaml.py` to raise `ImportError`,
+which produces `14 passed, 0 failed, 2 skipped` and a checker line reading `skip`
+rather than `ok`.
+
+*The general form, and it is the third time this session:* **a check that degrades
+to a skip has not run, and the environments where it degrades are not random —
+they are the ones with the fewest tools, which are usually the ones that matter.**
+
 *Found by:* `gh run list` after the push. `make ci` could not have found it, and
 that is the point of checking the remote rather than trusting local green — the
 same rule `RUNBOOK` 10.21 records and the one this checker exists to enforce.

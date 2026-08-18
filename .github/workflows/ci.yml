@@ -225,6 +225,14 @@ jobs:
       # compares which tools/ scripts `make ci` runs against which ones this file
       # runs, in both directions; a one-sided entry has to be recorded as a
       # decision in the script or it fails here.
+      # setup-python does not ship PyYAML, and without it check-ci-parity.py
+      # degrades to "the workflow was NOT parsed" — a skip, honestly reported,
+      # and exactly the wrong environment to skip it in: this is the file whose
+      # syntax GitHub is about to judge. Found 2026-08-19, by the guard suite
+      # going red here while `make ci` was green on WSL, which does ship it.
+      - name: Install PyYAML so the workflow is parsed here too
+        run: python -m pip install --quiet pyyaml
+
       # The name is quoted because a backtick cannot start a YAML plain scalar.
       # Unquoted, this file does not parse at all and the whole workflow fails in
       # 0 s -- which is how it shipped on 2026-08-19, green on `make ci`, because

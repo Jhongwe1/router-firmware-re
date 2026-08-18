@@ -22,9 +22,18 @@ cd "$(dirname "$0")/.." || { echo "  FAIL  cannot cd to the repository root"; ex
 TOOL=tools/check-ci-parity.py
 PY="${PYTHON:-python3}"
 
-pass=0; fail=0
-ok()  { echo "  ok    $1"; pass=$((pass + 1)); }
-bad() { echo "  FAIL  $1"; fail=$((fail + 1)); }
+pass=0; fail=0; skip=0
+ok()   { echo "  ok    $1"; pass=$((pass + 1)); }
+bad()  { echo "  FAIL  $1"; fail=$((fail + 1)); }
+skipd(){ echo "  skip  $1"; skip=$((skip + 1)); }
+
+# The two parser cases below need PyYAML, and a GitHub runner's setup-python does
+# not ship it. They are SKIPPED rather than silently dropped, because the checker
+# they exercise degrades to a skip in the same environment -- and a suite that
+# hides that would be claiming coverage the CI run does not have. The workflow
+# installs pyyaml so that both stop being skips there; this stays for anyone
+# running the suite on a bare interpreter.
+if "$PY" -c "import yaml" >/dev/null 2>&1; then HAVE_YAML=1; else HAVE_YAML=0; fi
 
 check() {
   local label="$1" script="$2" out
@@ -117,6 +126,12 @@ print("PASS" if len(p) == 2 else repr(p))
 # could not read at all. A regex does not care whether the document is valid.
 # --------------------------------------------------------------------------
 
+if [ "$HAVE_YAML" = "0" ]; then
+  skipd "a workflow that is not valid YAML is reported as broken -- no PyYAML here"
+  skipd "a valid workflow parses, and says so -- no PyYAML here"
+fi
+
+[ "$HAVE_YAML" = "1" ] &&
 check "a workflow that is not valid YAML is reported as broken, not as parity" '
 import pathlib, tempfile
 d = tempfile.mkdtemp()
@@ -127,6 +142,7 @@ ok, why = m.workflow_parses(p)
 print("PASS" if ok is False and "`" in why else "%r %r" % (ok, why))
 '
 
+[ "$HAVE_YAML" = "1" ] &&
 check "a valid workflow parses, and says so" '
 import pathlib, tempfile
 d = tempfile.mkdtemp()
@@ -179,5 +195,5 @@ else
 fi
 
 echo
-echo "  $pass passed, $fail failed"
+echo "  $pass passed, $fail failed, $skip skipped"
 [ "$fail" -eq 0 ] || exit 1
