@@ -42,7 +42,7 @@ been wrong once.
 | **D-1** | ~~`form_formRoute` / `subnet` reaches `system()` in **all three** builds~~ | `BoaGate` R2 — **and the tool was wrong** | yes — PROGRESS open #6 | ❌ **withdrawn 2026-08-17** | Two independent reasons, and the order they arrived in matters. **Prior art, found before the test:** Cisco Talos TALOS-2023-1894 / CVE-2023-41251 reports this exact parameter in the same Realtek rtl819x SDK family as a 100-byte `sprintf` stack overflow with **no `system()` anywhere** — published 2023, and a search by *handler* found it on the first page where a search by *product* had returned nothing. **Then the measurement:** `P3-2` fired on the device produced zero command execution, while `localPin` on `formWsc` produced four ICMP echo requests through the same oracle. `BoaGate` R2 mis-classified an `sprintf` site as a `system()` site, and that rule feeds conclusions about all three builds |
 | **D-2** | ~~Omitting `submit-url` makes the handler copy into a read-only literal — a one-request unauthenticated crash~~ | W04, measured on V2.1.2 | yes — README G3 notes | ❌ **does not reproduce on this build, 2026-08-17** | Register `P4-1`, and this row's own text said what to do: *"if it does not reproduce on this build it is a V2.1.2 finding and nothing more."* It does not. A POST body omitting `submit-url` returns 200 on `formNtp` and `formWlanSetup` and the server survives. `P4-3` went further and refuted the mechanism with a **positive** witness: `formNtp` echoes `submit-url` into its `Location` header, and 800 bytes come back as 799 `A`s with no truncation at 100 — so the value provably reaches the code that consumes it and nothing happens. This build does not use the `lastUrl[100]` idiom W04 measured in 2015 |
 | **D-3** | The authorisation gate's exemption comparison is an unanchored substring test, so an exempt string placed anywhere in a path may satisfy it | [`auth-flow-2018.md`](../notes/auth-flow-2018.md), instruction level | yes — the mechanism is described | **held** | Register `P2-2`. The 2020 build has the same shape, which is why this one matters beyond this unit |
-| **D-4** | An empty stored administrator password skips the credential comparison entirely, **and an unauthenticated request can set it empty** | measured on the device 2026-08-17; the branch at `0x0040bd18` read at instruction level in W04-2 | no — and this is the one entry that must stay that way for now | **held** | Register `P10-4` **and `P10-3`**, and the pair is the finding. This row used to say *"reachability matters more than the branch: if no unauthenticated path can set it empty, this is a curiosity"*. **There is such a path and it needs nothing.** `formPasswordSetup` carries `Cusername`/`Cpassword` fields for the current credentials and the handler does not check them, so an unauthenticated POST that does not know the current password changes it. Set it empty and `password.htm` returns 200 and 5,322 bytes of real HTML with no `Authorization` header at all — and a **wrong** password is also accepted, so the comparison is skipped rather than matched. Next step is the per-handler prior-art search, not a report: the search that found Talos for D-1 has not been run for this handler |
+| **D-4** | An empty stored administrator password skips the credential comparison entirely, **and an unauthenticated request can set it empty** | measured on the device 2026-08-17; the branch at `0x0040bd18` read at instruction level in W04-2 | **yes, and that is a defect** — `runsheet.md` `A3.11.2` carries the complete request. This column said `no` until 2026-08-18 | **held** | Register `P10-4` **and `P10-3`**, and the pair is the finding. This row used to say *"reachability matters more than the branch: if no unauthenticated path can set it empty, this is a curiosity"*. **There is such a path and it needs nothing.** `formPasswordSetup` carries `Cusername`/`Cpassword` fields for the current credentials and the handler does not check them, so an unauthenticated POST that does not know the current password changes it. Set it empty and `password.htm` returns 200 and 5,322 bytes of real HTML with no `Authorization` header at all — and a **wrong** password is also accepted, so the comparison is skipped rather than matched. Next step is the per-handler prior-art search, not a report: the search that found Talos for D-1 has not been run for this handler |
 | **D-5** | Two published advisories name endpoints that exist in no dispatch table (`formWlwds`, `fromStaticDHCP`) | three `root_form[]` recoveries | yes — [`cve-status.md`](../notes/cve-status.md) | **publishable now** | Not a vulnerability: a correction to a public record. It goes to the CNA/MITRE, not to TWCERT/CC, and nothing is embargoed |
 | **D-6** | CVE-2024-51228 is scored `PR:H`; it requires no credentials at all | **demonstrated on the device 2026-08-17** — [`poc/02-command-injection.md`](../poc/02-command-injection.md) | yes | ✅ **publishable now, and published** | `P3-3` fired: a POST carrying no `Authorization` header made the router send ICMP echo **requests** to the bench host, and returned `cat /etc/version` through the document root. **And the same request WITH valid credentials behaves identically**, which is what rules out "something else was carried in" — an unauthenticated success on its own does not. If `PR:N` is right the base score is **8.8 HIGH** rather than 6.8 MEDIUM. The vulnerability itself has been public since 2024-11-27, so nothing is embargoed and the reproduction ships in `poc/`. This is a correction to a public record and it goes to the CNA, not to TWCERT/CC |
 | **D-7** | `wan_disconnect` invokes a DNS-spoofing helper that is present in this rootfs | [`n150rt-unit-2018.json`](../reports/n150rt-unit-2018.json) | yes — `notes/` | **not a finding yet** | Register `P6-10`. Currently a behaviour nobody has looked at, not a defect |
@@ -80,6 +80,42 @@ noting because the whole table above was produced by looking at what can be sent
 to — a question the project had listed as unexamined since W04-2 and never
 asked. Three rows of `D-8` were opened on the same principle and one of the three
 paid.
+
+### A governance defect, found 2026-08-18 by writing the next bench step
+
+**This file's own rule and this repository's practice have disagreed since
+`A3.11.2` was written, and nothing would have caught it.**
+
+The rule at the top of this file says a **reproduction** — *"a procedure that
+produces the effect, with a request that can be copied"* — is published **only
+once the issue is public**. `D-4` is not public. `runsheet.md` `A3.11.2` carries
+the complete `curl` that performs it, and this file's `already stated publicly
+here` column for `D-4` said `no`.
+
+Both statements were in the repository at the same time and only one could be
+true. The column is corrected above.
+
+**Why no check found it.** `tools/check-runsheet.py` reads `runsheet.md` and
+`RUNBOOK.md` and verifies that every command is real and every cross-reference
+resolves. It does not read this file. `tools/rtcase.py` reads the register. **No
+tool reads `docs/disclosure.md` at all**, so a claim in it can contradict a
+command in the runsheet indefinitely.
+
+That is the same shape as instrument bug 22 — *"a checker's blind spot held the
+bug it was written for"* — and as bug 28, a refuted claim surviving in a place no
+checker reads. This one is worse than either, because what it governs is what
+gets published about an unreported defect in shipping firmware.
+
+**Decided, and applied from here on:** the reasoning, the addresses, the expected
+result and the controls go in `runsheet.md`, which is what makes a step
+executable and checkable. **The sendable request goes to a gitignored path**, and
+the runsheet points at it. `D-15`'s bench step is written that way and is the
+first one that is.
+
+**Not decided:** whether `A3.11.2` should be redacted retroactively. `P10-3` and
+`P10-4` were run from it and recorded, so removing it now would leave two results
+whose procedure is not in the repository — which is its own kind of dishonesty.
+Left as the author's call, and left visible rather than quietly fixed.
 
 ## Not original, and worth saying so
 
