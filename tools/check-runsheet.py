@@ -125,6 +125,11 @@ OWN_TOOLS = {
     # step a stranger is expected to follow front to back.
     "tools/device-liveness.py", "tools/cve-endpoints.py", "tools/rogue-dhcp.py",
     "tools/mipsref.py",
+    # Added 2026-08-19 with A3.15. Its `--arg-file` flag exists because the
+    # alternative -- a payload on the command line -- was expanded by the local
+    # shell and destroyed a test, so a runsheet that still shows the old form
+    # would cost another power cycle rather than a puzzled minute.
+    "tools/upnp-soap.py",
 }
 
 

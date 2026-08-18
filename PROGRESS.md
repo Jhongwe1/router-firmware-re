@@ -4910,3 +4910,180 @@ the fifth divergence stayed invisible.
 | New instruments | `libbase.py`, `check-ci-parity.py` |
 | Guard cases | +27 (libbase), +13 (parity) |
 | Found, not on any list | six files dating a port state; the fifth CI divergence |
+
+---
+
+## W07 close, the bench half — the desk computation was right, and the row it was right about was not the interesting one — 2026-08-19
+
+**Four boots, three rows upgraded off `na`, two open items closed, and one
+finding nobody was looking for.** The register stays **58 / 58**; what changed is
+the *quality* of four rows and the amount of the desk work that survived contact.
+
+### `P5-2`: everything computed at the desk, confirmed to the byte by the device
+
+`telnetd` was started through the `formSysCmd` injection and `/proc/<pid>/maps`
+read directly, four boots after the fault messages the desk work used:
+
+| claimed this morning | how | measured tonight |
+|---|---|---|
+| `libuClibc` in `boa` at `0x2aae3000` | one kernel fault message | **`0x2aae3000`** |
+| `libuClibc` in `wscd` at `0x2aabe000` | **predicted** from `libapmib.so`'s program headers | **`0x2aabe000`** |
+| `libapmib.so` span `0x25000` | its own `PT_LOAD`s | `2aabe000 → 2aae3000` |
+| `libuClibc` span `0x46000` | its own `PT_LOAD`s | `2aae3000 → 2ab29000` |
+| `TASK_UNMAPPED_BASE` `0x2aaa8000` | derived, then **withdrawn** for disagreeing with the MIPS formula | `ld-uClibc` mapped there in both processes |
+
+`P5-2` goes `partial` → **`confirmed`**, and by the register's own literal
+refutation condition rather than the stronger one the note argued for: two boots,
+same base, refutation did not fire. `system` is at `0x2ab08460`.
+
+**And the sysctl says the opposite.** `/proc/sys/kernel/randomize_va_space` reads
+**2** — full randomisation — while the layout is fully determined by the ELF
+files across two processes and four boots. Linux 2.6.30.9 on MIPS does not act on
+that flag. **Reading it and stopping would have closed this row as refuted
+without one address being looked at**, which is the general lesson: a hardening
+flag is a claim by a source, and a source is not a measurement. It is now
+`notes/bughunt.md` row 24.
+
+### `P6-1`: not CVE-2014-8361, and the thing that made that legible was a control
+
+The prediction's literal words are **confirmed**: the SOAP value is concatenated
+into an `iptables` command with no validation whatever. A `NewInternalClient` of
+twenty-two `A` characters produces, in the device's own NAT table,
+`DNAT … to:255.255.255.255:83` — `inet_addr()` returning `INADDR_NONE` and the
+value being used regardless.
+
+**Command execution did not happen.** The ICMP oracle stayed silent across two
+injection attempts, and it was proved good on the same boot minutes earlier by an
+independent route: a `formSysCmd` injection made the device send four echo
+requests and the pcap has them. What happens instead is that **`/bin/miniigd`
+terminates** — `ps` over telnet two minutes later shows no such process, which is
+a *different* failure from `P6-3`'s `wscd`, where the process survived with its
+listener closed. Telling those two apart is why `ps` was run rather than another
+connection attempt; from outside they are the same `connection refused`.
+
+**The control is what makes any of this a result.** The obvious reading after the
+first shot was "the backtick crashes it". Twenty-two `A` characters — no
+metacharacter anywhere — kill it identically, and `NewInternalClient=10.1.1.1` is
+answered `200` with the daemon surviving a subsequent read. Three points: a valid
+IP lives, a metacharacter value dies, a plain non-IP value dies. **Any two of
+them would have supported the wrong conclusion.**
+
+New row `D-19`, and it is **not reported and not reportable**: no prior-art search
+has been run, and the mechanism is unmeasured — the unbounded `strcpy` at
+`0x0044851c` is on the path and a 22-byte value is a poor fit for it.
+
+### `P8-7`: no source check, and the other half is still open for a stated reason
+
+`AddPortMapping` from `10.1.1.100` naming `10.1.1.1` as the internal client is
+accepted `200` and reads back **unchanged**, `NewLeaseDuration=0` included. The
+register's first refutation branch — the version rewrites it to the request
+source — did not fire.
+
+The second branch is the live one and it did **not** get a clean answer: the
+`MINIUPNPD` chain shows `(0 references)` and `ip_forward` is `0`, **but the WAN
+cable was not connected**. A router with no WAN not forwarding is not evidence
+about a router with one. Recorded `partial` for exactly that, rather than
+claiming the stronger reading that was available.
+
+### `P6-5`: the flag is back, the helper is absent, the packet was not sent
+
+`ALG_SIP_ENABLED` reads `1` after the reset, so the 2026-08-18 blocker is gone.
+`/proc/net/nf_conntrack_expect` is empty, `/proc/sys/net/netfilter/` holds only
+the generic, icmp, tcp and udp knobs with **no SIP entry**, and `/proc/modules`
+does not exist — this kernel has no loadable modules, so a helper is compiled in
+or absent, and nothing named SIP is compiled in. That is stronger than the
+previous reading, which rested on the flag being `0`. It is still not an answer:
+the vector is one UDP packet to 5060 **from the WAN**, there was one cable and it
+was in a LAN port, and the register's refutation could not have fired. `partial`.
+
+### Open items 76 and 80, both closed by one station-2 dump
+
+- **76 — is `COMPDS` repaired?** **Yes, and the prediction written before the
+  cable was wrong.** `flash default-sw` rewrote **both** regions from hard code:
+  `COMPDS` payload `sha 8d84f2c7…` and `COMPCS` payload `sha e09cbf84…`, each
+  byte-identical to the 2026-08-16 read. The IoC precheck reads **4 / 343** with
+  the same four field names it had before 2026-08-17. **`P0-5`'s baseline, which
+  this project destroyed with its own unauthenticated POST round, was restored by
+  the vendor's reset button.** The prediction said 20 / 343 on the reasoning that
+  `default-sw` writes only the live region; that reasoning was wrong and the
+  refutation condition was written to catch it.
+- **80 — two reads of `COMPCS` disagreed.** Closed, and the answer is neither of
+  the two options the item offered. Post-reset, `/config.dat` (7,490 bytes) is
+  byte-identical to `flash[0:7490]`. Pre-reset, on 2026-08-18, **7,009 of 7,510
+  bytes differed and the divergence starts at `+0xb`** — inside the `comp_len`
+  field itself. So the boot does not rewrite the region: **`/config.dat` is not
+  served from the flash blob at all**, and the two agree only when flash and the
+  live MIB agree. `A3.6`'s headline chain holds where it was measured and is not
+  the general statement it reads as.
+- **`P9-9`'s own NOT-done item** is closed too: `H601` at `0x006000`, 8,192 bytes,
+  **byte-identical** to the 2026-08-16 read. `P9-9` had only `flash allhw`'s
+  decoded values, which is a second source; this is the authoritative one.
+
+### Instrument work
+
+| | |
+|---|---|
+| `tools/upnp-soap.py` | new. Reads the control URL out of the device's description document rather than typing it, refuses an action it does not know, and separates a benign run from an injection by flag rather than by string |
+| `--arg-file` | added **during** the session, because the first `P6-1` attempt was destroyed by the local shell expanding a backtick payload: 431 bytes of a local `ping`'s stdout went out instead of 25. Same defect the `P9-9` result note records, one day later and one tool over |
+| `tools/test-upnp-soap.sh` | 14 cases against a local server, including that `--arg-file` reads bytes verbatim and refuses without `--inject` |
+| `runsheet.md` `A3.15` | rewritten from prose to the commands that were actually run, with the cost model corrected: the unit of this section is a power cycle, not a request |
+
+### Corrections to the plan
+
+- **The pre-cable prediction for open item 76 was wrong**, and it is left in
+  `BENCH-LOG.md` as written with the refutation firing against it. The reasoning
+  that failed is named: `/bin/flash`'s usage text separates `default` from
+  `reset`, and "write all flash parameters from hard code" was read as scoping to
+  the live region. `-sw` is wider than that.
+- **`A3.15` said "delete the mapping in the same section" and that was not
+  possible.** A dead daemon cannot be sent `DeletePortMapping`. Both mappings were
+  removed by power cycles, and the record card says so rather than claiming the
+  clean version.
+
+### Deliberately not done
+
+- **The WAN phase.** `P6-5`'s vector and `P8-7`'s second half both need the cable
+  in the WAN port, and the session stopped at 03:00 with the predictions written
+  down instead. That is a W08 item and it is one trip, not two.
+- **Bisecting what kills `miniigd`.** Each attempt costs a power cycle. Three
+  points were enough to refute "it is the metacharacter"; a fourth would need a
+  prediction written first, and it was not.
+- **The prior-art search for `D-19`.** Not started, so the item is not reportable.
+
+### Open, carried forward
+
+66, 67, 69, 70, 71, 74, 75, 77, 78, 81, 82, 84 — unchanged.
+
+- **76, 80 — closed.** See above.
+- **79 — `A UART adapter on the header stops this board booting`.** *Not closed,
+  and one clean boot does not close it.* The only thing done differently was
+  reseating the three jumpers, GND especially, which is what `A2.2`'s hypothesis
+  names. One success supports it and cannot prove it.
+- **83 — `P5-2` rests on one boot.** **Closed.** Four boots, same base.
+- 85. **Why does `miniigd` die?** The unbounded `strcpy` at `0x0044851c` is on the
+  path and a 22-byte value is a poor fit for it, so the mechanism is unknown.
+  Each hypothesis costs a power cycle to test, so the next attempt needs its
+  prediction written first.
+- 86. **`randomize_va_space` reads 2 and nothing is randomised.** Measured, not
+  explained. Reading this kernel's `arch_pick_mmap_layout` would turn an
+  observation into an explanation, and it needs no device.
+- 87. **`/config.dat` is not the flash blob.** Which code path serves it is
+  unread, and `A3.6`'s chain is described in this repository as one of its
+  strongest. It holds where measured; the general form does not.
+- 88. **`MINIUPNPD` has `(0 references)` with no WAN.** Whether a WAN lease
+  installs the jump from `PREROUTING` is untested, and `P8-7`'s severity depends
+  entirely on it.
+
+### Where W07 stands
+
+**Register: 58 / 58. Closed. DoD 5 of 6** — the six-build differential harness was
+never built, and `notes/bughunt.md` has said so with its reason since 2026-08-18.
+
+| | |
+|---|---|
+| Upgraded this session | `P5-2` → `confirmed`; `P6-1`, `P8-7`, `P6-5` off `na` |
+| Open items closed | 76, 80, 83, and `P9-9`'s own NOT-done `H601` comparison |
+| Open items opened | 85, 86, 87, 88 |
+| New instruments | `upnp-soap.py` + 14 guard cases |
+| `notes/bughunt.md` | 22 → **24** rows |
+| Disclosure register | `D-19` added, **unsearched and unreported** |

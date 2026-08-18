@@ -3,17 +3,22 @@
 **Answer first.** On the unit running
 `TOTOLINK-CX-N150RT-V2.1.6-B20171121.1002`, `libuClibc-0.9.30.3.so` is mapped at
 **`0x2aae3000`** in `boa` and at **`0x2aabe000`** in `wscd`, and `system` is
-therefore at **`0x2ab08460`** in `boa` (`st_value` `0x25460`). Nothing was
-leaked and nothing new was sent to the device to get those numbers: they come
-out of two kernel fault messages already sitting in `BENCH-LOG.md`, recorded on
-2026-08-18 for `P6-2` and `P5-6`, plus the ELF files.
+therefore at **`0x2ab08460`** in `boa` (`st_value` `0x25460`).
+
+**Those numbers were computed before they were measured, and that ordering is
+the point.** §1–§4 derive them from two kernel fault messages already sitting in
+`BENCH-LOG.md` — recorded on 2026-08-18 for other rows — plus the ELF files, with
+nothing sent to the device. §5 is the device printing its own `/proc/<pid>/maps`
+four boots later and agreeing to the byte, including on a base that was
+*predicted* rather than observed.
 
 | | |
 |---|---|
-| register row | `P5-2` — **partial**, and §5 says why not confirmed |
+| register row | `P5-2` — **confirmed** 2026-08-19; `partial` until the maps read, and §5 says why |
 | instrument | [`tools/libbase.py`](../tools/libbase.py), 27 guard cases in [`tools/test-libbase.sh`](../tools/test-libbase.sh) |
 | report | [`reports/libbase-unit-2018.json`](../reports/libbase-unit-2018.json) |
-| inputs | `BENCH-LOG.md` `T-50` (wscd) and `T-60` (boa), both station 3 boot 2 (cycle 3), 2026-08-18 |
+| desk inputs | `BENCH-LOG.md` `T-50` (wscd) and `T-60` (boa), both station 3 boot 2 (cycle 3), 2026-08-18 |
+| device check | `BENCH-LOG.md` `T-83`, 2026-08-19, `/proc/350/maps` and `/proc/217/maps` |
 
 ---
 
@@ -134,28 +139,63 @@ predicted base names `free()` — which, with `malloc()` one page away, is where
 wild read in a heap allocator happens. The other five would each need a story
 and none was offered.
 
-## 5. What this does and does not settle about ASLR
+## 5. Confirmed on the silicon, on a different boot, by the kernel itself
 
-**It settles the axis the register did not ask about, and that is the useful
-one.** Randomisation on Linux is applied per `execve`, in `load_elf_binary`, not
-per boot. Two independent `execve`s here produced a layout **fully determined by
-the ELF files**: one measured base, one predicted from a program header, and the
-prediction landed. With `randomize_va_space` non-zero the difference between the
-two would be an arbitrary number of pages, not exactly `libapmib`'s span.
+Everything above was written from two console lines and the ELF files, and
+recorded `partial` because both lines came from one boot. **On 2026-08-19, four
+boots later, the device printed its own answer.** `telnetd` was started through
+the `formSysCmd` injection and `/proc/<pid>/maps` read directly:
 
-**It does not settle the register's literal refutation.** `P5-2` says "the libc
-base differs across two reboots"; both fault messages come from **one** boot —
-station 3, boot 2 (cycle 3), 20:35 and 23:4x on 2026-08-18. Scoring a refutation
-condition that could not have fired is what `A3.24` was caught doing on
-2026-08-19, comparing erased flash against erased flash on the one question its
-row existed to answer. So the row is **partial**, and one crash fired after the
-2026-08-19 reset with the console attached closes it in a single observation.
+```
+boa, PID 350
+  2aaa8000-2aaad000 r-xp  /lib/ld-uClibc-0.9.30.3.so
+  2aabe000-2aac9000 r-xp  /lib/libapmib.so
+  2aad9000-2aae3000 rw-p  /lib/libapmib.so
+  2aae3000-2ab15000 r-xp  /lib/libuClibc-0.9.30.3.so     <-- computed 0x2aae3000
+  2ab29000-2ab3c000 r-xp  /lib/libgcc_s.so.1
 
-**Nothing has been jumped to.** `system`'s address is computed, not reached.
-`a0` would have to point at a command string, and `P5-1`'s `localPin` frame has
-not been shown to allow that. That is a different row.
+wscd, PID 217
+  2aaa8000-2aaad000 r-xp  /lib/ld-uClibc-0.9.30.3.so
+  2aabe000-2aaf0000 r-xp  /lib/libuClibc-0.9.30.3.so     <-- predicted 0x2aabe000
+```
 
-## 6. How the first version of this was wrong — three times
+| claimed at the desk | how | measured on the device |
+|---|---|---|
+| `libuClibc` in `boa` at `0x2aae3000` | from one kernel fault message | **`0x2aae3000`** |
+| `libuClibc` in `wscd` at `0x2aabe000` | *predicted* from `libapmib.so`'s program headers | **`0x2aabe000`** |
+| `libapmib.so` span `0x25000` | its own `PT_LOAD`s | `2aabe000 → 2aae3000` = **`0x25000`** |
+| `libuClibc` span `0x46000` | its own `PT_LOAD`s | `2aae3000 → 2ab29000` = **`0x46000`** |
+| `system` at `0x2ab08460` | `st_value 0x25460` + base | follows, and no longer boot-specific |
+
+**And the number §6 withdrew is measured too.** `TASK_UNMAPPED_BASE` came out
+`0x2aaa8000` from both processes' arithmetic and was kept out of the report
+because the MIPS formula `(TASK_SIZE / 3) & ~(PAGE_SIZE − 1)` says `0x2aaaa000`.
+`ld-uClibc` is mapped at `0x2aaa8000` in both processes. **Withdrawing it was
+right and it is now evidence rather than tidiness** — the formula is what does
+not describe this kernel, which is a separate question and still open.
+
+### The contradiction that is worth more than the address
+
+```
+# cat /proc/sys/kernel/randomize_va_space
+2
+```
+
+**Two is full randomisation** — mmap, stack, brk. And the layout above is fully
+determined by the ELF files, across two processes and at least four boots.
+
+The sysctl lives in generic kernel code and is writable on any Linux; whether an
+architecture *acts* on it is the architecture's business. Linux 2.6.30.9 on MIPS
+does not: `arch_pick_mmap_layout` with randomisation arrived on MIPS later, and
+this kernel allocates bottom-up from a fixed `TASK_UNMAPPED_BASE`. **So the flag
+advertises a mitigation the kernel does not apply.**
+
+That is the practical lesson, and it is not about this router: **a hardening
+flag is a claim by a source, and a source is not a measurement.** Reading
+`randomize_va_space` and stopping there would have closed `P5-2` as refuted
+without a single address being looked at.
+
+## 6. How the first version of this was wrong — three times, and one of them was un-wrong
 
 **It computed the base off by four and nearly filed it as noise.** The first
 arithmetic assumed the device's `epc` named the same instruction qemu's `pc`
@@ -170,11 +210,13 @@ address in both" is wrong, and the naive test it implies would have come back
 `0x2aae3000 ≠ 0x2aabe000` and read as *evidence of randomisation*. The
 libraries differ, so the layouts differ; what is invariant is the *allocation
 rule*, not the address. The test had to be rebuilt around a difference that is
-computable from the files.
+computable from the files — and the maps above show the rule directly.
 
-**It claimed `TASK_UNMAPPED_BASE` and then withdrew it.** Working backwards
-through `ld-uClibc`'s span gives `0x2aaa8000` from both processes, which is
-tidy — and the MIPS formula `(TASK_SIZE / 3) & ~(PAGE_SIZE − 1)` gives
-`0x2aaaa000`, which is not it. Two pages unaccounted for, and no reading of this
-kernel to settle them. So the absolute base stays *measured*, only the
-*difference* is claimed as predicted, and the tidy number is not in the report.
+**It claimed `TASK_UNMAPPED_BASE` and then withdrew it — and the withdrawal was
+correct on the evidence available.** Working backwards through `ld-uClibc`'s
+span gave `0x2aaa8000` from both processes, which is tidy, and the MIPS formula
+gives `0x2aaaa000`. Two pages unaccounted for and no reading of this kernel to
+settle them, so the tidy number stayed out of the report. **The device then
+printed it.** The right conclusion is not "I should have claimed it" — it is
+that the reason for withholding was the right shape, and what the maps changed
+is the evidence, not the standard.

@@ -25,7 +25,8 @@ UNIT_DUMP  := $(FWRE_WORK)/dumps/flash-n150rt-console-1.bin
 .PHONY: help setup verify fetch unpack venv test lint recon recon-unit diff check-reports \
         rtcase rtcase-test todo ledger check-ledger shellcheck ci clean-work qemu-env qemu-test probe-test \
         loader-test loader-report doctor check-runsheet runsheet-test \
-        dump-test flash-tools-test photo-test write-test failopen-test alignfix-test check-benchlog benchlog-test config-diff-test count-checks liveness liveness-test dhcp-test mipsref-reports
+        dump-test flash-tools-test photo-test write-test failopen-test alignfix-test check-benchlog benchlog-test config-diff-test count-checks liveness liveness-test dhcp-test mipsref-reports \
+        libbase-test libbase-report check-ci-parity ci-parity-test upnp-soap-test
 
 help: ## Show this help
 	@grep -hE '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) \
@@ -260,6 +261,13 @@ check-ci-parity: ## `make ci` and the GitHub workflow run the same tools/ script
 ci-parity-test: ## Prove the parity checker can fail (needs no device)
 	bash tools/test-check-ci-parity.sh
 
+# Every wrong request to this daemon costs a power cycle: on 2026-08-19 it took
+# three. The refusal that matters is `--arg-file`, because the first P6-1 attempt
+# was destroyed by the LOCAL shell expanding a backtick payload before the tool
+# ever saw it -- 431 bytes went out instead of 25.
+upnp-soap-test: ## Prove the SOAP client's refusals (14 cases, local server only)
+	bash tools/test-upnp-soap.sh
+
 libbase-report: ## Solve uClibc's load base from the two recorded faults (needs the rootfs)
 	@test -f "$(EX)/unit-2018/squashfs-root/lib/libuClibc-0.9.30.3.so" || \
 	  { echo "no extracted rootfs - run tools/unpack-firmware.sh"; exit 2; }
@@ -295,7 +303,7 @@ loader-report: ## Unpack the boot loader's LZMA stage 2 (needs the flash dump)
 # `rtcase-test` is in here and not optional. It is the only thing proving the
 # register gate can fail; without it `make rtcase` going green means nothing,
 # which is the exact shape of instrument bug 12.
-ci: lint test shellcheck check-reports check-runsheet check-benchlog benchlog-test rtcase rtcase-test check-ledger check-ci-parity ci-parity-test qemu-test probe-test loader-test runsheet-test dump-test flash-tools-test photo-test write-test failopen-test alignfix-test config-diff-test liveness-test dhcp-test libbase-test ## Everything CI checks, except the container build
+ci: lint test shellcheck check-reports check-runsheet check-benchlog benchlog-test rtcase rtcase-test check-ledger check-ci-parity ci-parity-test qemu-test probe-test loader-test runsheet-test dump-test flash-tools-test photo-test write-test failopen-test alignfix-test config-diff-test liveness-test dhcp-test libbase-test upnp-soap-test ## Everything CI checks, except the container build
 	@echo "  ok   local CI equivalents passed (container build not included)"
 
 diff: venv ## Diff the two builds

@@ -216,6 +216,11 @@ jobs:
       - name: libbase — the page-alignment filter, and every refusal under it
         run: bash tools/test-libbase.sh
 
+      # Added with the tool, 2026-08-19, and in both files at once because the
+      # step below now checks that.
+      - name: upnp-soap — the control URL it will not guess, and the shell it will not use
+        run: bash tools/test-upnp-soap.sh
+
       # This is the step that stops the block above from being needed again. It
       # compares which tools/ scripts `make ci` runs against which ones this file
       # runs, in both directions; a one-sided entry has to be recorded as a

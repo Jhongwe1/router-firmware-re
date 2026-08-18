@@ -853,3 +853,78 @@ indistinguishable from one that was checked.
   divergence got a checker because comparing two lists is mechanical. "Every
   present-tense claim about device state cites a test id and a date" is not, at
   least not without a false-positive surface larger than the problem.
+
+## W07, the closing bench — 2026-08-19
+
+**One line:** the arithmetic done at the desk that morning was confirmed to the
+byte by the device that night, and the two things worth more than the arithmetic
+were both controls — one that made a hardening flag stop being evidence, and one
+that stopped a crash being called an injection.
+
+**1. A predicted address, never observed, printed by the kernel four boots later.**
+The morning's desk work put `libuClibc` at `0x2aae3000` in `boa` from a kernel
+fault message, and *predicted* `0x2aabe000` in `wscd` purely from
+`libapmib.so`'s program headers — the one library the two processes do not share.
+`/proc/350/maps` and `/proc/217/maps`, read over a telnet shell opened through
+the `formSysCmd` injection: `2aae3000` and `2aabe000`, with `libapmib.so`
+occupying exactly `2aabe000 → 2aae3000`. `TASK_UNMAPPED_BASE` came out
+`0x2aaa8000`, the number the note had derived and then **deliberately withdrawn**
+for disagreeing with the MIPS formula.
+*Evidence:* `notes/mips-ret2libc.md` §5; `BENCH-LOG.md` `T-83`;
+`reports/libbase-unit-2018.json`.
+*What it demonstrates:* the difference between a computation that agrees with its
+input and one that predicts an independent measurement. Only the second kind
+survives a hostile reader, and the only way to have it is to write the number
+down before looking.
+
+**2. A hardening flag that claims a mitigation the kernel does not apply.**
+`/proc/sys/kernel/randomize_va_space` reads **2** — full ASLR — on a device whose
+library layout is fully determined by its ELF files across two processes and four
+boots. The sysctl is generic kernel code; Linux 2.6.30.9 on MIPS does not act on
+it.
+*Evidence:* `BENCH-LOG.md` `T-83`; `notes/bughunt.md` row 24.
+*What it demonstrates:* **a source is not a measurement.** Reading the flag and
+stopping would have closed `P5-2` as refuted without a single address being
+looked at, and the write-up would have said "ASLR is on" with a citation.
+
+**3. A control that stopped a crash being reported as command execution.**
+Two `AddPortMapping` requests with backtick payloads killed `/bin/miniigd`, and
+the natural reading was CVE-2014-8361 crashing rather than executing. The control
+refutes it: **twenty-two `A` characters, no shell metacharacter anywhere**, kill
+it identically, while `NewInternalClient=10.1.1.1` is answered `200` and the
+daemon survives a subsequent read. So the trigger is any value `inet_addr()`
+rejects — which is visible in the device's own NAT table as
+`DNAT … to:255.255.255.255`, `INADDR_NONE` used as an address. `ps` over telnet
+two minutes later shows **no `miniigd` process**, which is a different failure
+from `P6-3`'s `wscd` surviving with its listener closed; from outside both are
+`connection refused`.
+*Evidence:* `BENCH-LOG.md` `T-82`, `T-83`; `docs/disclosure.md` `D-19`;
+`notes/three-unread-binaries.md` §2.
+*What it demonstrates:* three points define the line and any two of them support
+the wrong conclusion. The cost of the third point was one power cycle; the cost
+of skipping it would have been a disclosure report naming the wrong CVE.
+
+### What this session did not prove
+
+- **`P8-7`'s second half.** The `MINIUPNPD` chain shows `(0 references)` and
+  `ip_forward` is `0`, and **the WAN cable was not connected** — a router with no
+  WAN not forwarding says nothing about a router with one. That reading was
+  available and stronger and was not taken.
+- **`P6-5` was not delivered.** The flag is back to `1` and no SIP helper exists
+  anywhere in `/proc/sys/net/netfilter/`, on a kernel with no loadable modules —
+  stronger evidence than 2026-08-18's, and still not an answer, because the
+  vector is a WAN-side UDP packet and there was one cable.
+- **Why `miniigd` dies is unknown.** The unbounded `strcpy` at `0x0044851c` is on
+  the path and a 22-byte value is a poor fit for it. Each hypothesis costs a
+  power cycle, so the next attempt needs its prediction written first.
+- **Open item 79 is not closed by one clean boot.** The board came up with the
+  CP2102 attached after the jumpers were reseated, which is what `A2.2`'s
+  hypothesis names — one success supports it and cannot prove it, and the failure
+  mode last time appeared *between* successful boots.
+- **`D-19` has had no prior-art search**, so it is not reportable and has not
+  been reported. "Nobody published it" is a claim that needs a search behind it.
+- **And the prediction written before the cable was simply wrong.** Open item 76
+  was predicted at 20 / 343; the IoC precheck read 4 / 343, `flash default-sw`
+  having rewritten both regions. It is left in `BENCH-LOG.md` as written, with the
+  refutation firing against it, because a register whose predictions are edited
+  after the fact is a register that predicts nothing.
