@@ -1757,3 +1757,766 @@ Day 5 第二節那張表裡的這一列：
 
 規則已經改在流程上：`docs/disclosure.md` 多了第 0 步 —— 寫發現之前先開
 `notes/prior-art.md`，再開 `cve-status.md`，最後才是外部來源。
+
+# 2026-08-18（二）W07 進站場次 —— 計畫，寫在插電之前
+
+**這一則寫在裝置上電之前，而且它改掉了 `runsheet.md` Part B `B-W07 增補` 的進站
+順序。** 改的理由是一次對帳，不是一個想法：把 `runsheet.md` Part A 每一節標題的
+`（關 …）` 逐節解析出來，跟 `rtcase todo --week W07` 的未結清單求交集，發現順序表
+漏掉三列，而登記簿另外把四列算成已做。
+
+## 一、今晚到底有幾列 —— 三個數字都出現過，而它們指的不是同一件事
+
+| 來源 | 數字 | 它其實在講什麼 |
+|---|---|---|
+| `make todo WEEK=W07` | **29** | 登記簿裡還是 ⬜ 的列。**含 2 列桌面**（`P4-6`、`P5-2`），**不含**只有 `emulated` 證據的那 4 列 |
+| 本檔 Day 4 第一節 | **30** | 寫下來的當時是對的 —— 那時登記簿是 28/58。Day 5 關掉 `P8-23` 之後就少一列，而那一行沒有人回頭改，本檔也不該改 |
+| 本節 | **31** | **今晚真正要動裝置的列數** |
+
+31 = 27（29 列 ⬜ 扣掉 2 列桌面）+ 4（登記簿說已做、但只有 `emulated`）。
+
+**那 4 列是 `make todo` 看不見的。** `tools/rtcase.py` 的 `week_summary()` 判斷
+`done` 的條件是 `if c["id"] in latest` —— 只問「這個 id 有沒有結果」，不問結果是
+哪一級。而同一支檔案自己的註解寫著 `EMULATED_CONFIRMED_MARK` **"it never becomes
+the tick"**。兩件事在同一個檔案裡互相矛盾，而輸出的是前者：
+
+| 列 | 現況 | 今晚哪一節在矽上重量 |
+|---|---|---|
+| `P2-9` | `confirmed` / `emulated` | `A3.13` |
+| `P8-5` | `confirmed` / `emulated` | `A3.13` |
+| `P1-7` | `partial` / `emulated` | `A3.23` |
+| `P5-6` | `partial` / `emulated` | `A3.23` |
+
+`P5-6` 自己的 note 裡有一句話把這件事講死了：**「反證條件（模擬下的崩潰在實體機上
+重現不了）只有實機能答，那是 `A3.23`」**—— 一列的反證條件明寫著只有實機能答，而它
+在封閉清單上算已結案。
+
+**今晚的處理**：這四列在 `A3.13` / `A3.23` 跑完之後用 `rtcase record` **再錄一次**，
+`--evidence dynamic`。`record` 是 append，`latest_results` 取最後一筆，ledger 會顯示
+`x2` —— 這是工具本來就設計好的路，不是繞過它。
+
+## 二、順序表漏掉的三列，以及今晚怎麼補
+
+`B-W07 增補` 的第 3 站 ⑤ 是 `A3.11` → `A3.17` → `A3.22` → `A3.20` → `A3.24`。
+
+1. **`A3.21` 不在裡面**，而它關的 `P8-17`（線上明文憑證）與 `P8-20`（`iwpriv` 私有
+   ioctl）兩列都還是 ⬜。**今晚插在 `A3.20` 之前** —— `A3.20` 的 Slowloris 打掉 `boa`
+   之後，`A3.21` 要抓的明文憑證就沒有東西可抓，順序反過來會量到一個假陰性。
+2. **第 2 站整站沒有排**，所以 `A2.4` 關的 `P9-4`（搶重開機瞬間的救援窗口）沒有位置。
+   它要板子停在 `<RealTek>`，是另一個上電狀態。**今晚開場先跑第 2 站**，多燒一次
+   上電循環換掉這一列。
+3. `P5-2`（MIPS ret2libc）**今晚仍然不做**，理由不變：誠實的問法是關於這台裝置的，
+   不是關於 `qemu-user` 的 mmap 佈局。它會留成 W07 唯一一列 ⬜。
+
+## 三、三次上電，而每一次的出站狀態都寫在這裡
+
+| 循環 | 站 | 順序 | 關掉 |
+|---|---|---|---|
+| **1** | 第 2 站 `<RealTek>` | `A2.2` catch → `A2.3` 64 KiB 快照 → `A2.4` 救援 → **拔電** | `P9-4` |
+| **2** | 第 3 站 boot 1 | `A3.1.3` 證直連 → `A3.7` → `A3.13` → **拔電** | `P2-9` `P8-5`（升級成 dynamic） |
+| **3** | 第 3 站 boot 2 | `A3.2` → `A3.14` → `A3.15` → `A3.16` → `A3.19` → `A3.18` → `A3.23` → `A3.11` → `A3.17` → `A3.22` → **`A3.21`** → `A3.20` → `A3.24` | 其餘 25 列 |
+
+**為什麼第 3 站要拆成兩次上電**：`A3.2` 的先決條件是**板子斷電**，因為它量的就是
+冷開機。`增補` 把 `A3.2` 前移到 `A3.13` 之後，那個「前移」是相對於偵察，不是相對於
+全場第一件事。`A3.1` / `A3.7` / `A3.13` 三節不寫、不斷電、便宜，先跑掉；然後拔電，
+讓 `A3.2` 拿到一次乾淨的冷開機，而 `P2-11` 的 601 秒視窗從那一刻開始算。
+
+`A2.5` / `A2.6` **今晚不跑**：它們是全檔僅有的兩節會寫 flash，而它們關的 `P0-3`
+與 `P10-10` 已經結案。今晚不需要不可逆的動作。
+
+## 四、進站前就成立的禁令，逐條抄在這裡
+
+1. **`formWsc` 是 `HAZARDOUS`，今晚不加 `--allow-destructive`。** 理由是 Day 5 的
+   syscall trace：在這一台跑的 build 上，一發帶 `localPin` 的 POST 會
+   `open("/dev/mtdblock0", O_RDWR)`、`write(…, 7495)`、`fork` 出
+   `flash write-current`。`endpoints --allow-post` 會跳過它並把跳過寫進 transcript。
+2. **`A3.13` 必須在 `A3.11` 之前。** `A3.11.2` 把管理密碼設成空字串之後，`A3.13`
+   量到的會是 `D-4` 而不是 `D-15` —— 兩個缺陷產生一模一樣的「不帶密碼就進得去」，
+   分辨它們的是錯密碼那一列，而那一列只在密碼非空時有意義。今晚的循環 2 / 循環 3
+   分開，這一條自動成立。
+3. **`P9-9` 全場最後。** reset 會把 `COMPCS` 蓋回 `COMPDS`，它抹掉的是前面每一項
+   站著的地面，包含 `P0-5` 的 4 / 343 基準。
+4. **`D-15` 與 `formWsc` 的請求本體不進 committed 檔案**，放
+   `$FWRE_WORK/disclosure/`。
+5. **每一張卡片的反證欄不可以空白** —— `tools/check-benchlog.py` 在 `make ci` 裡機械
+   執行這一條。今晚的卡片從 **`T-38`** 開始編。
+
+## 五、插電之前已經做完、而且驗過的事
+
+| 做了什麼 | 驗證 |
+|---|---|
+| `usbipd attach --wsl` 兩個裝置 | `/dev/ttyUSB0` 是 `crw-rw---- root dialout 188, 0`；`enxfc19286184c9 DOWN fc:19:28:61:84:c9` —— 與 `A2.1` 的預期輸出逐字相符 |
+| WSL VM keepalive | `wsl -d Ubuntu-24.04 -- sleep 14400` 掛著。VM 一停 USB 裝置就退回 Windows |
+| `make doctor` | 25 ok、3 not applicable、**0 to fix**。三個 n/a 全部是「網卡還沒設位址、還沒有路由」，那是 `A3.1` 的工作 |
+| 遠端 CI | `fcc036d`（main）七個 job 全 success。**但那是回頭補的綠**：PR #16 建立於 11:10:20Z、merge 於 11:10:28Z，中間 8 秒，當時 `bench tooling refuses what it claims to refuse` 與 `toolchain image builds` 兩個 job 還沒開始跑。詳見 `PROGRESS.md § Corrections` |
+
+**網卡留在 WSL 裡不是方便問題。** 它若留在 Windows 側，Windows 會從這台拿到 DHCP
+位址，測試會看起來正常而唯一的破綻是 `ttl=63` 不是 64 —— 儀器 bug 21，2026-08-17
+真的發生過。
+
+## 紀錄卡 —— 第 2 站（循環 1）
+
+```text
+T-38  P0-2   抓 bootloader（A2.2）                        2026-08-18 19:24
+可行性: ★★★★★   驗證狀態(測前): dynamic   依據: W05 T-01 已關，本場為進站前提
+送出（逐字）: python3 -u tools/console-dump.py catch --port /dev/ttyUSB0 --window 300 -v
+原始回應:
+      ok    <RealTek> - the boot loader is ours
+            ---RealTek(RTL8196E)at 2014.04.22-16:22+0800 v1.3 [16bit](400MHz)
+      ok    input buffer drained (the ESC stream leaves ESCs queued)
+      >>>   ?   -> 16 條指令完整印出，全程無亂碼
+觀測通道 1（console）: banner 與 W05 T-01 逐字相同
+觀測通道 2（上電次數）: 一次上電命中，未用到三次上限的第二次
+UART console 當下輸出: <RealTek> 提示穩定
+判定: ✅ 成立
+反證檢查: 測前寫「the board booted past the interrupt window → 板子沒有真的斷電過；
+          nothing came back at all → TX/RX 接反或 port 錯」，
+          實際看到乾淨的 <RealTek> 與完整指令表，兩個失敗字樣都沒有出現
+這一步燒掉了什麼: 一次開機循環（本場第 1 次）
+驗證狀態(測後): dynamic   下一步: A2.3
+
+T-39  P0-10  64 KiB 設定區快照（A2.3）                    2026-08-18 19:27
+可行性: ★★★★★   驗證狀態(測前): dynamic   依據: W05 T-02
+送出（逐字）: python3 -u tools/console-dump.py dump --at-prompt \
+              --flash 0x0 --length 0x10000 --ram 0x81000000 --chunk 16384 -o <snap>
+原始回應:
+      ok    control matched: 0b f0 00 04
+      ok    65536 bytes -> config-region-20260818-1927-pre.bin
+      ok    sha256  450f99361a480500f5ac7e1b7a924fd5c85c6d95395587d24f29af04b94144fd
+      ok    4 chunks, 0 needed a re-read, 1.9 min
+觀測通道 1（分區歸因，不過任何解碼器）:
+      0x00000-0x06000  boot loader                            UNCHANGED
+      0x06000-0x08000  H601 (MAC + 射頻校準)                  UNCHANGED
+      0x08000-0x0c000  COMPDS  5615 bytes 動（0x0800b..0x09d5e）
+      0x0c000-0x10000  COMPCS  5615 bytes 動（0x0c00b..0x0dd5e）
+觀測通道 2（語意層，過解碼器）: 兩區各只動 2 欄 —— SYSCMD_SELECT、WPS_FIRST
+      對照 config-region-20260817-post.bin（8/17 11:42，W05 下午收工）
+判定: ✅ 成立
+反證檢查: 測前寫「H601 動了 → 停，這台的 MAC 與射頻校準沒有任何映像可以還原；
+          或出現一筆紀錄裡沒有的欄位差異 → 走事件處理程序」，
+          實際 H601 與 loader 逐 byte 未動；兩個變動欄位在 W06 的 P0-10 結果 note 裡
+          指名寫過（"COMPCS moved in exactly two, SYSCMD_SELECT and WPS_FIRST,
+          which are the two handlers that were fired"）—— 已歸因
+這一步燒掉了什麼: 沒有。純讀（FLR + DB）
+驗證狀態(測後): dynamic   下一步: A2.3.4
+⚠️ **11,230 raw bytes = 2 個欄位。** LZSS 壓縮流前段動一個欄位，後面全部位移 ——
+   raw byte 數與欄位數不在同一個座標系，這與 P8-23（8/18 桌面）量到的是同一件事。
+   **只看 cmp 的 byte 數會把 2 個欄位讀成一場入侵。**
+
+T-40  P0-5   IoC 預檢（A2.3.4）                            2026-08-18 19:31
+可行性: ★★★★★   驗證狀態(測前): dynamic   依據: W05 T-03、W06 新基準
+送出（逐字）: bash tools/ioc-precheck.sh <snap>
+原始回應:
+      COMPCS: checksum_ok=True verdict=consistent ring_fill_agrees=True entries=344
+      COMPDS: checksum_ok=True verdict=consistent ring_fill_agrees=True entries=344
+      common entries: 343
+      differing     : 0
+判定: ✅ 成立
+反證檢查: 測前寫「差異數不等於上一場記下的數字，且無法歸因 → 資安事件，測試中止；
+          或 checksum_ok=False → 停，裝置自己也會拒絕這份 blob」，
+          實際 differing = 0，與 W06 收工記下的 0 / 343 相同；兩區 checksum_ok 皆 True
+這一步燒掉了什麼: 沒有。純讀
+驗證狀態(測後): dynamic   下一步: A2.4
+🔴 **測前我把基準寫成 4 / 343，那是錯的**（更正見本場「一、基準抄錯了」）。
+   實測 0 是對的。**如果照 4 走，這一格會被讀成資安事件而中止全場。**
+
+T-41  P9-3   救援模式 —— 陽性對照（A2.4）                  2026-08-18 19:33
+可行性: ★★★★★   驗證狀態(測前): dynamic   依據: W05
+送出（逐字）: python3 -u tools/console-dump.py rescue --at-prompt --ip 10.1.1.1 -o rescue.json
+原始回應:
+      'AUTOBURN: 0'        -> Unknown command !
+      'AUTOBURN 0'         -> AutoBurning=0
+      'IPCONFIG:10.1.1.1'  -> Unknown command !
+      'IPCONFIG 10.1.1.1'  -> Now your Target IP is 10.1.1.1
+觀測通道 1（主機端 ARP）: 10.1.1.1 dev enxfc19286184c9 lladdr 56:0a:01:01:01:e8 REACHABLE
+觀測通道 2（kernel 計數器）: rx_packets 0 -> 1
+觀測通道 3（ICMP）: 3 packets transmitted, 0 received —— **預期如此**
+判定: ✅ 成立
+反證檢查: 測前寫「ping 有回應 → 那不是 loader 在回話，是別的東西在這個位址上，停下來查」，
+          實際 0 received；成立的判據是 ip neigh REACHABLE 加 rx_packets 由 0 變 1，
+          而那兩個來源不共用程式碼
+這一步燒掉了什麼: RAM 變數 AUTOBURN 與 IPCONFIG，斷電即消。**沒有上傳任何東西**
+驗證狀態(測後): dynamic   下一步: P9-4 需要另一半——一次不敲序列埠的冷開機被動抓包
+★ 那個 lladdr 不是網卡燒錄位址：`0a 01 01 01` 就是 `10.1.1.1`，loader 從
+  IPCONFIG 給的位址合成出來。**這張卡是 P9-4 的陽性對照，不是 P9-4 本身。**
+```
+
+## 一、基準抄錯了，而它會在 `T-40` 那一格中止全場
+
+**本場「四、進站前就成立的禁令」第 3 條寫「包含 `P0-5` 的 4 / 343 基準」——
+那個數字是錯的，正確是 `0 / 343`。**
+
+`4 / 343` 是 2026-08-17 **上午**的值。當天下午的 POST 輪把 `COMPDS` 覆寫成
+`COMPCS`，那 4 筆差異當場歸零，W05 收工那一格白紙黑字寫著
+**「IoC 凍結條件 | 不再是 4 / 343,是 0 / 343」**。W06 收工再確認一次同一個數字。
+
+**同一個錯誤在本檔裡是第二次出現**：2026-08-18 早上那則「W07 進站場次的計畫」
+也寫「`P0-5` 的 IoC 基準（4/343）也歸零」。兩則都是從 `runsheet.md` `A2.3.4` 那段
+🔴 註記的**例子**抄來的，而那段註記的正文恰好在講不可以這樣做：
+「**判準是『跟上一場記下的數字相同』。看到不是 4 就當資安事件是錯的**」。
+
+> 🔴 **一份文件用一個具體數字當例子，讀的人會把例子抄成常數。**
+> 註記本身是對的，它的示範值是有毒的。`ioc-precheck.sh` 的輸出結尾已經印了
+> 正確的說法（"It is not a constant: it was 4 of 343 until 2026-08-17, and
+> 0 of 343 after"）—— **工具比文件準，因為工具的那一行是量出來之後補上去的。**
+
+**這一則用追加更正，不改上面那一格**，理由與 Day 5 補記相同。
+
+## 紀錄卡 —— 第 3 站 boot 1（循環 2）
+
+```text
+T-42  P2-7 P2-8  憑證與 session —— 兩個來源位址（A3.7）        2026-08-18 19:41
+可行性: ★★★★★   驗證狀態(測前): dynamic   依據: W05
+送出（逐字）: 三發 GET /password.htm —— 不帶憑證 / 帶真憑證 / 帶錯密碼；
+              然後同樣兩發各從 10.1.1.100 與 10.1.1.101 送；然後 50 發錯密碼再 1 發正確
+原始回應:
+      none  HTTP/1.0 302 Redirect | Location: http://10.1.1.1/login.htm |
+      good  HTTP/1.1 200 OK |
+      bad   HTTP/1.0 302 Redirect | Location: http://10.1.1.1/login.htm |
+      10.1.1.100 with 200 / without 302     10.1.1.101 with 200 / without 302
+      after 50 wrong, the 51st correct one: 200
+觀測通道 1（header 全掃）: **Set-Cookie 一行都沒有出現**
+觀測通道 2（路由表）: ip route get 10.1.1.1 -> dev enx… src 10.1.1.100，**沒有 via**
+判定: ✅ 成立
+反證檢查: 測前寫「good 那一行不是 200 → 停，不要重試：要嘛解碼器錯了，要嘛這台被改過密碼」，
+          實際 good = 200；憑證是從今晚這份 64 KiB 快照自己解出來的（USER_NAME / USER_PASSWORD
+          各 5 字元、皆非空），不是猜的
+這一步燒掉了什麼: 沒有。這個 build 沒有 session 可寫，登入不落地
+驗證狀態(測後): dynamic   下一步: A3.13
+★ 「成功登入之後，同一個位址不帶憑證仍然被擋」= 沒有 session。
+  **而這一列今晚有第二個用途**：它同時是 A3.2.4（P2-11）的前提檢查 ——
+  bad = 302 證明儲存密碼非空，所以 A3.13 與 A3.2.4 量到的不會是 D-4。
+
+T-43  P2-9  未初始化的憑證對，在矽上（A3.13.1）              2026-08-18 19:44
+可行性: ★★★★    驗證狀態(測前): emulated   依據: notes/uninit-credential-pair.md
+送出（逐字）: 六發 GET /blank.htm，請求本體照
+              $FWRE_WORK/disclosure/D-uninitialised-credential-pair.txt（repo 之外，mode 600）
+原始回應:
+      LABEL                          CODE  BYTES  SHA256-16
+      none (no header)               302   132    ada993dce7920b0a
+      real (真憑證)                  200   333    bc56c91c2cd06b83
+      wrongpw                        302   132    ada993dce7920b0a
+      bypass  (兩半都空)             200   333    bc56c91c2cd06b83
+      empty:t (帳號空、密碼非空)     302   132    ada993dce7920b0a
+      t:empty (帳號非空、密碼空)     302   132    ada993dce7920b0a
+觀測通道 1（逐 byte）: bypass 的 body 與 real 的 body cmp IDENTICAL
+觀測通道 2（有真內容的閘門頁）: /password.htm  none 302/132 -> bypass 200/**5332**
+判定: ✅ 成立
+反證檢查: 測前寫「bypass 回 302 → 那塊堆疊在裝置上不是零，D-15 降級成
+          『模擬環境與裝置不一致』，notes/uninit-credential-pair.md §3 的機制論證要改寫」，
+          實際 bypass = 200 且與真憑證逐 byte 相同
+這一步燒掉了什麼: 沒有。六個 GET，不寫、不斷電
+驗證狀態(測後): **dynamic**   下一步: A3.13.2
+🔴 **多打的那兩發是這張卡最重要的部分，而登記簿沒有要求它們。**
+   模擬那一場只打四發。四發分不出「比對被跳過」和「比對執行了而且命中一塊沒人寫過的
+   緩衝區」—— 兩者都會讓 bypass 回 200。**empty:t 與 t:empty 兩發都是 302，
+   所以比對確實執行了。** 這才是把 D-15 跟 D-4 分開的那一刀。
+⚠️ **模擬下 302 的 body 是 138 bytes，這台是 132。** 差的是 Location 的長度，
+   不是這條發現。**先量到差異再解釋它，不要因為「大致相同」就跳過。**
+
+T-44  P8-5  check_host 存在、嚴格、被執行、而且從不執行（A3.13.2）  2026-08-18 19:45
+可行性: ★★★★    驗證狀態(測前): emulated   依據: notes/host-header-and-redirect.md
+送出（逐字）: 五發 GET /login.htm，Host 分別為一般主機名、開頭連字號、連續點、
+              底線、以及完全不帶 Host；再兩發 GET /blank.htm 看轉址反射
+原始回應:
+      [evil.example] 200   [-evil.example] 200   [evil..example] 200
+      [evil_example] 200   [（不帶）]      200
+      HTTP/1.0 302 Redirect
+      Location: http://evil.example/login.htm
+      Location: http://a%22%3e%3cscript%3ex%3c/script%3eb/login.htm
+判定: ✅ 成立
+反證檢查: 測前寫「任何一個回 400 → vhost_root 在真機上不是 NULL，
+          P8-6（rebinding）的前提要重新評估」，實際五個全部 200，一個 400 都沒有
+這一步燒掉了什麼: 沒有。七個 GET
+驗證狀態(測後): **dynamic**   下一步: 拔電，進 A3.2
+★ **五個裡有三個是 check_host 會拒絕的形狀**（開頭連字號、連續點、底線），
+  而它們全部 200 —— 所以那個函式沒有被執行，不是「執行了而且放行」。
+★ **D-14 反射成立**：Host 被抄進 Location，這是 open redirect。
+  帶標記的 Host 回來時是 URL-encode 過的，**所以不是 XSS** —— 與模擬一致。
+
+T-45  P9-4  loader 在未被打斷的開機裡上不上網路（被動抓包，第 1 次） 2026-08-18 19:36
+可行性: ★★★★    驗證狀態(測前): unverified   依據: reports/bootloader-unit-2018.json
+送出（逐字）: 什麼都沒送。**序列埠全程沒有被任何程序開啟**（fuser 回 nobody），
+              tcpdump 在通電之前就架好，-U -s 0 全錄
+原始回應（pcap，955 個封包）:
+       4   5.011888  我的網卡 -> 56:0a:01:01:01:e8  ARP Who has 10.1.1.1?
+       5   6.036001  我的網卡 -> 56:0a:01:01:01:e8  ARP Who has 10.1.1.1?
+       7   7.059995  我的網卡 -> 56:0a:01:01:01:e8  ARP Who has 10.1.1.1?
+       9  10.069453  我的網卡 -> Broadcast          ARP Who has 10.1.1.1?
+      17  19.947054  <裝置 Linux MAC，per-unit，不寫入> -> 我的網卡  ARP 10.1.1.1 is at …
+      19  19.948653  10.1.1.1 -> 10.1.1.100  TCP 80 -> 37542 [RST, ACK]
+觀測通道 1（tshark 過濾）: udp.port==69 || tftp -> **0 個封包，全場**
+觀測通道 2（tshark 過濾）: 裝置為來源、t < 12s -> **0 個封包**
+判定: 🔶 部分（一次開機成立，等第二次獨立冷開機）
+反證檢查: 測前寫「隔離網段上被動錄到 loader 送 ARP 或 TFTP 請求，而全程沒有碰序列埠
+          → loader 在 Linux 之前就服務網路，這一條的嚴重度要整個上調」，
+          實際 t=19.947s 之前裝置送出零個 frame，TFTP 全場 0 個
+這一步燒掉了什麼: 沒有。純被動
+驗證狀態(測後): unverified -> 待第二次冷開機   下一步: 循環 3 再錄一次
+★ **前三發是免費的陰性對照，而它不是設計出來的，是 ARP 快取送的。**
+  我的主機拿快取裡 `56:0a:01:01:01:e8` 去**單播**問 —— 那正是十分鐘前
+  `A2.4` 打完 `IPCONFIG` 之後 loader 自己宣告的位址。**直接問它，它沒有回答。**
+  所以 loader 的網路堆疊斷電就沒了，只有敲序列埠打 IPCONFIG 才會存在。
+★ 裝置送出的第一個 frame 來自真實網卡 MAC（Zioncom），不是 loader 合成的
+  `56:0a:…` —— **兩個階段用不同的 MAC，那本身就是「這不是同一個網路堆疊」的證據。**
+```
+
+## 紀錄卡 —— 第 3 站 boot 2（循環 3）
+
+```text
+T-46  P1-12  冷開機計時（A3.2）                             2026-08-18 19:45
+可行性: ★★★★★   驗證狀態(測前): dynamic   依據: W05 的 38.76 s
+送出（逐字）: bash tools/coldboot-timing.sh /dev/ttyUSB0 10.1.1.1 <dumps>
+原始回應:
+      ok    first HTTP 200:  32.18 s from the console's first line
+      FAIL  the kernel printed no 'Kernel command line:' line at all
+      6:…  ---RealTek(RTL8196E)at 2014.04.22-16:22+0800 v1.3 [16bit](400MHz)
+      33:… init started: BusyBox v1.13.4 (2018-01-10 14:56:45 CST)
+      67:… boa: starting server pid=338, port 80
+判定: ✅ 成立
+反證檢查: 測前寫「明顯超過 40 秒 → bootlog 的時間戳不是牆鐘時間，或有服務是延遲啟動的」，
+          實際 32.18 s，比 W05 的 38.76 s 更快，兩次都在 40 秒內
+這一步燒掉了什麼: 一次開機循環（本場第 3 次）
+驗證狀態(測後): dynamic   下一步: A3.2.4
+⚠️ 那個 `FAIL Kernel command line` 是預期的：A1.3.2 解出的 kernel 裡沒有那個字串。
+
+T-47  P2-11  開機後的 IP session 視窗（A3.2.4）             2026-08-18 19:49–20:20
+可行性: ★★★   驗證狀態(測前): static   依據: notes/auth-session-ip.md
+送出（逐字）: bash tools/session-window.sh --host 10.1.1.1 --page /password.htm
+              --src-a 10.1.1.100 --src-b 10.1.1.101 --kernel-t0 <t> --until 800 --interval 10
+原始回應（第一個錨，登入於 uptime 232.9）:
+      uptime    A      B
+      232.9     200    302
+      602.6     200    302     ← 預測說這裡該是 302
+      809.3     200    302
+      883.6     302    302
+原始回應（第二個錨，登入於 uptime 939.5，已超過 601）:
+      before login  uptime 939.4  A=302 B=302
+      LOGIN         uptime 939.5  -> 200      預測翻面點 1540.5
+      1538.1    200    302
+      1541.2    302    302     ← 落在 [1538.1, 1541.2]
+觀測通道 1（第二來源位址）: B 在全部 60 餘格都是 302，所以不是伺服器掛掉
+觀測通道 2（機制）: 第二次登入在 uptime 939 重開了視窗，而預測的機制禁止這件事
+判定: 🔶 部分
+反證檢查: 測前寫「(a) 第 3 步在 601 秒內就回 302 → 這條臂從來不成立」——沒有觸發，
+          臂成立；「(b) uptime 超過 601 之後仍然回 200 → `beforeuptime` 有一個寫入點，
+          而 Ghidra 與 tools/mipsref.py 同時漏掉同一個寫，那是儀器問題」——**觸發**
+這一步燒掉了什麼: 沒有。全部是 GET 加一次 form 登入
+驗證狀態(測後): dynamic   下一步: 修儀器，然後才談這一列
+🔴 **第一版的程序用 HTTP Basic 的 GET 當「登入」，量到 302，差一點寫成「這條臂是死的」。**
+   寫 `authipaddr` 的是 `form_formLogin`，Basic 認證走的是另一條路徑。改成 POST
+   `/boafrm/formLogin`（`username` / `userpass`）之後，臂立刻成立。**假陰性是自己造的。**
+🔴 **兩個錨點差 706 秒，都落在 login+601。** 這不是量到一個數字，是把兩個互斥的機制
+   假設分開，而分開它們的是第二個錨點的存在。
+★ 線索（來自 mipsref 報告自己的輸出，不是新量測）：同一份報告把 `authipaddr`
+  （`0x00486270`）報成 6 讀 0 寫，而 note 說它由 `form_formLogin` 在 `0x0044f13c` 寫 ——
+  那個寫是 `strcpy`，位址當參數傳進去，不是 `sw`。**「真的被寫的全域回報 writes:false」
+  在那支掃描器自己的輸出裡已經發生過一次。**
+
+T-48  P9-4   loader 不上網路（第二次獨立冷開機）            2026-08-18 19:45
+可行性: ★★★★   驗證狀態(測前): unverified   依據: T-45
+送出: 什麼都沒送。tcpdump 在通電前架好；序列埠這次是開著的但**只讀不送**
+原始回應: `udp.port==69 || tftp` 全場 0 個；裝置在 Linux 起來之前送出 0 個 frame
+判定: ✅ 成立（兩次獨立冷開機，兩種不同的序列埠設置）
+反證檢查: 測前寫「被動錄到 loader 送 ARP 或 TFTP，而全程沒有碰序列埠 → 嚴重度整個上調」，
+          兩次都沒有觸發
+這一步燒掉了什麼: 沒有
+驗證狀態(測後): dynamic   下一步: 無
+★ 循環 2 是**連 port 都沒開**，循環 3 是**開著但只讀**。兩種不同設置給同一個答案，
+  比同一個設置做兩次強。
+
+T-49  P6-4 P6-6 P6-7 P6-8 P6-12  UDP / TCP 偵察那一輪（A3.14）  2026-08-18 20:03
+可行性: ★★★★★   驗證狀態(測前): unverified / other-build   依據: P1-2
+送出（逐字）: sudo nmap -sU -p 53,161,1900,5060,9034,9999,20005 -sV --version-intensity 2 10.1.1.1
+              sudo nmap -sT -p 5555,7547 10.1.1.1
+原始回應:
+      53/udp closed  161/udp closed  1900/udp open|filtered  5060/udp closed
+      9034/udp closed  9999/udp closed  20005/udp closed
+      5555/tcp closed  7547/tcp closed
+觀測通道 1（掃描前後的對照組）: boa 200 / 200
+觀測通道 2（rootfs）: /bin/UDPserver ABSENT、/bin/skt ABSENT（rcS 仍有 `#skt&`）、
+      cwmpClient **整個映像裡不存在**，而 rcS 22–27 行仍然建 /var/cwmp_default 與 /var/cwmp_config
+觀測通道 3（正對照）: nmap broadcast-dhcp-discover 收到完整 DHCPOFFER（offered 10.1.1.10，
+      server identifier 10.1.1.1，domain name TOTOLINK）
+判定: P6-4 ✅ · P6-6 ✅ · P6-7 ❌（預測前提是錯的）· P6-8 ✅ · P6-12 ✅
+反證檢查: 測前寫「任一個 UDP 埠有回應 → rootfs 的 ELF 清單漏了東西」，
+          實際看到七個 UDP 埠與兩個 TCP 埠全部無回應，而 `/bin/UDPserver` 與 `/bin/skt`
+          在 rootfs 裡也確實不存在，兩個來源一致。
+          測前另外寫「**沒有正對照的『全關』不算數**：同一輪裡必須有一個已知開著的
+          UDP 埠（1900 或 53）回應」，**實際看到那兩個指定的埠都沒有回應**（1900 的
+          `open|filtered` 在 UDP 語意裡就是沒收到回應），所以正對照改用
+          `broadcast-dhcp-discover` 收到的完整 DHCPOFFER —— 那是一次應用層往返，
+          比登記簿要求的「有回應」更強，而這個替換寫在這裡而不是默默通過
+這一步燒掉了什麼: 沒有
+驗證狀態(測後): dynamic   下一步: P6-7 的預測要改
+🔴 **`1900/udp` 的 `open|filtered` 是假陰性，而我差一點拿它當「UPnP 不存在」的證據。**
+   nmap 的預設 SSDP 探測用 `ST: ssdp:all`，而這台**不回答 `ssdp:all`**（那本身違反規範）。
+   換成三個具體的 ST 之後它全部回答 —— 見 T-50。
+
+T-50  P6-1 P6-2 P8-7  兩個 UPnP 堆疊，而旗標只關掉一個       2026-08-18 20:35–20:52
+可行性: ★★★★   驗證狀態(測前): unverified   依據: P1-10
+送出（逐字）: 四個具體 ST 的 SSDP M-SEARCH；GET :52881/simplecfgservice.xml；
+              然後 `upnp:rootdevice` + N 個 'A' 的前綴匹配階梯
+原始回應:
+      ST urn:schemas-wifialliance-org:device:WFADevice:1       -> 200 OK 289B
+      ST urn:schemas-wifialliance-org:service:WFAWLANConfig:1  -> 200 OK 299B
+      ST upnp:rootdevice                                       -> 200 OK 225B
+      ST urn:schemas-upnp-org:device:InternetGatewayDevice:1   -> (no reply)
+      Server: OS 1.0 UPnP/1.0 Realtek/V1.3
+      Location: http://10.1.1.1:52881/simplecfg.xml
+      GET :52881/simplecfgservice.xml -> 200, 6199 bytes
+      ST 總長  15 -> 225B(echo 15)   23 -> 241B(23)   47 -> 289B(47)
+              79 -> 353B(79)        143 -> 481B(143)  271 -> 737B(271) 然後死
+      console: do_page_fault() #2: sending SIGSEGV to wscd for invalid read access
+               from 4187c8bc (epc == 2aae1f38, ra == 2aae1e64)
+觀測通道 1（活設定）: UPNP_ENABLED = 0；52869/tcp closed；52881/tcp open
+觀測通道 2（web UI）: menu.htm 的 31 頁裡**沒有任何一頁是 UPnP**
+判定: P6-1 ⬛ 不適用 · P8-7 ⬛ 不適用 · **P6-2 ✅ 成立**
+反證檢查: P6-1 測前寫「P1-10 顯示 1900 無回應 → 整組收掉」——**沒有觸發**，1900 有回應，
+          只是回答的是 wscd 不是 miniigd；缺席的是 IGD 不是 UPnP。
+          P6-2 測前寫「超長 ST 正常回應或被截斷 → 有長度檢查，收掉」——沒有觸發，
+          它回應了、回應長度隨輸入線性成長、然後行程死掉
+這一步燒掉了什麼: wscd 一個行程（boa 全程 200）
+驗證狀態(測後): dynamic   下一步: UPNP_ENABLED 要從第 2 站寫回 1 才談得了 P6-1 / P8-7
+🔴 **第一個 ST 階梯什麼都沒測到，而它看起來像有測到。** 不匹配的 ST 一律無回應，
+   那跟「有長度檢查」長得一模一樣。**要先讓 ST 匹配，複製才會發生** —— 而匹配是
+   **前綴匹配**，所以合法 ST 加填充同時滿足兩者。
+★ **崩潰位址是 `4187c8bc` 不是 `41414141`。** 一個活指標的最高位元組被填充的 `'A'`
+  蓋掉，其餘三個是原值 —— 那是部分指標覆寫，溢位剛好只越過一個 byte。
+```
+
+```text
+T-51  P8-17  線上的明文憑證（A3.21 前半）                    2026-08-18 21:0x
+可行性: ★★★★★   驗證狀態(測前): unverified   依據: 管理介面純 HTTP
+送出: 什麼都沒送。從循環 3 全程錄的 pcap（3,963 個封包）裡取
+原始回應:
+      http.authorization : Basic YWRtaW46YWRtaW4=   -> base64 解出 admin:admin
+      formLogin POST body: username, userpass, submit-url = admin, admin, /index.htm（出現 3 次）
+      tls packets: 0        tcp/443: 0
+判定: ✅ 成立
+反證檢查: 測前寫「抓到的封包裡密碼不是明文 → 有某種前端雜湊，那要回去讀 w6cg 裡的 JS」，
+          實際登入表單的 `userpass` 是逐字明文，連編碼都沒有，沒有雜湊可找
+這一步燒掉了什麼: 沒有。純被動
+驗證狀態(測後): dynamic   下一步: 無
+⚠️ **範圍：ARP MITM 本身沒有做。** 這是一條點對點鏈路，沒有第三方可以被重導。
+   量到的是前提（憑證對網段上任何東西可讀），交付機制在有其他 client 的交換式 LAN
+   上才是 ARP spoofing，那一半未測。
+
+T-52  P8-20  iwpriv 私有 ioctl 盤點（A3.21 後半）             2026-08-18 21:1x
+可行性: ★★★★   驗證狀態(測前): unverified   依據: /bin/iwpriv 在映像裡
+送出（逐字）: 透過 formSysCmd 的 docroot oracle：`iwpriv wlan0 > /var/web/iwpriv0.txt;#`
+原始回應（46 個私有 ioctl，開頭這幾個是重點）:
+      set_mib (89F1)  get_mib (89F2)   write_reg (89F3)  read_reg (89F4)
+      write_mem (89F5) read_mem (89F6) write_eeprom (89F8) read_eeprom (89F9)
+      write_bb (89FA) read_bb (89FB)   write_rf (89FC)   read_rf (89FD)
+      reg_dump (8B78) copy_mib (8B79)  radio_off (8B8E)  mp_* 一整族
+判定: ✅ 成立
+反證檢查: 測前寫「iwpriv 對這顆驅動沒有私有命令 → 這條收掉」，
+          實際 46 個，含任意記憶體讀寫與 EEPROM 讀寫
+這一步燒掉了什麼: 沒有。只列清單
+驗證狀態(測後): dynamic   下一步: 無
+🔴 **預測低估了可達性。** 它寫「拿到 shell 之後可以直接對驅動下私有 ioctl」，
+   但 `P3-3` 的未認證命令注入在這台已經是 dynamic，**所以這 46 個不需要先拿 shell**。
+❌ **`write_eeprom` 與 `write_mem` 沒有被呼叫。** 盤點這個面是這一項測試，
+   使用它是另一回事而且不可逆 —— `H601` 是這台獨有的 MAC 與射頻校準，reset 也不還原。
+
+T-53  P2-10  登入計時預言（A3.22 後半）                       2026-08-18 21:2x
+可行性: ★★★   驗證狀態(測前): unverified   依據: 明文 strcmp
+送出（逐字）: 1000 發 GET /password.htm，5 類各 200 發，交錯送出讓抖動平均分佈
+原始回應（中位數 / ms）:
+      correct 15.50 · nouser 13.34 · wrongpw_long 13.53 · wrongpw_short 13.50 · wronguser 11.17
+判定: 🔶 部分
+反證檢查: 測前寫「1000 次取樣的分佈重疊 → 方法在這條鏈路上沒有解析度，
+          記為方法限制而不是『沒有時間差』」，**實際半個觸發**：
+          p10–p90 大量重疊（wronguser 5.64–12.60 對 wrongpw_short 7.06–14.56），
+          所以單一取樣分不出來；但中位數差 2.33 ms，標準誤約 0.28 ms，那是 8 個標準誤
+這一步燒掉了什麼: 沒有
+驗證狀態(測後): dynamic   下一步: 無
+🔴 **`correct` 最慢是假訊號**：它回 200 帶 5,332 bytes，其餘回 302 帶 132 bytes。
+   那是傳輸量。**把它讀成比對時間，正是這一列存在要避免的錯誤。**
+★ **預測的機制沒量到，一個沒被預測的量到了。** 密碼長度 1 對 32 差 0.03 ms（雜訊）；
+  分開的是**階段**——帳號比對先失敗，密碼比對就沒跑。那是帳號列舉 oracle 不是密碼 oracle。
+
+T-54  P1-11  無線指紋（A3.22 前半）                           2026-08-18 21:3x
+可行性: ★★★★   驗證狀態(測前): unverified   依據: RTL8188ER
+送出: 快照解碼 + 對執行中裝置取頁面
+原始回應:
+      WLAN_BAND2G5G_SELECT = 0
+      wlbasic.htm : Band[wlan_idx] = 11  (0b1011 = B|G|N，無 A 無 AC)
+      status.htm  : channel_drv[0] = '6'
+      /proc/net/dev : wlan0 · wlan0-wds0 · wlan0-wds1（只有一個 radio）
+      wlsecurity.htm 提供的模式：wep / wpa / wpa2，psk 或 eap，tkip 或 aes
+      WSC_DISABLE = 0
+判定: 🔶 部分
+反證檢查: 測前寫「掃到 5 GHz 或 SAE → 硬體判定錯誤，E-8 的排除理由不成立」，
+          實際四個裝置側來源一致指向 2.4 GHz b/g/n，而韌體自己的 UI 裡沒有
+          WPA3 / SAE / OWE 任何一個字。**但空中掃描沒有做**，而反證條件要求的
+          動作正是掃描，所以這一列停在 partial 而不是成立
+這一步燒掉了什麼: 沒有
+驗證狀態(測後): unverified -> partial   下一步: 需要一次頻譜量測當獨立來源
+⚠️ 主機的 Wi-Fi 掃描要 Windows 定位權限加系統管理員權限，今晚沒有為它改系統設定。
+   上面全部是**裝置在描述它自己**，那不是獨立來源。
+
+T-55  P8-14  以 formSysCmd 掃內網（A3.20 前半）               2026-08-18 21:4x
+可行性: ★★★★   驗證狀態(測前): unverified   依據: P3-3 · P8-15
+送出（逐字）: docroot oracle 送 `ping -c 2 -W 2 10.1.1.100` 與 `... 10.1.1.77`；
+              以及 `wget -T n -O - http://10.1.1.100:{9999,9}/ 2>&1; echo rc=$?`
+原始回應:
+      10.1.1.100 : 4 packets transmitted, 4 packets received, 0% packet loss
+      10.1.1.77  : 4 packets transmitted, 0 packets received, 100% packet loss
+      wget :9999（我方 listener 開著）-> rc=0        wget :9（關閉）-> rc=1
+判定: ✅ 成立
+反證檢查: 測前寫「ping 或 wget 在裝置上跑得起來卻沒有可觀測的回傳差異 →
+          P8-15 的命令盤點漏掉了『存在』與『可用』的差別」，
+          實際兩個 oracle 都有乾淨的二元差異，兩者都可用
+這一步燒掉了什麼: 沒有
+驗證狀態(測後): dynamic   下一步: 無
+⚠️ 兩個方法限制，而它們是限制不是失敗：多敘述的 shell 迴圈（`for h in …; do … done`）
+   回 boa 的 302 而且沒有產出檔案，**所以 docroot oracle 一次吃一條命令不吃腳本**；
+   而 busybox 的 `ping -c 2` 送四發，不影響 up/down 判別但封包數不是要求的那個。
+```
+
+## 二、`A3.23` 的兩發順序反了，而 runsheet 沒有寫
+
+作業單把它們編成「1. `formSchedule` 缺 `webpage`」「2. 另外抽 2–3 個」。
+**第一發是終局的**——`boa` 消失而且不會自己回來——而第二發需要 `boa` 活著。
+所以**第二發必須先打**，否則它根本打不成。今晚就是這樣跑的，而 runsheet 要改。
+
+## 三、崩潰測試之前要先開第二條路
+
+`A3.23` 第一發之後 console 印了 `caught SIGSEGV, dumping core in /tmp`，
+**而那份 core 拿不回來**：`boa` 是唯一的入口、`/tmp` 是 tmpfs（重開就沒）、
+序列埠會回顯但不回應（沒有 shell）。
+
+**修法是一行**：開火之前先用命令注入把 `telnetd -l /bin/sh` 起來。
+本場後半立刻套用了，而它在 `P6-3` 那一節直接救了場——`wscd` 卡住之後，
+是 telnet 進去才發現「行程還活著、只是 listener 關了」，而那個區別是整條發現的核心。
+
+```text
+T-56  P8-3 P8-4  CSRF：來源檢查有沒有，以及跨站改密碼（A3.17）  2026-08-18 21:5x
+可行性: ★★★★★   驗證狀態(測前): unverified   依據: P2-1 · P10-3
+送出（逐字）: 同一發 POST /boafrm/formSysCmd 四種送法（裸 / 帶 Origin / 帶 Referer / 兩者都帶）；
+              然後 POST /boafrm/formPasswordSetup 帶外部 Origin 與 Referer、
+              **不帶 Cusername 與 Cpassword**，把密碼改成一個暫時值
+原始回應:
+      plain 302 133 · with-origin 302 133 · with-referer 302 133 · both 302 133
+      formPasswordSetup 302 135
+      改之前：原憑證 200、暫時憑證 302   改之後：原憑證 302、暫時憑證 200
+      formLogin 帶暫時憑證 -> 200
+判定: P8-3 ✅ · P8-4 ✅
+反證檢查: P8-3 測前寫「存在任何 token 或 Referer 檢查 → 前提不成立」，
+          實際四種送法回應逐 byte 相同，路徑上沒有任何來源檢查。
+          P8-4 測前寫「密碼改掉了但新密碼登不進去 → 寫進 MIB 的欄位與登入路徑
+          讀的欄位不是同一個」，實際新密碼從 form_formLogin 也通得過，沒有觸發
+這一步燒掉了什麼: 管理密碼改一次，同一支腳本內還原並三向驗證
+驗證狀態(測後): dynamic   下一步: 無
+🔴 **還原的驗證差一點被今晚自己量到的另一條缺陷騙過去。** 從 `.100` 看，還原之後
+   「原密碼和暫時密碼都通」——不可能。因為 `.100` 剛打過 `formLogin`，`P2-11` 的
+   IP session 對它開著，**它送什麼都回 200**：原密碼、暫時密碼、亂填的、完全不帶，四個都是 200。
+   從**從未登入過的 `.101`** 看才是 200 / 302 / 302 / 302，而 flash 自己說
+   `USER_PASSWORD="admin"`。**任何從已登入位址做的憑證驗證都量不到東西。**
+
+T-57  P8-2 P6-9  儲存型注入的 sink，與 DNS relay 的身分（A3.19 · A3.16）  2026-08-18 22:0x
+可行性: ★★★   驗證狀態(測前): unverified   依據: P8-1 · 三支候選 binary
+送出（逐字）: 帶標記的失敗登入（username 與 User-Agent 都放標記）→ 讀 syslog.htm；
+              手工組的 DNS 查詢（version.bind CH TXT 與 example.com IN A）送 10.1.1.1:53
+原始回應:
+      syslog.htm : <textarea rows="30" name="msg" cols="95" wrap="virtual"></textarea>  ← 空的
+      /bin/syslogd 在映像裡；ps 裡 0 個；/var/log 是空的；/var/log/messages 不存在
+      兩發 DNS 查詢都 timeout；ps 裡沒有 dnrd / dnsmasq / dns_protocl / dnsspoof
+      sysconf 字串：/var/run/dnrd.pid · killall -9 dnrd · "dnrd cmd in start_wanphy_dnrd %d = %s"
+判定: 兩條都 🔶 部分
+反證檢查: P8-2 測前寫「模板做了輸出編碼 → 整組收掉」與「模板沒編碼但值被截斷或消失
+          → 過濾在寫入端」，**實際兩個分支都不適用**：標記沒有被編碼也沒有被截斷，
+          log 裡什麼都沒有，因為 syslogd 沒在跑——sink 不存在，而我不會把它硬塞進其中一支。
+          P6-9 測前寫「不回應版本查詢也不吐錯誤 → 換白盒，直接讀那支 binary」，
+          實際兩發都沒有回應，於是照它說的換白盒，答案是 dnrd 由 sysconf 在 WAN phy 路徑上啟動
+這一步燒掉了什麼: 沒有
+驗證狀態(測後): dynamic   下一步: P8-2 的另外兩個欄位要 miniigd 與 WAN 側 PPPoE
+★ 四支候選全部在映像裡：dnrd 50,684 · dnsmasq 113,856 · dns_protocl 4,284 · dnsspoof 3,820。
+  **`dns_protocl` 沒有任何東西提到它。**
+
+T-58  P8-11  假 NTP，以及一個做壞的封包做對的事（A3.18）      2026-08-18 22:3x
+可行性: ★★★   驗證狀態(測前): unverified   依據: /bin/ntp_inet 在 ps 裡
+送出（逐字）: 主機 udp/123 起假 NTP；命令注入 `killall ntp_inet; ntp_inet -x 10.1.1.100 &`
+原始回應:
+      >>> NTP REQUEST 1 from 10.1.1.1:36188  48B  li_vn_mode=0x1b
+      pcap: 10.1.1.1 → 10.1.1.100 NTP Version 3, client（明文）
+      回 44 byte（少 4 個，tshark 標 Malformed）-> device date = Thu Feb  7 14:28:56 GMT 2036
+      回 48 byte（正確，編碼 2026-08-18 12:42:41 UTC）-> device date = Tue Aug 18 20:42:47 GMT 2026
+判定: ✅ 成立
+反證檢查: 測前寫「隔離網段上抓不到任何 NTP 或 DDNS 的對外請求 → 這些 client 沒有被
+          啟動，或觸發條件不是『WAN 連上』。那時要先答出誰啟動它們、條件是什麼」，
+          實際抓到了完整的 NTP v3 明文請求；而啟動者也答出來了：
+          /bin/ntp.sh 一行 `sysconf ntp $*`，sysconf 帶 start_ntp / ntp_inet / ntpclient，
+          在 ps 裡的 timelycheck 也引用 ntp_inet，是週期性再同步的驅動者
+這一步燒掉了什麼: 裝置時鐘（無 RTC，重開即失）
+驗證狀態(測後): dynamic   下一步: DDNS 那一半未做
+🔴 **2036-02-07 是 32-bit NTP 時間戳的最大值 `0xFFFFFFFF`**，而那個值**不在我送出去的
+   資料裡**——我封包的 bytes 40–43 是零，44–47 根本不存在。**這台的 NTP client 讀了
+   一個短 datagram 尾端之外的東西。** 正確的 48 byte 回應設出正確的時間，兩點加對照。
+   **這是行為觀察不是根因**：`/bin/ntp_inet` 沒有被讀過。
+⚠️ 網頁表單那條路不落地：`ntpServerId=0` 配 `ntpServerIp1` 與 `=1` 配 `ntpServerIp2`
+   都回 200，而 `NTP_SERVER_IP1` 仍是原值、`NTP_SERVER_IP2` 仍是空的。
+
+T-59  P8-16  Slowloris，以及一個永遠回 0 的檔案（A3.20 後半）  2026-08-18 23:2x
+可行性: ★★★★   驗證狀態(測前): unverified   依據: Boa 0.94 單行程 select()
+送出（逐字）: 250 條半開連線（送到標頭中途、不送結尾 CRLF），逐段量管理介面
+原始回應:
+      idle est=1 · held 50 est=51 · 100 est=101 · 150 est=151 · 200 est=201 · 250 est=251
+      管理介面每一格都是 200；再握 20 秒仍是 251 / 200；放掉之後 est=1 / 200
+      /var/boa.conf : KeepAliveMax 0 · KeepAliveTimeout 10
+判定: ❌ 不成立
+反證檢查: 測前寫「連線數拉到上限而管理介面照常回應 → 這個 build 不是單行程模型，
+          boa 的連線處理要回頭讀」，**實際 251 條同時掛著而管理介面全程 200**，觸發
+這一步燒掉了什麼: 沒有
+驗證狀態(測後): dynamic   下一步: 照反證條件，回去讀 boa 的連線處理
+🔴 **第一次的計數是儀器失效，而它會給出相反的結論。** 用 `/proc/net/tcp` 數，
+   握著 200 條的時候回報 port 80 上 **0 條**——因為 **`boa` 綁在 dual-stack IPv6 socket 上**，
+   IPv4 client 以 `::ffff:` 映射位址出現在 `/proc/net/tcp6`。同一份檔案稍早也沒把
+   port 80 列成 LISTEN，而當時伺服器正在回應——**那個「不可能」才是去查第二次的理由**。
+
+T-60  P1-7 P5-6  兩份桌面清單拿到矽上（A3.23）                2026-08-18 23:4x–00:0x
+可行性: ★★★★   驗證狀態(測前): emulated   依據: notes/emulation-2018.md
+送出（逐字）: 先第二發：對 formNtp / formDMZ / formWlanSetup 送空 body POST；
+              再第一發：POST /boafrm/formSchedule 帶 submit-url、**缺 webpage**；
+              另外對 8 個工廠測試名與 4 個負對照送 POST，讀 302 的目的地
+原始回應:
+      formNtp 200(4.42 s) · formDMZ 200(4.50 s) · formWlanSetup 200(10.3 s)，boa 全程活著
+      formSchedule -> 000，之後 40 秒每 5 秒量一次全是 000
+      console: do_page_fault() #2: sending SIGSEGV to boa for invalid write access to
+               004725d0 (epc == 2aafe218, ra == 00445974)
+               caught SIGSEGV, dumping core in /tmp
+      八個工廠名全部 404；formNoSuchThing / zzzz 也是 404；
+      /goform/* 與 /cgi-bin/* 回 400；正對照 formNtp 回 302 Location: http://10.1.1.1/index.htm
+判定: P5-6 ✅ · P1-7 ✅
+反證檢查: P5-6 測前寫「模擬下的崩潰在實體機上重現不了 → 模擬環境的結論不能外推」，
+          實際在**同一個位址** 004725d0 重現，沒有觸發。
+          P1-7 測前寫「字典掃出 root_form[] 以外的可達路徑 → dispatch 不只一張表」，
+          實際八個名字與負對照逐字相同都是 404，沒有觸發
+這一步燒掉了什麼: boa 一個行程（要斷電重開）；/tmp 的 core dump 無法取回
+驗證狀態(測後): dynamic   下一步: 見本場「二、」與「三、」兩則程序修正
+⚠️ **`formWlanSetup` 第一次量到 `000`，而它沒有崩，只是花了 10.3 秒。** 6 秒的
+   timeout 產生的 `000` 跟崩潰長得一模一樣——今晚第二次遇到這個假陰性形狀。
+
+T-61  P6-3  wscd 的 SUBSCRIBE，以及一個守衛設得太寬的門檻    2026-08-19 00:1x
+可行性: ★★★★   驗證狀態(測前): unverified   依據: CVE-2021-35393
+送出（逐字）: SUBSCRIBE /upnp/event/WFAWLANConfig1 到 :52881，CALLBACK 長度階梯
+原始回應:
+      控制發（短 CALLBACK） -> HTTP/1.1 200 OK · SID: uuid:… · TIMEOUT: Second-180
+      總長  55 /  87 / 151 -> 200 OK，wscd alive
+      總長 215 … 1047      -> 412 Precondition Failed，wscd alive
+      總長 2071            -> ConnectionReset
+      夾中間：160 -> 200 alive · 170 -> 200 alive · **180 -> 200，然後永遠不回應**
+      console：**一行都沒有**（今晚兩次真的 fault 它都印了）
+      ps：PID 455 仍在，State: S (sleeping)
+      手動重啟 wscd -> "Failed to open socket for HTTP. EXITING / Error with UpnpInit -- -101"
+      /proc/net/tcp6 沒有 52881 了；/proc/net/udp 的 1900 還綁著，rx_queue = 0x828（2,088 bytes 未讀）
+判定: ✅ 成立
+反證檢查: 測前寫「wscd 沒在跑（ps 或埠位掃描）→ 這條與 P7-4 一起收掉，
+          且代表 sysconf 的啟動清單不是照旗標全開」，實際 wscd 在跑、端點可達、
+          SUBSCRIBE 回 200 帶 SID，沒有觸發
+這一步燒掉了什麼: wscd 的兩個網路面（行程本身還在，所以沒有東西會重啟它）
+驗證狀態(測後): dynamic   下一步: 是不是 CVE-2021-35393 的同一個機制，行為證據答不了
+🔴 **「有長度檢查所以安全」是我第一版的結論，而它是錯的。** 215 以上被擋回 412，
+   但 180 過得了檢查而且會溢位——**守衛的門檻設在緩衝區上面**，致命窗口在兩者之間。
+   **只測門檻以外，會把服務報成受保護的。**
+🔴 **這不是崩潰，是卡住，而三個來源同意**：console 無 fault、ps 有行程且 sleeping、
+   socket 還被握著所以別的東西接不了手。**行程沒結束，所以沒有任何機制會重啟它。**
+```
+
+```text
+T-62  P8-19 P6-5  WAN 側：一份租約，以及一條被自己弄斷的鏈    2026-08-19 00:4x–02:1x
+可行性: ★★★   驗證狀態(測前): unverified   依據: WAN_DHCP=1 · udhcpc 在 ps 裡
+送出（逐字）: 網卡從 LAN 埠改插 WAN 埠；主機 192.168.77.1/24；自寫的 DHCP 伺服器
+原始回應（第一次，完整開機 + 160 秒）:
+      packets handled: 0        線上總封包數: 0        rx_packets 完全沒動
+      10.1.1.1 靜默、ARP FAILED（所以線不是插在 LAN 埠）
+      ifconfig eth1 -> MTU:0     ifconfig eth0 -> MTU:1500
+      flash get DHCP_MTU_SIZE -> 0
+原始回應（第二次，**唯一改動是 `ifconfig eth1 mtu 1500` 加 `kill -USR1 270`**）:
+      1  0.000000  0.0.0.0 → 255.255.255.255  DHCP Discover
+      2  0.000501  192.168.77.1 → …           DHCP Offer
+      3  0.009908  0.0.0.0 → …                DHCP Request
+      4  0.010404  192.168.77.1 → …           DHCP ACK
+      5  4.022744  裝置 → Broadcast           ARP Who has 192.168.77.1?
+      7  4.026116  192.168.77.100 → 118.163.81.61  NTP Version 3, client
+      8  4.175977  192.168.77.100 → 192.168.77.1   DNS query A hopeiot.net
+      requested options: 1,33,121,249,3,6,12,15,28,44,46,47
+      vendor class: udhcp 0.9.9-pre
+      拔線之後：/etc/resolv.conf 仍然是 `nameserver 192.168.77.1`
+判定: P8-19 ✅ · P6-5 ⬛ 不適用
+反證檢查: P8-19 測前條件是能不能從 WAN 側送成並觀測；實際第一次零封包、
+          第二次在**只改一個變數**之後完整四段交握，所以「WAN 打不到」與
+          「WAN 被弄壞了」被分開了。
+          P6-5 測前寫「需從 WAN 側送」；實際 ALG_SIP_ENABLED=0、
+          nf_conntrack_expect 空、沒有 SIP helper，**標的不存在**，
+          而關掉它的是 W05 自己那一輪 POST（紀錄裡的 `ALG_SIP_ENABLED 1 -> 0`）
+這一步燒掉了什麼: eth1 的 MTU 被手動改成 1500（只在 RAM，重開即回 0）；
+          裝置拿了一份我方的 DHCP 租約，`/etc/resolv.conf` 被換成我方位址
+驗證狀態(測後): dynamic   下一步: 路由注入（opt 33/121/249）未送成
+🔴 **這是今晚影響最大的一條，而它是找別的東西時撞到的。**
+   W05 那一輪未認證、參數缺席的 POST 把 `DHCP_MTU_SIZE` 從 1500 寫成 0，
+   **這台的 WAN 介面從那天起就以 MTU 0 開機、送不出任何東西、拿不到 WAN 位址**——
+   而那寫在 flash 裡，跨越所有重開機。W05 那一格的結論是
+   「改掉的欄位，沒有一個往危險的方向走」。**一個未認證請求造成的持久性 WAN DoS。**
+⚠️ 路由注入沒有送成：租約 3600 秒還活著，逼它續約要 LAN 側的 telnet，
+   而那與網卡插在 WAN 埠互斥。**它宣告接受 33 / 121 / 249，但本場沒有實際送。**
+
+T-63  P6-10  WAN 一斷，dnsspoof 就接管整個網段                2026-08-19 02:2x
+可行性: ★★★   驗證狀態(測前): unverified   依據: /bin/dnsspoof 在映像裡
+送出（逐字）: 觸發是自然產生的——裝置持有真實 DHCP 租約，然後 WAN 線被拔掉；
+              之後從 10.1.1.100 送四個名字的 A 查詢與一發 version.bind CH TXT
+原始回應:
+      ps  : 1315 root 696 S  dnsspoof 10.1.1.1
+      /proc/net/udp : 53 綁著（本場稍早每一次量都是關的）
+      example.com                         -> A = 10.1.1.1
+      www.google.com                      -> A = 10.1.1.1
+      hopeiot.net                         -> A = 10.1.1.1
+      this-name-does-not-exist-zz.invalid -> A = 10.1.1.1
+      version.bind CH TXT                 -> no reply
+      /var/info : dnrd cmd in start_wanphy_dnrd 3 = 192.168.77.1
+      /var/wan_phy : interface eth1 / ip 192.168.77.100 / router 192.168.77.1 / nameserver 192.168.77.1
+判定: ✅ 成立
+反證檢查: 測前寫「拔掉 WAN 後 DNS 行為完全不變 → 那段程式沒有被走到，或觸發條件
+          不是斷線。先確認在聽的到底是三支中的哪一支，再談行為」，
+          實際 dnsspoof 起來了、53 綁上了、每一個名字都被劫持，而在聽的那一支
+          從 ps 直接讀得出來
+這一步燒掉了什麼: 沒有（狀態是前一項留下的）
+驗證狀態(測後): dynamic   下一步: 無
+★ **連一個不存在的 TLD 都回 10.1.1.1**，所以是全域萬用字元不是解析失敗的後備。
+★ **`/var/info` 把 P8-19 的鏈在行程層級補完**：WAN 側 DHCP 給的 DNS 選項，
+  直接成為 LAN 端 relay `dnrd` 的 `-s` 上游參數。
+🔴 **三段複合，全部是今晚量到的**：一發未認證 POST 讓 WAN 永久不能用 →
+  WAN 斷線讓 dnsspoof 起來 → 每一個 LAN client 的每一次查詢都指向 10.1.1.1，
+  而那台正是帶著未認證命令注入（`P3-3`）、未初始化憑證對（`P2-9`）、
+  未認證改密碼（`P10-3`）的 web 伺服器。**重開機不會清掉它。**
+```
+
+## 這一場燒掉了什麼
+
+- **開機循環 5 次**：第 2 站 1 次、第 3 站 boot1 / boot2、`A3.23` 打死 `boa` 之後 1 次、
+  第二次 WAN 嘗試前 1 次。
+- **`boa` 被打掉 1 次**（`formSchedule` 缺 `webpage`，`A3.23` 第一發，不可自癒）。
+- **`wscd` 被打掉 2 次**：一次 SIGSEGV（`P6-2`，SSDP `ST`），一次卡死不崩（`P6-3`，SUBSCRIBE）。
+- **管理密碼改 1 次**（`P8-4`），同一支腳本內還原，並從**未登入過的第二個來源位址**
+  加 flash 兩個來源驗證。
+- **`/etc/resolv.conf` 被換成 `192.168.77.1`**（我方的假 DNS），拔線後仍在。
+- **`eth1` 的 MTU 被手動設成 1500**（只在 RAM）。
+- **裝置時鐘被偽造的 NTP 改過兩次**（無 RTC，重開即失）。
+- **`telnetd -l /bin/sh` 在 port 23 上跑著，沒有認證** —— 這是我開的，收工要拔電。
+- `H601` **完全沒動**；`COMPCS` / `COMPDS` 的差異仍是 `0 / 343`（`P9-9` 尚未執行）。
+
+## 下一場從哪裡開始
+
+**`P9-9`（reset 按鈕）一項都沒做，而它是刻意留的。** 它會把 `COMPCS` 蓋回 `COMPDS`，
+抹掉本場每一項站著的地面——而本場結束時的地面正好是一份很值錢的東西：
+`DHCP_MTU_SIZE=0`、`UPNP_ENABLED=0`、`ALG_SIP_ENABLED=0` 三個被 W05 寫壞的欄位
+**同時還在原地**，所以 reset 之後量它們有沒有變回 1500 / 1 / 1，是
+`P8-19` 那條因果鏈的第三個獨立驗證，也是 `P9-9` 自己的預測。**兩件事一發解決。**
+
+1. **`P9-9`**，而且前後各一份 `H601` 快照（`A3.24` 要求的）。
+2. **`UPNP_ENABLED` / `ALG_SIP_ENABLED` 從第 2 站寫回 1**，那是 `P6-1`、`P8-7`、`P6-5`
+   三列唯一的路——這個 build 的網頁介面沒有任何一頁可以設它們。
+3. **路由注入**（DHCP opt 33 / 121 / 249）：要在網卡插 WAN 埠**之前**先讓 `udhcpc` 到期，
+   或改用「先拔線再插線」逼它重新 DISCOVER。

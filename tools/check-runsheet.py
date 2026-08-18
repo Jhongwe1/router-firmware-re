@@ -153,6 +153,29 @@ def tool_help(tool: str) -> str:
     return "\n".join(parts)
 
 
+def declared_choices(help_text: str) -> dict[str, set[str]]:
+    """Flags whose VALUE argparse restricts, and the values it will take.
+
+    argparse renders a `choices=` flag as `--disclosure {open,protect}`, in both
+    the usage line and the options block, so the set is recoverable from the
+    help text without importing the tool.
+
+    This exists because the flag check above is not enough. On 2026-08-18 three
+    commands in `runsheet.md` passed `--disclosure reveal` to `fwrecon compcs`,
+    which accepts `open` and `protect`; every one of them died on argparse before
+    doing any work, and CI was green throughout, because `--disclosure` is a real
+    flag and `reveal` is not a flag at all. That is the same shape as the
+    `AUTOBURN: 0` failure this whole checker was written for -- **the help text
+    is not the syntax** -- arriving a second time through the one gap the first
+    fix left open.
+    """
+    out: dict[str, set[str]] = {}
+    for m in re.finditer(r"(--[a-z][a-z0-9-]*)[= ]\{([^}]+)\}", help_text):
+        out.setdefault(m.group(1), set()).update(
+            c.strip() for c in m.group(2).split(",") if c.strip())
+    return out
+
+
 def check_runbook_812(path: Path, errors: list[str], step_ids: list[str],
                       why: dict[str, str]) -> None:
     """§8.12 holds no commands, and pairs one-to-one with the steps.
@@ -334,6 +357,23 @@ def check(path: Path, runbook: Path) -> int:
                 if f not in h:
                     errors.append(
                         f"{path.name}:{ln}: {rel} does not accept `{f}`")
+            # ...and for the flags whose value argparse restricts, the value.
+            choices = declared_choices(h)
+            for fm in re.finditer(
+                    r"(?<![\w-])(--[a-z][a-z0-9-]*)[= ]+([^\s\|;)&]+)", tail):
+                flag, raw = fm.group(1), fm.group(2)
+                if flag not in choices:
+                    continue
+                val = raw.strip("'\"")
+                # A shell variable, a substitution, or the next flag: this check
+                # reads commands, not the shell, and guessing what `$PROFILE`
+                # expands to would turn a real check into a plausible one.
+                if not val or val[0] in "-$`" or "$" in val:
+                    continue
+                if val not in choices[flag]:
+                    errors.append(
+                        f"{path.name}:{ln}: {rel} rejects `{flag} {val}` "
+                        f"(it accepts: {', '.join(sorted(choices[flag]))})")
 
     # ---- cross-references into RUNBOOK ---------------------------------
     for i, line in enumerate(lines, 1):

