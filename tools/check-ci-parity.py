@@ -173,11 +173,46 @@ def compare(make_set: set[str], wf_set: set[str],
     return problems
 
 
+def workflow_parses(path: Path | None = None) -> tuple[bool | None, str]:
+    """Does the workflow parse as YAML at all?
+
+    Added 2026-08-19, immediately after this file shipped green on a workflow
+    GitHub could not read. A step named with an unquoted backtick -- `` `make
+    ci` and this file run the same suites`` -- is a YAML syntax error, because a
+    backtick cannot start a plain scalar. The whole run failed in 0 s while this
+    checker reported the two lists in agreement, **because it reads the file
+    with a regex and a regex does not care whether the document is valid**.
+
+    A checker that reads a config file with a pattern will pass on a file the
+    real consumer rejects, every time. So the file gets shown to a parser.
+    Returns (None, reason) when no parser is available, which is reported as a
+    skip rather than as a pass -- a check that could not run has not run.
+    """
+    try:
+        # Imported here, not at the top: it is optional and its absence is a
+        # reportable state rather than a crash.
+        import yaml
+    except ImportError:
+        return None, "PyYAML is not installed here, so the workflow was NOT parsed"
+    try:
+        yaml.safe_load((path or WORKFLOW).read_text(encoding="utf-8"))
+    except Exception as exc:  # any parse error at all, and the message is the point
+        return False, " ".join(str(exc).split())
+    return True, "the workflow parses as YAML"
+
+
 def main() -> int:
     if not MAKEFILE.exists() or not WORKFLOW.exists():
         print("check-ci-parity: Makefile or .github/workflows/ci.yml is missing",
               file=sys.stderr)
         return 2
+    parsed, why = workflow_parses()
+    if parsed is False:
+        print("check-ci-parity: .github/workflows/ci.yml is not valid YAML, so "
+              "GitHub will fail the whole run before any step starts:\n")
+        print(f"  {why}\n")
+        print("Nothing below this line means anything until that is fixed.")
+        return 1
     make_set, targets = make_ci_scripts(MAKEFILE.read_text(encoding="utf-8"))
     wf_set = workflow_scripts(WORKFLOW.read_text(encoding="utf-8"))
     problems = compare(make_set, wf_set)
@@ -193,6 +228,7 @@ def main() -> int:
         return 1
     print(f"  ok   `make ci` ({len(targets)} targets) and the workflow run the "
           f"same {shared} tools/ scripts")
+    print(f"  {'ok  ' if parsed else 'skip'} {why}")
     return 0
 
 

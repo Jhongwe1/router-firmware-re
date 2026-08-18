@@ -225,7 +225,11 @@ jobs:
       # compares which tools/ scripts `make ci` runs against which ones this file
       # runs, in both directions; a one-sided entry has to be recorded as a
       # decision in the script or it fails here.
-      - name: `make ci` and this file run the same suites
+      # The name is quoted because a backtick cannot start a YAML plain scalar.
+      # Unquoted, this file does not parse at all and the whole workflow fails in
+      # 0 s -- which is how it shipped on 2026-08-19, green on `make ci`, because
+      # the checker below read this file with a regex instead of a parser.
+      - name: "`make ci` and this file run the same suites"
         run: python3 tools/check-ci-parity.py
 
       - name: Control — the parity checker can fail

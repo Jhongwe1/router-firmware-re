@@ -5074,6 +5074,45 @@ was in a LAN port, and the register's refutation could not have fired. `partial`
   installs the jump from `PREROUTING` is untested, and `P8-7`'s severity depends
   entirely on it.
 
+### Instrument bug 45 — the checker written to catch a broken workflow shipped a workflow that would not parse
+
+`tools/check-ci-parity.py` was written earlier the same day to stop `make ci` and
+`.github/workflows/ci.yml` drifting apart for a sixth time. The commit that added
+it also added a step to the workflow:
+
+```
+      - name: `make ci` and this file run the same suites
+```
+
+**A backtick cannot start a YAML plain scalar.** GitHub failed the entire run in
+**0 s** — not a step failure, a parse failure, so no job started and no log
+exists to read. `make ci` had been green, `check-ci-parity.py` had been green,
+and both were green *on a file the real consumer cannot read*.
+
+**The reason is one line of design and it generalises past this repository: the
+checker reads the workflow with a regular expression, and a regular expression
+does not care whether the document is valid.** Any local checker that parses a
+config file with a pattern will pass on a file the real consumer rejects, and it
+will do so most confidently on exactly the change that broke it.
+
+Fixed by showing the file to a parser: `workflow_parses()` runs `yaml.safe_load`
+and refuses everything downstream when it throws, printing *"nothing below this
+line means anything until that is fixed"*. Where PyYAML is unavailable it returns
+`None` and the run reports **skip**, not ok — a check that could not run has not
+run. Three guard cases, one of them the exact line that shipped.
+
+**And it was the fourth time in one session that a backtick destroyed something.**
+The first cost a test and a power cycle (`P6-1`, the payload expanded by the local
+shell); the second and third were a heredoc and a `sed` expression that executed
+`make ci` mid-command; this one cost a red remote build. The memory note for this
+harness now carries the rule that a payload must never appear on a command line —
+and the wider version, which this bug is the proof of, is that **a backtick is
+never inert: some layer between the keyboard and the destination will run it.**
+
+*Found by:* `gh run list` after the push. `make ci` could not have found it, and
+that is the point of checking the remote rather than trusting local green — the
+same rule `RUNBOOK` 10.21 records and the one this checker exists to enforce.
+
 ### Where W07 stands
 
 **Register: 58 / 58. Closed. DoD 5 of 6** — the six-build differential harness was

@@ -112,6 +112,45 @@ p = m.compare({"tools/test-a.sh"}, {"tools/test-b.sh"}, {})
 print("PASS" if len(p) == 2 else repr(p))
 '
 
+# --------------------------------------------------------------------------
+# The parser check, added after this suite went green on a workflow GitHub
+# could not read at all. A regex does not care whether the document is valid.
+# --------------------------------------------------------------------------
+
+check "a workflow that is not valid YAML is reported as broken, not as parity" '
+import pathlib, tempfile
+d = tempfile.mkdtemp()
+p = pathlib.Path(d) / "ci.yml"
+# A backtick cannot start a YAML plain scalar. This exact line shipped.
+p.write_text("jobs:\n  a:\n    steps:\n      - name: `make ci` and this file agree\n        run: bash tools/test-a.sh\n")
+ok, why = m.workflow_parses(p)
+print("PASS" if ok is False and "`" in why else "%r %r" % (ok, why))
+'
+
+check "a valid workflow parses, and says so" '
+import pathlib, tempfile
+d = tempfile.mkdtemp()
+p = pathlib.Path(d) / "ci.yml"
+p.write_text("jobs:\n  a:\n    steps:\n      - name: \"`make ci` and this file agree\"\n        run: bash tools/test-a.sh\n")
+ok, why = m.workflow_parses(p)
+print("PASS" if ok is True else "%r %r" % (ok, why))
+'
+
+check "with no YAML parser available the answer is None, which is a skip not a pass" '
+import builtins, pathlib, tempfile
+real = builtins.__import__
+def fake(name, *a, **k):
+    if name == "yaml":
+        raise ImportError("no yaml here")
+    return real(name, *a, **k)
+builtins.__import__ = fake
+try:
+    ok, why = m.workflow_parses(pathlib.Path(tempfile.mkstemp()[1]))
+finally:
+    builtins.__import__ = real
+print("PASS" if ok is None and "NOT parsed" in why else "%r %r" % (ok, why))
+'
+
 check "identical sets are silent" '
 p = m.compare({"tools/test-a.sh"}, {"tools/test-a.sh"}, {})
 print("PASS" if p == [] else repr(p))
