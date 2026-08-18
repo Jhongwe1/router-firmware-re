@@ -98,8 +98,9 @@ def handlers(profile: str) -> list[str]:
 
 
 class Server:
-    def __init__(self, profile: str, port: int, quiet: bool):
+    def __init__(self, profile: str, port: int, quiet: bool, alignfix: bool = False):
         self.profile, self.port, self.quiet = profile, port, quiet
+        self.alignfix = alignfix
         self.restarts = 0
         self.failed_restarts = 0
 
@@ -144,12 +145,36 @@ class Server:
         # effect: every probe then starts from the same bytes, and a handler
         # that wrote something cannot change the meaning of the next result.
         self._run("reset")
-        p = self._run("serve", str(self.port))
+        serve_args = ["serve", str(self.port)]
+        if self.alignfix:
+            serve_args.append("--alignfix")
+        p = self._run(*serve_args)
         return "is serving" in p.stdout
 
     def ensure(self) -> bool:
         if self.alive():
             return True
+        self.restarts += 1
+        for _ in range(3):
+            if self.start() and self.alive():
+                return True
+            time.sleep(1)
+        self.failed_restarts += 1
+        return False
+
+    def ensure_pristine(self) -> bool:
+        """Restart unconditionally, so this probe starts from the pristine flash.
+
+        Only needed once the server stops dying. Without alignfix every probe
+        that reached the config serialiser crashed the server, and the crash
+        forced a `reset` -- so each handler was measured against untouched flash
+        *by accident*, as a side effect of the bug. Fix the alignment and the
+        crashes stop, the resets stop with them, and handler N is measured
+        against whatever handlers 1..N-1 wrote. The environment's own control
+        set caught this within one sweep: USER_NAME came back "" instead of
+        "admin", because a POST carrying only `submit-url` makes the handler
+        save its empty form fields.
+        """
         self.restarts += 1
         for _ in range(3):
             if self.start() and self.alive():
@@ -167,6 +192,17 @@ def main(argv: list[str] | None = None) -> int:
                     help="the body to POST (default: a well-formed submit-url and nothing else)")
     ap.add_argument("--out", type=Path, default=None)
     ap.add_argument("--quiet", action="store_true")
+    ap.add_argument("--alignfix", action="store_true",
+                    help="emulate unaligned accesses the way the device's kernel does "
+                         "(tools/alignfix). Off by default; the first sweep ran without "
+                         "it and 39 of 57 handlers 'died' inside libapmib's TLV "
+                         "serialiser, which is the emulator and not the firmware")
+    ap.add_argument("--reset-each", dest="reset_each", action="store_true", default=None,
+                    help="restart and restore the flash before every probe. Defaults to "
+                         "on when --alignfix is on, because handlers that no longer crash "
+                         "do save, and probe N would otherwise read what probes 1..N-1 wrote")
+    ap.add_argument("--no-reset-each", dest="reset_each", action="store_false",
+                    help="do not restore between probes. Only sound when nothing writes")
     args = ap.parse_args(argv)
 
     if os.geteuid() != 0 and subprocess.run(["sudo", "-n", "true"],
@@ -174,7 +210,13 @@ def main(argv: list[str] | None = None) -> int:
         print("handler-sweep: needs passwordless sudo to restart the server", file=sys.stderr)
         return 1
 
-    srv = Server(args.profile, args.port, args.quiet)
+    # With alignfix on, handlers write. Without it they crashed before they
+    # could, and the crash reset the flash. So the guarantee "every probe sees
+    # the same bytes" was a by-product of the defect, and removing the defect
+    # removes the guarantee unless it is asked for explicitly.
+    reset_each = args.reset_each if args.reset_each is not None else args.alignfix
+
+    srv = Server(args.profile, args.port, args.quiet, alignfix=args.alignfix)
     if not srv.ensure():
         print(f"handler-sweep: could not stand the server up on port {args.port}.\n"
               f"  sudo tools/qemu-env.sh --profile {args.profile} build", file=sys.stderr)
@@ -187,7 +229,8 @@ def main(argv: list[str] | None = None) -> int:
 
     for name in [LIVE_CONTROL, DEAD_CONTROL] + [n for n in names
                                                 if n not in (LIVE_CONTROL, DEAD_CONTROL)]:
-        if not srv.ensure():
+        ok = srv.ensure_pristine() if reset_each else srv.ensure()
+        if not ok:
             rows.append({"handler": name, "status": None, "died_under_emulation": None,
                          "note": "server could not be restarted before this probe"})
             continue
@@ -217,21 +260,42 @@ def main(argv: list[str] | None = None) -> int:
         problems.append("every handler died, which measures the emulator rather than "
                         "the firmware")
 
+    # The control that only exists because the flash can now be written: after
+    # the last probe the environment must still hold the values it started with.
+    # If it does not, some probe wrote and something after it read the write, and
+    # the run is a sequence rather than 58 independent measurements.
+    final = srv._run("reset")
+    check = srv._run("check")
+    env_intact = check.returncode == 0
+    if not env_intact:
+        problems.append("the environment's own control set does not pass after the "
+                        "sweep, so at least one probe left state behind: "
+                        + (check.stdout or check.stderr or "").strip().replace("\n", " | "))
+    del final
+
     report = {
         "producer": "handler-sweep",
         "schema_version": "1",
         "profile": args.profile,
+        "alignfix": bool(args.alignfix),
+        "reset_each": bool(reset_each),
         "body": args.param,
         "handlers_probed": len(rows),
         "died_under_emulation": sorted(died),
         "survived": sorted(survivors),
         "restarts": srv.restarts,
         "failed_restarts": srv.failed_restarts,
-        "controls": {"live": live, "dead": dead},
+        "controls": {"live": live, "dead": dead, "env_intact_after_sweep": env_intact},
         "control_problems": problems,
         "caveat": "died_under_emulation is NOT a claim about the device. qemu-user raises "
                   "SIGBUS where the MIPS kernel fixes unaligned accesses up. This is a "
-                  "candidate list for the bench, not a result from it.",
+                  "candidate list for the bench, not a result from it."
+                  + ("" if args.alignfix else
+                     " With alignfix off -- as here -- that caveat is not hypothetical: "
+                     "the first sweep's 39 deaths were traced to one halfword store in "
+                     "libapmib's mib_write_to_raw, so this column is measuring which "
+                     "handlers reach the config serialiser, not which ones are fragile. "
+                     "Re-run with --alignfix for the list that means what it says."),
     }
     if args.out:
         args.out.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")

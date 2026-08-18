@@ -324,6 +324,28 @@ cmd_reset() {
   # caller to check reset's exit status at all.
   rm -rf "$ENVDIR/var/web/config.dat"
   [ -e "$ENVDIR/var/web/config.dat" ] && die "could not clear $ENVDIR/var/web/config.dat"
+
+  # And restore the web server's own runtime config, which `build` composes the
+  # way `sysconf` does on the device: the template plus an appended Port line.
+  #
+  # This line exists because of what --alignfix made possible. Once handlers
+  # stopped dying inside libapmib they began running their side effects, and one
+  # of them re-ran the `cp -a /etc/boa/boa.conf.bak /var/boa.conf` half of
+  # sysconf's job without the append. The file went back to the upstream sample,
+  # in which `Port` is commented out -- so `serve`'s `sed s/^Port .*/` matched
+  # nothing, boa bound port 0, and every probe afterwards timed out with the
+  # environment otherwise healthy: `check` passed all three controls, because the
+  # flash was fine. It was not the flash.
+  #
+  # Same shape as instrument bugs 37 and 41: a restore trusted to restore
+  # everything, restoring less than everything. `reset` had always covered the
+  # flash and the SysV segments and never /var, and until handlers could write
+  # nothing in /var ever changed.
+  cp -a "$ENVDIR/etc/boa/boa.conf.bak" "$ENVDIR/var/boa.conf"
+  echo 'Port 80' >> "$ENVDIR/var/boa.conf"
+  grep -q '^Port ' "$ENVDIR/var/boa.conf" || die \
+    "restored $ENVDIR/var/boa.conf has no uncommented Port line, so serve's
+     rewrite would match nothing and boa would bind an arbitrary port"
   return 0
 }
 
@@ -451,7 +473,52 @@ cmd_reap() {
 
 cmd_serve() {
   need_root
-  local port="${1:-8080}" conf="$ENVDIR/var/boa-emu.conf"
+  local port="8080" alignfix=0 preload=""
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --alignfix) alignfix=1; shift ;;
+      -*) die "serve: unknown option '$1' (have: --alignfix)" ;;
+      *) port="$1"; shift ;;
+    esac
+  done
+  local conf="$ENVDIR/var/boa-emu.conf"
+
+  # --------------------------------------------------------------- alignfix
+  # OFF BY DEFAULT, and that is the decision rather than the omission.
+  #
+  # qemu-user delivers SIGBUS for unaligned user-space accesses; the MIPS kernel
+  # on the device fixes them up and the program never notices. libapmib's
+  # `mib_write_to_raw` packs variable-length TLV records, so its halfword stores
+  # land on odd addresses as a matter of course -- which is why 39 of 57
+  # handlers "died" in the W07 sweep, why P8-24's recovery write could not be
+  # observed, and why nothing that saves configuration could be measured here.
+  # tools/alignfix/ removes that one divergence.
+  #
+  # It stays opt-in because turning it on changes what the environment IS.
+  # Every measurement this repository has recorded under emulation was taken
+  # without it, the CONTROL set above was established without it, and a flag
+  # that silently changed all of that would make two incomparable things look
+  # like one. So: the mode is chosen explicitly, printed here, and the fix-up
+  # count is written to the log where a report can pick it up. A run that fixes
+  # up 24 unaligned stores is not the same claim as one that fixes up none, and
+  # the difference has to be visible.
+  if [ "$alignfix" -eq 1 ]; then
+    local so="$ENVDIR/lib/alignfix.so"
+    if [ ! -f "$so" ]; then
+      note "alignfix: building tools/alignfix/alignfix.so"
+      bash "$REPO/tools/alignfix/build.sh" "$so" >/dev/null || die \
+        "alignfix: build failed. Run it directly to see why:
+       bash $REPO/tools/alignfix/build.sh /tmp/alignfix.so"
+    fi
+    preload="-E LD_PRELOAD=/lib/alignfix.so"
+    note "alignfix: ON -- unaligned accesses will be emulated, as the device's"
+    note "          kernel does. This environment is NOT byte-identical to the"
+    note "          one every earlier measurement was taken in."
+  else
+    note "alignfix: off (default). Handlers that write configuration will die"
+    note "          on a qemu SIGBUS inside libapmib; that is the emulator, not"
+    note "          the firmware. Pass --alignfix to remove that divergence."
+  fi
 
   # Refuse to start on a port somebody else holds. Without this the checks below
   # pass by talking to the incumbent: they verify a property of the *port*, not
@@ -480,7 +547,8 @@ cmd_serve() {
   rm -rf "$ENVDIR/var/web/config.dat"
   mkdir -p "$ENVDIR/var/web/config.dat"
 
-  chroot "$ENVDIR" ./qemu-mips-static /bin/boa -f /var/boa-emu.conf \
+  # shellcheck disable=SC2086  # $preload is either empty or exactly two words
+  chroot "$ENVDIR" ./qemu-mips-static $preload /bin/boa -f /var/boa-emu.conf \
       >"$ENVDIR/tmp/boa-emu.log" 2>&1 &
   local pid=$!
   local i=0
@@ -621,6 +689,14 @@ usage: sudo $0 [--profile NAME] {build|reset|check|diff|run|serve|stop|reap ...}
   serve   stand boa up on 127.0.0.1 and prove the gate behaves as it does on
           the device before saying it is up, e.g.
             sudo $0 serve 8080
+          --alignfix  emulate unaligned accesses the way the device's MIPS
+                      kernel does, via tools/alignfix/. OFF by default: it
+                      changes what the environment is, and every measurement
+                      recorded before 2026-08-18 was taken without it. Turn it
+                      on to reach any path that writes configuration -- without
+                      it libapmib's TLV serialiser takes a qemu SIGBUS and the
+                      handler looks like it crashed the server, e.g.
+                        sudo $0 serve 8080 --alignfix
   stop    stop it, by pidfile. Not \`pkill -f\`, which matches the calling
           shell's own command line and kills it
   reap    kill EVERY guest process still running in this environment, found by

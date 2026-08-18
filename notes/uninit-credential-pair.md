@@ -89,20 +89,72 @@ refused to report the server as up, which is that check doing its job. With
 of the build only this unit runs, and the class is reproducible by a reader with
 no hardware — the same standard G4 clause 3a set for the command-injection chain.
 
-## 3. Why the stack is zero there, and why that is an argument rather than a measurement
+## 3. What those two buffers are, and why nothing writes them
 
-The obvious objection is that an uninitialised buffer holds whatever happened to
-be there, and that under `qemu-user` what was there need not be what is there on
-silicon.
+**They are the supervisor account.** Added 2026-08-18, and it turns the finding
+from *"a comparison against uninitialised stack"* into *"a feature was deleted
+from the data and left in the control flow"* — which is a different and much
+more defensible claim, because it says what the code was supposed to do.
 
-The likely mechanism is structural rather than accidental: `process_header_end`
-has the deepest frame reached in the request path, Linux hands out zero-filled
-stack pages, and nothing in `boa` writes that depth afterwards — which is also
-why it keeps working across many requests in one run rather than only the first.
-That it reproduces on two different binaries over two unrelated flash images
-supports the same reading.
+The Realtek rtl819x SDK that this `boa` is built from is public, in at least two
+independent mirrors of different vendors' GPL drops. Its `users/boa/src/request.c`
+carries this, in a block the vendor's own comment marks `// davidhsu`:
 
-**But that is a mechanism story, and a mechanism story is not a measurement.**
+```c
+char admin_name[MAX_NAME_LEN], admin_password[MAX_NAME_LEN];
+char user_name[MAX_NAME_LEN],  user_password[MAX_NAME_LEN];
+
+apmib_get(MIB_SUPER_NAME,     admin_name);       /* 180 */
+apmib_get(MIB_SUPER_PASSWORD, admin_password);   /* 181 */
+apmib_get(MIB_USER_NAME,      user_name);        /* 182 */
+apmib_get(MIB_USER_PASSWORD,  user_password);    /* 183 */
+if (strcmp(user_name, "") || strcmp(user_password, "")) {
+    if (req->auth_flag == 0) {
+        if (req->userName) {
+            if (!strcmp(req->userName, admin_name)) {         /* the SUPER pair */
+                ...  req->auth_flag = 2;
+            }
+            else if (!strcmp(req->userName, user_name)) {     /* the USER pair */
+                ...  req->auth_flag = 1;
+            }
+```
+
+**Four `apmib_get` calls in the source; this binary makes two.** It fetches
+`0xb6` and `0xb7` — 182 and 183, `USER_NAME` and `USER_PASSWORD` — into
+`sp+0x58` and `sp+0x78`, and it fetches 180 and 181 **nowhere**. The two SDK
+mirrors agree on the ids, and the id-to-name mapping matches the MIB table this
+project recovered from *this unit's own* `libapmib.so` byte for byte: entry 182
+is `USER_NAME`, entry 183 is `USER_PASSWORD`. That table had never been checked
+against anything outside this repository before.
+
+So `admin_name` and `admin_password` are locals whose only initialiser the
+vendor deleted, while the `strcmp` against them survived. The buffers hold
+whatever the frame held.
+
+Measured across the family, with a scan that reads instruction encodings and
+needs no symbol table
+([`tools/mipsref.py`](../tools/mipsref.py) and the `apmib_get` argument scan):
+
+| build | `apmib_get(180)` | `apmib_get(181)` | `apmib_get(182)` | `apmib_get(183)` | SUPER comparison present |
+|---|---|---|---|---|---|
+| V2.1.2 (2015) | **0 sites** | **0 sites** | 5 | 5 | **yes** |
+| this unit (2018) | **0 sites** | **0 sites** | 5 | 6 | **yes** |
+| V3.4.0 (2020) | **0 sites** | **0 sites** | 7 | 8 | no |
+
+**No build in this family has ever fetched the supervisor credentials.** The
+2020 build is not "the one that stopped populating them" — it is the one that
+also removed the dangling comparison. That is a smaller and more accurate claim
+than §3a's first version made, and it changes what a reader should look for in
+other vendors' builds of the same SDK: the question is not *"do they set
+`SUPER_NAME`"*, it is *"did they delete the `strcmp` too"*.
+
+**What is still an argument rather than a measurement** is why the buffers read
+as *zero* rather than as garbage. `process_header_end` has the deepest frame
+reached in the request path, Linux hands out zero-filled stack pages, and nothing
+in `boa` writes that depth afterwards — which is also why it keeps working across
+many requests in one run rather than only the first. That it reproduces on two
+different binaries over two unrelated flash images supports the same reading.
+**But a mechanism story is not a measurement.**
 
 > **What would confirm it on the device.** One `GET` of a gated page carrying a
 > `Basic` header with both fields empty, the same request with the real
@@ -146,6 +198,13 @@ So the lifecycle is:
 | level it grants | supervisor | `req->0xb0 = 2` | — |
 | fires with empty credentials | ✅ measured | ✅ measured | — |
 
+> **Corrected the same day by §3.** "The vendor removed it" is right about the
+> comparison and wrong about the pair: **no build in this family ever populated
+> it**, because none of the three fetches MIB 180 or 181. What 2020 removed is
+> the dangling `strcmp`, not a working supervisor account. The row *"level it
+> grants: supervisor"* below is the SDK's intent, not this binary's behaviour —
+> see §4.
+
 **The vendor removed it.** Nothing in the repository says when between January
 2018 and October 2020, or whether they knew what they were removing — the same
 question W02's `/bin/skt` timeline left open, and the same shape: a defect
@@ -159,20 +218,75 @@ for.** The bench is still worth building — it finds divergences nobody thought
 to look for, which is not what happened here — but the cheap version ran first
 and that ordering should have been obvious.
 
-## 4. What is not established
+## 4. What level 2 buys, and what it does not
 
-- **Prior art has not been searched for this pattern.** [`prior-art.md`](prior-art.md)
-  has been wrong once, publicly, and the search that overturned `D-1` took one
-  query *by handler* after a search *by product* had returned nothing. Until that
-  runs this is "found here", not "new", and nothing goes to anyone.
-- **What level 2 buys over level 1 is unread.** `req->0xb0` is set to 2 and 1
-  respectively and `DAT_004899d8` receives the same value; who reads it, and
-  whether any page or handler treats 2 differently, has not been traced. The
-  finding above is "authenticates", not "authenticates as something better", and
-  the wording stays there until that is read.
+**Nothing over level 1, and everything over level 0.** Settled 2026-08-18 by
+measurement rather than by reading around it.
+
+`req->auth_flag` is at offset `0xb0` of the request structure. A scan of every
+`lw`/`sw` in the text segment with displacement `0xb0` finds **31 instructions,
+and exactly four of them use a base register that is not `sp` or `fp`** — all
+four inside `process_header_end`, all four with `s0` (the request pointer):
+
+```
+0040bd20  lw  v0,0xb0(s0)     ; the "if (req->auth_flag == 0)" test
+0040bda4  sw  v0,0xb0(s0)     ; = 2, from the SUPER pair
+0040be18  sw  v0,0xb0(s0)     ; = 1, from the USER pair
+0040be24  lw  v0,0xb0(s0)     ; and this one is the whole story
+0040be2c  bne v0,zero,0x0040c0a0
+```
+
+`0x0040c0a0` is `translate_uri` — **past the entire authorisation block**: past
+the `.htm`/`.asp` test, past the eleven exempt-page `strstr` calls, and past the
+session check in §4a. So a non-zero `auth_flag` skips the gate, and 2 and 1 take
+the identical branch. **The distinction between supervisor and user exists in the
+SDK's design and is inert in this binary**, which is why the wording above stays
+"authenticates" and never "authenticates as an administrator".
+
+**`check_auth_flag` is a live defect that this build cannot reach.** The SDK
+source sets a *global* alongside `req->auth_flag`, and it does so with no braces:
+
+```c
+if (!strcmp(req->password, admin_password))
+        req->auth_flag = 2;
+        check_auth_flag = 2;      /* not guarded by the if -- goto fail shape */
+```
+
+That is compiled into this binary faithfully: at `0x0040bda8` the branch to the
+store is taken unconditionally, `v1` is loaded with 2 in its delay slot, and
+`0x0040be20` stores it to `0x004899d8`. So **matching only the username sets the
+global regardless of the password.** It buys nothing here: two independent
+instruments — Ghidra's reference model, and an encoding scan that has neither a
+symbol table nor an analysis database — agree that `0x004899d8` has **one
+reference in the whole 485,012-byte binary, and it is that write.** Nothing reads
+it. The defect is upstream, it is real, and on this build it is dead code. It is
+recorded under *"relatively safe"* in [`bughunt.md`](bughunt.md) for that reason.
+
+## 4a. Prior art: searched four ways, nothing found
+
+The rule after `D-1` is that a search by product proves nothing and a search by
+*handler* is the one that pays. Run 2026-08-18:
+
+| searched | what came back |
+|---|---|
+| `process_header_end` + uninitialised stack + authentication | **CVE-2007-4915**, Intersil-extended Boa 0.93.15: a **long username** overwrites the in-memory admin password. Same function, same feature, **different mechanism** — a write, not a missing write. Not this |
+| `Boa/0.94.14rc21` on its own | exploit-db 51139, the `HEAD`-method bypass. Already in [`prior-art.md`](prior-art.md) and already refuted on this build |
+| Realtek rtl819x Jungle SDK + Basic auth bypass | Cisco Talos's fifteen 2023–24 SDK reports. **Ten stack overflows, one heap overflow, two arbitrary-code-execution, one CSRF, one firmware-update-without-consent — and no authentication defect of any kind** |
+| the symbol `check_auth_flag` | nothing |
+
+So: **no prior art found.** That is not the same as *new* — the SDK source
+carrying this is on GitHub in two mirrors, so anyone reading it could see the
+missing `apmib_get` calls, and "nobody published it" is weaker than "nobody found
+it". It is enough to move the item from *"not searched"* to *"searched, and the
+search that found Talos for `D-1` on the first page found nothing here"*.
+
+## 4b. What is still not established
+
 - **Whether the two buffers can be made to hold *chosen* bytes** rather than zero
   is unknown. That would be a different and worse thing, and nothing here has
-  looked for it.
+  looked for it. `boa` handles many requests in one process, so the question is
+  concrete: does anything reached from the request loop leave data at that depth?
+- **The device.** Everything in §1 and §2 is emulated. Three requests settle it.
 - **The `/boafrm/` handlers do not need this.** `P2-1` established that a POST to
   a form handler is outside the gate entirely, so this bypass buys access to
   *pages*, not to actions that were already reachable. Its weight is in what a
@@ -198,3 +312,19 @@ existed.**
 `P2-9`'s title says `sp+0x18` / `sp+0x38`; W03's V2.1.2 reading says `sp+0x40` /
 `sp+0x60`. Both are right about their own binary, and quoting either set without
 naming the build is exactly the failure `G3.5` exists to prevent.
+
+**Its second draft called the buffers uninitialised and stopped there.** They are
+`admin_name` and `admin_password`, they belong to a supervisor account, and the
+vendor's own SDK source names them — §3. Three things follow from having read it
+that could not be said without it: the finding has a *cause* rather than an
+accident, the 2020 build turns out never to have been the fix it looked like, and
+the neighbouring `check_auth_flag` defect became visible at all. The whole of
+that came from one search, by *symbol* rather than by product, on a codebase that
+has been on GitHub the entire time.
+
+**And the reason it took until W07 is worth naming**: this project reads binaries
+because the vendor does not publish source, and it had never asked whether
+*somebody else's* GPL drop of the same SDK was public. `docs/disclosure.md` step 2
+says to search by handler before reporting. It does not say to search for the
+source, and that omission is now [`prior-art.md`](prior-art.md)'s, not this
+note's.

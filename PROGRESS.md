@@ -3299,3 +3299,288 @@ bench.
 | **4. The rest of the network block, then the destructive batch** | ✅ | Read-only first, then the config-changing ones, then the handler sample, then `P8-4`, and `P9-9` **last** because it wipes the settings every other test is standing on |
 | **5. `P5-6` and the `P4`/`P5` block** | ❌ | Desk work, and the screening tool leads it |
 | **6. Prior-art searches** | ❌ | Before anything is reported, and it gates `D-15`, `D-16`, `D-17` |
+
+---
+
+## W07 Day 3 — the SDK's own source, and an emulator divergence that had been shaping results — 2026-08-18
+
+A second desk-only session, and the two largest results both came from asking a
+question the project had never asked rather than from running something harder.
+**No register row was recorded**: the week still reads **W07 11 of 57**, and the
+reason is in *Deliberately not done*.
+
+### The two never-written buffers are a supervisor account, and the source that says so is public
+
+`D-15` was *"a comparison against two stack buffers nothing writes"*. It is now
+*"a feature deleted from the data and left in the control flow"*, which is a
+different claim because it says what the code was **for**.
+
+The Realtek rtl819x SDK's `boa` source is on GitHub, in **two independent GPL
+drops from unrelated vendors** — neither of them TOTOLINK's. Its
+`users/boa/src/request.c` fetches **four** MIB values into four buffers —
+`MIB_SUPER_NAME` (180) and `MIB_SUPER_PASSWORD` (181) into `admin_name` /
+`admin_password`, `MIB_USER_NAME` (182) and `MIB_USER_PASSWORD` (183) into
+`user_name` / `user_password` — and compares the **SUPER** pair first, granting
+`auth_flag = 2`, then the USER pair, granting `1`.
+
+This unit's binary makes **two** of those four calls — `0xb6` and `0xb7`, into
+`sp+0x58` and `sp+0x78` — and fetches 180 and 181 nowhere. So `sp+0x18` and
+`sp+0x38` are `admin_name` and `admin_password` with their only initialiser
+deleted.
+
+Scanned across the family with an encoding scan that needs no symbol table:
+**no build in this product line has ever fetched MIB 180 or 181.** V2.1.2, this
+unit, and V3.4.0 all report zero sites. What 2020 removed is the dangling
+comparison, not a working supervisor account — which is smaller and more accurate
+than what W07 Day 2 recorded, and it changes what to look for in other vendors'
+builds of the same SDK.
+
+Two more things fell out of reading the source, and neither was being looked for:
+
+- **The MIB table this project recovered from this unit's own `libapmib.so` now
+  has an outside witness.** `apmib.h` gives `SUPER_NAME` 180, `SUPER_PASSWORD`
+  181, `USER_NAME` 182, `USER_PASSWORD` 183; the recovered table's entries 182
+  and 183 are `USER_NAME` and `USER_PASSWORD`. That table had never been checked
+  against anything outside this repository.
+- **`check_auth_flag` is an upstream missing-brace defect.** The source assigns a
+  global alongside `req->auth_flag` with no braces, so matching only the
+  *username* sets it whatever the password is, in all four arms. This binary
+  compiles it faithfully — `0x0040bda8` branches unconditionally with `v1 = 2` in
+  the delay slot, `0x0040be20` stores it. **It is dead here**: `0x004899d8` has
+  exactly one reference in the whole 485,012-byte binary and it is that write.
+
+> **Open #52 is settled, and the answer deflates the finding by one notch and
+> inflates it by another.** `req->auth_flag` is read at two instructions, both
+> inside `process_header_end`; the second, `0x0040be24` / `0x0040be2c`, branches
+> to `translate_uri` on **any** non-zero value. So 2 and 1 are equivalent — the
+> wording stays "authenticates", never "as an administrator" — and what the empty
+> pair actually buys is that the **entire** authorisation block does not run.
+
+→ [`uninit-credential-pair.md`](notes/uninit-credential-pair.md) §3, §4
+
+### The gate has a third arm, it is keyed on the client's IP, and it dies 601 seconds after boot
+
+Found by reading forty instructions past the question the listing was generated
+for. After the `.htm` / `.asp` test and the eleven exempt pages,
+`process_header_end` does this:
+
+```
+0040bff8  lw    v1, nowuptime           ; written at 0040be54 from sysinfo()
+0040c000  lw    v0, beforeuptime
+0040c008  subu  v0, v1, v0
+0040c00c  sltiu v0, v0, 0x259           ; difference < 601 seconds?
+0040c010  bne   v0, zero, keep
+0040c018  strcpy(authipaddr, "0.0.0.0")
+0040c04c  strcmp(authipaddr, req+0x4bd) ; the client's address
+0040c060  beq   -> allowed
+```
+
+`authipaddr` is written by `form_formLogin` at `0x0044f13c` and cleared by
+`form_formLogout` at `0x0044cd48`. **And `beforeuptime` is never written** — one
+reference in the binary, the read above, confirmed by Ghidra and by an
+independent encoding scan whose control in the same run returns a read *and* a
+write. So the difference is the system uptime, and after ten minutes the address
+is overwritten with `"0.0.0.0"` before every comparison and the arm can never
+succeed again.
+
+**Which is why this repository concluded "per-request HTTP Basic", and it was
+right.** Every measurement it has ever taken was made past the ten-minute mark.
+What was missing is that the reason is a bug: a session with an idle timeout
+whose timer variable nobody assigns. **That is the same authoring mistake as the
+supervisor pair — a comparison against a variable nothing writes — twice, in one
+function.**
+
+The consequence is a device state nobody has measured: for the first 601 seconds
+of uptime, a gated page is served to whichever address logged in last, with no
+credentials on the request. **The emulator cannot reach it** — `sysinfo()` under
+`qemu-user` returns the host's uptime — so it needs `A3.2`, the only station that
+owns the clock.
+→ [`auth-session-ip.md`](notes/auth-session-ip.md), `docs/disclosure.md` `D-18`
+
+### `P4-7`'s thirty-nine deaths were the emulator
+
+`handler-sweep.py` reported **39 of 57 handlers dying on a single well-formed
+POST**. The tool wrote `died_under_emulation` and said in as many words that it
+could not turn that into a claim about the device. Attaching `gdb-multiarch` to
+`qemu-mips-static`'s gdbstub and letting the fault happen answers it:
+
+```
+Program received signal SIGBUS, Bus error.
+=> 0x2b2c87dc:  sh  s7,0(s8)
+```
+
+`libapmib.so + 0x27d0`, inside **`mib_write_to_raw`** — the TLV serialiser that
+packs the MIB into the raw flash buffer. Variable-length records, so field
+offsets are odd as a matter of routine. Linux/MIPS fixes unaligned user-space
+accesses up in the kernel and the device never notices; `qemu-user` raises
+SIGBUS, and `boa`'s own handler dumps core and aborts.
+
+**So the 39 are the handlers that reach the config serialiser, and the 19
+"survivors" are the ones that bail out early because the probe body carried only
+`submit-url`.** `formSysCmd` being among the survivors stops being a curiosity.
+
+`tools/alignfix/` removes the divergence — a freestanding MIPS-BE `LD_PRELOAD`
+shim, raw syscalls, no libc dependency, which decodes the faulting
+`lh`/`lhu`/`sh`/`lw`/`sw` and performs it a byte at a time, and interposes
+`sigaction` / `signal` so `boa` cannot take SIGBUS back. With it loaded `formNtp`
+returns **302 and the server survives**, and the log shows **24 fix-ups, all at
+one pc, every address odd**.
+
+**It also explains `P8-24`.** That row records the fail-open recovery write as
+"not observable, because `flash default-sw` dies on a `qemu-user` SIGBUS". Same
+binary path, same cause. **Two separately-recorded observations were one bug.**
+
+**And the re-run, with a pristine flash before every probe, gives the number this
+week's method was supposed to produce.** 58 handlers probed, 58 restarts, **0
+failed, 57 survived, and exactly one died: `formSchedule`.** All three controls
+held, and the post-sweep `env_intact_after_sweep` check passed — so no probe left
+state behind, which is bug 41's fix proving itself in the same run that needed it.
+
+> 🏆 **`D-11` measured on the hardware that *one* unauthenticated, well-formed
+> POST removes the web server until a power cycle, and could not say which
+> handler it belonged to.** The emulated list was thirty-nine, which is not a
+> lead. It is now **one, named** — and the device measurement and the emulated
+> candidate now agree on both shape and count. The bench sample that open #47
+> asks for has an obvious first pick instead of a lottery.
+
+`bughunt.md` row 16 is rewritten rather than simply withdrawn: the original claim
+was a property of the emulator, and correcting the emulator did not delete the
+finding, it **sharpened it by a factor of thirty-nine**. That is the third of this
+project's own results to be overturned, and the first overturned by building an
+instrument that could tell the emulator from the firmware rather than by arguing
+about a caveat the report already carried.
+→ [`emulation-2018.md`](notes/emulation-2018.md) §7a ·
+[`reports/handler-sweep-unit-2018-alignfix.json`](reports/handler-sweep-unit-2018-alignfix.json)
+
+### Prior art: three searched, one matched, and the method that found the most was new
+
+| | outcome |
+|---|---|
+| `D-15` | **nothing**, searched four ways. Talos's fifteen rtl819x reports contain no authentication defect of any kind; CVE-2007-4915 is the same function with the opposite mechanism |
+| `D-17`, the `dnsspoof` write | **nothing**, searched by behaviour because the binary name collides with dsniff's tool |
+| `D-12`, image-validation half | **matched — CVE-2023-34435 / TALOS-2023-1874**, CWE-347, on this SDK. `bughunt.md` row 13 is not this project's finding. What survives is narrower and better: *which* check exists and at what address |
+| `D-12`, plain-HTTP fetch half | **nothing**, searched by domain, by symbol and by binary name |
+
+**And one found while looking for something else:** CVE-2023-47677 reports CSRF
+on this SDK's `boa`. `P8-3` and `P8-4`'s frozen predictions say there is no CSRF
+protection; a published advisory says there is one and that it is bypassable.
+Their results will have to cite it rather than read as discoveries. The mechanism
+Talos describes is not the one in this binary, and that is said rather than
+resolved.
+
+> **The method result is the one to keep.** `docs/disclosure.md` step 2 says
+> search by *handler*, because `D-1`'s search by product found nothing and by
+> handler found Talos on the first page. That was still too narrow. **Searching
+> by *symbol* finds source.** Step 2a now says so.
+
+### Instrument work
+
+- **`tools/alignfix/`** — the shim above, plus `build.sh`, which checks the
+  object is big-endian MIPS32 with an init entry and no undefined symbols before
+  it says "built". That check is `P5-4`'s refutation condition mechanised.
+- **`tools/test-alignfix.sh`**, 8 cases, in `make ci` as `alignfix-test`. It
+  builds a deliberately mis-offset shim to prove the refusal path is reachable,
+  points the build's architecture checks at a host x86-64 object to prove they
+  discriminate, and asserts the flag is still **off by default** — because a
+  future edit that turned it on silently would make every pre-2026-08-18
+  emulated measurement incomparable without anyone noticing.
+- **`tools/mipsref.py`** — "who references this address", from instruction
+  encodings alone: no symbol table, no analysis database, no reference model, so
+  it is genuinely independent of Ghidra. Three addressing forms, because missing
+  one looks exactly like a clean answer, and `gp` comes from the ELF's own
+  `DT_PLTGOT + 0x7ff0` rather than from Ghidra. `--control` names an address that
+  **must** come back with a read and a write, else it exits 2. `--segments`
+  answers the RELRO / NX / GOT question as a second source: the GOT sits in a
+  `RW-` PT_LOAD, there is no `PT_GNU_RELRO`, and `GNU_STACK` is `RWX` — in all
+  three builds, which is `P5-3`'s static half and part of `P5-7`'s.
+- **`gdb-multiarch` and the MIPS-BE cross toolchain** are installed, in
+  `setup-wsl.sh`, and verified by `make verify` — including
+  `mips-linux-gnu-objdump`, because `mipsel` compiles the same source just as
+  happily and produces something the SoC will not run.
+- `handler-sweep.py` gained `--alignfix` and `--reset-each`, and a post-sweep
+  control that re-runs the profile's own `check`.
+
+### Instrument bugs 40, 41 and 42 — and 41 and 42 were both created by fixing 40
+
+**40. The emulation environment could not execute a single configuration write,
+and nothing said so.** Not a wrong answer — a missing capability that looked like
+a result. Every handler that saved settings appeared to crash, `P8-24`'s recovery
+write appeared unobservable, and both were recorded as bounded observations with
+honest caveats. The caveats were right and they were not enough: **a limit
+described in prose next to each affected result is not the same as a limit the
+environment declares once.** `serve` now prints its alignment mode on every start.
+
+**41. Removing the crash removed a guarantee that was resting on it.** With
+`--alignfix` the handlers no longer die, so the restart no longer happens, so the
+`reset` inside the restart no longer happens — and probe *N* began reading what
+probes 1..N-1 had written. The sweep's per-probe pristine flash had never been an
+intended property; it was the crash doing it by accident. Caught within one run
+by the environment's own positive control returning `USER_NAME=""` instead of
+`"admin"`.
+
+**42. `reset` restores the flash and the SysV segments and does not restore
+`/var`.** Once handlers could write, one of them re-ran the
+`cp -a /etc/boa/boa.conf.bak /var/boa.conf` half of `sysconf`'s job **without**
+the `echo 'Port 80' >>` that `build` appends. The runtime config went back to the
+upstream sample, in which `Port` is commented out, so `serve`'s
+`sed s/^Port .*/` matched nothing and `boa` bound port 0. Every probe afterwards
+timed out **while the environment reported itself healthy** — `check` passed all
+three controls, because the flash really was fine. Two sweeps were lost to it
+before the log line `boa: starting server pid=…, port 0` was read closely enough.
+
+That is forty-two recorded. **Two of the last three were created by this project
+in this session**, which is the first time that has happened, and both were caught
+by controls that already existed: 41 by the profile's own value check, 42 by a
+server that would not answer. The lesson the three share is one sentence:
+*a restore is only as good as the list of things it restores, and that list is
+never revisited until something starts writing.*
+
+### Corrections to the plan
+
+| W07's plan says | What happened |
+|---|---|
+| Day 2's differential fuzzing stands up six emulation profiles | Still not built, and the reason has grown: the two differential answers needed this week came from an encoding scan of three binaries. **But `--alignfix` changes the case for it** — before today no profile could execute a config write, so a differential harness would have compared three environments that all stopped at the same instruction |
+| Day 1 treats the gate as `.htm` / `.asp` plus an exemption list | There is a **third arm**, and it had been read past three times |
+| The scan list is "the CI gate's own output, the islands, the blank areas" | The productive fifth source was **the vendor's SDK source**, public the whole time, and nothing in the plan or in `docs/disclosure.md` said to look for it |
+
+### Deliberately not done
+
+| Item | Why |
+|---|---|
+| **Recording any register result** | The `P4` / `P5` block's input — the re-run sweep with `--alignfix` — landed in the session's last minutes, after two interruptions by bugs 41 and 42, and there was no time left to run the block it feeds. Recording `P5-3`, `P5-7`, `P1-9` and the `P3-8`…`P3-12` static halves without it would split one afternoon across two commits and put half a week's results in before the other half was measured. **The sweep artefact is committed**; nothing is recorded against it yet |
+| Everything needing the device | 32 rows, one visit, and **three of its predictions did not exist this morning**: the empty-pair bypass on silicon, the 601-second window, and whether the 39 survive on silicon — which now has a mechanism behind it rather than a coin flip. Freezing them before the visit is the whole reason the register exists, and W07 Day 2 was a desk-only session for exactly this reason |
+| The V3.4.0 emulation profile | Started and stopped deliberately. Its COMPDS length **must** be derived from V3.4.0's own `libapmib` — the 32858 in `mkflash` is V2.1.2's library's statement about itself — and copying it would produce "a second way to believe the first environment" |
+| Reporting anything to anyone | `D-15` and `D-18` are the two most serious items in the register and both are static or emulated |
+
+### Open, carried forward
+
+58. **Nothing has ever entered the 601-second window.** The device has a
+    different authorisation state for the first ten minutes after every boot and
+    no measurement in this repository describes it. The emulator cannot reach it.
+59. **Can an attacker install their own address as `authipaddr` during that
+    window?** `formLogin` is one of the eleven exempt strings, so the gate does
+    not stop the request reaching the handler. Untraced.
+60. **`aspvar_dhcpCloneMacList` reads `authipaddr` twice** (`0x0041387c`,
+    `0x00413894`) and nothing explains why a page renderer needs the authorised
+    client's address.
+61. **The fix-up count is a new number with no reference.** Twenty-four unaligned
+    stores for one `formNtp` POST is a measurement of `libapmib`'s serialiser, and
+    nothing says what it should be. A count that changed between builds, or
+    between handlers, would mean something — and there is no baseline to notice
+    it against.
+62. **What else does `reset` not restore?** Bug 42 was found by a symptom. The
+    list of state the environment holds outside the flash image has never been
+    enumerated, and `/var` is where the runtime config, the document root and the
+    pid files all live.
+
+### Where W07 stands, and what the next session does first
+
+The register still reads **W07 11 of 57**. The desk block is roughly two-thirds
+measured and none of it is recorded; the bench block has not started.
+
+| Next | Needs the device? | Note |
+|---|---|---|
+| **1. ~~Finish the `--alignfix` sweep~~** | ❌ | **Done, at the end of the session.** 58 probed, 58 restarts, **0 failed, 57 survived, one died: `formSchedule`.** All three controls held and `env_intact_after_sweep` is true, so no probe left state behind — which is bug 41's fix proving itself. The emulated candidate list for `D-11` is now **one handler instead of thirty-nine**, and it is computed rather than chosen. → [`reports/handler-sweep-unit-2018-alignfix.json`](reports/handler-sweep-unit-2018-alignfix.json) |
+| **2. Record the desk block** | ❌ | `P1-9`, the `P3-8`…`P3-12` static halves, `P5-3`, `P5-7`, `P5-6`, then the `P4` / `P5` chain. `P4-7` now has a second, better result to record against it |
+| **3. Freeze the bench predictions** | ❌ | Three are new as of today, and one — the 601-second window — has no runsheet step at all. **This gates the visit** |
+| **4. The bench visit** | ✅ | 32 rows, station order per `runsheet.md` Part B `B-W07`, `P9-9` last |

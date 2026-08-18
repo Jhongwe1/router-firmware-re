@@ -541,7 +541,7 @@ that is not backed by a command someone else can re-run.
   > silicon.**
 
 - [ ] **G5 — published write-up** (W08–W09) — a stranger understands the whole chain in 10 minutes
-- [ ] **W07 — systematic bug hunt** (no gate) — 8 categories, not driven by known CVEs. **11 of 57 register rows closed**, all of them at the desk; the deliverable is [`notes/bughunt.md`](notes/bughunt.md), nineteen verdicts each pointing at a file under `reports/`, and a *relatively safe* section the same size as the verdict table
+- [ ] **W07 — systematic bug hunt** (no gate) — 8 categories, not driven by known CVEs. **11 of 57 register rows closed**, all of them at the desk; the deliverable is [`notes/bughunt.md`](notes/bughunt.md), twenty verdicts each pointing at a file under `reports/`, and a *relatively safe* section the same size as the verdict table. Three of the twenty are this project's own findings **withdrawn**, and one more turned out to have a CVE against it — the most recent retraction came from building an instrument that could tell the emulator's behaviour from the firmware's ([`tools/alignfix/`](tools/alignfix/)), not from arguing about a caveat
 - [ ] **W10 — close-out, disclosure admin, buffer**
 
 ## What is here

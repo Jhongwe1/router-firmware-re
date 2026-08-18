@@ -1,0 +1,46 @@
+{
+  "producer": "mipsref",
+  "binary": "/home/key/fwre-work/extracted/unit-2018/squashfs-root/bin/boa",
+  "source_sha256": "19fe29d71aa1cc1e893627f17a0f14b03ca75f6936318df4062df4fb153909f7",
+  "bytes": 485012,
+  "dt_pltgot": 4743152,
+  "gp": 4775904,
+  "control": "004899e0",
+  "control_ok": true,
+  "targets": {
+    "0x004899d8": [
+      {
+        "file_offset": 48672,
+        "vaddr": 4242976,
+        "word": 2890111448,
+        "mnemonic": "sw",
+        "form": "lo-half",
+        "base_reg": 2,
+        "reads": false,
+        "writes": true
+      }
+    ],
+    "0x004899e0": [
+      {
+        "file_offset": 48724,
+        "vaddr": 4243028,
+        "word": 2890111456,
+        "mnemonic": "sw",
+        "form": "lo-half",
+        "base_reg": 2,
+        "reads": false,
+        "writes": true
+      },
+      {
+        "file_offset": 49144,
+        "vaddr": 4243448,
+        "word": 2353240544,
+        "mnemonic": "lw",
+        "form": "lo-half",
+        "base_reg": 2,
+        "reads": true,
+        "writes": false
+      }
+    ]
+  }
+}

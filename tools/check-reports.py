@@ -343,6 +343,30 @@ def main(argv: list[str]) -> int:
                 errors.append(
                     f"{path.name}: self_check is {doc.get('self_check')!r}")
 
+        elif str(doc.get("producer", "")) == "mipsref":
+            counts["ghidra"] += 1
+            # tools/mipsref.py answers "who references this address" from
+            # instruction encodings, with no symbol table and no Ghidra. Its
+            # whole value is being a second source, and its characteristic output
+            # is a *zero*: "nothing reads this global". A zero produced by a
+            # broken decode and a zero produced by a binary that really holds
+            # nothing are the same file, so all three of these are required.
+            if not doc.get("source_sha256"):
+                errors.append(
+                    f"{path.name}: no source_sha256 - the report cannot name the "
+                    "binary it describes")
+            if doc.get("gp") is None:
+                errors.append(
+                    f"{path.name}: gp is null, so the gp-relative addressing form "
+                    "was never checked and a reference through it would have been "
+                    "missed silently")
+            if doc.get("control_ok") is not True:
+                errors.append(
+                    f"{path.name}: control_ok is {doc.get('control_ok')!r} - a scan "
+                    "whose control address did not come back with both a read and "
+                    "a write proves nothing about the addresses that came back "
+                    "empty, and must not be committed as evidence")
+
         elif str(doc.get("producer", "")).startswith("ghidra:") or (
             "program" in doc and "matches" in doc
         ):

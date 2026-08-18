@@ -50,6 +50,11 @@ stage_apt() {
     e2fsprogs android-sdk-libsparse-utils
     # emulation of MIPS user-space binaries (W05 dynamic analysis; used early to smoke-test ABI)
     qemu-user-static binfmt-support
+    # W07 exploitation block: qemu-user exposes a gdbstub with -g, and the debugger
+    # attaching to it has to speak MIPS *big*-endian. Plain gdb on amd64 does not,
+    # and a mipsel toolchain silently produces objects this SoC will not run --
+    # which is exactly what P5-4's refutation condition says to check first.
+    gdb-multiarch gcc-mips-linux-gnu binutils-mips-linux-gnu
     # hardware access (W02): SPI flash reads and UART console
     flashrom picocom minicom
     # binary inspection
@@ -216,6 +221,12 @@ stage_verify() {
   check unsquashfs         unsquashfs -help
   check qemu-mips-static   qemu-mips-static --version
   check qemu-mipsel-static qemu-mipsel-static --version
+  check gdb-multiarch      gdb-multiarch --version
+  check mips-linux-gnu-gcc mips-linux-gnu-gcc --version
+  # The endianness check, not a presence check. `mips-linux-gnu-gcc` and
+  # `mipsel-linux-gnu-gcc` both exist, both compile, and only one of them
+  # produces something this SoC will execute. Ask the assembler what it emits.
+  check mips-linux-gnu-objdump mips-linux-gnu-objdump --version
   check flashrom           flashrom --version
   check picocom            picocom --help
   check 7z                 7z i
