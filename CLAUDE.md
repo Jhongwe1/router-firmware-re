@@ -155,7 +155,7 @@ reader undefended.
   because §8.12 declared its commands had moved out and then carried twelve
   blocks, four already refuted at the bench, invisible because the checker only
   read `runsheet.md`. A section that may not hold a command cannot hold a stale
-  one. `tools/test-check-runsheet.sh` (29 cases) proves that checker can fail.
+  one. `tools/test-check-runsheet.sh` (32 cases) proves that checker can fail.
   The runsheet is hand-written on purpose; a command that no longer works is not
   a matter of taste.
 - **Because `BENCH-LOG.md` is verbatim, both §8.12 and the runsheet may be

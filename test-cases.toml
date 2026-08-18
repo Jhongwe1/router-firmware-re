@@ -31,7 +31,7 @@ schema_version = "1"
 # sha256 over (id, predict, refute) of every case that has a refutation.
 # Change a prediction and this must change in the same commit, where the diff
 # shows it. `python3 tools/rtcase.py freeze` prints the current value.
-sha256 = "a9bd2761074e0b349726ec0ee96f3280e30a81e13a034643c1c3581dfc7f10be"
+sha256 = "ef7ab66d86f1c3de35a654e7dd76711cbce7853241594462043a829fc9ff27b7"
 committed = "2026-08-18"
 note = """W05 Day 0 — frozen before any request has been served to this device.
 
@@ -69,7 +69,35 @@ profile's flash image and see what the boot script does. The prediction commits
 to "telnet ends up enabled" while naming the specific way it could be wrong
 (`flash reset1` running afterwards and overwriting the set), because that half
 is inference from the script's wording and not a measurement of what `flash
-default-sw` writes."""
+default-sw` writes.
+
+2026-08-18, second desk session — one prediction was EDITED and one case is new,
+and both happened before anything was sent.
+
+**P4-9's `refute` was replaced, and the reason is that it could not fire.** It
+named "P4-3's known crash" as the positive control proving the fuzz harness's
+survival detection works. P4-3 was recorded `refuted` on this build on
+2026-08-17: `formNtp` echoes `submit-url` into `Location`, 800 bytes come back
+as 799, no truncation at 100 and no crash at any length. So the control did not
+exist — and a refutation whose second clause is permanently true degrades into
+"zero crashes means the harness is broken", which reads a correct negative
+result as an instrument failure. The replacement names a control that does exist
+and has been measured: with `--alignfix` and a pristine flash before every
+probe, `formSchedule` is the one handler of 58 that removes `boa`. Editing a
+frozen field is allowed and is never allowed to be quiet; that is what this hash
+is for, and the reasoning is in `PROGRESS.md` § Corrections.
+
+**P2-11 is new: the 601-second window.** `process_header_end` has a third arm
+nobody had read — an IP-keyed session written by `form_formLogin`, expiring on
+`nowuptime - beforeuptime >= 601`, where `beforeuptime` is never written. It is
+frozen here **before the bench visit that is the only thing able to answer it**,
+and the emulator is excluded inside the refutation rather than left as an
+option, because `qemu-user`'s `sysinfo()` returns the host's uptime and every
+desktop has been up longer than 601 seconds. Its refutation runs in two
+directions and the second one accuses this project's own instruments: if the arm
+is still live after 601 seconds then Ghidra's reference model and
+`tools/mipsref.py`'s encoding scan missed the same write, and the instrument is
+what gets fixed first."""
 
 [schedule]
 # sha256 over (id, week) of every live case. `week` is deliberately NOT in
@@ -80,7 +108,7 @@ default-sw` writes."""
 # breaking the plan or editing the field. Editing it quietly is
 # indistinguishable from moving the goalposts, so now it hashes.
 # `python3 tools/rtcase.py schedule` prints the current value.
-sha256 = "0384ce43144fec98721024035fa5d10023ba5de9ce5adaa0602bd3d8029199b4"
+sha256 = "f7d9c9bcbb151f5090facc536ae1aa105105caca178d0daa25b7170e4bf2f2fd"
 committed = "2026-08-18"
 note = """The payload changed on 2026-08-17: it was (id, week) and is now
 (id, week, rescheduled_from, reschedule_date, reschedule_reason), so every
@@ -118,7 +146,13 @@ this project accepts for an irreversible step — ordering, not caution. The uni
 is the single point of failure for G2 and G4 and it is also the target of the
 twenty-odd W07 tests that have not run yet, so writing a modified image to its
 flash before those tests would be spending the week to buy one row. The half of
-P9-10 that is not irreversible became P9-13 and stays in W07."""
+P9-10 that is not irreversible became P9-13 and stays in W07.
+2026-08-18, second desk session: no week moved. The hash changed because
+**P2-11 is a new case**, and the schedule payload covers every live case rather
+than only the moved ones — so adding a row moves it. That is intended, and it is
+written down because a hash that changes for a benign reason with no note is
+indistinguishable from one that changed for a bad one.
+"""
 
 [ledger]
 output = "test-ledger.md"
@@ -645,6 +679,27 @@ week = "W07"
 predict = '密碼是明文 strcmp，理論上有長度相關的時間差，但網路抖動很可能大過訊號'
 refute = '1000 次取樣的分佈重疊 → 方法在這條鏈路上沒有解析度，記為方法限制而不是「沒有時間差」'
 
+[[case]]
+id = "P2-11"
+phase = "2"
+section = "5.7"
+title = "開機後 601 秒的 IP session 視窗（本專案獨家；只有實機能答）"
+feasibility = 3
+exit_evidence = "static"
+week = "W07"
+star = true
+caution = "必須排在 A3.11.2（把管理密碼設成空字串）之前，而且必須在一台密碼非空、設定未被本場動過的機器上跑。密碼一旦為空，第 3 步的 200 量到的是 D-4 不是這一條。"
+predict = '''閘門在 `process_header_end` 有第三條臂（`0x0040bff8`–`0x0040c060`），以來源 IP 為鍵：`form_formLogin` 成功登入時把來源位址寫進 `authipaddr`，之後同一個位址的請求即使不帶任何憑證也拿得到被擋的頁面，過期條件是 `nowuptime - beforeuptime >= 601`。而 `beforeuptime` 在整個 binary 裡只有那一個讀、沒有任何寫（Ghidra 與 tools/mipsref.py 兩個獨立工具同意，同一輪的控制位址回報一讀一寫），所以那個差值就是系統 uptime。
+
+於是預測是一個會隨時間翻面的三段式：**上電後 601 秒內**，從最後一次成功登入的來源 IP 發出、**不帶任何憑證**的請求，取得被閘門擋住的頁面 → **200**；同一時刻同一頁面從第二個來源 IP、同樣不帶憑證 → **302**；等 uptime 超過 601 秒之後，第一個來源 IP 再取同一頁 → **302**。三段都要對，少一段不算。'''
+refute = '''兩個方向都能殺掉東西，而它們殺的不是同一個對象：
+
+（a）**第 3 步在 601 秒內就回 302** → `authipaddr` 那條臂在這台從來不成立，`bughunt.md` 第 20 列要從「一條沒人讀過的 session 臂」降級成「程式碼存在但不可達」，而 `notes/auth-session-ip.md` 的整個 §3 要重寫。
+
+（b）**第 5 步在 uptime 超過 601 秒之後仍然回 200** → `beforeuptime` 有一個寫入點，而 Ghidra 的引用模型與 `tools/mipsref.py` 的編碼掃描**同時漏掉同一個寫**。那是儀器問題不是韌體問題，先修儀器再談這一列 —— 而且它會同時把 `reports/mipsref-unit-2018-authsession.json` 那一份報告的可信度整份拉下來。
+
+模擬環境**不能**當作這兩個方向任何一個的證據：`qemu-user` 的 `sysinfo()` 回的是主機 uptime，任何一台開著的桌機都早就超過 601 秒，所以模擬下永遠只量得到「臂是死的」。'''
+
 # ===========================================================================
 # Phase 3 — 命令注入
 # ===========================================================================
@@ -950,7 +1005,9 @@ rescheduled_from = "W06"
 reschedule_date = "2026-08-17"
 reschedule_reason = '''實機端的理由成立，模擬端的理由是錯的，而錯的那一半是我從 W05 的散文裡讀來的、沒有量過就寫進這個欄位。【2026-08-17 更正】原文寫「模擬：P0-9 這一週被反證，boa 在 qemu-user 下連一個 GET 都完成不了」——當天稍後真的去跑，P0-9 是 confirmed：對齊陷阱只落在啟動時產生 /web/config.dat 那一條路徑，擋掉那一個 open() 之後 boa 會 bind、會回應，連 POST /boafrm/formSysCmd 的命令注入都在模擬下端到端成立。所以留在 W07 的理由改成兩條，兩條都還站得住：W06 計畫 §六明文禁止本週 fuzz；而讓 campaign 變得可行的那個目標是**今天才被證明存在的**，替它寫一套 harness 是一件有範圍的工作，不是一週結尾的一個下午。實機那一半不變：boa 掛掉沒有東西重起它，一輪約 45 個畸形請求就要人去拔電。'''
 predict = '端點清單用 root_form[] 的 57 個，參數名用 R1/R2/R3 實際指認的，不是猜的'
-refute = '跑滿一輪零崩潰，而同一輪裡 P4-3 的已知崩潰也沒被抓到 → fuzz harness 的存活偵測壞了，先修 harness'
+refute = '''跑滿一輪零崩潰，而同一輪裡正對照 formSchedule 也沒有被標記為死亡 → fuzz harness 的存活偵測壞了，先修 harness 再讀這一輪的任何結果。正對照的定義固定在開火之前：帶 --alignfix、每一發之前完整還原 flash 時，`formSchedule` 是這台 58 個端點裡唯一一個會讓 boa 消失的（reports/handler-sweep-unit-2018-alignfix.json）。
+
+【2026-08-18 開火前更換，凍結雜湊同一個 commit 改，理由在 PROGRESS.md § Corrections】原文的正對照寫的是「P4-3 的已知崩潰」，而 P4-3 在這台已判 refuted —— formNtp 把 submit-url 回顯進 Location，8 bytes 回 7 個 A、800 bytes 回 799 個 A，沒有 100 截斷、沒有崩潰。**那個對照在這台不存在，所以原本的反證條件永遠無法構成**：一輪零崩潰時它要求的第二個條件恆為真，於是整條反證退化成「零崩潰就算 harness 壞了」，而那會把一個正確的否定結果讀成儀器故障。'''
 
 # ===========================================================================
 # Phase 5 — 利用化

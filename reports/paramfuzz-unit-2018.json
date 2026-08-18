@@ -1,0 +1,422 @@
+{
+  "producer": "paramfuzz",
+  "schema_version": "1",
+  "profile": "unit-2018",
+  "alignfix": true,
+  "gate_report": "reports/ghidra-gate-unit-2018.json",
+  "dimensions": [
+    "ladder",
+    "cyclic",
+    "absent",
+    "protocol",
+    "paths"
+  ],
+  "ladder": [
+    8,
+    100,
+    260,
+    800,
+    4096
+  ],
+  "ladder_population": "BoaGate findings whose destination is a stack slot",
+  "handlers_from_gate": 42,
+  "parameters_from_gate": 60,
+  "handlers_with_stack_destination": 11,
+  "parameters_with_stack_destination": 17,
+  "controls": {
+    "negative": {
+      "status": null,
+      "len": 0,
+      "ms": 893,
+      "error": "RemoteDisconnected",
+      "survived": false
+    },
+    "positive": {
+      "status": 200,
+      "len": 0,
+      "ms": 539,
+      "survived": true
+    }
+  },
+  "control_problems": [],
+  "deaths": [
+    {
+      "dimension": "ladder",
+      "handler": "formWsc",
+      "parameter": "localPin",
+      "detail": "800 bytes",
+      "status": null,
+      "len": 0,
+      "ms": 1687,
+      "error": "URLError",
+      "survived": false
+    },
+    {
+      "dimension": "ladder",
+      "handler": "formWsc",
+      "parameter": "localPin",
+      "detail": "4096 bytes",
+      "status": null,
+      "len": 0,
+      "ms": 778,
+      "error": "RemoteDisconnected",
+      "survived": false
+    },
+    {
+      "dimension": "cyclic",
+      "handler": "formWsc",
+      "parameter": "localPin",
+      "detail": "de Bruijn 4096",
+      "status": null,
+      "len": 0,
+      "ms": 754,
+      "error": "RemoteDisconnected",
+      "survived": false
+    },
+    {
+      "dimension": "absent",
+      "handler": "formAdvanceSetup",
+      "parameter": "submit-url",
+      "detail": "omitted",
+      "status": null,
+      "len": 0,
+      "ms": 928,
+      "error": "RemoteDisconnected",
+      "survived": false
+    },
+    {
+      "dimension": "absent",
+      "handler": "formDnsv6",
+      "parameter": "submit-url",
+      "detail": "omitted",
+      "status": null,
+      "len": 0,
+      "ms": 762,
+      "error": "RemoteDisconnected",
+      "survived": false
+    },
+    {
+      "dimension": "absent",
+      "handler": "formOpMode2",
+      "parameter": "submit-url",
+      "detail": "omitted",
+      "status": null,
+      "len": 0,
+      "ms": 828,
+      "error": "RemoteDisconnected",
+      "survived": false
+    },
+    {
+      "dimension": "absent",
+      "handler": "formSSH",
+      "parameter": "submit-url",
+      "detail": "omitted",
+      "status": null,
+      "len": 0,
+      "ms": 1487,
+      "error": "RemoteDisconnected",
+      "survived": false
+    },
+    {
+      "dimension": "absent",
+      "handler": "formSchedule",
+      "parameter": "webpage",
+      "detail": "omitted",
+      "status": null,
+      "len": 0,
+      "ms": 6449,
+      "error": "RemoteDisconnected",
+      "survived": false
+    }
+  ],
+  "anomalies": [],
+  "requests": 208,
+  "path_dictionary": [
+    {
+      "row": "P3-8",
+      "path": "/boafrm/formPing",
+      "get": {
+        "status": 200,
+        "len": 2895,
+        "ms": 3
+      },
+      "post": {
+        "status": 404,
+        "len": 157,
+        "ms": 1
+      },
+      "survived": true
+    },
+    {
+      "row": "P3-8",
+      "path": "/boafrm/formTracert",
+      "get": {
+        "status": 200,
+        "len": 2895,
+        "ms": 3
+      },
+      "post": {
+        "status": 404,
+        "len": 160,
+        "ms": 0
+      },
+      "survived": true
+    },
+    {
+      "row": "P3-8",
+      "path": "/boafrm/formDiagnosis",
+      "get": {
+        "status": 200,
+        "len": 2895,
+        "ms": 3
+      },
+      "post": {
+        "status": 404,
+        "len": 162,
+        "ms": 0
+      },
+      "survived": true
+    },
+    {
+      "row": "P3-8",
+      "path": "/boafrm/formNslookup",
+      "get": {
+        "status": 200,
+        "len": 2895,
+        "ms": 3
+      },
+      "post": {
+        "status": 404,
+        "len": 161,
+        "ms": 0
+      },
+      "survived": true
+    },
+    {
+      "row": "P3-9",
+      "path": "/formLoginAuth.htm",
+      "get": {
+        "status": 404,
+        "len": 159,
+        "ms": 0
+      },
+      "post": {
+        "status": 400,
+        "len": 151,
+        "ms": 0
+      },
+      "survived": true
+    },
+    {
+      "row": "P3-9",
+      "path": "/cgi-bin/cstecgi.cgi",
+      "get": {
+        "status": 200,
+        "len": 2895,
+        "ms": 3
+      },
+      "post": {
+        "status": 400,
+        "len": 151,
+        "ms": 0
+      },
+      "survived": true
+    },
+    {
+      "row": "P3-10",
+      "path": "/cstecgi.cgi",
+      "get": {
+        "status": 200,
+        "len": 2895,
+        "ms": 3
+      },
+      "post": {
+        "status": 400,
+        "len": 151,
+        "ms": 0
+      },
+      "survived": true
+    },
+    {
+      "row": "P3-11",
+      "path": "/cgi-bin/download.cgi",
+      "get": {
+        "status": 200,
+        "len": 2895,
+        "ms": 3
+      },
+      "post": {
+        "status": 400,
+        "len": 151,
+        "ms": 0
+      },
+      "survived": true
+    },
+    {
+      "row": "P3-12",
+      "path": "/cgi-bin/luci",
+      "get": {
+        "status": 200,
+        "len": 2895,
+        "ms": 3
+      },
+      "post": {
+        "status": 400,
+        "len": 151,
+        "ms": 0
+      },
+      "survived": true
+    },
+    {
+      "row": "P3-12",
+      "path": "/cgi-bin/adm.cgi",
+      "get": {
+        "status": 200,
+        "len": 2895,
+        "ms": 3
+      },
+      "post": {
+        "status": 400,
+        "len": 151,
+        "ms": 0
+      },
+      "survived": true
+    },
+    {
+      "row": "P1-7",
+      "path": "/goform/formLogin",
+      "get": {
+        "status": 200,
+        "len": 2895,
+        "ms": 3
+      },
+      "post": {
+        "status": 400,
+        "len": 151,
+        "ms": 0
+      },
+      "survived": true
+    },
+    {
+      "row": "P1-7",
+      "path": "/goform/setSysAdm",
+      "get": {
+        "status": 200,
+        "len": 2895,
+        "ms": 4
+      },
+      "post": {
+        "status": 400,
+        "len": 151,
+        "ms": 0
+      },
+      "survived": true
+    },
+    {
+      "row": "P1-7",
+      "path": "/boafrm/formDebug",
+      "get": {
+        "status": 200,
+        "len": 2895,
+        "ms": 3
+      },
+      "post": {
+        "status": 404,
+        "len": 158,
+        "ms": 0
+      },
+      "survived": true
+    },
+    {
+      "row": "P1-7",
+      "path": "/boafrm/formFactoryTest",
+      "get": {
+        "status": 200,
+        "len": 2895,
+        "ms": 3
+      },
+      "post": {
+        "status": 404,
+        "len": 164,
+        "ms": 0
+      },
+      "survived": true
+    },
+    {
+      "row": "P1-7",
+      "path": "/boafrm/formTest",
+      "get": {
+        "status": 200,
+        "len": 2895,
+        "ms": 3
+      },
+      "post": {
+        "status": 404,
+        "len": 157,
+        "ms": 0
+      },
+      "survived": true
+    },
+    {
+      "row": "P1-7",
+      "path": "/boafrm/formEngineer",
+      "get": {
+        "status": 200,
+        "len": 2895,
+        "ms": 4
+      },
+      "post": {
+        "status": 404,
+        "len": 161,
+        "ms": 0
+      },
+      "survived": true
+    },
+    {
+      "row": "CONTROL",
+      "path": "/boafrm/formNotARealHandlerZZ",
+      "get": {
+        "status": 200,
+        "len": 2895,
+        "ms": 3
+      },
+      "post": {
+        "status": 404,
+        "len": 170,
+        "ms": 0
+      },
+      "survived": true
+    },
+    {
+      "row": "CONTROL",
+      "path": "/cgi-bin/zzqq-not-real.cgi",
+      "get": {
+        "status": 200,
+        "len": 2895,
+        "ms": 3
+      },
+      "post": {
+        "status": 400,
+        "len": 151,
+        "ms": 0
+      },
+      "survived": true
+    },
+    {
+      "row": "CONTROL",
+      "path": "/zzqq-not-real.htm",
+      "get": {
+        "status": 200,
+        "len": 2895,
+        "ms": 3
+      },
+      "post": {
+        "status": 200,
+        "len": 2895,
+        "ms": 2
+      },
+      "survived": true
+    }
+  ],
+  "deaths_total": 8
+}

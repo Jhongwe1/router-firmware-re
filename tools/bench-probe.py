@@ -245,15 +245,45 @@ def check_params(params: dict[str, str]) -> None:
             )
 
 
+# The redirect parameter is NOT `submit-url` for every handler, and a guard that
+# assumes it is has exactly one hole -- which is the handler that most needs the
+# guard.
+#
+# Measured 2026-08-18 under emulation, with controls: five of this build's 57
+# handlers remove the web server when their redirect parameter is absent, and
+# all five die at the same instruction storing to the same address, the pooled
+# empty-string literal at 0x004725d0, which lives in a PT_LOAD mapped R-X. Four
+# of them take `submit-url` and were already covered. `formSchedule` takes
+# `webpage`, so this guard let it through -- and `formSchedule` is also the one
+# handler that dies *with* a well-formed `submit-url` present, because
+# `submit-url` is not the parameter it reads.
+#
+# The names come from the recovered dispatch table's own string lists rather
+# than from a habit: `reports/ghidra-formtable-unit-2018.json`, cross-read
+# against `tools/formtable-scan.py`. One entry today; the shape is a map so that
+# the next one found is a line rather than an argument.
+# → notes/submit-url-overflow.md, reports/crash-triage-unit-2018.json
+REDIRECT_PARAM = {"formSchedule": "webpage"}
+DEFAULT_REDIRECT_PARAM = "submit-url"
+
+
+def redirect_param(target: str) -> str:
+    return REDIRECT_PARAM.get(target.rsplit("/", 1)[-1], DEFAULT_REDIRECT_PARAM)
+
+
 def check_post(target: str, params: dict[str, str],
                allow_destructive: bool = False) -> None:
-    if "/boafrm/" in target and "submit-url" not in params:
+    want = redirect_param(target)
+    if "/boafrm/" in target and want not in params:
         raise ProbeError(
-            f"refusing POST {target} without submit-url. When the parameter is "
-            "absent the handler strcpy()s \"/status.htm\" into a read-only "
-            "segment (notes/submit-url-overflow.md); as the code reads that is "
-            "a one-request crash of the web server, and every endpoint probed "
-            "afterwards would answer as if it did not exist"
+            f"refusing POST {target} without {want}. When that parameter is "
+            "absent the handler strcpy()s \"/status.htm\" into the pointer the "
+            "accessor returned, and for an absent parameter that pointer is a "
+            "read-only string literal (notes/submit-url-overflow.md). Measured "
+            "under emulation on 2026-08-18: SIGSEGV, one request, no payload, "
+            "and every endpoint probed afterwards answers as if it did not "
+            f"exist. This handler's redirect parameter is {want!r}, not "
+            f"necessarily {DEFAULT_REDIRECT_PARAM!r}."
         )
     name = target.rsplit("/", 1)[-1]
     if name in HAZARDOUS and not allow_destructive:
@@ -513,11 +543,16 @@ def group_endpoints(host: str, port: int, allow_post: bool,
                         "method_note": "not sent; see RUNBOOK 8.12.12"})
             continue
         if allow_post:
-            params = {"submit-url": "/status.htm"}
+            # Not a fixed `submit-url`: the parameter a handler defaults by
+            # writing into the returned pointer is per-handler, and sending the
+            # wrong name is indistinguishable from sending nothing. See
+            # REDIRECT_PARAM.
+            params = {redirect_param(target): "/status.htm"}
             check_params(params)
             check_post(target, params, allow_destructive)
             r = raw_request(host, port, "POST", target, body=urlencode(params))
-            r["method_note"] = "POST with submit-url only; the handler ran"
+            r["method_note"] = (
+                f"POST with {redirect_param(target)} only; the handler ran")
             # How long this one endpoint kept the device's only web server to
             # itself. Recorded per endpoint, in the same run, unauthenticated
             # and with no parameters beyond submit-url.

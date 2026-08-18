@@ -483,6 +483,36 @@ cmd_serve() {
   done
   local conf="$ENVDIR/var/boa-emu.conf"
 
+  # Does this environment exist at all?  FIRST, and that ordering is the fix
+  # for instrument bug 44.
+  #
+  # This check used to sit below the alignfix block.  When $ENVDIR is wrong --
+  # the documented sudo-inside-sudo trap, where SUDO_USER becomes root and
+  # $WORK moves to /root/fwre-work -- the alignfix branch was reached first,
+  # found no alignfix.so under a directory that does not exist, tried to build
+  # one there, and died with "alignfix: build failed. Run it directly to see
+  # why".  Running it directly writes to /tmp and SUCCEEDS, which confirms the
+  # wrong diagnosis and sends the operator round the loop again.  Measured
+  # 2026-08-18: a probe matrix wrapped in its own `sudo` produced seven rows of
+  # "the server did not answer" for that reason and nothing else, and the first
+  # hypothesis it suggested -- ETXTBSY on a mapped alignfix.so -- was tested and
+  # refuted before the real cause was found.
+  #
+  # The rule: when two refusals can fire for the same cause, the one that names
+  # the cause has to be the one that fires.
+  # Name the directory. This message used to say only "run build", and when the
+  # work directory was resolved wrongly -- nested sudo makes SUDO_USER=root and
+  # sends everything to /root/fwre-work -- it sent the operator to rebuild an
+  # environment that was already correct, 55 times. A refusal that does not say
+  # where it looked cannot be distinguished from the thing it accuses you of.
+  [ -f "$ENVDIR/var/boa.conf" ] || die \
+    "no boa.conf at $ENVDIR/var/boa.conf
+     profile   $PROFILE
+     work dir  $WORK   (FWRE_WORK, else the invoking user's home)
+     If that work dir looks wrong, this is the sudo-inside-sudo trap: SUDO_USER
+     becomes root and \$WORK moves to /root. Pass FWRE_WORK explicitly.
+     If it looks right, the environment really is missing: run build."
+
   # --------------------------------------------------------------- alignfix
   # OFF BY DEFAULT, and that is the decision rather than the omission.
   #
@@ -530,18 +560,6 @@ cmd_serve() {
      that process instead. If it is a leftover of this environment:
        sudo $0 --profile $PROFILE reap"
   fi
-  # Name the directory. This message used to say only "run build", and when the
-  # work directory was resolved wrongly -- nested sudo makes SUDO_USER=root and
-  # sends everything to /root/fwre-work -- it sent the operator to rebuild an
-  # environment that was already correct, 55 times. A refusal that does not say
-  # where it looked cannot be distinguished from the thing it accuses you of.
-  [ -f "$ENVDIR/var/boa.conf" ] || die \
-    "no boa.conf at $ENVDIR/var/boa.conf
-     profile   $PROFILE
-     work dir  $WORK   (FWRE_WORK, else the invoking user's home)
-     If that work dir looks wrong, this is the sudo-inside-sudo trap: SUDO_USER
-     becomes root and \$WORK moves to /root. Pass FWRE_WORK explicitly.
-     If it looks right, the environment really is missing: run build."
   sed "s/^Port .*/Port $port/" "$ENVDIR/var/boa.conf" > "$conf"
 
   rm -rf "$ENVDIR/var/web/config.dat"

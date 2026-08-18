@@ -40,6 +40,9 @@ Several producers write into reports/, on purpose:
                                            `rtcase check`, which needs the
                                            register)
   tools/mkflash.py                     -> carries "producer": "mkflash"
+  tools/crash-triage.py                -> carries "producer": "crash-triage"
+  tools/paramfuzz.py                   -> carries "producer": "paramfuzz"
+  tools/formtable-scan.py              -> carries "producer": "formtable-scan"
                                           (a provenance map for a rebuilt flash
                                            image. The check that matters is that
                                            every *overlay* names an origin: an
@@ -165,10 +168,17 @@ def main(argv: list[str]) -> int:
         elif str(doc.get("producer", "")) in ("handler-sweep", "bughunt"):
             counts["emulation"] += 1
             if doc["producer"] == "handler-sweep":
-                for field in ("profile", "body", "died_under_emulation", "survived",
+                for field in ("profile", "died_under_emulation", "survived",
                               "controls", "caveat"):
                     if doc.get(field) in (None, ""):
                         errors.append(f"{path.name}: missing required field {field!r}")
+                # `body` is checked for PRESENCE, not for truthiness. An empty
+                # body is not a missing field here -- it is the measurement:
+                # the 2026-08-18 sweep that found the five handlers dying on an
+                # absent parameter sent exactly that, and an emptiness test
+                # rejected its own report.
+                if "body" not in doc:
+                    errors.append(f"{path.name}: missing required field 'body'")
                 if doc.get("control_problems"):
                     errors.append(
                         f"{path.name}: recorded with {len(doc['control_problems'])} failed "
@@ -218,6 +228,83 @@ def main(argv: list[str]) -> int:
                 errors.append(
                     f"{path.name}: no damage state made the boot script take any branch, "
                     f"so this run measured the harness rather than the firmware")
+
+        # tools/crash-triage.py, tools/paramfuzz.py, tools/formtable-scan.py --
+        # all three added 2026-08-18, and all three fail the same way if they
+        # fail at all: they produce a confident table with no controls behind
+        # it. That is not hypothetical for any of them. `paramfuzz` reported a
+        # clean path dictionary whose GETs were all following the gate's own
+        # redirect; `crash-triage` reported five faults with `pc` = 0 because
+        # `pc` was not in its register list; `formtable-scan` would return an
+        # empty answer for a wrong stride, which looks exactly like a binary
+        # with no dispatch table. So the control is what is checked here, not
+        # the finding.
+        elif str(doc.get("producer", "")) == "crash-triage":
+            counts["emulation"] += 1
+            if not doc.get("controls"):
+                errors.append(
+                    f"{path.name}: no control case. A harness that reports a "
+                    "signal for every case looks exactly like a run in which "
+                    "everything crashed")
+            if doc.get("control_problems"):
+                errors.append(
+                    f"{path.name}: recorded with {len(doc['control_problems'])} "
+                    f"failed control(s) - {doc['control_problems'][0]}")
+            for c in doc.get("controls", []):
+                if c.get("signal"):
+                    errors.append(
+                        f"{path.name}: control {c.get('handler')!r} faulted with "
+                        f"{c['signal']} and the file was committed anyway")
+            for c in doc.get("cases", []):
+                if c.get("signal") and c.get("pc") in (None, "0x00000000"):
+                    errors.append(
+                        f"{path.name}: case {c.get('handler')!r} carries a signal "
+                        "with pc = 0, which is a wrong number rather than a "
+                        "missing one - the register dump did not contain pc")
+            if not doc.get("program_headers"):
+                errors.append(
+                    f"{path.name}: no program headers, so no store target can be "
+                    "classified and 'SIGSEGV' is all this file says")
+
+        elif str(doc.get("producer", "")) == "paramfuzz":
+            counts["emulation"] += 1
+            if doc.get("control_problems"):
+                errors.append(
+                    f"{path.name}: recorded with {len(doc['control_problems'])} "
+                    f"failed control(s) - {doc['control_problems'][0]}")
+            ctl = doc.get("controls") or {}
+            if ctl.get("negative", {}).get("survived") is not False:
+                errors.append(
+                    f"{path.name}: the negative control survived. If the one "
+                    "handler+body measured to remove the server is not detected "
+                    "here, nothing this round reports as 'survived' means "
+                    "anything")
+            if ctl.get("positive", {}).get("survived") is not True:
+                errors.append(
+                    f"{path.name}: the positive control died, so the environment "
+                    "is what was measured and not the handlers")
+            for entry in doc.get("path_dictionary", []):
+                if entry.get("row") == "CONTROL":
+                    break
+            else:
+                if "path_dictionary" in doc:
+                    errors.append(
+                        f"{path.name}: the path dictionary has no CONTROL row. "
+                        "Sixteen entries agreeing with each other says nothing "
+                        "without one name nobody could have implemented")
+
+        elif str(doc.get("producer", "")) == "formtable-scan":
+            counts["ghidra"] += 1
+            for b in doc.get("binaries", []):
+                if b.get("control_missing"):
+                    errors.append(
+                        f"{path.name}: {b.get('binary')} never yielded "
+                        f"{b['control_missing']} - a scan that returns a clean "
+                        "empty answer for a wrong stride is indistinguishable "
+                        "from a binary with no dispatch table")
+                if not b.get("runs"):
+                    errors.append(
+                        f"{path.name}: {b.get('binary')} produced no runs at all")
 
         elif "schema_version" in doc:
             counts["fwrecon"] += 1

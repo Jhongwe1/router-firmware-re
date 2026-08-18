@@ -750,8 +750,218 @@
       ],
       "note": "The white-box read the prediction asked for, and the refutation did not fire: there is no escaping. But the templates were the wrong place and the case as written would have looked in them - dhcptbl.htm contains no field at all, only <% dhcpClientList(); %>, so the value is written by a C function inside boa and grepping 146 template files would have found nothing. What boa does have is req_write_escape_html with an entity table for double-quote, apostrophe, backslash, less-than and greater-than. It has exactly SIX callers and every one is an upstream Boa status page - 403, 404, 301, 302, 411 - plus send_redirect_perm. Not one Realtek ASP list renderer calls it, and boa carries 105 table-markup format strings whose data-bearing ones are raw %s, two of them inside HTML attribute values where a single double-quote suffices. So the five 2025 XSS CVEs are five instances of one omission covering roughly thirty render functions - the same shape as W03 turning \"dat files are not restricted\" into \"everything without htm in the path\". NOT established: that a hostname carrying markup survives udhcpd and the lease table to reach dhcpClientList. Filtering on the WRITE side would close the point as effectively as escaping on the read side and nothing here looked at the write side; that is P8-2 and it stays open.",
       "case_freeze_sha256": "956b5eb65bb1ea49a9080521950aae83c04dcb73aca35f0f0428b494906c8301"
+    },
+    {
+      "id": "P4-7",
+      "date": "2026-08-18",
+      "verdict": "confirmed",
+      "evidence_kind": "emulated",
+      "artefacts": [
+        "reports/handler-sweep-unit-2018-noparam.json",
+        "tools/handler-sweep.py"
+      ],
+      "note": "第二次結果，與 08-18 稍早那一次是不同的問題。帶 --alignfix 與每發還原、body 完全空白重掃 58 個端點：5 個死、53 個活、59 次重啟 0 次失敗，三個對照全成立。配合 --param 'submit-url=/wireless.htm' 那一輪只死 formSchedule，兩輪的差集直接指認出參數缺席這一類。R3 指認 36 個共用 submit-url 慣用語，而只有 5 個在無參數 POST 下真的走到那個 tail；另外 42 個更早就 return。",
+      "case_freeze_sha256": "dd3dd6cc0f2295b9ec8c2412701d5960e4d7a507bd9d9b3380f4b7673e284ec0"
+    },
+    {
+      "id": "P4-5",
+      "date": "2026-08-18",
+      "verdict": "confirmed",
+      "evidence_kind": "emulated",
+      "artefacts": [
+        "reports/paramfuzz-unit-2018.json",
+        "reports/crash-triage-unit-2018-wsc.json",
+        "tools/paramfuzz.py",
+        "tools/crash-triage.py"
+      ],
+      "note": "登記時寫的是「12 個函式、20+ 參數」，這台的閘門報的是 11 個函式、17 個參數（134 個 finding 裡 22 個的目的地是堆疊）。長度階梯 8/100/260/800/4096 逐一送：只有 formWsc 的 localPin 會死，260 活、800 死。反證條件寫「崩潰但 epc 不可控 → 覆寫的不是返回位址」——不成立：epc 完全可控，見 P5-1。",
+      "case_freeze_sha256": "202db59ba4cb9c078e1a6d814cc0ff111a43f84d3d96ab7d42f8564c74b3a8f7"
+    },
+    {
+      "id": "P4-8",
+      "date": "2026-08-18",
+      "verdict": "refuted",
+      "evidence_kind": "emulated",
+      "artefacts": [
+        "reports/paramfuzz-unit-2018.json"
+      ],
+      "note": "反證條件成立。8192 bytes 的 request line、8192 bytes 的單一標頭、200 個標頭、1000 個參數、100000 個參數、400 位數的 Range —— 六發全部沒有讓 server 消失。預測寫的是「標頭緩衝區與 param 陣列都是固定大小」，而 10 萬個參數正常處理，所以那條收掉。**這是模擬環境的結果，實機的協定層另有 P2-6 已量。**",
+      "case_freeze_sha256": "6b4589a81ba90c9ac6ea2e9d63059c462132cedb23f51afbf6418a0e6ac18066"
+    },
+    {
+      "id": "P4-9",
+      "date": "2026-08-18",
+      "verdict": "confirmed",
+      "evidence_kind": "emulated",
+      "artefacts": [
+        "reports/paramfuzz-unit-2018.json",
+        "tools/paramfuzz.py"
+      ],
+      "note": "端點用還原出來的 root_form[]、參數名用 BoaGate 逐一指認的，預測成立。208 個請求、8 個死亡、0 個 harness 異常。反證條件（跑滿一輪零崩潰而正對照也沒被抓到）沒有觸發：負對照 formSchedule 被正確標記為死亡，正對照 formNtp 活著。**這條反證條件是 2026-08-18 開火前改過的** —— 原文點名 P4-3 的已知崩潰，而 P4-3 在這台已判 refuted，那個對照不存在。理由在 PROGRESS § Corrections。",
+      "case_freeze_sha256": "e2d92899d0681fd76f7f6cd3a6738cb342df6c7acfbe36e4f19e986239f96fc1"
+    },
+    {
+      "id": "P5-1",
+      "date": "2026-08-18",
+      "verdict": "confirmed",
+      "evidence_kind": "emulated",
+      "artefacts": [
+        "reports/crash-triage-unit-2018-wsc.json",
+        "tools/crash-triage.py"
+      ],
+      "note": "未認證的一個 POST，localPin=800 bytes：pc = ra = 0x41414141，s0–s6 也全部 0x41414141。de Bruijn 樣式定出偏移：s0=481 s1=485 s2=489 s3=493 s4=497 s5=501 s6=505 **ra=509**，逐 4 bytes 遞增，與 BoaGate 對 localPin 報的 sp-540 一致。預測寫「無 canary、無 RELRO、無 PIE、無 NX，所以偏移一量到就直接可控」——成立。反證條件（epc 落在不可預測的值）沒有觸發。**模擬環境上的結果，矽上未驗。**",
+      "case_freeze_sha256": "7bc98122f7138fb9d329c6199fb067155435d822ce94c5eb8eada7bbbe294949"
+    },
+    {
+      "id": "P5-3",
+      "date": "2026-08-18",
+      "verdict": "partial",
+      "evidence_kind": "static",
+      "artefacts": [
+        "reports/mipsref-unit-2018-authsession.json",
+        "tools/mipsref.py"
+      ],
+      "note": "靜態半邊成立且三個 build 一致：GOT 在可寫的 PT_LOAD 裡、沒有 PT_GNU_RELRO、GNU_STACK 是 RWX。反證條件（GOT 段實際唯讀 → checksec 判定錯）沒有觸發。動態半邊（覆寫之後下一次呼叫會執行）沒有做：它依賴 P5-1，而 P5-1 今天才通。",
+      "case_freeze_sha256": "ec05288ea6f705626610cd009fb6cd384948a0ff525f398523fb00efac398e06"
+    },
+    {
+      "id": "P5-4",
+      "date": "2026-08-18",
+      "verdict": "confirmed",
+      "evidence_kind": "emulated",
+      "artefacts": [
+        "tools/alignfix/build.sh",
+        "tools/test-alignfix.sh"
+      ],
+      "note": "工具鏈是 mips-linux-gnu 不是 mipsel，而這一點不是宣稱：tools/alignfix/build.sh 在說「built」之前會檢查物件是 big-endian、32-bit、MIPS、有 init entry、沒有未定義符號，而 test-alignfix.sh 拿一個 x86-64 物件去餵它證明那些檢查會拒絕。**而且產出的物件真的在目標環境裡執行過** —— alignfix.so 以 LD_PRELOAD 載入 boa，log 上有 24 次 fix-up。反證條件（產出的 binary 在機上跑不起來）在模擬層沒有觸發；**矽上未驗**，msfvenom 的 payload 沒有產（沒有東西可以投遞之前不做）。",
+      "case_freeze_sha256": "954e5181d8ddd0e1537920dafa8c3770ccba2ce72c328e42ebee0b9eea2b9bd7"
+    },
+    {
+      "id": "P5-6",
+      "date": "2026-08-18",
+      "verdict": "partial",
+      "evidence_kind": "emulated",
+      "artefacts": [
+        "reports/paramfuzz-unit-2018.json",
+        "reports/crash-triage-unit-2018.json",
+        "notes/emulation-2018.md"
+      ],
+      "note": "預測寫「HTTP 解析器的部分常可在模擬下跑起來，apmib 的部分需要 shim」——兩半都成立，而 shim 不是 apmib 的 stub，是 qemu-user 沒做的對齊補正（tools/alignfix/）。這一項作為篩選器已經產出兩份候選清單。**反證條件（模擬下的崩潰在實體機上重現不了）只有實機能答**，那是 A3.23。",
+      "case_freeze_sha256": "df9ade825dfc369e3c97ccbeb09ee1c4d7ea2d4d7dc614619dccf95b697d0aa5"
+    },
+    {
+      "id": "P5-7",
+      "date": "2026-08-18",
+      "verdict": "confirmed",
+      "evidence_kind": "static",
+      "artefacts": [
+        "reports/formtable-scan-six-builds.json",
+        "tools/formtable-scan.py"
+      ],
+      "note": "預測寫「先讀 repo 已有的三 build 對照，再決定要不要跑 BinDiff」——照做，而且結論是不需要 BinDiff：六個 build 的 root_form[] 用一支不讀指令的掃描器就差分完了。59 / 61 / 57 / 60 / 50 / 49 個 handler，42 個是六版共有。反證條件（對應函式找不到）沒有觸發。",
+      "case_freeze_sha256": "e0834f8cc0e68a3215264f93b06f91eddb8018afe538cec762348a982cc915d4"
+    },
+    {
+      "id": "P8-21",
+      "date": "2026-08-18",
+      "verdict": "confirmed",
+      "evidence_kind": "static",
+      "artefacts": [
+        "reports/formtable-scan-six-builds.json",
+        "firmware/SOURCES.json"
+      ],
+      "note": "拿到了 CVE-2024-51228 點名的另一台：N300RT V2.1.6-B20160516（第三方鏡像，無廠商簽章，雜湊只證明連續性）。**這一台的 57 個 handler 是 N300RT 那 61 個的嚴格子集**，對 N200RE V3.2.0 的 60 個也是。反證條件寫「分派表不同 → 同一顆的假設不成立」——量到的不是「不同」，是同一份程式碼加一個功能差集，所以那條不觸發。**這是關於映像的主張，不是關於 N300RT 硬體的主張。**",
+      "case_freeze_sha256": "3be545353da10652ee405dab6743fd889aca0458a7a87a9f5631157cb6aa993c"
+    },
+    {
+      "id": "P8-12",
+      "date": "2026-08-18",
+      "verdict": "confirmed",
+      "evidence_kind": "static",
+      "artefacts": [
+        "tools/fwrecon"
+      ],
+      "note": "預測成立且是關於自家工具的：fwrecon compcs 只有 decode，沒有 encoder，所以這條鏈卡在這個 repo 而不是裝置。反證條件（不需要重算 checksum 也能被接受）**沒有被測**——它要對裝置上傳一份設定，而本場不做。",
+      "case_freeze_sha256": "409310d3faf0e3482b94d962bb3f9f3e8456ddfa3b1089b27621bc1443f4596d"
+    },
+    {
+      "id": "P1-9",
+      "date": "2026-08-18",
+      "verdict": "na",
+      "evidence_kind": "static",
+      "artefacts": [
+        "reports/paramfuzz-unit-2018.json"
+      ],
+      "note": "不適用，而且前提也查過了：反證條件說「P1-8 顯示 /goform/ 有回應時要重新評估」。/goform/formLogin 與 /goform/setSysAdm 的回應與保證不存在的名字無法區分。",
+      "case_freeze_sha256": "5812ab1e865f32f6258f3a0a852c20e7370c055a50ed068e0ca75174cb0a7b99"
+    },
+    {
+      "id": "P3-8",
+      "date": "2026-08-18",
+      "verdict": "partial",
+      "evidence_kind": "emulated",
+      "artefacts": [
+        "reports/paramfuzz-unit-2018.json"
+      ],
+      "note": "formPing / formTracert / formDiagnosis / formNslookup 四個 POST 全部 404，與負對照 formNotARealHandlerZZ 相同。反證條件（任一個有回應）沒有觸發。**實機半邊未做**，而且實機上要看 302 的目的地不是狀態碼（見 §8.12.26 的轉址陷阱）。",
+      "case_freeze_sha256": "5aa3a3afd0a04ba6ad63a1f23750d422fb46b03015d6ccc0a94f77d23a1f02f0"
+    },
+    {
+      "id": "P3-9",
+      "date": "2026-08-18",
+      "verdict": "partial",
+      "evidence_kind": "emulated",
+      "artefacts": [
+        "reports/paramfuzz-unit-2018.json"
+      ],
+      "note": "/cgi-bin/cstecgi.cgi 與 /formLoginAuth.htm 的回應與保證不存在的 /cgi-bin/zzqq-not-real.cgi 無法區分。getSanvas 這台沒有。實機半邊未做。",
+      "case_freeze_sha256": "d9943480d5bcf3afefafc7639f0be41cd5d5c3670f3043916d10ab4db063d6cb"
+    },
+    {
+      "id": "P3-10",
+      "date": "2026-08-18",
+      "verdict": "partial",
+      "evidence_kind": "emulated",
+      "artefacts": [
+        "reports/paramfuzz-unit-2018.json"
+      ],
+      "note": "/cstecgi.cgi 與不存在的名字無法區分。docroot 143 檔裡沒有它。實機半邊未做。",
+      "case_freeze_sha256": "85b6d4b940d78d7d46767568d2492808f560aabc4118e3e801fe8bfe11366c44"
+    },
+    {
+      "id": "P3-11",
+      "date": "2026-08-18",
+      "verdict": "partial",
+      "evidence_kind": "emulated",
+      "artefacts": [
+        "reports/paramfuzz-unit-2018.json"
+      ],
+      "note": "/cgi-bin/download.cgi 與不存在的名字無法區分。實機半邊未做。",
+      "case_freeze_sha256": "fb87817371ff71cb6eb14c5d618f08e3096a9ee22756e0cdcb3c067d7863b25a"
+    },
+    {
+      "id": "P3-12",
+      "date": "2026-08-18",
+      "verdict": "partial",
+      "evidence_kind": "emulated",
+      "artefacts": [
+        "reports/paramfuzz-unit-2018.json"
+      ],
+      "note": "/cgi-bin/luci 與 /cgi-bin/adm.cgi 與不存在的名字無法區分。實機半邊未做。",
+      "case_freeze_sha256": "0a9df1b7683232a006c09fb99a02b92cacbf8bce7404a1861411099d5dc4859a"
+    },
+    {
+      "id": "P1-7",
+      "date": "2026-08-18",
+      "verdict": "partial",
+      "evidence_kind": "emulated",
+      "artefacts": [
+        "reports/paramfuzz-unit-2018.json"
+      ],
+      "note": "formDebug / formFactoryTest / formTest / formEngineer 四個 POST 全部 404，與負對照相同；/goform/* 亦然。反證條件（掃出 root_form[] 以外的可達路徑）沒有觸發。**實機半邊未做**，而 root_form[] 本身現在有第二個獨立來源（tools/formtable-scan.py，57/57 與 Ghidra 相符）。",
+      "case_freeze_sha256": "9019f8cb650bfbf3428920cb872e6bb61cce3e3151d570974d735bb9d5e9743b"
     }
   ],
   "register": "test-cases.toml",
-  "register_freeze_sha256": "a9bd2761074e0b349726ec0ee96f3280e30a81e13a034643c1c3581dfc7f10be"
+  "register_freeze_sha256": "ef7ab66d86f1c3de35a654e7dd76711cbce7853241594462043a829fc9ff27b7"
 }

@@ -495,3 +495,85 @@ kernel 自己的介面計數器是 `RX: 0 packets / TX: 12`。**送得出去、�
 1. 這一點,**有沒有人能只靠 Google 就講出來**?能的話就不要寫進去。
 2. 這一點的證據,**別人 clone 下來跑得起來嗎**?跑不起來的話,誠實標註為什麼。
 3. 「沒證明什麼」那一欄,**有沒有寫出一個會讓我不舒服的東西**?沒有的話,通常是還沒想夠。
+
+
+## W07, the desk half — 2026-08-18
+
+**The week is not closed.** Thirty of its fifty-eight register rows need the
+device and the bench visit has not happened. This entry covers the desk half so
+that the claims are written down before the evening changes them.
+
+**The one-line version:** the emulator stopped being a place where things
+"looked like" they crashed, and three of this project's own sentences did not
+survive that.
+
+### Three defensible claims
+
+**1. A refutation inherits the coverage of whatever produced it.**
+`P4-1` predicted that a POST omitting `submit-url` makes the handler `strcpy`
+into a read-only page. It was refuted on the device against three handlers, and
+the class was written off. Re-run against all 58 with an empty body and controls
+that held: **five handlers, all faulting at the same instruction storing to the
+same address** — the pooled `""` literal at `0x004725d0`, inside a `PT_LOAD`
+mapped `R-X`. 47 handlers carry the idiom and only 5 reach it without
+parameters, so three hand-picked ones had roughly one chance in four each — and
+the fifth was unreachable that way at all, because it reads `webpage`, not
+`submit-url`.
+*Evidence:* [`crash-triage-unit-2018.json`](../reports/crash-triage-unit-2018.json),
+[`paramfuzz-unit-2018.json`](../reports/paramfuzz-unit-2018.json),
+[`absent-parameter-strcpy.md`](../notes/absent-parameter-strcpy.md).
+*What it demonstrates:* that a negative result has a coverage, and that writing
+the coverage down is the difference between "we tested it" and "we tested three
+of forty-seven".
+
+**2. The dispatch table has a second source, and the first thing it produced was
+a correction.**
+`root_form[]` decides what "the attack surface" means in every week of this
+project, and until 2026-08-18 it had one producer. These binaries are `sstrip`'d,
+so `readelf -S` returns nothing and no standard tool could cross-read it.
+`tools/formtable-scan.py` recovers it from program headers and data shape alone
+— **57 of 57 on this unit, same address, zero disagreement with Ghidra** — and
+across six builds it shows that `formSysCmd` is absent from 2015, present from
+2016, **still present in N300RT V3.4.0 built 2019-03**, and absent from N150RT
+V3.4.0 built 2020-10. *"3.4.0 removed it"* is false as stated: the removal is per
+product.
+*Evidence:* [`formtable-scan-six-builds.json`](../reports/formtable-scan-six-builds.json),
+`firmware/SOURCES.json`.
+*What it demonstrates:* the repository's own "no claim from a single tool" rule,
+applied to the one table it had never been applied to — and a vendor-timeline
+statement that only six builds side by side can make.
+
+**3. A checker that only fires after the fact had never been a check.**
+The runsheet's coverage rule keys on `executed`, so a row demands a procedure
+only once it has a result. Measured: W05 and W06 read as fully covered because
+they are finished; **W07 read as fully covered because it had not started** — 58
+live rows, 2 claimed, 11 exempted, 47 with neither, and 32 of those scheduled
+for a bench visit the same evening. The rule now applies to every live row of a
+week the runsheet claims to cover, and Part B being append-only means adding a
+week's block is what turns it on.
+*Evidence:* `tools/check-runsheet.py`, `runsheet.md` `A1.5`–`A1.9` and
+`A3.14`–`A3.24`, `RUNBOOK.md` §8.12.23–§8.12.38.
+*What it demonstrates:* back-filling a procedure and following one are different
+documents, and only the second can be wrong in time to matter.
+
+### What this half did NOT prove
+
+- **Nothing is on silicon.** Both new findings — the read-only `strcpy` class and
+  the `formWsc` `localPin` overflow that gives a fully controlled `$pc` at offset
+  509 — are emulated. The kernel does *not* fix up protection faults the way it
+  fixes up alignment, so the mechanism transfers by construction; **that is an
+  argument, not a measurement.**
+- **The `formWsc` overflow has not been reproduced on a public image.** The run
+  was attempted and refused (a leftover guest process blocked `reset`). Until it
+  succeeds, the most serious memory-safety finding here is bound to a build
+  nobody can download — the same limitation that has shadowed this project since
+  W02.
+- **No prior-art search has run for either.** `localPin` is the parameter
+  CVE-2019-19824 names for command injection; whether an overflow on it is
+  published is unknown, and assuming either way is exactly how row 13 became a
+  correction three days ago.
+- **`formtable-scan.py` is validated on one build of six.** The other five have
+  no independent reference. The subset relation across builds is suggestive and
+  is not proof.
+- **Nothing explains why 42 of the 47 handlers return before reaching the tail.**
+  The five that do not have nothing in common that has been written down.
