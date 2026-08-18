@@ -4848,6 +4848,20 @@ the fifth divergence stayed invisible.
   evidence exists is exactly what the freeze prevents, even when the amendment
   would be an improvement. It is reported as inadequate in the result note and
   scored against as written.
+- **`notes/bughunt.md` understated its own most serious row, and its closing
+  section had gone false in four places.** Row 5 — the supervisor credential
+  pair — read **`E under emulation`** until today. `P2-9` has carried a second
+  result since 2026-08-18, `confirmed` / **`dynamic`**: on this hardware, a Basic
+  header with both halves empty returns `/blank.htm` as **200 / 333 bytes,
+  `sha256 bc56c91c…`, byte-identical to the real-credential body**, while a wrong
+  password gets 302. The row is now `E on this hardware`. Its *What this week did
+  not do* section still said the `P4`/`P5` block had not run, that no `epc` had
+  been shown controllable, and that **"none of this is on silicon"** — all
+  written on 2026-08-18, all false after two bench visits, in the document that
+  *is* this week's deliverable. Rewritten with a dated header saying so. **This
+  is the same defect as the `52869` sentences, found the same day, in the file
+  the week is judged on** — which is the argument for open item 82 being real
+  rather than tidy-minded.
 
 ### Deliberately not done
 
