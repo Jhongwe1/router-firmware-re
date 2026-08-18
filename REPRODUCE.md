@@ -14,7 +14,7 @@ step, each with its expected output and its stop conditions.
 
 | tier | what you need | what you can check | roughly |
 |---|---|---|---|
-| **T1** | this clone and an internet connection | the two **published** firmware images, every report derived from them, and **276 checks that prove this project's own instruments can fail** | 30 min, most of it downloads |
+| **T1** | this clone and an internet connection | the two **published** firmware images, every report derived from them, and **322 checks that prove this project's own instruments can fail** (`make count-checks` re-derives that number and prints the table it comes from) | 30 min, most of it downloads |
 | **T2** | T1 **+ your own N150RT + a CP2102 serial adapter** (about US$3) | your unit's flash, its own boot loader, its own `boa`, the emulator — the same *procedures*, on *your* bytes | an afternoon |
 | **T3** | T2 **+ a USB Ethernet adapter + a segment you are willing to isolate** | the network behaviour: the authorisation gate, the endpoint census, the timing | a second afternoon |
 | **T-none** | — | **the specific byte-level results this repository reports** | not reproducible by anyone but the author, and the reason is below |
@@ -67,7 +67,8 @@ make setup             # the Linux-side toolchain
 make fetch             # the two published images, hash-verified
 make unpack            # carve and extract
 make recon             # every report a downloadable image supports
-make ci                # ← the 276 checks
+make ci                # ← the 322 checks
+make count-checks      # ← where that number comes from, per suite
 ```
 
 ### Running the firmware, with no device — G4 clause 3a
@@ -117,7 +118,10 @@ Most of a reverse-engineering repository is assertions. This part is not:
 | `tools/fwrecon` pytest | 110 | the parsers |
 
 **166 guard cases across ten suites, plus 110 parser tests, and `make ci` now
-runs all of them** — 276 checks from a clone, with no device.
+runs all of them** — 322 checks from a clone, with no device. The number is
+re-derivable with `make count-checks`, which also states what it counts and what
+it does not; it said 276 for some time while the true figure was 304, because
+nothing could re-derive it.
 
 Until 2026-08-17 it ran 89 of 124: `test-console-dump.sh` (18),
 `test-photo-tools.sh` (13) and `test-flash-tools.sh` (4) were in no CI list at

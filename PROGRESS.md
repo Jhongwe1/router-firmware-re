@@ -3948,21 +3948,41 @@ its handler sample *and* of its build, and widening the first was never going to
 show the second.
 → [`reports/crash-triage-v2.1.2.json`](reports/crash-triage-v2.1.2.json)
 
-### Open #64: it is published, and this search should have run three days ago
+### Open #64: the answer was in this repository, in two files, since W04
 
-`localPin` on `/boafrm/formWsc` is **CVE-2025-4462** — TOTOLINK N150RT
-3.4.0-B20190525, buffer overflow, remote, disclosed 2025-05-09 with a public
-proof of concept. **CVE-2026-7218** is the same parameter on N300RT
-3.4.0-B20250430; **CVE-2025-3987** is command injection at the same endpoint; and
-**CVE-2019-19824** is the command injection this project already knew about. The
-`submit-url` long-value half is **CVE-2021-35395**, named in Realtek's own
-advisory and in the Talos series on the LevelOne WBR-6013, which quotes the same
-`req_get_cstream_var` + `strcpy` shape.
+The question was written as "Not searched." **That was false when it was
+written.** `notes/prior-art.md` has carried
 
-What survives the search: neither build measured here is the build any of those
-name, and the frame offsets are not published anywhere found. What does not
-survive: any claim that this is a new defect class. It is not. Recorded in
-`docs/disclosure.md`; nothing is being reported.
+> `| CVE-2025-4462 | /boafrm/formWsc → localPin | buffer overflow | §1 — the same line of code as 3987 |`
+
+since W04, and `notes/cve-status.md` carries the same row marked 🟥 with the
+sentence **"The same line of source as 3987, and identical in the 2015 image."**
+Both are committed, both are linked from the README, and one of them is this
+project's *prior-art register* — the file whose entire job is to answer exactly
+this question.
+
+So the failure was not a search that did not happen. It was a finding written up
+without opening the register that already answered it, and then, today, an answer
+looked for on the internet rather than in the repository. The internet agreed,
+which is the least useful way to be right.
+
+That changes what today's measurement is worth, and **upward, not downward**:
+`cve-status.md` predicted from static reading alone that the overflow is
+"identical in the 2015 image". Today it is measured on that image, with the frame
+offset. **A confirmed static prediction is a better result than a rediscovered
+CVE**, and it is what should have been written yesterday.
+
+The surrounding identifiers, all already in `prior-art.md`: **CVE-2025-3987**
+(command injection, the same line of source), **CVE-2025-3993** (`submit-url` at
+the same handler), **CVE-2019-19824**. New today and not previously in the
+register: **CVE-2026-7218** (same parameter, N300RT 3.4.0-B20250430) and
+**CVE-2021-35395** as the Realtek-SDK-level name for the `submit-url` class. Both
+added to `notes/prior-art.md`.
+
+**What no search found**, in either the register or four web paths: the `(A)`
+half — an *absent* parameter making the accessor return the address of a pooled
+`""` literal. Every published item is the long-value case. That is a negative
+search result and is recorded as one.
 
 ### The vendor shipped the mechanism as a macro, and it answers #65
 
@@ -3995,16 +4015,27 @@ The same header also shows the redirect parameter is named per handler —
 `submit-url`, `webpage`, `wlan-url`, `mesh-url` — which is the map
 `bench-probe.py` had to rediscover empirically yesterday.
 
-### #67 was the wrong question: it was removed, not added
+### #67, and it is the same mistake a second time in one day
 
-Pierre Kim's advisory of 2015-07-16 names N150RT-V2 vulnerable "until last
-firmware TOTOLINK-N150RT-V2.1.1-B20150708.1548" via the unauthenticated hidden
-`/boafrm/formSysCmd`. **V2.1.2-B20150825 is the next build, six weeks later, and
-it is the one build of six with no `formSysCmd` in its dispatch table.** It is
-back by 2016-05 and still present in the build this unit runs. So the sequence is
-disclosure → removal → reintroduction, and it is the reintroduction that needs
-explaining. The advisory is a second source for the "present before" half;
-V2.1.1 itself has not been read here, and the claim carries that.
+The question was "`formSysCmd` was *added*, and nothing here says why or by
+whom." **`notes/formSysCmd-analysis.md` has said why since W04**: Pierre Kim's
+2015-07-16 advisory names N150RT-V2 vulnerable "until last firmware
+TOTOLINK-N150RT-V2.1.1-B20150708.1548", V2.1.2-B20150825 is the next build six
+weeks later, and that note already draws the conclusion — *"the fix, observed"* —
+and already states its own falsification: read V2.1.1's `root_form[]`.
+
+So #67 as written was a question this repository had answered, asked again. Twice
+in one day, the same shape.
+
+What today adds is not nothing: **a second, independent source for the removal
+half.** `formSysCmd-analysis.md` argued it from dates plus one decompiled table.
+`formtable-scan.py` reads the table out of the program headers with no decompiler
+and no analysis database, across six builds, and produces the whole sequence —
+absent 2015-08, present 2016-05, 2017-11, 2018-03 and in N300RT V3.4.0-B20190315,
+absent again in N150RT V3.4.0-B20201030. **The reintroduction is the half no note
+carried**, and it is the half that needs explaining: a handler removed in the
+release that answered a disclosure is back within nine months and then stays for
+five years.
 
 ### Instrument work
 
@@ -4052,6 +4083,8 @@ live row with no procedure. Run today, it is wrong twice:
 
 | | |
 |---|---|
+| **Two of today's three "answered" open questions were already answered in this repository.** | #64 was in `notes/prior-art.md` and `notes/cve-status.md` from W04; #67 was in `notes/formSysCmd-analysis.md` from W04. Both were re-derived from outside sources today, and the first draft of this section presented both as new. Corrected in place, with what it said before quoted above, because the failure is the interesting part: **this project's own registers are not read before its findings are written.** The rule that follows is now in `docs/disclosure.md`: the prior-art step reads `notes/prior-art.md` *first*, and a web search is what you do when the register comes back empty |
+| **`REPRODUCE.md`'s front page said 276 guard checks. It was 304 before this session and is 322 after.** | The number a stranger reads first, and nothing could re-derive it. `tools/count-checks.sh` now does, states its counting rule, and is wired to `make count-checks`; it is deliberately *not* in `make ci`, because a suite that grows should not turn the build red. Found by trying to update the figure and discovering it matched neither the old total nor the new one |
 | **`CLAUDE.md` says the Chinese files were normalised to fullwidth punctuation on 2026-08-17. `RUNBOOK.md` was not, or has drifted since.** | 172 of its 3,852 lines still carry a halfwidth `,` or `:` between two CJK characters, including every section added on 2026-08-18. `runsheet.md` has 11, `LOG.md` 3, `study/QA.md` 6; `BENCH-LOG.md`'s 124 are exempt by rule. Measured, not fixed: 172 lines is not a silent edit, and there is no checker, which is why it drifted back the day after it was done. The new text added today follows the rule, which makes the boundary visible in the diff |
 
 ### Deliberately not done
@@ -4068,15 +4101,23 @@ live row with no procedure. Run today, it is wrong twice:
 
 63. ~~**Does the `formWsc` overflow reproduce on the published V2.1.2 image?**~~
     **Answered: yes**, with `ra` at 513 rather than 509. Closed.
-64. ~~**Is the `localPin` overflow already published?**~~ **Answered: yes** —
-    CVE-2025-4462, and the `submit-url` half is CVE-2021-35395. Closed.
+64. ~~**Is the `localPin` overflow already published?**~~ **Answered: yes — and
+    the answer was already in `notes/prior-art.md` and `notes/cve-status.md`
+    when the question was written.** CVE-2025-4462. Closed; the process failure
+    it exposes is open as #70.
 65. ~~**Why do 42 of the 47 handlers carrying the idiom return before reaching
     it?**~~ **Answered from the vendor's source**: they take `ERR_MSG`, which
     never writes through `url`. Closed.
 66. **`formtable-scan.py` is validated on one build of six.** Unchanged.
-67. **`formSysCmd` was removed in V2.1.2 and reintroduced by 2016.** Reframed,
-    not closed: nothing here says who reintroduced it, or whether V2.1.1 really
-    carries it. That needs the image.
+67. **`formSysCmd` was removed in V2.1.2 and reintroduced by 2016.** The
+    removal half was already argued in `notes/formSysCmd-analysis.md` in W04 and
+    now has a second, mechanical source. **The reintroduction half is the open
+    part** — no note carried it, and nothing says who or why. Falsifiable in one
+    command against V2.1.1-B20150708, which is fetchable and has not been fetched.
+70. **Nothing makes a finding consult `notes/prior-art.md` before it is written
+    up.** Two of today's three closures were re-derivations of W04 conclusions.
+    `docs/disclosure.md` step 2 said "search"; it did not say *where first*, and
+    a register nobody opens is a register that does not exist.
 68. **Is `formWsc` reachable unauthenticated on this unit?** Everything measured
     today was emulated, and the v2.1.2 profile cannot pass `serve`'s gate control
     at all — `blank.htm` returns 200 where the device returns 302. That is most

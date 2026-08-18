@@ -25,7 +25,7 @@ UNIT_DUMP  := $(FWRE_WORK)/dumps/flash-n150rt-console-1.bin
 .PHONY: help setup verify fetch unpack venv test lint recon recon-unit diff check-reports \
         rtcase rtcase-test todo ledger check-ledger shellcheck ci clean-work qemu-env qemu-test probe-test \
         loader-test loader-report doctor check-runsheet runsheet-test \
-        dump-test flash-tools-test photo-test write-test failopen-test alignfix-test check-benchlog benchlog-test config-diff-test
+        dump-test flash-tools-test photo-test write-test failopen-test alignfix-test check-benchlog benchlog-test config-diff-test count-checks
 
 help: ## Show this help
 	@grep -hE '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) \
@@ -226,6 +226,9 @@ alignfix-test: ## Prove the alignment shim and its build checks can fail (needs 
 
 config-diff-test: ## Drive config-diff's comparison and its refusals (needs no root)
 	bash tools/test-config-diff.sh
+
+count-checks: ## How many guard checks make ci runs, per suite (REPRODUCE.md quotes the total)
+	bash tools/count-checks.sh
 
 # Like recon-unit and qemu-env: needs the flash dump read off my own unit, so it
 # is not in `recon`. The report it writes is mostly a claim about what the boot

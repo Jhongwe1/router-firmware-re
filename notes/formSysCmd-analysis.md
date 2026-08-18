@@ -65,6 +65,26 @@ fixed properly.
 in one command: recover its `root_form[]` and see whether `formSysCmd` is there.
 That image is a fetchable artefact and the check is listed as the next step.
 
+**W07 addition — a second source for the removal, and the half this note never
+had.** The argument above rests on dates plus one decompiled dispatch table.
+`tools/formtable-scan.py` recovers `root_form[]` from the program headers with no
+decompiler and no analysis database, and it was run on six builds:
+
+| 2015-08 N150RT | 2016-05 N300RT | 2017-11 this unit | 2018-03 N200RE | 2019-03 N300RT | 2020-10 N150RT |
+|---|---|---|---|---|---|
+| **absent** | present | present | present | present | absent |
+
+So the removal in V2.1.2 now has an independent instrument behind it. **What no
+note here carried is the other half: it comes back.** Absent in the release that
+answered the 2015 disclosure, present again by 2016-05, and still present in the
+build this unit runs in 2017 and in N300RT V3.4.0-B20190315 — five years after
+Pierre Kim, and after CVE-2019-19824 and CVE-2024-51228 both named it again. It
+is absent from N150RT V3.4.0-B20201030, which is why *"3.4.0 removed it"* reads
+as true from two builds and is false as stated: **the removal is per product, and
+so was the reintroduction.** Nothing here says who put it back or why, and that
+is `PROGRESS.md` open item #67.
+→ [`formtable-scan-six-builds.json`](../reports/formtable-scan-six-builds.json)
+
 **W04-2 addition — the fix was half a fix, and the other half shipped.** This
 note only ever looked at the binary. The `w6cg` web bundle in the *same* V2.1.2
 image contains `syscmd.htm`, 3,835 bytes, carrying
