@@ -40,7 +40,7 @@ for the first time, and produced row 20 — which nobody was looking for.
 
 ## Verdicts
 
-Twenty-two rows. `E` = exploitable on this hardware, `C` = conditionally
+Twenty-four rows. `E` = exploitable on this hardware, `C` = conditionally
 exploitable, `N` = not exploitable, `?` = mechanism established, effect not
 demonstrated.
 
@@ -49,8 +49,8 @@ demonstrated.
 | 1 | command execution | `formSysCmd` | `0x0044ee2c` | `sysCmd` | **E** — fired on the device, unauthenticated, three independent channels | [`test-results.json`](../reports/test-results.json) `P3-3` · [`poc/02-command-injection.md`](../poc/02-command-injection.md) |
 | 2 | command execution | `formWsc` | — | `localPin` | **E** — four ICMP echo requests from the device | [`test-results.json`](../reports/test-results.json) `P3-1` |
 | 3 | command execution | `formWsc` | — | `targetAPSsid` | **C** — interpolated inside shell double quotes, length-checked | [`ghidra-argtrace-unit-2018.json`](../reports/ghidra-argtrace-unit-2018.json) |
-| 4 | command execution | `miniigd` `AddPortMapping` | `0x004085fc` | `NewInternalClient` + 4 more | **?** — five SOAP values into `sprintf("echo \"%s,…\" >> %s")` then `system()`, nothing between parse and shell; **52869/tcp open**. Almost certainly CVE-2014-8361 | [`ghidra-xref-unit-2018-miniigd.json`](../reports/ghidra-xref-unit-2018-miniigd.json) · [`three-unread-binaries.md`](three-unread-binaries.md) |
-| 5 | authentication | `process_header_end` | `0x0040bd48` / `0x0040bd90` | *(none needed)* | **E under emulation** — the SDK's **supervisor** credential pair (`MIB_SUPER_NAME` / `SUPER_PASSWORD`, ids 180/181), which **no build in this family has ever fetched**, compared first and matched by two empty fields. A non-zero `auth_flag` then branches past the *entire* authorisation block at `0x0040be2c`. Reproduces on the published V2.1.2 image; V3.4.0 removed the dangling comparison | [`uninit-credential-pair.md`](uninit-credential-pair.md) · [`test-results.json`](../reports/test-results.json) `P2-9` |
+| 4 | command execution | `miniigd` `AddPortMapping` | `0x004085fc` | `NewInternalClient` + 4 more | **N as command execution on this hardware, measured 2026-08-19.** Five SOAP values go into `sprintf("echo \"%s,…\" >> %s")` and then `system()`, with nothing between parse and shell — and the mechanism is confirmed right up to the last step. The value reaches the firewall **unvalidated**: twenty-two `A` characters become `DNAT … to:255.255.255.255:83`, which is `inet_addr()` returning `INADDR_NONE` and being used anyway. But no command runs: the ICMP oracle stayed silent while an independent `formSysCmd` injection made the device ping on the same boot, and `miniigd` **terminates** instead (row 23). So this is CVE-2014-8361's code shape without its effect. The port carries a date and it moved three times: open 2026-08-16, **closed** 2026-08-18 (`UPNP_ENABLED=0`, written by this project's own W05 POST round), open again 2026-08-19 after the reset | [`test-results.json`](../reports/test-results.json) `P6-1` ·  [`ghidra-xref-unit-2018-miniigd.json`](../reports/ghidra-xref-unit-2018-miniigd.json) · [`three-unread-binaries.md`](three-unread-binaries.md) |
+| 5 | authentication | `process_header_end` | `0x0040bd48` / `0x0040bd90` | *(none needed)* | **E on this hardware** — measured on the silicon 2026-08-18, and this row said `E under emulation` until 2026-08-19 because nobody re-read it after the bench: six requests against `/blank.htm` with both halves of the Basic header empty return **200 / 333 bytes, byte-identical (`sha256 bc56c91c…`) to the real-credential body**, while a wrong password gets 302. The mechanism is the SDK's **supervisor** credential pair (`MIB_SUPER_NAME` / `SUPER_PASSWORD`, ids 180/181), which **no build in this family has ever fetched**, compared first and matched by two empty fields. A non-zero `auth_flag` then branches past the *entire* authorisation block at `0x0040be2c`. Reproduces on the published V2.1.2 image; V3.4.0 removed the dangling comparison | [`uninit-credential-pair.md`](uninit-credential-pair.md) · [`test-results.json`](../reports/test-results.json) `P2-9` |
 | 6 | authentication | `formPasswordSetup` | — | *(none needed)* | **E** — unauthenticated password change on the device; the handler ignores its own current-password fields | [`test-results.json`](../reports/test-results.json) `P10-3` |
 | 7 | authentication | `process_header_end` | `0x0040bd18` | *(stored value)* | **E** — an empty stored password skips the comparison, and #6 can set it empty | [`test-results.json`](../reports/test-results.json) `P10-4` |
 | 8 | authorisation | the gate's exemption list | `0x0040be90`–`0x0040bfe4` | the URI | **C** — thirteen unanchored `strstr` tests on one string | [`auth-flow-2018.md`](auth-flow-2018.md) · `P2-2` |
@@ -66,8 +66,10 @@ demonstrated.
 | 17 | availability | one handler | — | one well-formed POST | **E** — measured on the device: the web server does not come back without a power cycle | `docs/disclosure.md` `D-11` |
 | 18 | memory safety | the `submit-url` idiom | 63 sites | `submit-url` | **N on this build, for the long-value half** — 800 bytes come back as 799 with no truncation at 100; the `lastUrl[100]` idiom W04 measured in 2015 is not what this build does. **This row said "the class" and meant one half of it**; the absent-parameter half is row 16, and on the *published* 2015 image it is seven handlers rather than five | [`test-results.json`](../reports/test-results.json) `P4-1`, `P4-3` · [`crash-triage-v2.1.2.json`](../reports/crash-triage-v2.1.2.json) |
 | 19 | command execution | `form_formRoute` / `subnet` | — | `subnet` | **N — withdrawn.** `BoaGate` R2 mis-classified an `sprintf` site as a `system()` site; published prior art (Talos, CVE-2023-41251) said so before the test, and the device produced zero command execution | `docs/disclosure.md` `D-1` |
-| 21 | memory safety | `form_formWsc` / `localPin` — **and it is CVE-2025-4462**, which [`prior-art.md`](prior-art.md) has listed since W04 | offset **509** to the saved `ra` on this build, **513** on V2.1.2 | one POST parameter | **? — a controlled program counter, under emulation, and a confirmation rather than a discovery.** [`cve-status.md`](cve-status.md) predicted statically that the overflow is identical in the 2015 image; measured 2026-08-18, it is, one word further out.** 260 bytes survives, 800 bytes gives `pc = ra = s0..s6 = 0x41414141`; a de Bruijn pattern reads the frame off directly (`s0` at 481 through `ra` at 509, four bytes apart), consistent with `BoaGate`'s own `sp-540` for this parameter. No canary, no `PT_GNU_RELRO`, no PIE, `RWX` `GNU_STACK`, in all three N150RT builds. **Nothing has been jumped to and the address space under `qemu-user` is not the device's** | [`absent-parameter-strcpy.md`](absent-parameter-strcpy.md) §4 · [`crash-triage-unit-2018-wsc.json`](../reports/crash-triage-unit-2018-wsc.json) · `P5-1` |
+| 21 | memory safety | `form_formWsc` / `localPin` — **and it is CVE-2025-4462**, which [`prior-art.md`](prior-art.md) has listed since W04 | offset **509** to the saved `ra` on this build, **513** on V2.1.2 | one POST parameter | **? — a controlled program counter, under emulation, and a confirmation rather than a discovery.** [`cve-status.md`](cve-status.md) predicted statically that the overflow is identical in the 2015 image; measured 2026-08-18, it is, one word further out.** 260 bytes survives, 800 bytes gives `pc = ra = s0..s6 = 0x41414141`; a de Bruijn pattern reads the frame off directly (`s0` at 481 through `ra` at 509, four bytes apart), consistent with `BoaGate`'s own `sp-540` for this parameter. No canary, no `PT_GNU_RELRO`, no PIE, `RWX` `GNU_STACK`, in all three N150RT builds. **Nothing has been jumped to.** The address space under `qemu-user` is not the device's — but the device's *is* now known: two kernel fault messages put `libuClibc` at `0x2aae3000` in `boa`, so `system` is at `0x2ab08460` and the target no longer needs a leak. One boot only, so `P5-2` is `partial` ([`mips-ret2libc.md`](mips-ret2libc.md) · [`libbase-unit-2018.json`](../reports/libbase-unit-2018.json)). What is still missing is `a0`: a computed target is not a call | [`absent-parameter-strcpy.md`](absent-parameter-strcpy.md) §4 · [`crash-triage-unit-2018-wsc.json`](../reports/crash-triage-unit-2018-wsc.json) · `P5-1` |
 | 22 | vendor timeline | `root_form[]` across six builds | — | — | **N — not a defect, and it corrects one of this project's own sentences.** `formSysCmd` (CVE-2019-19823) is absent from N150RT V2.1.2 (2015), present in N300RT V2.1.6, in this unit's 2018 build and in N200RE V3.2.0, **still present in N300RT V3.4.0-B20190315**, and absent from N150RT V3.4.0-B20201030. So "3.4.0 removed it" is false as stated: the removal is **per product**, and only six builds side by side show it. This unit's 57 handlers are a **strict subset** of N300RT V2.1.6's 61 | [`formtable-scan-six-builds.json`](../reports/formtable-scan-six-builds.json) · `P5-7` · `P8-21` |
+| 23 | availability | `miniigd` `AddPortMapping` | the `inet_addr()` path before `0x004085fc` | `NewInternalClient` | **E on this hardware** — one unauthenticated SOAP request terminates the UPnP daemon, and only a power cycle brings it back. Three requests on three boots, each ending in a closed connection with `52869` refusing afterwards, and **no `miniigd` in `ps`** two minutes later — a different failure from `wscd`, which survives with its listener closed. **The control is the row**: `NewInternalClient=10.1.1.1` is answered 200 and the daemon lives, while twenty-two `A` characters with **no metacharacter at all** kill it exactly as a backtick payload does. So it is any value `inet_addr()` rejects, not an injection. **No prior-art search has been run, so it is not reported** | [`docs/disclosure.md`](../docs/disclosure.md) `D-19` · [`three-unread-binaries.md`](three-unread-binaries.md) §2 · [`test-results.json`](../reports/test-results.json) `P6-1` |
+| 24 | mitigation | `/proc/sys/kernel/randomize_va_space` | — | — | **N as a defence, and the flag claims otherwise** — the sysctl reads **2**, which is full randomisation, while the layout is fully determined by the ELF files across two processes and four boots: `libuClibc` at `0x2aae3000` in `boa` and `0x2aabe000` in `wscd`, differing by exactly `libapmib.so`'s `0x25000` mapped span, measured in `/proc/<pid>/maps`. This device does not act on the flag; the kernel source has NOT been read, so *why* is a hypothesis (open item 86) and not part of this row. **A hardening flag is a claim by a source, and a source is not a measurement** — reading it and stopping would have closed `P5-2` as refuted without one address being looked at. `system` is at `0x2ab08460` | [`mips-ret2libc.md`](mips-ret2libc.md) · [`libbase-unit-2018.json`](../reports/libbase-unit-2018.json) · `P5-2` |
 
 > 🏆 **Row 16 is what this week's method was supposed to produce.** The first
 > sweep's answer was *"39 of 57 handlers are fragile"*, which is a number nobody
@@ -196,28 +198,48 @@ confirms it: everything in #5 and #20 is static or emulated.
 
 ## What this week did not do
 
-- **Nothing in rows 4, 11, 12, 14, 15 or 20 has been executed.** They are
-  readings of binaries. Six register cases stay deliberately open for that reason
-  rather than being recorded `partial` to make a count move.
-- **The `P4`/`P5` exploitation block did not run.** No offset was measured, no
-  `epc` was shown controllable, no chain was assembled. What *was* done is the
-  precondition: `gdb-multiarch` now attaches to `qemu-user`'s gdbstub and catches
-  a fault with registers and a disassembly, and the MIPS-BE cross toolchain is
-  installed and its endianness is checked by `make verify` rather than assumed.
-  Row #16 was withdrawn using exactly that instrument, which is the argument for
-  having built it first.
-- **The six-profile differential harness was not built.** The two differential
-  answers this week needed — does 2020 have #5, and has *any* build ever fetched
-  the supervisor credentials — came from reading three binaries and from a
-  fifty-line encoding scan. The harness is still worth building for divergences
-  nobody thought to look for, which is a different job.
-- **`beforeuptime` is only half-answered.** The dead arm is measured. The *live*
-  window — the first 601 seconds after boot, when the IP session works — has
-  never been entered by anything: the emulator cannot reach it, because
-  `sysinfo()` under `qemu-user` returns the host's uptime. That is a security
-  state of this device that no measurement in this repository describes.
-- **And the largest gap is unchanged: none of this is on silicon.** Rows 5 and 20
-  are the two most serious things here and both are emulated or static. The
-  bench visit that settles them is scheduled and its predictions are not yet
-  frozen, which is the one thing that has to happen before the device is plugged
-  in rather than after.
+> **Rewritten 2026-08-19.** Every sentence below was true when it was written on
+> 2026-08-18 — *before* two bench visits and the desk session that closed the
+> week. Four of them had become false and nothing said so, in the document that
+> is this week's own deliverable. That is the same failure the `52869/tcp`
+> sentences had, in the same week, and it is why this heading now carries a date.
+
+- **Nothing in rows 4, 11, 12, 14 or 15 has been executed.** They are readings of
+  binaries. Register cases stay deliberately open for that reason rather than
+  being recorded `partial` to make a count move. **Row 20 came off this list on
+  2026-08-19** (the session arm was measured on the device); **row 4 is off it in
+  code but not in reach** — 52869/tcp was open on 2026-08-16 and closed on
+  2026-08-18 by this project's own POST round, and no SOAP action has ever been
+  invoked.
+- **~~The `P4`/`P5` exploitation block did not run.~~** It ran. `P5-1` measured
+  the frame directly: 800 bytes into `formWsc`'s `localPin` gives
+  `pc = ra = s0..s6 = 0x41414141`, and a de Bruijn pattern puts the saved `ra` at
+  **offset 509** — under emulation. `P5-6` then showed an emulated crash
+  reproducing on the silicon at the same address, which is what makes the
+  emulator admissible as a filter. `P5-2` computed the target: `libuClibc` at
+  `0x2aae3000` in `boa`, **`system` at `0x2ab08460`**, from two kernel fault
+  messages and the ELF files ([`mips-ret2libc.md`](mips-ret2libc.md)).
+  **What is still true is the part that matters: nothing has been jumped to.**
+  A controlled `pc` and a computed target are not a chain — `a0` would have to
+  point at a command string and that has not been shown.
+- **The six-profile differential harness was not built**, and this is the one
+  item of the week's plan that is simply not met. The two differential answers
+  the week needed — does 2020 have row 5, and has *any* build ever fetched the
+  supervisor credentials — came from reading three binaries and from a fifty-line
+  encoding scan. The harness is still worth building for divergences nobody
+  thought to look for, which is a different job, and it is not scheduled.
+- **`beforeuptime` is only half-answered.** ~~The dead arm is measured.~~
+  **Both arms are now measured, and the register's mechanism was wrong.** On
+  2026-08-19 the window turned out to be **login + 601 seconds and to reopen on
+  every login**, not 601 seconds after boot — and the store two independent
+  instruments had reported as absent is at `0x0044f140` inside `form_formLogin`,
+  reached through the GOT so that no instruction names the address.
+- **~~The largest gap is unchanged: none of this is on silicon.~~** Two bench
+  visits closed 21 rows on the hardware. **Row 5 — the most serious thing in this
+  table — is confirmed on the silicon**, not under emulation: an empty-empty
+  Basic header returns a gated page byte-for-byte identical to the
+  real-credential one. Row 20 likewise.
+- **The largest gap now is different, and smaller.** Rows 4, 11, 12, 14 and 15
+  are readings, not executions; row 4's target has been unreachable since this
+  project disabled it; and `P5-2` rests on a single boot, so the `system` address
+  is a property of the 2026-08-18 boot until `runsheet.md` `A3.23.0` runs.

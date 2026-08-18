@@ -25,7 +25,8 @@ UNIT_DUMP  := $(FWRE_WORK)/dumps/flash-n150rt-console-1.bin
 .PHONY: help setup verify fetch unpack venv test lint recon recon-unit diff check-reports \
         rtcase rtcase-test todo ledger check-ledger shellcheck ci clean-work qemu-env qemu-test probe-test \
         loader-test loader-report doctor check-runsheet runsheet-test \
-        dump-test flash-tools-test photo-test write-test failopen-test alignfix-test check-benchlog benchlog-test config-diff-test count-checks liveness liveness-test dhcp-test mipsref-reports
+        dump-test flash-tools-test photo-test write-test failopen-test alignfix-test check-benchlog benchlog-test config-diff-test count-checks liveness liveness-test dhcp-test mipsref-reports \
+        libbase-test libbase-report check-ci-parity ci-parity-test upnp-soap-test
 
 help: ## Show this help
 	@grep -hE '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) \
@@ -243,6 +244,38 @@ liveness-test: ## Prove the liveness check can say no (19 cases, needs no device
 dhcp-test: ## Prove the rogue DHCP server's encoders and refusals (needs no device)
 	bash tools/test-rogue-dhcp.sh
 
+# `P5-2` asks for an address a ret2libc chain would jump to, and the only inputs
+# are two console lines that name no library. Everything the answer rests on is a
+# filter that looks like it worked when it did not, so the refusals are the tool:
+# a base with low bits set, and a symbol long enough that more than one base fits.
+libbase-test: ## Prove the library-base solver can refuse (27 cases, needs no device)
+	bash tools/test-libbase.sh
+
+# Five times a suite has been added to one of `make ci` / the CI workflow and
+# not the other, and every one of them was found by diffing the files rather
+# than by noticing. RUNBOOK 10.21 made it a rule; a rule broken five times is a
+# reminder, so this is the reminder replaced by a checker.
+check-ci-parity: ## `make ci` and the GitHub workflow run the same tools/ scripts
+	python3 tools/check-ci-parity.py
+
+ci-parity-test: ## Prove the parity checker can fail (needs no device)
+	bash tools/test-check-ci-parity.sh
+
+# Every wrong request to this daemon costs a power cycle: on 2026-08-19 it took
+# three. The refusal that matters is `--arg-file`, because the first P6-1 attempt
+# was destroyed by the LOCAL shell expanding a backtick payload before the tool
+# ever saw it -- 431 bytes went out instead of 25.
+upnp-soap-test: ## Prove the SOAP client's refusals (14 cases, local server only)
+	bash tools/test-upnp-soap.sh
+
+libbase-report: ## Solve uClibc's load base from the two recorded faults (needs the rootfs)
+	@test -f "$(EX)/unit-2018/squashfs-root/lib/libuClibc-0.9.30.3.so" || \
+	  { echo "no extracted rootfs - run tools/unpack-firmware.sh"; exit 2; }
+	python3 tools/libbase.py \
+	  --in "$(EX)/unit-2018/squashfs-root/lib/libuClibc-0.9.30.3.so" \
+	  --report --differing-object "$(EX)/unit-2018/squashfs-root/lib/libapmib.so" \
+	  --json $(REPORTS)/libbase-unit-2018.json
+
 # Regenerating these by hand is how the first one came to name a GOT slot as
 # though it were the variable. The command is the evidence for what the report
 # measured, so it lives where it can be re-run rather than in a shell history.
@@ -270,7 +303,7 @@ loader-report: ## Unpack the boot loader's LZMA stage 2 (needs the flash dump)
 # `rtcase-test` is in here and not optional. It is the only thing proving the
 # register gate can fail; without it `make rtcase` going green means nothing,
 # which is the exact shape of instrument bug 12.
-ci: lint test shellcheck check-reports check-runsheet check-benchlog benchlog-test rtcase rtcase-test check-ledger qemu-test probe-test loader-test runsheet-test dump-test flash-tools-test photo-test write-test failopen-test alignfix-test config-diff-test liveness-test dhcp-test ## Everything CI checks, except the container build
+ci: lint test shellcheck check-reports check-runsheet check-benchlog benchlog-test rtcase rtcase-test check-ledger check-ci-parity ci-parity-test qemu-test probe-test loader-test runsheet-test dump-test flash-tools-test photo-test write-test failopen-test alignfix-test config-diff-test liveness-test dhcp-test libbase-test upnp-soap-test ## Everything CI checks, except the container build
 	@echo "  ok   local CI equivalents passed (container build not included)"
 
 diff: venv ## Diff the two builds
