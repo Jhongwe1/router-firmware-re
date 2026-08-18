@@ -11,6 +11,12 @@ population.** The mechanism is live on this build. It is in **five** of the 57
 handlers, all five fault at the same instruction storing to the same address,
 and one of the three handlers W06 tested does not reach that code at all.
 
+**It is in seven of the 59 on the published V2.1.2 image, and two of those seven
+are handlers W06 tested and found clean.** So the sample was too narrow in two
+directions at once, and the second one — the build — is invisible from inside a
+single binary. The mechanism itself is not a per-handler mistake at all: it is
+one macro in the vendor's own SDK source, §2a.
+
 Everything below is emulated (`tools/qemu-env.sh` + `tools/alignfix/`) or
 static. **Nothing here has been measured on the device and nothing has been
 reported to anyone.** The bench step that settles it is `runsheet.md` `A3.23`.
@@ -32,6 +38,29 @@ All five: `pc = 0x2b32721c` (uClibc's `strcpy` inner loop), faulting instruction
 (`"/status.htm"` at `0x00466cd8`).
 
 → [`reports/crash-triage-unit-2018.json`](../reports/crash-triage-unit-2018.json)
+
+**On the published V2.1.2 image it is seven, and two of them are handlers W06
+tested.** Same instruction, same verdict, a different pooled literal —
+`0x00476418`, inside that build's `R-X` `PT_LOAD` (`0x00400000`–`0x00477744`):
+
+| handler | on `unit-2018` | on `v2.1.2` |
+|---|---|---|
+| `form_formSchedule` (`webpage`) | dies | dies |
+| `form_formAdvanceSetup` | dies | dies |
+| `form_formDnsv6` | dies | dies |
+| `form_formOpMode2` | dies | dies |
+| `form_formSSH` | dies | dies |
+| **`form_formNtp`** | **survives** | **dies** |
+| **`form_formWlanSetup`** | **survives** | **dies** |
+| `form_formSelLang` | survives | survives — it is the control on both |
+
+`formNtp` and `formWlanSetup` are two of the three handlers `P4-1` was tested on
+in W06. They survived, correctly, on the build W06 measured. So the sample was
+not the only thing that was too narrow: **the build was part of the coverage
+too, and no amount of widening the handler set on one binary would have shown
+it.**
+
+→ [`reports/crash-triage-v2.1.2.json`](../reports/crash-triage-v2.1.2.json)
 
 `0x004725d0` is the pooled empty-string literal. Two independent facts pin it:
 
@@ -78,6 +107,43 @@ instead of into `.rodata`.
 > **So the finding is not "this handler crashes". It is "the accessor's default
 > for an absent parameter is the address of a literal, and the code writes
 > through it".** A crash is what that looks like from outside.
+
+### 2a. And the vendor ships it as a macro
+
+The Realtek AP-router SDK this firmware is built from is public, in other
+vendors' GPL drops. `rtl819x/users/boa/src/apform.h`:
+
+```c
+#define OK_MSG(url) { \
+	needReboot = 1; \
+	if(strlen(url) == 0) \
+		strcpy(url,"/wizard.htm"); \
+```
+
+and, in `fmwlan.c` and its siblings, `url` is exactly
+
+```c
+submitUrl = req_get_cstream_var(wp, ("submit-url"), "");
+```
+
+That is a **third independent source** — Ghidra, the emulated fault, and the
+vendor's own C — and it moves the defect from "these five handlers" to "every
+handler that expands this macro". This build substitutes `/status.htm` for
+`/wizard.htm`; twelve bytes either way.
+
+Two things follow that no amount of reading this binary would have given:
+
+* **`ERR_MSG(msg)` takes a message, not the url, and never writes through it.**
+  So the 42 handlers that carry the idiom and do not reach `(A)` are the ones
+  that fail validation and take the error path. "Why do they return early" was
+  the wrong question; the right one is *which* macro they reach.
+* **The `#else` arm of the same `#ifdef REBOOT_CHECK` has no `strcpy` at all.**
+  Whether a build carries this defect is a build-time flag, which is a sharper
+  claim than "some builds do" and is falsifiable against any SDK-derived image.
+
+The header also names the redirect parameter per handler — `submit-url`,
+`webpage`, `wlan-url`, `mesh-url` — which is the `REDIRECT_PARAM` map §5 below
+had to recover by measurement.
 
 ## 3. Why W06 refuted it, and why that was not a mistake
 
@@ -132,11 +198,38 @@ of seven saved registers**, on a binary with no stack canary, no `PT_GNU_RELRO`,
 no PIE and an `RWX` `GNU_STACK` — in all three N150RT builds.
 → [`reports/crash-triage-unit-2018-wsc.json`](../reports/crash-triage-unit-2018-wsc.json)
 
+**It reproduces on the published image, one word further out.** Same registers
+saved, same order, `s7` untouched on both:
+
+| | `unit-2018` (2017-11) | `v2.1.2` (2015-08) |
+|---|---|---|
+| `s0` … `s6` | 481 · 485 · 489 · 493 · 497 · 501 · 505 | 485 · 489 · 493 · 497 · 501 · 505 · 509 |
+| **`ra`, and `$pc` is loaded from it** | **509** | **513** |
+| `s7` | `0x0048bb04` | `0x00490ad4` |
+
+Both columns are a de Bruijn cycle from `paramfuzz.cyclic`, decoded against the
+pattern; the `unit-2018` column reproduces the first measurement exactly, from a
+separate run, which makes it a replication rather than a restatement.
+→ [`reports/crash-triage-v2.1.2-wsc-cyclic.json`](../reports/crash-triage-v2.1.2-wsc-cyclic.json),
+[`reports/crash-triage-unit-2018-wsc-cyclic.json`](../reports/crash-triage-unit-2018-wsc-cyclic.json)
+
+**Neither handler nor parameter is a control on the V2.1.2 profile.**
+`formNtp:` faults (see the table in §1), and `formWsc:localPin=1234` **reboots
+the guest**: its syscall trace ends in `execve("/bin/sh", {"sh","-c","reboot
+-f"})`. The 2017 build takes a different path for the same request — a 7,495-byte
+write to `/dev/mtdblock0`, then `flash write-current` and `sysconf wlaninit
+wlaninterface`. The control that works on both is `formSelLang:`.
+
 **What this is not.** It is not an exploit: nothing has been jumped to, no
 payload exists, and the address space under `qemu-user` is not the device's. It
-is not known to be new — `localPin` is the parameter CVE-2019-19824 names for
-*command injection*, and whether anyone has reported an overflow on it has not
-been searched yet. And it is not measured on hardware.
+is not measured on hardware. **And it is not new.** `/boafrm/formWsc` +
+`localPin` + buffer overflow is **CVE-2025-4462** (N150RT 3.4.0-B20190525,
+disclosed 2025-05-09, public proof of concept), with **CVE-2026-7218** the same
+parameter on N300RT and **CVE-2025-3987** command injection at the same endpoint;
+`CVE-2019-19824` is the command injection this project already knew about. The
+`(B)`-half `submit-url` overflow is **CVE-2021-35395**. What is not published, as
+far as four searches reach, is the `(A)` half above and these offsets on these
+two builds.
 
 The request itself is deliberately **not** in this repository, under the same
 rule as `D-15`: it lives in `$FWRE_WORK/disclosure/`, outside the tree.
@@ -165,3 +258,15 @@ running guest held `alignfix.so` open (`ETXTBSY`). That was tested and refuted:
 the build succeeds while `boa` runs. The real cause was a nested `sudo` moving
 `$ENVDIR` to `/root/fwre-work` — instrument bug 44, and the refusal that names
 it was sitting one check *below* the one that fired.
+
+Its second version — this one's predecessor — said the five handlers were the
+class, and used `formNtp` and `formWlanSetup` as controls while saying so. Both
+of them are in the class on the published image. The error is the same one it
+was written to name, one level up: it fixed the handler sample and left the
+build sample where W06 had put it.
+
+It also asserted, before the prior-art search that `docs/disclosure.md` step 2
+requires, that §4 was "not known to be new". It is known to be old, and one
+search found it. The order this project keeps getting right by accident, and
+should do on purpose, is: search first, then decide how much the measurement is
+worth.

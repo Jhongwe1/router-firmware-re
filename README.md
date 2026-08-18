@@ -341,6 +341,13 @@ that is not backed by a command someone else can re-run.
   >   a parser written from a *summary* of the device's output when the verbatim
   >   transcript was in the runbook all along, and its guard suite passing 10/10
   >   against a format the device does not emit.
+  > - **And five more on 2026-08-18, one of which reached outside the tooling
+  >   entirely**: guests ran in a `chroot` as root with no namespace, so a
+  >   firmware handler that calls `system("reboot -f")` powered off the host —
+  >   three times, each time looking like the harness hanging. Two of the other
+  >   four were a closed loop: a refusal that printed a fix command its own
+  >   parser rejects, and the correctly-spelled version exiting 1 in silence
+  >   without killing anything.
   >
   > ⚠️ **No second instrument has read this chip, and no JEDEC ID.** Both full reads
   > and the 2026-08-15 windows all go through the boot loader's `FLR`, so a
@@ -541,7 +548,7 @@ that is not backed by a command someone else can re-run.
   > silicon.**
 
 - [ ] **G5 — published write-up** (W08–W09) — a stranger understands the whole chain in 10 minutes
-- [ ] **W07 — systematic bug hunt** (no gate) — 8 categories, not driven by known CVEs. **28 of 58 register rows closed**, all of them at the desk (the bench visit has not happened); the deliverable is [`notes/bughunt.md`](notes/bughunt.md), twenty verdicts each pointing at a file under `reports/`, and a *relatively safe* section the same size as the verdict table. Three of the twenty are this project's own findings **withdrawn**, and one more turned out to have a CVE against it — the most recent retraction came from building an instrument that could tell the emulator's behaviour from the firmware's ([`tools/alignfix/`](tools/alignfix/)), not from arguing about a caveat
+- [ ] **W07 — systematic bug hunt** (no gate) — 8 categories, not driven by known CVEs. **29 of 58 register rows closed**, all of them at the desk (the bench visit has not happened); the deliverable is [`notes/bughunt.md`](notes/bughunt.md), twenty verdicts each pointing at a file under `reports/`, and a *relatively safe* section the same size as the verdict table. Three of the twenty are this project's own findings **withdrawn**, and one more turned out to have a CVE against it — the most recent retraction came from building an instrument that could tell the emulator's behaviour from the firmware's ([`tools/alignfix/`](tools/alignfix/)), not from arguing about a caveat
 - [ ] **W10 — close-out, disclosure admin, buffer**
 
 ## What is here

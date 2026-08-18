@@ -107,6 +107,22 @@ HAZARDOUS: dict[str, str] = {
                   "system()",
     "formRebootCheck": "reboot",
     "formRebootSchedule": "reboot scheduling",
+    # Added 2026-08-18 from the guest's own syscall trace, not from its name.
+    # A POST carrying localPin, on THIS unit's build, does:
+    #     open("/dev/mtdblock0", O_RDWR); write(fd, ..., 7495)
+    #     fork -> sh -c "flash write-current"
+    #     fork -> sh -c "sysconf wlaninit wlaninterface"
+    # so it commits 7 KB of configuration to flash and restarts the wireless
+    # interface. On the 2015 build the same request ends in
+    #     fork -> sh -c "reboot -f"
+    # instead. Either outcome turns every endpoint after it in the sweep into
+    # "connection refused", which is the false-negative this whole file exists
+    # to prevent -- and the flash write is durable whether or not formSaveConfig
+    # is ever reached.
+    "formWsc": "WPS. Measured under emulation to write 7,495 bytes to "
+               "/dev/mtdblock0, run `flash write-current`, and re-init wlan0; "
+               "the 2015 build reboots instead. Durable, and it can drop the "
+               "operator's own link mid-sweep",
 }
 
 # The three endpoints P3-13's own prediction names as "write" ones. Probing the

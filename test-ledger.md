@@ -53,10 +53,10 @@ W05 週計畫原本要另外建一份 `notes/prediction-scorecard.md`（12 條�
 |---|---|
 | 登記項目 | **135**（排入 126，砍掉 9） |
 | 已寫反證條件（凍結） | **118** / 126 |
-| 已執行 | **80** |
+| 已執行 | **81** |
 | 其中以真機動態證據收掉 | **43** |
-| 其中以模擬環境執行收掉（**不是矽上**） | **23** |
-| 判定成立 / 判定不成立 | **43** / **15** |
+| 其中以模擬環境執行收掉（**不是矽上**） | **24** |
+| 判定成立 / 判定不成立 | **44** / **15** |
 | 凍結雜湊 | `ef7ab66d86f1c3de35a654e7dd76711cbce7853241594462043a829fc9ff27b7` |
 
 ## 排程：哪一週要打掉哪些
@@ -70,7 +70,7 @@ W05 週計畫原本要另外建一份 `notes/prediction-scorecard.md`（12 條�
 | **W04-2** | Phase 0 | 2 / 2 | `▰▰▰▰▰▰▰▰▰▰` |
 | **W05** | Phase 0, 1, 2, 3, 6, 9 | 27 / 27 | `▰▰▰▰▰▰▰▰▰▰` |
 | **W06** | Phase 0, 2, 3, 4, 5, 10 | 20 / 20 | `▰▰▰▰▰▰▰▰▰▰` |
-| **W07** | Phase 1, 2, 3, 4, 5, 6, 8, 9, 10 | 28 / 58 | `▰▰▰▰▰▱▱▱▱▱` |
+| **W07** | Phase 1, 2, 3, 4, 5, 6, 8, 9, 10 | 29 / 58 | `▰▰▰▰▰▱▱▱▱▱` |
 | **W08** | Phase 7, 9 | 0 / 16 | `▱▱▱▱▱▱▱▱▱▱` |
 
 ## 圖例
@@ -701,7 +701,7 @@ W05 週計畫原本要另外建一份 `notes/prediction-scorecard.md`（12 條�
 | P8-20 | iwpriv 隱藏 ioctl + 暫存器 peek/poke（S-6） | 11.12 | ★★★☆☆ | 🟥 | W07 | ⬜ | — |
 | **P8-21** | 同型號橫向抄襲（S-15：A3002RU / N300RT / N302RE） | 11.12 | ★★★★★ | 🟨 | W07 | 🟥 拿到了 CVE-2024-51228 點名的另一台：N300RT V2.1.6-B20160516（第三方鏡像，無廠商簽章，雜湊只證明連續性）。**這一台的 57 個 handler 是 N300RT 那 61 個的嚴格子集**，對 N200RE V3.2.0 的 60 個也是。反證條件寫「分派表不同 → 同一顆的假設不成立」——量到的不是「不同」，是同一份程式碼加一個功能差集，所以那條不觸發。**這是關於映像的主張，不是關於 N300RT 硬體的主張。** | [formtable-scan-six-builds.json](reports/formtable-scan-six-builds.json) · [SOURCES.json](firmware/SOURCES.json) |
 | **P8-24** | 設定區失效時開機腳本自己開 telnet（fail-open，本專案獨家） | 11.5 | ★★★★☆ | 🟥 | W07 | 🔶 The branch is reached, the write is not observable. With both region signatures zeroed startup.sh printed its own line 23 verbatim - Default configuration invalid, reset default! - which is the branch whose line 43 is flash set TELNET_ENABLED 1. What it then writes cannot be measured here: flash default-sw and flash reset1 both die on qemu-user SIGBUS, so the image is byte-identical before and after in all seven damage states. The control that makes that a statement about the recovery path rather than about the environment: a plain flash set WAN_DHCP 7 writes and reads back in the same environment. Two refinements the prediction did not have. (1) The two validity tests differ: test-dsconf checks the DECOMPRESSED header (sig=6G ver=3 len=31878) and tolerates a flipped payload byte, test-csconf additionally runs mib_tlv_init and does not - so reaching the fail-open branch requires damaging COMPDS header specifically, not just corrupting the settings area. (2) startup.sh line 25 eval flash get WLAN_BAND2G5G_SELECT executed and the shell reported Invalid: not found, i.e. flash error text became a command - the P8-8 sink is live on the boot path even though nothing attacker-controlled reaches it. | [failopen-unit-2018.json](reports/failopen-unit-2018.json) · [config-failopen.md](notes/config-failopen.md) · [failopen-probe.sh](tools/failopen-probe.sh) |
-| P8-23 | 從 config.dat 反推 MIB 結構（差分法） | 11.14 | ★★★☆☆ | 🟥 | W07 | ⬜ | — |
+| P8-23 | 從 config.dat 反推 MIB 結構（差分法） | 11.14 | ★★★☆☆ | 🟥 | W07 | 🟪 tools/config-diff.py: DHCP_LEASE_TIME 480 -> 4321 under --alignfix. The decoded table moves exactly one field, at offset 91, 000001e0 -> 000010e1. The flash image moves 3 bytes -- two inside the compressed COMPCS payload and one 11 bytes past its end -- and those are NOT the decoder's coordinate system, which is what the runsheet step as originally written invited a reader to compare. | [config-diff-unit-2018.json](reports/config-diff-unit-2018.json) |
 
 <details><summary>Phase 8 的預測與反證條件（21/21 項已凍結）</summary>
 

@@ -64,6 +64,12 @@ if [ "${1:-}" = "--profile" ]; then
   PROFILE="$2"; shift 2
 fi
 
+# The names this script accepts, in one place. The `have:` list in the refusal
+# below is built from it, so the advertised set and the checked set cannot
+# drift apart; that the case arms below match it is what test-qemu-env.sh
+# checks, and that is the direction that can actually go wrong.
+ALL_PROFILES="unit-2018 v2.1.2"
+
 case "$PROFILE" in
   unit-2018)
     ROOTFS="$WORK/extracted/unit-2018/squashfs-root"
@@ -103,9 +109,31 @@ case "$PROFILE" in
     DOCROOT_EXPECT=144
     ;;
   *)
-    echo "${0##*/}: unknown profile '$PROFILE' (have: unit-2018, v2.1.2)" >&2
+    echo "${0##*/}: unknown profile '$PROFILE' (have: ${ALL_PROFILES// /, })" >&2
     exit 2 ;;
 esac
+
+# The reverse of the block above: environment directory -> profile name.
+#
+# These are NOT the same string -- profile `unit-2018` lives in `qemu-env-2018`
+# -- and that is the whole of the bug. cmd_reset derived the name it printed
+# with `${dir##*qemu-env-}`, which yields `2018`, and the parser above rejects
+# `--profile 2018` with exit 2. So the refusal that blocks a reset printed a fix
+# that is itself refused, for exactly one of the two profiles: the default one,
+# which is the one an orphan is always in. A reset blocked this way stayed
+# blocked, and that is what stopped the V2.1.2 measurement on 2026-08-18.
+#
+# Two hand-kept lists are acceptable only with something proving they agree:
+# test-qemu-env.sh walks $ALL_PROFILES through the parser and back through this
+# function, both directions, and needs neither root nor the flash dump.
+profile_of_envdir() {
+  case "${1##*/}" in
+    qemu-env-2018)   printf '%s' 'unit-2018' ;;
+    qemu-env-v2.1.2) printf '%s' 'v2.1.2' ;;
+    *) return 1 ;;
+  esac
+}
+
 
 PRISTINE="$ENVDIR/.mtd-pristine.bin"
 
@@ -113,6 +141,36 @@ die() { printf '%s: %s\n' "${0##*/}" "$*" >&2; exit 1; }
 note() { printf '  %s\n' "$*"; }
 
 need_root() { [ "$(id -u)" -eq 0 ] || die "needs root (chroot); re-run with sudo"; }
+
+# ---------------------------------------------------------------- guest ----
+# Every guest starts through this, and the reason is one measurement.
+#
+# `chroot` is not isolation. On 2026-08-18 a single POST to /boafrm/formWsc on
+# the v2.1.2 profile reached, in the guest's own syscall trace,
+#
+#     execve("/bin/sh", {"sh", "-c", "reboot -f"})
+#
+# and busybox's `reboot -f` is a bare reboot(2). qemu-user hands it to the host
+# kernel, this whole tool runs as root, and there was no namespace between the
+# two -- so the HOST powered off. It did that three times before the cause was
+# named, and each time it looked like the harness hanging: partial output, a
+# report never written, /tmp empty afterwards. Nothing in the environment said
+# what had happened, because the thing that would have said it had just been
+# shut down.
+#
+# A PID namespace makes reboot(2) mean what it means on the device: the init of
+# that namespace is signalled and the namespace ends. The unit-2018 build takes
+# a different path for the same request -- `flash write-current` and `sysconf
+# wlaninit wlaninterface` -- so this cost nothing for four weeks, and would have
+# cost the next session too.
+#
+# --mount-proc is deliberately NOT passed: $ENVDIR/proc is already mounted from
+# the host mount namespace, and a fresh mount namespace would hide it from the
+# guest. That is a behaviour change, not a containment.
+#
+# It is also the orphan fix: killing the namespace's init takes its children
+# with it, and children exec'd through binfmt are exactly what `reap` exists for.
+guest() { unshare --pid --fork chroot "$ENVDIR" ./qemu-mips-static "$@"; }
 
 verify_dump() {
   [ -f "$DUMP" ] || die "no flash dump at $DUMP"
@@ -259,7 +317,7 @@ cmd_build() {
 
   # The document root, populated the way rcS populates it: `flash extr /web`,
   # which reads the w6cg bundle straight out of the device file above.
-  chroot "$ENVDIR" ./qemu-mips-static /bin/flash extr /web >/dev/null 2>&1 || true
+  guest /bin/flash extr /web >/dev/null 2>&1 || true
 
   echo "built $ENVDIR  (profile $PROFILE)"
   # The count comes from the web bundle report for this build, not from a
@@ -287,7 +345,10 @@ cmd_reset() {
   # So: stop everything in THIS environment first, and refuse if another
   # profile's environment still has processes, rather than pulling the floor out
   # from under it.
-  local other n
+  local other n hint
+  # `|| true` because reap having nothing to do is not an error. It is NOT here
+  # to swallow a broken reap -- which is exactly what it used to do, see
+  # env_pids above.
   cmd_reap >/dev/null 2>&1 || true
   for other in "$WORK"/qemu-env-*; do
     [ -d "$other" ] || continue
@@ -296,11 +357,16 @@ cmd_reset() {
     for p in /proc/[0-9]*; do
       [ "$(readlink "$p/root" 2>/dev/null)" = "$other" ] && n=$((n + 1))
     done
+    if hint="$(profile_of_envdir "$other")"; then
+      hint="sudo $0 --profile $hint reap"
+    else
+      hint="no profile in this script owns $other -- kill them by hand"
+    fi
     [ "$n" -eq 0 ] || die \
       "$n process(es) are still running in $other, and this reset would delete
      the SysV segments they are using -- they have no namespace on this host.
      Stop them first:
-       sudo $0 --profile ${other##*qemu-env-} reap"
+       $hint"
   done
 
   cp "$PRISTINE" "$ENVDIR/dev/mtdblock0"
@@ -373,7 +439,7 @@ cmd_check() {
   # pipeline reports 141 even though the match succeeded -- so a control line
   # in the middle of a 2,317-line stream failed at random while one near the
   # end passed. A control that fails nondeterministically is worse than none.
-  chroot "$ENVDIR" ./qemu-mips-static /bin/flash all >"$tmp" 2>/dev/null \
+  guest /bin/flash all >"$tmp" 2>/dev/null \
     || die "positive control: /bin/flash all did not run at all"
   [ -s "$tmp" ] || die "positive control: /bin/flash all produced nothing"
 
@@ -396,7 +462,8 @@ cmd_check() {
 }
 
 # ------------------------------------------------------------------ run ----
-cmd_run() { need_root; exec chroot "$ENVDIR" ./qemu-mips-static "$@"; }
+
+cmd_run() { need_root; guest "$@"; }
 
 # ----------------------------------------------------------------- serve ---
 # Stand `boa` up under qemu-user and prove it is answering before saying so.
@@ -444,8 +511,22 @@ env_pids() {
   local p target
   for p in /proc/[0-9]*; do
     target="$(readlink "$p/root" 2>/dev/null)" || continue
-    [ "$target" = "$ENVDIR" ] && printf '%s\n' "${p#/proc/}"
+    if [ "$target" = "$ENVDIR" ]; then printf '%s\n' "${p#/proc/}"; fi
   done
+  # `return 0`, and it is load-bearing under `set -euo pipefail`.
+  #
+  # The last statement used to be `[ ... ] && printf`. On the FINAL /proc entry
+  # -- which is essentially never a guest -- the test is false, so the && list
+  # returns 1, so the *function* returns 1, so `pids="$(env_pids)"` in cmd_reap
+  # returns 1, and `set -e` ended the script right there: exit 1, nothing
+  # killed, and not one byte on stdout or stderr.
+  #
+  # It looked like it worked because cmd_reset calls it as `cmd_reap ... ||
+  # true`, and a `||` list disables `set -e` for the whole dynamic extent of the
+  # call. So reap worked in the one place its result was thrown away, and failed
+  # every time it was asked for by name -- and whether it failed at all depended
+  # on which /proc entry the glob happened to sort last.
+  return 0
 }
 
 # ------------------------------------------------------------------ reap ----
@@ -566,29 +647,32 @@ cmd_serve() {
   mkdir -p "$ENVDIR/var/web/config.dat"
 
   # shellcheck disable=SC2086  # $preload is either empty or exactly two words
-  chroot "$ENVDIR" ./qemu-mips-static $preload /bin/boa -f /var/boa-emu.conf \
+  guest $preload /bin/boa -d -f /var/boa-emu.conf \
       >"$ENVDIR/tmp/boa-emu.log" 2>&1 &
-  local pid=$!
+  # `-d`, and the namespace above forces it. boa daemonises by default: it
+  # forks and the parent exits -- and that parent is pid 1 of the new PID
+  # namespace, so the kernel kills everything else in it. The log read
+  # `boa: starting server pid=3` and then nothing was listening, on both
+  # profiles, which looks exactly like a server that failed to bind.
+  #
+  # -d changes the process structure and nothing about how a request is
+  # handled; crash-triage.py has driven this binary that way since it was
+  # written. Besides working at all, it buys this: the process holding the
+  # socket IS the namespace's init, so killing it takes every child with it --
+  # which is the orphan problem the comment further down was written about.
   local i=0
   while [ "$i" -lt 20 ]; do
     sleep 1; i=$((i + 1))
     curl -sf -m 2 -o /dev/null "http://127.0.0.1:$port/login.htm" && break
   done
 
-  # Two controls, and the second is the one that matters. "It answered" is not
-  # "it is this firmware answering the way this firmware answers": an exempt
-  # page must come back 200 and a gated one must be redirected, which is the
-  # gate model read at instruction level in W04-2 and measured on the device in
-  # W05. If only the first held, something else is on the port.
-  local ok=0 code
-  code="$(curl -s -m 5 -o /dev/null -w '%{http_code}' "http://127.0.0.1:$port/login.htm")"
-  if [ "$code" = "200" ]; then note "control ok: login.htm 200 (exempt page served)"; else
-    echo "  control FAILED: login.htm returned $code, expected 200" >&2; ok=1; fi
-  code="$(curl -s -m 5 -o /dev/null -w '%{http_code}' "http://127.0.0.1:$port/blank.htm")"
-  if [ "$code" = "302" ]; then note "control ok: blank.htm 302 (gated page redirected)"; else
-    echo "  control FAILED: blank.htm returned $code, expected 302 - the gate is" \
-         "not behaving as it does on the device, so nothing measured here transfers" >&2; ok=1; fi
-
+  # Before either control below: is ANYTHING listening? The controls read a
+  # status code out of curl, and `code="$(curl ...)"` under set -e takes the
+  # whole script down with curl's exit 7 when there is no server -- so the
+  # message written for exactly this case, the one that names the log file,
+  # could never print. `serve` exited a bare 7 and said nothing at all. Same
+  # shape as instrument bug 44: of two refusals that can fire for one cause,
+  # the one that names the cause has to be the one that fires.
   # And the check that the two above cannot make: is the process answering the
   # one this function started? A control that cannot tell "my server is up" from
   # "somebody's server is up" is the failure this whole subcommand exists to
@@ -619,6 +703,20 @@ cmd_serve() {
      Everything measured against it would belong to another environment.
        sudo $0 --profile $PROFILE reap"
   fi
+
+  # Two controls, and the second is the one that matters. "It answered" is not
+  # "it is this firmware answering the way this firmware answers": an exempt
+  # page must come back 200 and a gated one must be redirected, which is the
+  # gate model read at instruction level in W04-2 and measured on the device in
+  # W05. If only the first held, something else is on the port.
+  local ok=0 code
+  code="$(curl -s -m 5 -o /dev/null -w '%{http_code}' "http://127.0.0.1:$port/login.htm")"
+  if [ "$code" = "200" ]; then note "control ok: login.htm 200 (exempt page served)"; else
+    echo "  control FAILED: login.htm returned $code, expected 200" >&2; ok=1; fi
+  code="$(curl -s -m 5 -o /dev/null -w '%{http_code}' "http://127.0.0.1:$port/blank.htm")"
+  if [ "$code" = "302" ]; then note "control ok: blank.htm 302 (gated page redirected)"; else
+    echo "  control FAILED: blank.htm returned $code, expected 302 - the gate is" \
+         "not behaving as it does on the device, so nothing measured here transfers" >&2; ok=1; fi
 
   if [ "$ok" -ne 0 ]; then
     kill "$holder_now" 2>/dev/null

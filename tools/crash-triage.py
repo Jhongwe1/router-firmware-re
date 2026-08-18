@@ -204,8 +204,16 @@ def run_case(env: Path, handler: str, body: str, phdrs: list, tmp: Path,
     cd.mkdir(parents=True, exist_ok=True)
 
     with open(env / "tmp/boa-triage.log", "wb") as log:
+        # `unshare --pid --fork`, and it is not optional. chroot is not
+        # isolation: on the v2.1.2 profile a POST to /boafrm/formWsc reaches
+        # system("reboot -f"), qemu-user passes reboot(2) to the host kernel,
+        # and this runs as root -- so the host powered off, three times, each
+        # time looking like this tool hanging. In a PID namespace that syscall
+        # signals the namespace's own init, which is what it means on the
+        # device. See tools/qemu-env.sh guest().
         qemu = subprocess.Popen(
-            ["chroot", str(env), "./qemu-mips-static", "-g", str(GDB_PORT),
+            ["unshare", "--pid", "--fork",
+             "chroot", str(env), "./qemu-mips-static", "-g", str(GDB_PORT),
              "-E", "LD_PRELOAD=/lib/alignfix.so",
              "/bin/boa", "-d", "-f", "/var/boa-dbg.conf"],
             stdout=log, stderr=subprocess.STDOUT)
@@ -235,6 +243,13 @@ def run_case(env: Path, handler: str, body: str, phdrs: list, tmp: Path,
         subprocess.run(["pkill", "-9", "-f",
                         f"qemu-mips-static -g {GDB_PORT}"],
                        capture_output=True, check=False)
+        # And a reap, because the pattern above cannot match what the guest
+        # forks: children go through binfmt as `mips-binfmt-P /bin/ntp_inet`,
+        # a different command line entirely. One of those survived a whole
+        # session on 2026-08-18 and blocked the next reset. reap finds them by
+        # /proc/PID/root instead of by argv.
+        subprocess.run(["tools/qemu-env.sh", "--profile", profile, "reap"],
+                       cwd=REPO, capture_output=True, check=False)
 
     case = {"handler": handler, "body": body}
     sig = SIGLINE.search(out)

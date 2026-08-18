@@ -43,6 +43,7 @@ Several producers write into reports/, on purpose:
   tools/crash-triage.py                -> carries "producer": "crash-triage"
   tools/paramfuzz.py                   -> carries "producer": "paramfuzz"
   tools/formtable-scan.py              -> carries "producer": "formtable-scan"
+  tools/config-diff.py                 -> carries "producer": "config-diff"
                                           (a provenance map for a rebuilt flash
                                            image. The check that matters is that
                                            every *overlay* names an origin: an
@@ -265,6 +266,39 @@ def main(argv: list[str]) -> int:
                 errors.append(
                     f"{path.name}: no program headers, so no store target can be "
                     "classified and 'SIGSEGV' is all this file says")
+
+        # config-diff answers P8-23 by comparing two paths that are easy to
+        # make agree by accident. A committed file that still carries a
+        # disagreement is the failure this check exists for -- and so is one
+        # whose flash diff was never classified against the region, because
+        # the compressed-payload offsets and the decoded field offsets are two
+        # coordinate systems and the first version of that comparison put them
+        # side by side as though they were one.
+        elif str(doc.get("producer", "")) == "config-diff":
+            counts["emulation"] += 1
+            if doc.get("problems"):
+                errors.append(
+                    f"{path.name}: recorded with {len(doc['problems'])} "
+                    f"disagreement(s) - {doc['problems'][0]}")
+            if not doc.get("decoded_diff"):
+                errors.append(
+                    f"{path.name}: no decoded field changed, so this file says "
+                    "nothing about whether the two paths agree")
+            if not doc.get("flash_diff"):
+                errors.append(
+                    f"{path.name}: no flash bytes changed, so there was no "
+                    "write to compare a decode against")
+            for d in doc.get("flash_diff", []):
+                if not d.get("where"):
+                    errors.append(
+                        f"{path.name}: a changed byte at {d.get('offset')} is "
+                        "not placed relative to the region, so nothing stops a "
+                        "reader comparing it to a decoded field offset")
+                    break
+            for field in ("mib", "value_before", "value_after", "region_offset"):
+                if doc.get(field) in (None, ""):
+                    errors.append(
+                        f"{path.name}: missing required field {field!r}")
 
         elif str(doc.get("producer", "")) == "paramfuzz":
             counts["emulation"] += 1

@@ -1,0 +1,79 @@
+{
+  "producer": "crash-triage",
+  "schema_version": "1",
+  "profile": "unit-2018",
+  "binary": "/home/key/fwre-work/qemu-env-2018/bin/boa",
+  "alignfix": true,
+  "program_headers": [
+    {
+      "vaddr": "0x00400000",
+      "memsz": "0x73044",
+      "flags": "R-X"
+    },
+    {
+      "vaddr": "0x00483044",
+      "memsz": "0xcba8",
+      "flags": "RW-"
+    }
+  ],
+  "cases": [
+    {
+      "handler": "formWsc",
+      "body": "localPin=aaaaabaacaadaaeaafaagaahaaiaajaakaalaamaanaaoaapaaqaaraasaataauaavaawaaxaayaazabaabbabcabdabeabfabgabhabiabjabkablabmabnaboabpabqabrabsabtabuabvabwabxabyabzacaacbaccacdaceacfacgachaciacjackaclacmacnacoacpacqacracsactacuacvacwacxacyaczadaadbadcaddadeadfadgadhadiadjadkadladmadnadoadpadqadradsadtaduadvadwadxadyadzaeaaebaecaedaeeaefaegaehaeiaejaekaelaemaenaeoaepaeqaeraesaetaeuaevaewaexaeyaezafaafbafcafdafeaffafgafhafiafjafkaflafmafnafoafpafqafrafsaftafuafvafwafxafyafzagaagbagcagdageagfaggaghagiagjagkaglagmagnagoagpagqagragsagtaguagvagwagxagyagzahaahbahcahdaheahfahgahhahiahjahkahlahmahnahoahpahqahrahsahtahuahvahwahxahyahzaiaaibaicaidaieaifaigaihaiiaijaikailaimainaioaipaiqairaisaitaiuaivaiwaixaiyaizajaajbajcajdajeajfajgajhajiajjajkajlajmajnajoajpajqajrajsajtajuajvajwajxajyajzakaakbakcakdakeakfak",
+      "signal": "SIGSEGV",
+      "pc": "0x6e61676f",
+      "ra": "0x6e61676f",
+      "ra_in_boa": {
+        "segment_vaddr": null,
+        "segment_flags": null,
+        "writable": null,
+        "verdict": "outside every PT_LOAD of this binary (a shared library, the stack, or unmapped)"
+      },
+      "registers": {
+        "a0": "0x00494820",
+        "a1": "0x2b2ab318",
+        "a2": "0x00000000",
+        "a3": "0x2b2ab318",
+        "at": "0xfffffff8",
+        "fp": "0x2b2ab650",
+        "gp": "0x0048dfe0",
+        "k0": "0x00000000",
+        "k1": "0x00000000",
+        "pc": "0x6e61676f",
+        "ra": "0x6e61676f",
+        "s0": "0x67656167",
+        "s1": "0x66616767",
+        "s2": "0x61676861",
+        "s3": "0x67696167",
+        "s4": "0x6a61676b",
+        "s5": "0x61676c61",
+        "s6": "0x676d6167",
+        "s7": "0x0048bb04",
+        "sp": "0x2b2ab650",
+        "t0": "0x00000000",
+        "t1": "0x00000000",
+        "t2": "0x00000001",
+        "t3": "0x00000057",
+        "t4": "0x00000807",
+        "t5": "0x00000800",
+        "t6": "0x00000400",
+        "t7": "0x00000008",
+        "t8": "0x00000001",
+        "t9": "0x2b326660",
+        "v0": "0x00000000",
+        "v1": "0x0040f654",
+        "zero": "0x00000000"
+      }
+    }
+  ],
+  "controls": [
+    {
+      "handler": "formSelLang",
+      "body": "",
+      "signal": null,
+      "seconds_waited": 25,
+      "verdict": "no signal in 25 s -- the handler did not fault"
+    }
+  ],
+  "control_problems": []
+}

@@ -3820,3 +3820,276 @@ tested and **refuted** before the real cause was found: the build succeeds while
 | **2. `A1.9`** | ❌ | `P8-23`, and it is the first thing `--alignfix` made possible that has not been spent |
 | **3. Prior-art, per handler, four ways** | ❌ | Open #64. Required by `docs/disclosure.md` step 2 before either new finding is worth a draft |
 | **4. The bench visit** | ✅ | 30 rows, and **every one of them now has a written step**. Station order per `runsheet.md` Part B `B-W07` + its 2026-08-18 supplement; `A3.2` moved forward for the 601-second window; `P9-9` last |
+
+## W07 Day 5 — the tool printed a fix its own parser rejects — 2026-08-18
+
+**Register: W07 goes 28/58 → 29/58.** One row closed (`P8-23`), and it is the
+first thing this environment could answer that it never could before. Everything
+else today was either an open question being closed or an instrument being
+repaired, and the repairs are the larger half.
+
+### The measurement that did not run yesterday, and why it could not have
+
+Yesterday's last entry says the V2.1.2 reproduction "started and it did not run:
+`reset` refused because a leftover guest process from the `unit-2018` profile was
+still alive, which is the tool being right". The tool was right about the
+process. Everything it then said about what to do next was wrong, in two
+independent ways, and together they are a closed loop:
+
+* `cmd_reset`'s refusal derives the profile name it prints from the environment
+  **directory** — `${dir##*qemu-env-}`. The directory is `qemu-env-2018`; the
+  profile is `unit-2018`. So it printed `sudo tools/qemu-env.sh --profile 2018
+  reap`, and the parser six hundred lines above rejects `2018` with exit 2. The
+  same expression is correct for the other profile, whose directory happens to
+  match its name — which is why it survived every session in which only one
+  profile existed.
+* Typed correctly, `reap` **exits 1, prints nothing, and kills nothing.**
+  `env_pids`'s last statement was `[ "$target" = "$ENVDIR" ] && printf …`; on the
+  final `/proc` entry — never a guest — the test is false, the `&&` list returns
+  1, that becomes the function's status, and `set -e` ends the script at
+  `pids="$(env_pids)"`, before the first `kill`.
+
+So the reset refused, named a command that is itself refused, and the correct
+spelling of that command did nothing without saying so. **Neither half is visible
+in the output of a successful run** — which is the property `test-qemu-env.sh`
+exists for, and the suite had no case for `reap` at all.
+
+> **A refusal that names the fix is worth exactly what the fix is worth, and
+> nothing was checking that the command it printed can be run.**
+
+### It stayed invisible for two reasons, and the first one is embarrassing
+
+The first guard case written for `env_pids` passed against the broken function.
+It was written as `if ( set -euo pipefail; …; ); then` — and POSIX disables
+`set -e` for everything in the condition of an `if`. **The test reproduced the
+mechanism it was written to catch.** So does `cmd_reset`, which calls
+`cmd_reap … || true` and therefore ran it with `set -e` inert: reap worked in the
+one place its result was discarded, and only there.
+
+The second reason is privilege. As an ordinary user almost every
+`/proc/PID/root` is unreadable, `readlink` fails, the iteration ends on
+`continue` — status 0 — and the defect does not appear at all. **It exists only
+under root, and `reap` requires root.** CI is not root. The cases now stub
+`readlink` and simulate the privilege rather than the situation.
+
+Four mutants, each reverting one line, each killed by the case written for it:
+the trailing `&&`, the directory-derived hint, a reversed profile map, and an
+`env_pids` that reports nothing.
+→ `tools/test-qemu-env.sh`, 12 cases unprivileged and 21 with the dump and root
+
+### `chroot` is not isolation, and the host found out three times
+
+With the deadlock cleared, the V2.1.2 run died mid-case and took the whole WSL
+virtual machine with it. Three times. Each time it looked like the harness
+hanging: partial output, no report written, `/tmp` empty afterwards. Memory was
+never below 7 GB — the process count fell from 68 to 36 in one second, which is
+an orderly shutdown, not an OOM.
+
+Run inside `unshare --pid --fork`, under `qemu-mips-static -strace`, the guest
+says it itself:
+
+```
+19 execve("/bin/sh",{"sh","-c","reboot -f",NULL})
+```
+
+`busybox reboot -f` is a bare `reboot(2)`. qemu-user hands it to the host kernel,
+`qemu-env.sh` runs as root, and there was no namespace between the two. Six
+controlled runs, host boot time unchanged throughout:
+
+| profile | request | guest reaches `reboot` |
+|---|---|---|
+| v2.1.2 | no POST at all | no |
+| v2.1.2 | empty body to `formWsc` | no |
+| v2.1.2 | `formSelLang`, empty body | no |
+| **v2.1.2** | **`formWsc`, `localPin=1234`** | **yes** |
+| unit-2018 | no POST | no |
+| unit-2018 | `formWsc`, `localPin=1234` | no — `flash write-current`, then `sysconf wlaninit wlaninterface` |
+
+So it is the request and not a timer, and it is per build. **The 2015 build
+reboots on a WPS PIN submission; the 2017 build writes 7,495 bytes to
+`/dev/mtdblock0` and re-initialises the wireless interface instead.** Both are
+now one entry in `tools/bench-probe.py`'s `HAZARDOUS` map, which did not carry
+`formWsc` — and either outcome turns every endpoint after it in a sweep into
+"connection refused", the exact false negative that file was written to prevent.
+
+Guests now start through one function, `guest()` = `unshare --pid --fork
+chroot …`. That broke `serve` immediately and correctly: `boa` daemonises, the
+launcher exits, and the launcher was the namespace's init, so the kernel killed
+everything else in it. `-d` keeps it in the foreground; the process holding the
+socket is then the namespace's own init, so killing it takes its children with
+it — which is the orphan problem the comment beside the pidfile was written about.
+
+### Open #63: yes, and the frame is one word larger
+
+`formWsc` is in the dispatch table of all six builds scanned and `localPin` is in
+all six binaries' strings. With a clean control on the V2.1.2 profile — and
+**neither `formNtp:` nor `formWsc:localPin=1234` is one there**, the first faults
+and the second reboots the guest — the answer is unambiguous.
+
+| | unit-2018 (2017-11) | v2.1.2 (2015-08) |
+|---|---|---|
+| `s0` … `s6` | 481 · 485 · 489 · 493 · 497 · 501 · 505 | 485 · 489 · 493 · 497 · 501 · 505 · 509 |
+| **`ra`, and `$pc` is loaded from it** | **509** | **513** |
+| `s7` | untouched, `0x0048bb04` | untouched, `0x00490ad4` |
+
+Same registers saved, same order, frame one word larger on the older build. The
+`unit-2018` column reproduces yesterday's numbers exactly from a separate run, so
+this is also a replication of the measurement it is being compared against.
+→ [`reports/crash-triage-v2.1.2-wsc.json`](reports/crash-triage-v2.1.2-wsc.json),
+[`reports/crash-triage-v2.1.2-wsc-cyclic.json`](reports/crash-triage-v2.1.2-wsc-cyclic.json),
+[`reports/crash-triage-unit-2018-wsc-cyclic.json`](reports/crash-triage-unit-2018-wsc-cyclic.json)
+
+**The absent-parameter class is wider on the published image: seven handlers, not
+five.** Same instruction, same verdict, different address — `0x00476418`, in
+V2.1.2's `R-X` `PT_LOAD`. The two extra are `formNtp` and `formWlanSetup`, **two
+of the three handlers W06 hand-picked to test the class and found clean.** They
+were clean; W06 measured the 2017 build. The refutation inherited the coverage of
+its handler sample *and* of its build, and widening the first was never going to
+show the second.
+→ [`reports/crash-triage-v2.1.2.json`](reports/crash-triage-v2.1.2.json)
+
+### Open #64: it is published, and this search should have run three days ago
+
+`localPin` on `/boafrm/formWsc` is **CVE-2025-4462** — TOTOLINK N150RT
+3.4.0-B20190525, buffer overflow, remote, disclosed 2025-05-09 with a public
+proof of concept. **CVE-2026-7218** is the same parameter on N300RT
+3.4.0-B20250430; **CVE-2025-3987** is command injection at the same endpoint; and
+**CVE-2019-19824** is the command injection this project already knew about. The
+`submit-url` long-value half is **CVE-2021-35395**, named in Realtek's own
+advisory and in the Talos series on the LevelOne WBR-6013, which quotes the same
+`req_get_cstream_var` + `strcpy` shape.
+
+What survives the search: neither build measured here is the build any of those
+name, and the frame offsets are not published anywhere found. What does not
+survive: any claim that this is a new defect class. It is not. Recorded in
+`docs/disclosure.md`; nothing is being reported.
+
+### The vendor shipped the mechanism as a macro, and it answers #65
+
+The fourth prior-art path — the Realtek SDK is in other vendors' GPL drops — is
+the one that paid. In `rtl819x/users/boa/src/apform.h`:
+
+```c
+#define OK_MSG(url) { \
+	needReboot = 1; \
+	if(strlen(url) == 0) \
+		strcpy(url,"/wizard.htm"); \
+```
+
+`url` is what `req_get_cstream_var(wp, ("submit-url"), "")` returned. When the
+parameter is absent that is the address of the `""` literal, and the macro writes
+twelve bytes through it. **This is a third independent source for the mechanism —
+Ghidra, the emulated fault, and now the vendor's own source** — and it sits
+upstream of every handler that expands the macro rather than being a per-handler
+mistake.
+
+It also answers **#65** without another measurement. The sibling macro is
+`ERR_MSG(msg)`, which takes a message and never touches `url`: a handler that
+fails validation early goes down that path, and only one that reaches a
+successful apply calls `OK_MSG`. That is what the 42 have in common. And the
+`#else` arm of the same `#ifdef REBOOT_CHECK` has no `strcpy` at all, so whether
+a build carries the defect is a **build-time flag** — a sharper prediction than
+"some builds do".
+
+The same header also shows the redirect parameter is named per handler —
+`submit-url`, `webpage`, `wlan-url`, `mesh-url` — which is the map
+`bench-probe.py` had to rediscover empirically yesterday.
+
+### #67 was the wrong question: it was removed, not added
+
+Pierre Kim's advisory of 2015-07-16 names N150RT-V2 vulnerable "until last
+firmware TOTOLINK-N150RT-V2.1.1-B20150708.1548" via the unauthenticated hidden
+`/boafrm/formSysCmd`. **V2.1.2-B20150825 is the next build, six weeks later, and
+it is the one build of six with no `formSysCmd` in its dispatch table.** It is
+back by 2016-05 and still present in the build this unit runs. So the sequence is
+disclosure → removal → reintroduction, and it is the reintroduction that needs
+explaining. The advisory is a second source for the "present before" half;
+V2.1.1 itself has not been read here, and the claim carries that.
+
+### Instrument work
+
+- **Bug 45** — `reap` exits 1 without reaping, silently, and only under root.
+  Above.
+- **Bug 46** — `cmd_reset`'s refusal prints `--profile <directory suffix>`, which
+  its own parser rejects for `unit-2018` and accepts for `v2.1.2`. There is now
+  one reverse map, `profile_of_envdir`, and a guard case that walks every profile
+  through the parser and back.
+- **Bug 47** — guests ran in a `chroot`, as root, with no namespace. Above.
+- **Bug 48** — `cmd_serve` reads its control codes with `code="$(curl …)"`. With
+  nothing listening curl exits 7, `set -e` ends the script there, and the refusal
+  written for exactly that case — the one that names `boa-emu.log` — could never
+  print. `serve` exited a bare 7 and said nothing. The listening check now runs
+  before the two content controls. Same shape as bug 44.
+- **Bug 49** — `crash-triage.py` cleaned up with
+  `pkill -f "qemu-mips-static -g 1234"`, which cannot match what the guest forks:
+  children go through binfmt as `mips-binfmt-P /bin/ntp_inet`. One of those
+  survived a whole session and is what blocked the reset. It now calls `reap`.
+- **`tools/config-diff.py`** — new, and it is what closes `P8-23`. It drives the
+  write under `--alignfix`, bounds it, and compares the decoded field tables
+  rather than the flash bytes. `tools/test-config-diff.sh`, 11 cases, drives the
+  comparison directly and needs neither root nor fwrecon.
+
+### The runsheet step that was written and never run
+
+`A1.9` was written yesterday, by the session that added a checker forbidding a
+live row with no procedure. Run today, it is wrong twice:
+
+1. **`flash set` on a COMPCS field hangs without `alignfix`.** The guest prints
+   `qemu: uncaught target signal 10 (Bus error) - core dumped` and then does not
+   exit. The step passed no preload and set no ceiling, so it reads as slow.
+2. **It compares two coordinate systems.** `qemu-env.sh diff` reports offsets into
+   the flash image, where the region is compressed — 7,478 bytes for 45,226
+   decompressed. `fwrecon compcs` reports offsets into the decompressed payload.
+   The first run put `0x00c060` beside "offset 91", two apart and nearly right,
+   which is worse than being obviously wrong.
+
+> **Writing the procedure before the session was necessary and is not sufficient.
+> Yesterday's rule catches a row with no step. Nothing catches a step that has
+> never been executed — and a step that has never been executed is a prediction
+> about a command, not a command.**
+
+### Corrections to the plan
+
+| | |
+|---|---|
+| **`CLAUDE.md` says the Chinese files were normalised to fullwidth punctuation on 2026-08-17. `RUNBOOK.md` was not, or has drifted since.** | 172 of its 3,852 lines still carry a halfwidth `,` or `:` between two CJK characters, including every section added on 2026-08-18. `runsheet.md` has 11, `LOG.md` 3, `study/QA.md` 6; `BENCH-LOG.md`'s 124 are exempt by rule. Measured, not fixed: 172 lines is not a silent edit, and there is no checker, which is why it drifted back the day after it was done. The new text added today follows the rule, which makes the boundary visible in the diff |
+
+### Deliberately not done
+
+| Item | Why |
+|---|---|
+| **The bench visit** | Not started. The desk block scheduled ahead of it is finished; the 30 rows are not |
+| **`P5-2` ret2libc** | Unchanged: the honest version of the question is about the device, not `qemu-user`'s mmap layout |
+| **Reporting anything** | Prior art says the class is published. That lowers the urgency and changes nothing about the rule |
+| **Reading V2.1.1** | It would close the "removed, not merely absent" half of #67 directly. Not downloaded |
+| **A guard case for `guest()`** | The containment is proved by one measurement and by `serve` failing correctly while it was wrong. Nothing fires if someone deletes `unshare` |
+
+### Open, carried forward
+
+63. ~~**Does the `formWsc` overflow reproduce on the published V2.1.2 image?**~~
+    **Answered: yes**, with `ra` at 513 rather than 509. Closed.
+64. ~~**Is the `localPin` overflow already published?**~~ **Answered: yes** —
+    CVE-2025-4462, and the `submit-url` half is CVE-2021-35395. Closed.
+65. ~~**Why do 42 of the 47 handlers carrying the idiom return before reaching
+    it?**~~ **Answered from the vendor's source**: they take `ERR_MSG`, which
+    never writes through `url`. Closed.
+66. **`formtable-scan.py` is validated on one build of six.** Unchanged.
+67. **`formSysCmd` was removed in V2.1.2 and reintroduced by 2016.** Reframed,
+    not closed: nothing here says who reintroduced it, or whether V2.1.1 really
+    carries it. That needs the image.
+68. **Is `formWsc` reachable unauthenticated on this unit?** Everything measured
+    today was emulated, and the v2.1.2 profile cannot pass `serve`'s gate control
+    at all — `blank.htm` returns 200 where the device returns 302. That is most
+    likely the synthesised, password-free configuration in that profile rather
+    than a difference in the firmware, and "most likely" is not a measurement.
+69. **Nothing fires if `unshare` is removed from `guest()`.** The containment is
+    correct and unguarded, which is exactly the state bug 45 was in yesterday.
+
+### Where W07 stands, and what the next session does first
+
+| Next | Needs the device? | Note |
+|---|---|---|
+| **1. The bench visit** | ✅ | 30 rows, station order per `runsheet.md` Part B `B-W07` and its supplements. `A3.2` early for the 601-second window, `P9-9` last. **`formWsc` is now `HAZARDOUS`**: a POST to it writes flash on this build |
+| **2. Push, and check the remote** | ❌ | Nothing pushed since `e819596`. `gh run list` before calling it done — the two CI lists have diverged three times |
+| **3. `P8-12`, `P8-23`'s sibling** | ❌ | `config-diff.py` now writes a field and proves where it landed. `P8-12` still needs an *encoder*, which is a different thing, but the differential is no longer the blocker |
+| **4. Open #68** | ✅ | The gate question is the one thing today could not answer under emulation at all |

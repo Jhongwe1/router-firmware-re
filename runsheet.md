@@ -704,8 +704,45 @@ pc  0x41414141    ra  0x41414141    s0..s6  0x41414141    s7  0x0048bb04
 260 bytes 活著、800 bytes 死掉。
 
 > 🔴 **這一發的完整請求不進 committed 檔案**，規則與 `A3.13` 的 `D-15` 相同：
-> 尚未通報，而且很可能在公開映像上也成立。請求本體放
-> `$FWRE_WORK/disclosure/`。這一節負責的是位址、偏移與對照。
+> 請求本體放 `$FWRE_WORK/disclosure/`。這一節負責的是位址、偏移與對照。
+
+同一發在**公開映像**上跑一次，因為那決定這個發現是「任何人可以驗」還是「只在一個
+沒人下載得到的 build 上」。**對照組必須換掉**：
+
+```bash
+sudo python3 tools/crash-triage.py --profile v2.1.2 \
+    --case "formWsc:localPin=$(python3 -c 'print("A"*800)')" \
+    --case "formWsc:localPin=" \
+    --control formSelLang: \
+    --out reports/crash-triage-v2.1.2-wsc.json
+```
+
+```text
+formWsc                SIGSEGV
+formWsc                no signal
+```
+
+偏移用 de Bruijn 樣式各跑一發，兩個 profile 都跑，才比得出差別：
+
+```bash
+sudo python3 tools/crash-triage.py --profile v2.1.2 \
+    --case "formWsc:localPin=$(python3 -c "import sys; sys.path.insert(0,'tools'); from paramfuzz import cyclic; print(cyclic(800))")" \
+    --control formSelLang: \
+    --out reports/crash-triage-v2.1.2-wsc-cyclic.json
+```
+
+```text
+unit-2018   s0..s6 = 481 485 489 493 497 501 505    ra = 509    s7 = 0x0048bb04
+v2.1.2      s0..s6 = 485 489 493 497 501 505 509    ra = 513    s7 = 0x00490ad4
+```
+
+> 🔴 **`--control formNtp:` 與 `--control formWsc:localPin=1234` 在 `v2.1.2`
+> 上都不是對照組，而兩個失效的方式不一樣。**前者會 SIGSEGV（它在那個 build 上就
+> 是「參數缺席就死」的七個之一）；後者**會讓 guest 重開機**——它的 syscall trace
+> 結尾是 `execve("/bin/sh",{"sh","-c","reboot -f"})`。兩個 build 都活著的是
+> `formSelLang:`。
+>
+> **在一個 build 上量出來的對照組，不是另一個 build 上的對照組。**
 
 #### A1.7.3 兩個坑，兩次都各花掉一場
 
@@ -748,16 +785,38 @@ dispatch 來源。而「有回應」四個字是這一節唯一困難的地方 �
 `tools/alignfix/` 補掉那一個對齊差異之後，它第一次不需要裝置。
 
 ```bash
-sudo tools/qemu-env.sh reset
-sudo tools/qemu-env.sh run /bin/flash get DHCP_LEASE_TIME
-sudo tools/qemu-env.sh run /bin/flash set DHCP_LEASE_TIME 4321
-sudo tools/qemu-env.sh diff
+sudo python3 tools/config-diff.py --profile unit-2018 \
+    --mib DHCP_LEASE_TIME --to 4321 \
+    --out reports/config-diff-unit-2018.json
 ```
 
-把 `diff` 印出來的位移拿去跟 `fwrecon compcs` 解出來的欄位表對，兩邊必須指到同一個
-欄位 —— **不一致就是兩條路徑其中一條錯了**，那正是 `P8-23` 的反證條件。
+```text
+DHCP_LEASE_TIME: 480 -> 4321   (12 unaligned stores fixed up)
+flash image: 3 byte(s) changed
+  0x00c060  0x01 -> 0x10   inside the compressed payload -- NOT comparable to a decoded field offset
+  0x00c062  0xe0 -> 0xe1   inside the compressed payload -- NOT comparable to a decoded field offset
+  0x00dd41  0xa8 -> 0x98   after the compressed payload (+11 past its end)
+decoded table: 1 field(s) changed
+  offset 91     len 4   DHCP_LEASE_TIME          000001e0 -> 000010e1
+the two paths name the same field, and only that field.
+```
+
+**`P8-23` 的反證條件是「差分出來的欄位跟 Decode 出來的不一致」，而工具在兩個方向
+都會拒絕**：解出來一個欄位都沒動（解碼器看不到這次寫入），或者動的不只一個
+（寫入沒有侷限在那個欄位）。兩種都以 exit 2 收場，並且把多出來的欄位名字印出來。
+
+> 🔴 **這一節第一版寫錯兩次，而兩次都是「跑過才會知道」。**
+> 一、`flash set` 沒有 `LD_PRELOAD=/lib/alignfix.so` **不會結束**：guest 印出
+> `qemu: uncaught target signal 10 (Bus error) - core dumped` 之後就卡著，看起來
+> 像慢，不像壞。工具現在自己帶那個 preload，而且設了 90 秒上限。
+> 二、第一版叫人拿 `qemu-env.sh diff` 的位移去跟 `fwrecon compcs` 的欄位表比，
+> **那兩個不在同一個座標系**——設定區是壓縮的（7,478 → 45,226），前者是壓縮後的
+> 位移，後者是解壓後的。第一次跑出來差 2 bytes、看起來「差不多對」。工具現在把
+> 每一個變動的 byte 標成「在壓縮酬載內／在其後第幾個 byte」，**標示，而不是拿去比**。
 
 `P8-12` 卡在自家工具而不是裝置：`fwrecon compcs` 只有 decode，沒有 encoder。
+不過 `config-diff.py` 已經證明得出一次寫入落在哪個欄位，所以卡住的是編碼那一步，
+不是差分那一步。
 
 ---
 
@@ -3819,3 +3878,40 @@ P2-9 的桌面半邊、P8-1 P8-5 P8-8 P8-10 P8-18 P8-24 P9-13 P10-7 ——
 > **檢查器看不到它們，因為它只讀 `runsheet.md`。**
 > 所以修法不是「去檢查 §8.12 的命令」，是**讓它不准有命令** ——
 > 一個不准放命令的段落裡，不可能有過期的命令。
+
+---
+
+## B-W07 增補之二（2026-08-18 桌面第三場，仍然寫在進站之前）
+
+**上面兩塊都不改。** 這一塊只加一件會改變進站行為的事，其餘全部沿用。
+
+**桌面第三場把登記簿推到 29/58**（`P8-23`），並且把三件開放題關掉兩件半：
+`formWsc` 的溢位在公開映像上成立、`localPin` 已經有 CVE、42 個 handler 為什麼
+走不到那段有廠商原始碼可以直接回答。**這些都不改進站順序**，因為它們全部是桌面
+問題，而且答案讓那一發**更不需要**在實機上跑，不是更需要。
+
+| 項目 | 進站的影響 |
+|---|---|
+| `formWsc` 進 `HAZARDOUS` | **這是唯一的行為改變。**`endpoints --allow-post` 從現在起跳過它並把跳過寫進 transcript |
+| `A3.23` 的兩發 | **不變。**五個名字不變，第一發仍然必須缺 `webpage` |
+| `A3.2` 前移 | 不變 |
+| `A3.13` 在 `A3.11` 之前 | 不變 |
+| `P9-9` 最後 | 不變 |
+
+**`formWsc` 為什麼要進禁令表，而理由不是它的名字。** 用 `qemu-mips-static -strace`
+把 guest 的系統呼叫錄下來，一發帶 `localPin` 的 POST 在**這一台跑的 build 上**
+會開 `/dev/mtdblock0`、寫 7,495 bytes、`fork` 出 `flash write-current`，再 `fork`
+出 `sysconf wlaninit wlaninterface`。在 2015 的 V2.1.2 上，同一發走的是
+`sh -c "reboot -f"`。
+
+**兩種結果對一次掃描是同一件事**：那一發之後，排在它後面的每一個端點都會回
+「連不上」，而那正是 `bench-probe.py` 說明第一段警告的假陰性形狀。差別在於第一種
+**是持久的** —— 就算今晚根本沒有跑到 `formSaveConfig`。
+
+> 🔴 **它排在 57 個名字的中段。** 舊版工具會把那一發送出去，而它不會報錯。
+
+**另外三件模擬側的修復不改進站順序，但改一句話。** `reap` 本來就沒在 reap、
+`reset` 印出來的修復指令它自己的解析器不收、`chroot` 不是隔離（guest 的
+`reboot -f` 把宿主關掉三次）。前兩件是昨天那一發沒跑成的真正原因；第三件在今晚
+沒有直接作用，**但它把「這一發最多只會弄壞模擬器」這句話刪掉了** —— 那一發在真機
+上做的事跟在模擬器上做的一樣，差別只在宿主是誰。

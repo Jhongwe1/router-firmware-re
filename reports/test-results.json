@@ -960,6 +960,17 @@
       ],
       "note": "formDebug / formFactoryTest / formTest / formEngineer 四個 POST 全部 404，與負對照相同；/goform/* 亦然。反證條件（掃出 root_form[] 以外的可達路徑）沒有觸發。**實機半邊未做**，而 root_form[] 本身現在有第二個獨立來源（tools/formtable-scan.py，57/57 與 Ghidra 相符）。",
       "case_freeze_sha256": "9019f8cb650bfbf3428920cb872e6bb61cce3e3151d570974d735bb9d5e9743b"
+    },
+    {
+      "id": "P8-23",
+      "date": "2026-08-18",
+      "verdict": "confirmed",
+      "evidence_kind": "emulated",
+      "artefacts": [
+        "reports/config-diff-unit-2018.json"
+      ],
+      "note": "tools/config-diff.py: DHCP_LEASE_TIME 480 -> 4321 under --alignfix. The decoded table moves exactly one field, at offset 91, 000001e0 -> 000010e1. The flash image moves 3 bytes -- two inside the compressed COMPCS payload and one 11 bytes past its end -- and those are NOT the decoder's coordinate system, which is what the runsheet step as originally written invited a reader to compare.",
+      "case_freeze_sha256": "dc4c2833cb61508991cf56bae99ec41d91a3ebdd51465289a7ea6941e5a15196"
     }
   ],
   "register": "test-cases.toml",

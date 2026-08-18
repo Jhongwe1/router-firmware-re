@@ -139,6 +139,32 @@ Left as the author's call, and left visible rather than quietly fixed.
 - **The `submit-url` overflow idiom, the `localPin` injection, the plaintext
   credentials and the 2015 backdoor account all have identifiers.** Locating
   them in a third build is verification work, not discovery.
+- **The `localPin` *overflow* has one too, and the search that found it was run
+  a day late.** On 2026-08-18 this project measured full `$pc` and `s0`–`s6`
+  control from a single unauthenticated POST to `/boafrm/formWsc`, on two
+  builds, and wrote it up before step 2 of this file had been carried out. The
+  search takes minutes and returns:
+
+  | identifier | what it names |
+  |---|---|
+  | **CVE-2025-4462** | N150RT 3.4.0-B20190525, `/boafrm/formWsc`, `localPin`, buffer overflow, remote, public PoC, disclosed 2025-05-09 |
+  | CVE-2026-7218 | the same parameter on N300RT 3.4.0-B20250430 |
+  | CVE-2025-3987 | command injection at the same endpoint |
+  | CVE-2019-19824 | the `localPin` command injection already tracked here |
+  | CVE-2021-35395 | the Realtek SDK `submit-url` overflow — the `(B)` half of the idiom |
+
+  Neither build measured here is a build any of those name, and the frame
+  offsets (`ra` at 509 on the 2017 build, 513 on the 2015 one) are not published
+  anywhere the four search paths reached. **That is a smaller claim than the one
+  that was nearly written, and it is the true one.** The order is: search, then
+  decide what the measurement is worth — not the reverse, which is how the
+  `CVE-2023-34435` correction happened three days earlier.
+- **What the search did *not* find** is the `(A)` half: a *missing* parameter
+  making the accessor return the address of a pooled `""` literal, which the
+  vendor's `OK_MSG` macro then writes twelve bytes through. Every published item
+  above is the long-value case. A negative search result is not a claim of
+  novelty and is recorded here as what it is — four paths, nothing found,
+  `notes/absent-parameter-strcpy.md` §4.
 
 ## Procedure when something does become reportable
 
