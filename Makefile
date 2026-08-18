@@ -25,7 +25,7 @@ UNIT_DUMP  := $(FWRE_WORK)/dumps/flash-n150rt-console-1.bin
 .PHONY: help setup verify fetch unpack venv test lint recon recon-unit diff check-reports \
         rtcase rtcase-test todo ledger check-ledger shellcheck ci clean-work qemu-env qemu-test probe-test \
         loader-test loader-report doctor check-runsheet runsheet-test \
-        dump-test flash-tools-test photo-test write-test failopen-test alignfix-test check-benchlog benchlog-test config-diff-test count-checks liveness liveness-test mipsref-reports
+        dump-test flash-tools-test photo-test write-test failopen-test alignfix-test check-benchlog benchlog-test config-diff-test count-checks liveness liveness-test dhcp-test mipsref-reports
 
 help: ## Show this help
 	@grep -hE '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) \
@@ -237,6 +237,12 @@ liveness: ## Can the router still route? `make liveness` or `make liveness HOST=
 liveness-test: ## Prove the liveness check can say no (19 cases, needs no device)
 	bash tools/test-device-liveness.sh
 
+# The tool hands out addresses to anything that asks, so its first refusal --
+# one named interface, and not the one carrying the default route -- is the
+# load-bearing part, and it has to be provable without a wire.
+dhcp-test: ## Prove the rogue DHCP server's encoders and refusals (needs no device)
+	bash tools/test-rogue-dhcp.sh
+
 # Regenerating these by hand is how the first one came to name a GOT slot as
 # though it were the variable. The command is the evidence for what the report
 # measured, so it lives where it can be re-run rather than in a shell history.
@@ -264,7 +270,7 @@ loader-report: ## Unpack the boot loader's LZMA stage 2 (needs the flash dump)
 # `rtcase-test` is in here and not optional. It is the only thing proving the
 # register gate can fail; without it `make rtcase` going green means nothing,
 # which is the exact shape of instrument bug 12.
-ci: lint test shellcheck check-reports check-runsheet check-benchlog benchlog-test rtcase rtcase-test check-ledger qemu-test probe-test loader-test runsheet-test dump-test flash-tools-test photo-test write-test failopen-test alignfix-test config-diff-test liveness-test ## Everything CI checks, except the container build
+ci: lint test shellcheck check-reports check-runsheet check-benchlog benchlog-test rtcase rtcase-test check-ledger qemu-test probe-test loader-test runsheet-test dump-test flash-tools-test photo-test write-test failopen-test alignfix-test config-diff-test liveness-test dhcp-test ## Everything CI checks, except the container build
 	@echo "  ok   local CI equivalents passed (container build not included)"
 
 diff: venv ## Diff the two builds

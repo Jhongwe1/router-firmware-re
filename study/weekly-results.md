@@ -672,3 +672,101 @@ measurement.**
   route".
 - **`hopeiot.net` was never answered.** The device asks for it within four
   seconds of a WAN lease. What it would have sent is unknown.
+
+## W07, the close-out — 2026-08-19
+
+**One line:** the reset button restored a device this project had damaged, and
+it did so from a hard-coded table rather than from the factory-default block —
+which mattered, because that block had been overwritten too and nobody had
+looked until the afternoon before the button was pressed.
+
+**1. The prediction was rewritten before the irreversible test, and the order is
+visible in git.**
+`P9-9` predicted that reset overwrites `COMPCS` with `COMPDS`. Decoding both
+regions of the previous session's snapshot showed they already agreed on 0 of
+343 fields, because W05's unauthenticated POST round had written the
+factory-default block as well as the live one — 25 of 343 fields off the
+2026-08-16 read, `DHCP_MTU_SIZE 1500 → 0` among them. So the original prediction
+had already come true and the button could not distinguish "it worked" from "it
+did nothing." The replacement followed a chain read out of two binaries:
+`/bin/reload` polls `/proc/load_default` and runs `flash default-sw`, and
+`/bin/flash`'s own usage separates `default -- write all flash parameters from
+hard code` from `reset -- reset current setting to default`. Measured: 7,510
+bytes and 20 drifted fields before, **7,490 bytes and 0 drifted fields after,
+with a sha256 byte-for-byte identical to the 2026-08-16 flash region**. `H601`
+untouched, `eth1` back to `MTU:1500`.
+*Evidence:* `test-cases.toml` `P9-9` (`amended`, `amend_reason`, freeze
+`ef7ab66d` → `ea8cf733` in commit `b88b932`); `BENCH-LOG.md` `T-69`, `T-70`;
+`reports/test-results.json`.
+*What it demonstrates:* a prediction changed **before** the measurement, with the
+reason and the hash in the same commit, and the commit timestamped before the
+button. That is the only form of "I changed my mind" a hostile reader has to
+accept.
+
+**2. The step the runsheet called unskippable was a control that could not fail.**
+`A3.24` required an `H601` snapshot before and after the reset and said in bold
+that it was the one step not to skip. It dumped `0x3F0000`. `H601` is at
+`0x006000` — the runsheet's own partition diagram says so, `notes/flash-layout.md`
+says so, and the public Realtek `apmib.h` puts `HW_SETTING_OFFSET` at `0x6000`.
+On this part `0x3F0000` holds **0 non-`FF` bytes in 4,096**, against 4,093 at
+`0x006000`. The comparison was `0xFF` against `0xFF`: it returns UNCHANGED in
+every possible world, including the one where the reset wipes the radio
+calibration — which is precisely `P9-9`'s refutation condition.
+*Evidence:* `RUNBOOK.md` §8.12.38; `runsheet.md` `A3.24`; `BENCH-LOG.md`
+correction entry.
+*What it demonstrates:* the repository's own rule — *make recovery scripts able
+to fail* — applied to a document instead of a script, and the failure found by
+reading the address against three sources rather than by running the step.
+
+**3. A global that two instruments called unwritten is written eight bytes from
+the line one of them already printed.**
+`beforeuptime` is stored at `0x0044f140`, inside `form_formLogin`. Three
+blindnesses, each sufficient alone: o32 PIC stores through a GOT-loaded pointer
+so no instruction names the address; an address materialised into a register
+scored as neither read nor write; and a **GOT slot reported as though it were the
+variable** — the committed report called `0x00486270` `authipaddr` with six
+reads, when `authipaddr` is at `0x0048fbd8` and all six were address
+materialisations. `sstrip` had removed the section headers, so the project had
+treated the corpus as symbol-less; `.dynsym` is reachable through `PT_DYNAMIC`
+and holds **423 named symbols**. And the scanner's control had been green
+throughout, because `nowuptime` happens to be reachable by the addressing form
+the scanner could already see.
+*Evidence:* `tools/mipsref.py` schema 2; `reports/mipsref-unit-2018-authsession.json`;
+`ghidra/scripts/BoaListing.java` over `0x0044f0e0`–`0x0044f190`, where Ghidra's
+own annotation reads `-> beforeuptime`.
+*What it demonstrates:* **a control proves the path it travels and no other.**
+The second control this added failed on its first run — a `jalr` clobbers
+caller-saved registers but its delay slot executes first — and catching that is
+the whole argument for having it.
+
+### What this week did not prove
+
+- **`H601` was compared decoded, not byte for byte.** `flash allhw` shows the
+  MACs and every calibration table intact after the reset, and that is a second
+  source, not the authoritative one. The byte comparison needs a boot-loader
+  dump, and the serial adapter is what stopped the board booting.
+- **`COMPDS` after the reset is unread.** `flash default-sw` restored `COMPCS`
+  byte-for-byte; whether it repaired the factory-default block too is unknown,
+  and if it did not, then `P0-5`'s IoC baseline has meant something different
+  from what this project assumed since W02.
+- **Two reads of the same region disagreed and nothing settled it.** The boot
+  loader saw `comp_len` 7,501 with a password residue after the string
+  terminator; HTTP after boot saw 7,498 without it. Either the boot rewrites
+  `COMPCS`, or `/config.dat` is not the byte copy of flash that `A3.6`'s headline
+  result claims — and `A3.6` is one of the strongest chains in this repository.
+- **The route injection has no attribution.** Options 33, 121 and 249 were sent
+  together to guarantee delivery on the single lease available. Both a `/32` and
+  a `/16` route were installed, and one of the three also made the device
+  announce `32.49.0.49` — four bytes straddling a separator in the option's
+  string form. Which option did it is unmeasured, and so is whether it reaches
+  anything past three gratuitous ARPs.
+- **`eth1.bound`'s unquoted expansions are read, not driven.** Argument injection
+  into `sysconf`, not command injection — POSIX `sh` does not re-parse an
+  expansion. What `sysconf` does with a shifted argv is the obvious next test and
+  it was not run.
+- **Which command wedged the device is a hypothesis.** Eight ran; the
+  byte-at-a-time read of `/dev/mtdblock0` is the strongest candidate and that is
+  all it is. Three power cycles and forty minutes went into a state that turned
+  out to be a UART adapter back-feeding through the header.
+- **`P5-2` is still not done**, and calling W07 "57 of 58" rather than "nearly
+  finished" is the honest form.

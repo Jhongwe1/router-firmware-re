@@ -4378,3 +4378,342 @@ that proves a shell variable is left alone rather than guessed at.
 | **3. `P4-6`** | ❌ | The last desk row |
 | **4. Open #72 — the missing store** | ❌ | Extend `mipsref.py` to report address-taken separately from address-stored, then re-run against `beforeuptime` and `authipaddr` |
 | **5. Open #73 — a liveness check** | ❌ | `make doctor` or the runsheet's opening station should notice that the device cannot reach its own WAN |
+
+## W07 Day 7 — the reset button, and a router that would not boot with its own console attached — 2026-08-19
+
+The close-out. `P4-6` on the desk, open items 72 and 73 built and used, and the
+one device row W07 had left. Three of the results are worth more than the row
+they closed, and one of them is a procedure defect that had been sitting in
+`runsheet.md` for a day looking like the most careful step in the file.
+
+### The one step `A3.24` called unskippable was comparing erased flash to erased flash
+
+`A3.24` asks for an `H601` snapshot before and after the reset and says, in
+bold, that it is the only step in the section that may not be skipped. The
+command it gives dumps `0x3F0000`.
+
+**`H601` is at `0x006000`.** Three sources agree and two of them are in this
+repository: `runsheet.md` `A2.3.1`'s own partition diagram, `notes/flash-layout.md`
+line 134, and the public Realtek SDK's `apmib.h`, whose `HW_SETTING_OFFSET` is
+`0x6000`. Measured on this unit's dump: `0x006000` has **4,093 non-`FF` bytes in
+4,096** and opens with the four characters `H601` followed by a run of MAC
+addresses; `0x3F0000` has **0 non-`FF` bytes in 4,096**. It is erased.
+
+So the comparison was `0xFF` against `0xFF`. It would have returned UNCHANGED in
+every possible world, including the one where the reset wipes the radio
+calibration — and "reset 之後 H601 的內容改變" is `P9-9`'s own refutation
+condition. **A control that cannot fail, sitting on the only cell the row is
+really asking about.** Found at the desk, before the button.
+
+The same command carried `--at-prompt`, which means the board is halted at
+`<RealTek>` — 第 2 站 — inside a step filed under 第 3 站. Part A's promise is
+that reading `A1.1` → `A4.2` front to back *is* a correct order to run it in, and
+a step whose commands need another station's device state breaks that silently.
+`check-runsheet.py` now reads a step's **commands** as evidence of the device
+state they need, not just its heading, with a deliberate-detour escape that
+names the station you are sending the reader to — which is what makes `A3.8`'s
+recovery path correct. 35 → 38 guard cases.
+
+The fix is to cite rather than restate: `A2.3`'s 64 KiB snapshot starts at `0x0`,
+so `H601` is already inside it, and the "before" is not one snapshot but
+**seven**, whose `0x6000` window is byte-identical from 2026-08-16 to 2026-08-18.
+
+### `COMPDS` was overwritten too, so the register's prediction had no discriminating power
+
+Decoding both regions of the previous session's station-2 snapshot showed what
+nobody had looked for: W05's unauthenticated, parameter-absent POST round wrote
+**the factory-default block as well as the live one**. 25 of 343 fields off the
+2026-08-16 read, including `DHCP_MTU_SIZE 1500 → 0`, `UPNP_ENABLED 1 → 0`,
+`ALG_SIP_ENABLED 1 → 0` and `SSH_ENABLED 1 → 0`.
+
+`COMPDS` against `COMPCS` was therefore **0 of 343**, and `P9-9`'s prediction —
+"reset overwrites `COMPCS` with `COMPDS`" — had already come true. Pressing the
+button could not distinguish "the reset worked" from "the reset did nothing".
+
+The prediction was replaced **before the button and before any result**, with
+`amended` and `amend_reason` in the register and the freeze hash moving
+`ef7ab66d` → `ea8cf733` in commit `b88b932`. The new one follows a chain read
+statically: `/bin/reload`, which the previous session's `ps` shows running as
+PID 291, polls `/proc/load_default` and executes `flash default-sw`; and
+`/bin/flash`'s own usage text separates `default -- write all flash parameters
+**from hard code**` from `reset -- reset current setting to default`. The button
+takes the former, so it should restore from a compiled-in table rather than from
+the block this project had corrupted.
+
+**Both branches were findings.** If the fields came back, `P8-19`'s chain got a
+third independent verification for free. If they did not, an unauthenticated
+request had pushed the device into a state the vendor's own recovery button
+cannot leave, and the only way back is a programmer this project does not own.
+
+### The button restores from hard code, and the device came back byte-for-byte
+
+`P9-9` ✅. One unauthenticated `GET /config.dat` before and after:
+
+| | before | after |
+|---|---|---|
+| served bytes | 7,510 | **7,490** |
+| `DHCP_MTU_SIZE` | `0` | **`1500`** |
+| `UPNP_ENABLED` / `ALG_SIP_ENABLED` / `SSH_ENABLED` | `0` / `0` / `0` | **`1` / `1` / `1`** |
+| fields off the 2026-08-16 baseline | 20 / 343 | **0 / 343** |
+| sha256 | — | **`e09cbf8428aa1594…`, byte-for-byte the 2026-08-16 `COMPCS` region** |
+
+`H601` is unchanged: `flash allhw` returns the MACs, the four WLAN addresses and
+every TX power calibration table intact, and `HW_NIC0_ADDR` matches both the ARP
+reply on the wire and the raw bytes at flash `0x006000` in all seven snapshots.
+Refutation branch (b) did not fire.
+
+And `eth1` came up **`MTU:1500`** — it had been `MTU:0` for two days — which is
+`P8-19`'s third independent verification and the only one that changed nothing
+by hand.
+
+Three register rows unblocked as a side effect, and **the flash write the
+session plan called "the only route" was never needed**: `UPNP_ENABLED` and
+`ALG_SIP_ENABLED` came back with everything else, so `A2.5`/`A2.6` — the single
+irreversible section, whose `FLW` drill has still never been rehearsed — stayed
+shut.
+
+### The device stopped booting, and the cause was its own console cable
+
+Between the two halves of the session the device stopped answering — network and
+serial console at the same moment — after a run of eight shell commands that
+included `dd if=/dev/mtdblock0 bs=1 … count=7510`, a byte-at-a-time read of the
+raw MTD device. Three full power cycles produced **zero bytes** on the console,
+and the front LEDs lit together and steady, a state the author had not seen in
+either the boot or the boot-loader case.
+
+Nothing this session ran had written flash. `FLR`/`DB` are reads, `dd` is a read,
+`flash get` is a read, and the command injection wrote into `/var/web`, a ramfs.
+
+**The fix was the first of three physical tests: unplug the UART adapter from the
+board's header.** It booted immediately. A USB-serial adapter's TX pin
+back-feeds through the board's RX pin protection when the board is unpowered or
+starting, and the runsheet's rule about not connecting `VCC` is one half of that
+problem with the other half unwritten. **This makes a whole bench visit look like
+a brick**, and it cost three power cycles and about forty minutes before it was
+tried. Which of the eight commands wedged the running system is still not
+established; the byte-at-a-time MTD read remains the strongest candidate and
+that is an assumption, not a measurement.
+
+### An unauthenticated POST leaves bytes of a previous password in flash
+
+Found while comparing two snapshots for something else, and it survives only in
+the snapshot because the reset erased the live copy.
+
+`USER_PASSWORD`'s raw field, before and after the previous session's password
+change and restore:
+
+```text
+2026-08-18 19:28   61 64 6d 69 6e 00 00 00 …      "admin" + NUL + zeros
+2026-08-19 23:14   61 64 6d 69 6e 00 66 00 …      "admin" + NUL + 0x66 + zeros
+```
+
+The C string is still `admin`, so **every tool that compares decoded values sees
+nothing** — this project's own first pass reported "0 of 343 fields differ". The
+byte after the terminator is a character of the temporary password the restore
+was supposed to erase. The write does not clear the field, so a password shorter
+than its predecessor leaves the tail readable, and `GET /config.dat` is
+unauthenticated. The same residue appears in `COMPDS`, which is a one-byte
+witness that the password write reaches the factory-default block too.
+
+**Not resolved, and it is on the open list**: the serial read at the boot loader
+and the HTTP read after boot disagreed about the same region — `comp_len` 7,501
+with the residue against 7,498 without it, 7,009 of 7,510 bytes different. Either
+the boot rewrites `COMPCS`, or `/config.dat` is not the byte copy of flash that
+`A3.6`'s headline result says it is. The station-2 read that would separate those
+never happened, because the device stopped booting first.
+
+### Route injection, delivered, and a string used as an IP address
+
+`P8-19` second run. With `DHCP_MTU_SIZE` restored the device sent a spontaneous
+DISCOVER 14 s after the cable moved to the WAN port — the previous session could
+not get one, because forcing a renew needed LAN access the cable position denied.
+`tools/rogue-dhcp.py` answered with options 121, 249 **and** 33 carrying
+`10.99.0.0/16` via `192.168.77.66`, and the device installed **both** forms:
+
+```text
+10.99.0.0   192.168.77.66   255.255.255.255   UGH   eth1     <- option 33, no mask, host route
+10.99.0.0   192.168.77.66   255.255.0.0       UG    eth1     <- classless
+```
+
+So a DHCP server upstream of this router installs arbitrary routes into its
+forwarding table, unauthenticated, and the router asks for all three option
+numbers by name in its own DISCOVER.
+
+The refutation condition — `eth1.bound` quotes every DHCP-provided value — did
+not fire, and the file settles it in 95 bytes. Its entire body is
+`sysconf conn dhcp $interface $ip $subnet $router $dns`, with none of the four
+quoted. **Precisely**: POSIX `sh` does not re-parse the result of an expansion,
+so this is *argument* injection into `sysconf`'s argv, not command injection.
+
+And there is a visible consequence, with a control. On 2026-08-18, with no route
+options, the three gratuitous ARPs after the lease announced `192.168.77.100` —
+the device's own leased address — one second apart. This time, same code path,
+same three announcements at the same offset from the ACK, the announced address
+was **`32.49.0.49`**: bytes `0x20 0x31 0x00 0x31`, ASCII space, `1`, NUL, `1`,
+which is exactly the space-then-`1` boundary inside the string form of the route
+option. **Four bytes straddling a separator in a string, used as an IPv4
+address.** Which of the three options causes it is not established — all three
+were sent at once, deliberately, to guarantee delivery — and it reaches nothing
+beyond those three ARPs that this session could find.
+
+### Open 72 closed: the store was in `form_formLogin` the whole time, eight bytes from the line the note already named
+
+`beforeuptime` is written at **`0x0044f140`**. `mipsref` v1 could not see it, and
+there were three separate blindnesses, each sufficient on its own:
+
+1. **The address never appears in the storing instruction.** o32 PIC loads a
+   global's address out of the GOT and stores through it: `lw $v1,%got(…)($gp)`
+   then `sw $v0,0($v1)`. The immediate in the `sw` is `0`.
+2. **An address in a register is neither an access nor a non-access.**
+   `addiu $a0,$v0,%lo(authipaddr)` materialises an address for a callee to write
+   through; v1 scored it `reads:False, writes:False`, indistinguishable in the
+   totals from "not referenced".
+3. **A GOT slot was reported as though it were the variable.** The committed
+   report called `0x00486270` `authipaddr` with "6 reads, 0 writes".
+   `0x00486270` is the *slot*; `authipaddr` is at `0x0048fbd8`; and all six were
+   address materialisations.
+
+v2 reports four classes instead of two and follows the pointer. `beforeuptime`
+is now 1 direct read and 1 indirect store; `authipaddr` is 0 reads, 0 writes, 6
+address-taken and 6 live at a call — the `strcpy` shape.
+
+**Two more things came out of it.** `sstrip` removes section headers, not
+`.dynsym`: `DT_SYMTAB`, `DT_STRTAB` and `DT_SYMENT` are in `PT_DYNAMIC` because
+the loader needs them, and this `boa` has **423 named symbols** with real
+addresses. This repository had treated the corpus as symbol-less for four weeks.
+And the first control had been green the whole time — `nowuptime` carries a
+direct read and a direct store, so `--control` exercised only the addressing form
+the scanner could already see. **A control proves the path it travels.** v2 has a
+second one that requires a store found through a register, `check-reports.py`
+enforces it for schema-2 reports, and it failed on its own first run and was
+right to: a `jalr` clobbers caller-saved registers, but its delay slot executes
+first, and `nowuptime`'s store is in one.
+
+The reading was confirmed at instruction level with `BoaListing` over
+`0x0044f0e0`–`0x0044f190`, where Ghidra's own annotation on the `sw` reads
+`-> beforeuptime`. **The information was one indirection away inside the tool's
+own output.** The gate's arm reads `sltiu v0,v0,0x259` — 0x259 is 601 — and on
+expiry does `strcpy(authipaddr,"0.0.0.0")`, which is why the device measured
+login+601 twice, 706 s apart. The same handler also runs
+`system("killall -9 dnsspoof")` and `system("rm -f /var/run/dnsspoof.pid")`
+immediately after a successful login, which nothing in this repository had noted.
+
+### Open 73 closed: nothing asked the device whether it could still route
+
+`tools/device-liveness.py`. One unauthenticated `GET /config.dat`, decoded with
+this project's own decoder, in two halves: named assertions each carrying the
+sentence that says what breaks, and drift against the frozen 2026-08-16 baseline
+so the next `DHCP_MTU_SIZE` — one nobody has thought of — is visible too. Wired
+into `make doctor` at tier 3, where a device that is off is skipped rather than
+failed. 19 guard cases, none needing a device.
+
+It earned its place the first time it ran: on the damaged machine it printed
+
+```text
+FAIL  the device answered and it is NOT doing its job: DHCP_MTU_SIZE expected 1500 got 0
+      -> python3 tools/device-liveness.py   # the failing field names what breaks
+```
+
+### `P4-6`: six of the 2025 series match verbatim, four do not address anything on this build
+
+`tools/cve-endpoints.py` reads the advisory list out of `notes/cve-status.md` —
+the file that owns it — and checks each against this unit's own `root_form[]` and
+the same table across all six scanned builds. Six match verbatim. `CVE-2025-3989`
+publishes `Hostname` where the handler at `0x0041af20` references `hostname`, and
+form field names are case-sensitive here. `CVE-2025-3988` publishes
+`service_type` where the handler at `0x0041d110` references `comment`. Three name
+a route that exists in **none** of the six builds, and for two of them the tool
+names the neighbour they were mis-transcribed from: `formWlWds` (capital W) and
+`formStaticDHCP` (`form`, not `from`). `CVE-2019-19825`'s `getSanvas` is absent
+too: this build's `formLogin` references `username` and `userpass` only.
+
+### Instrument work
+
+- **`tools/mipsref.py`** — schema 2: four access classes, `.dynsym` through
+  `PT_DYNAMIC`, GOT-slot detection that refuses to answer for a slot, a
+  dereference pass, and `--control-indirect`. `make mipsref-reports` regenerates
+  the two committed reports, because hand-typing that command is part of how the
+  first one came to name a GOT slot as a datum.
+- **`tools/device-liveness.py`** + `tools/test-device-liveness.sh` (19 cases),
+  `make liveness`, and a new `make doctor` block.
+- **`tools/cve-endpoints.py`** with three controls: a parse floor, a positive
+  control (`formSysCmd`/`sysCmd`) and a negative control.
+- **`tools/rogue-dhcp.py`** — a WAN-side DHCP server whose first refusal is the
+  important one: it will not serve on the interface carrying the default route.
+- **`tools/check-runsheet.py`** — commands as evidence of the device state they
+  need. **`tools/check-reports.py`** — the schema-2 controls.
+
+### Corrections to the plan
+
+| | |
+|---|---|
+| **`A3.24`'s `H601` snapshot dumped erased flash.** | `0x3F0000` instead of `0x006000`; 0 non-`FF` bytes against 4,093. The step the section called unskippable could not fail. Fixed by citing `A2.3` rather than restating it |
+| **`A3.24` ran a 第 2 站 command from 第 3 站.** | `--at-prompt` means the board is halted at `<RealTek>`. `check-runsheet.py` now catches this class, with an escape for a deliberate detour |
+| **`P9-9`'s original prediction was untestable today.** | `COMPDS` and `COMPCS` differ in 0 of 343 fields, because W05's POST round wrote both. Amended before the button, freeze `ef7ab66d` → `ea8cf733` |
+| **The previous session's last three cards carry times that had not happened.** | `T-61`, `T-62` and `T-63` are stamped `2026-08-19 00:1x`–`02:2x`; the commits that carried them are `2026-08-18 21:55` and `22:04`, and the pcaps they cite are `21:25`–`21:39`. Corrected by appending, per the file's own rule. **This session's own plan heading had the same error** and is corrected in the same place |
+| **`P4-6`'s first record carried tomorrow's date.** | Re-recorded on `2026-08-18`; `rtcase record` appends and `latest_results` takes the last, which is the path the tool was built for |
+| **The session plan said the station-2 flash write was "the only route" for `P6-1`, `P8-7` and `P6-5`.** | All three were already recorded `na` on 2026-08-18, so they were not W07's business; and the reset restored the fields anyway. The single irreversible section was never opened |
+| **The USB Ethernet adapter fell back to the Windows side mid-session.** | Caught by `ip route get` and `ttl=63` — instrument bug 21, exactly as documented. Every measurement between the fallback and the fix went through Windows; the bytes are unaffected but the isolation guarantee was not, and one of them was a `make liveness` run |
+
+### Deliberately not done
+
+| Item | Why |
+|---|---|
+| **`P5-2`, ret2libc** | Unchanged, and now the only outstanding W07 row. The honest version of the question is about the device, not `qemu-user`'s mmap layout |
+| **The byte-level `H601` comparison** | It needs a second station-2 dump, and the serial adapter is what stopped the board booting. The decoded second source (`flash allhw`) was taken instead, and the seven-snapshot "before" does not go stale |
+| **The state of `COMPDS` after the reset** | Same reason. It is a new open item rather than an assumption |
+| **Isolating which of options 33 / 121 / 249 produces the bogus ARP** | All three were sent together on purpose, to guarantee delivery on the one lease this session could get |
+| **A `dd` of the MTD device to settle the serial-vs-HTTP disagreement** | That is the command most likely to have wedged the device |
+
+### Open, carried forward
+
+66. **`formtable-scan.py` is validated on one build of six.** Unchanged.
+67. **`formSysCmd` was reintroduced by 2016 and nothing says who or why.**
+    Unchanged — V2.1.1-B20150708 still not fetched.
+69. **Nothing fires if `unshare` is removed from `guest()`.** Unchanged.
+70. **Nothing makes a finding consult `notes/prior-art.md` first.** Unchanged.
+71. **A step may claim a test id and carry no procedure for it.** *Half closed.*
+    `check-runsheet.py` now catches a step whose **commands** need another
+    station's device state, which is one mechanical shape of the problem. The
+    other shape — a heading claiming an id whose procedure is absent — still
+    needs the checker to know which prose belongs to which id.
+72. **~~`beforeuptime` has a write two independent instruments missed.~~**
+    **Closed.** `0x0044f140`, in `form_formLogin`. See above.
+73. **~~No measurement would notice that the device cannot route.~~**
+    **Closed.** `tools/device-liveness.py`, in `make doctor`.
+74. **`hopeiot.net`.** Unchanged; the device asks for it within 4 s of a WAN
+    lease and nothing in this repository knows what it is.
+75. **`wscd` wedges without exiting, and nothing watches it.** Unchanged.
+76. **Is `COMPDS` repaired?** `flash default-sw` restored `COMPCS` byte-for-byte,
+    but the factory-default block was corrupted too and nothing has read it since.
+    If it is still damaged, then `P0-5`'s IoC baseline — the difference between
+    the two regions — means something different from what this project has
+    assumed since W02, and it needs one station-2 dump to settle.
+77. **Which DHCP option turns a string into an IP address.** Options 33, 121 and
+    249 were sent together. The bogus ARP is reproducible; the attribution is not.
+78. **`eth1.bound` expands four attacker-controlled values unquoted.** Option 6
+    may carry several addresses, so `$dns` becomes a list and `sysconf`'s argument
+    positions shift. What `sysconf` does with the extra argument is unmeasured.
+79. **A UART adapter on the header stops this board booting, and no document
+    says so.** It cost three power cycles and forty minutes, and it is
+    indistinguishable from a brick. The runsheet's `VCC` rule is one half of it.
+80. **Two reads of `COMPCS` disagreed and nothing settled it.** The boot loader
+    saw `comp_len` 7,501 with a password residue; HTTP after boot saw 7,498
+    without it. Either the boot rewrites the region, or `/config.dat` is not the
+    byte copy of flash that `A3.6`'s headline result claims. One station-2 dump
+    separates them, and it is the same dump item 76 needs.
+81. **`check-benchlog.py` checks that a card carries a time, not that the time is
+    possible.** A card stamped later than the commit that carried it is
+    mechanically detectable, and three of them exist.
+
+### Where W07 stands
+
+**Register: 57 / 58.** The one outstanding row is `P5-2`, cut in all but name.
+
+| | |
+|---|---|
+| Closed this session | `P4-6` (desk), `P9-9` (device), `P8-19` re-run with the route-injection half |
+| Open items closed | 72, 73 |
+| Open items opened | 76, 77, 78, 79, 80, 81 |
+| New instruments | `device-liveness.py`, `cve-endpoints.py`, `rogue-dhcp.py`; `mipsref.py` to schema 2 |
+| Guard cases | +19 (liveness), +3 (runsheet), and the schema-2 report checks |

