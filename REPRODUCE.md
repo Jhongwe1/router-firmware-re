@@ -155,6 +155,24 @@ handler and `qemu-user` does not. If you are wondering why emulating Realtek SDK
 firmware from a download so often "almost" works, that is the reason, and it is
 measured rather than folklore.
 
+> **Added 2026-08-18, and it cuts the other way for once.** One finding *does*
+> reproduce at T1 on the published image, and it is currently the most serious
+> thing in `docs/disclosure.md`: `boa`'s HTTP Basic path compares the supplied
+> credentials against **two** pairs of stack buffers, and the second pair is
+> never written by anything. See `notes/uninit-credential-pair.md` for the
+> addresses and the six-row response table with its controls.
+>
+> **The request that triggers it is deliberately not in this repository.** It is
+> unreported, and `docs/disclosure.md`'s rule is that a reproduction follows the
+> disclosure state. So T1 can show you the *code* — the three reads and the
+> absence of any write, in a binary you can download and hash — and it cannot
+> hand you the request. That is the rule working, not an oversight, and it is the
+> first time on this project that T1 has been the *stronger* tier for something.
+>
+> What T1 still cannot tell you about it: whether it fires on silicon. The
+> buffers are zero under `qemu-user` on two profiles, and the argument that they
+> are zero for a structural reason is an argument.
+
 ---
 
 ## T2 — your own N150RT and a serial adapter

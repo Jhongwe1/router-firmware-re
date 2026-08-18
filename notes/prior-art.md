@@ -400,6 +400,29 @@ inference, and the instruction-level reading has not been done.**
 
 ---
 
+## Not searched yet — three items, and this section exists because of §"How this note failed"
+
+**2026-08-18.** Three findings from W07 Day 2 are candidates for being this
+project's own, and **none has had the by-handler search**. Listing them here
+rather than only in `docs/disclosure.md` is the change §"How this note failed"
+promised: the gap that let CVE-2024-51228 go unfound for two weeks was that this
+file had no 2024 entries and nothing recorded that it had not looked.
+
+| finding | register | what to search, and it is not the product name |
+|---|---|---|
+| A second credential pair compared against never-written stack, matched by empty fields | `P2-9` · `D-15` | `boa` + "uninitialised"/"uninitialized stack" + authentication; Realtek rtl819x SDK + Basic auth bypass; the `process_header_end` symbol; and **`Boa 0.94.14rc21` on its own** — the 2023 search in §"a published bypass against this exact Boa version" found one that did not apply, and the next one might |
+| A 16-byte append past a 256-byte buffer in `dnsspoof` | `P6-10` · `D-17` | the binary name is generic and collides with the well-known dsniff tool, so search the *behaviour*: Realtek captive-portal DNS responder, `wan_disconnect`, `StartDnsSpoof` |
+| Plain-HTTP firmware fetch on an unauthenticated trigger, with additive-checksum-only image validation | `P8-10` + `P9-13` · `D-12` | `sl.totolink.software`; `batchRemoteUpgrade`; `submit_rfw_upgrade`; TOTOLINK + firmware update + MITM |
+
+**A fourth is already known not to be ours.** `miniigd`'s SOAP `system()` site
+(`D-16`) is almost certainly **CVE-2014-8361** — CISA KEV, a Mirai payload since
+2015. It is listed under the CVE table above, not here.
+
+**The rule this section is enforcing**: a search by *product* returned nothing
+for `D-1` and a search by *handler* returned Cisco Talos on the first page. Until
+each row above has had the second kind, none of them is described as new, in this
+repository or anywhere else.
+
 ## Sources
 
 - Pierre Kim, TOTOLINK series, 2015-07-16 — <https://pierrekim.github.io/blog/2015-07-16-backdoor-credentials-found-in-4-TOTOLINK-products.html> and companion posts
