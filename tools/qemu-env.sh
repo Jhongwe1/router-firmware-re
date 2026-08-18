@@ -32,24 +32,82 @@ set -euo pipefail
 # three unrelated "failures" that were all this one line.)
 _home_of() { getent passwd "$1" 2>/dev/null | cut -d: -f6; }
 WORK="${FWRE_WORK:-$(_home_of "${SUDO_USER:-$(id -un)}")/fwre-work}"
-ROOTFS="$WORK/extracted/unit-2018/squashfs-root"
-ENVDIR="$WORK/qemu-env-2018"
-DUMP="$WORK/dumps/flash-n150rt-console-1.bin"
+REPO="$(cd "$(dirname "$0")/.." && pwd)"
+
+# This unit's own dump. Used ONLY as a second source for layout checks, never as
+# an input to a built image -- see cmd_mkflash. Absent on anybody else's desk,
+# and everything that touches it has to cope with that.
+DUMPREF="$WORK/dumps/flash-n150rt-console-1.bin"
+
+# ------------------------------------------------------------- profiles ----
+# Two environments, and the difference between them is the whole of G4's third
+# clause.
+#
+#   unit-2018   the build this unit actually runs, standing on this unit's own
+#               flash dump. Everything W05 and W06 measured under emulation was
+#               measured here. A stranger cannot reproduce it: neither the
+#               rootfs nor the flash is downloadable.
+#
+#   v2.1.2      a published image, and nothing else. The rootfs comes out of
+#               the .web container; the flash is rebuilt from the same container
+#               by tools/mkflash.py, which places each section at the burnAddr
+#               the container declares and leaves everything else 0xFF. That
+#               "everything else" is the first 64 KiB -- boot loader, H601,
+#               COMPDS, COMPCS -- and it is in no image anybody can download.
+#
+# Adding a profile means declaring FLASH_ORIGIN and a CONTROL set that can fail.
+# A profile whose control cannot fail is not a second environment, it is a
+# second way to believe the first one.
+PROFILE="${QEMU_PROFILE:-unit-2018}"
+if [ "${1:-}" = "--profile" ]; then
+  [ -n "${2:-}" ] || { echo "${0##*/}: --profile needs a name" >&2; exit 2; }
+  PROFILE="$2"; shift 2
+fi
+
+case "$PROFILE" in
+  unit-2018)
+    ROOTFS="$WORK/extracted/unit-2018/squashfs-root"
+    ENVDIR="$WORK/qemu-env-2018"
+    DUMP="$WORK/dumps/flash-n150rt-console-1.bin"
+    # The only backup of this unit's H601 block. If this hash does not match,
+    # the input is not the image every finding in this repository was measured
+    # on.
+    DUMP_SHA256="a800059a9b8c414df026a22b8423a5939d0f9bb793109d0f7ce086f6810f37ea"
+    DUMP_ORIGIN="this unit's own flash, read out through the boot loader on 2026-08-16"
+    # Positive control: values this unit's configuration is known to hold, read
+    # in W04-2 by a decoder that shares no code with the vendor's binary. If the
+    # environment is wired up wrongly -- wrong image, empty device file, stale
+    # shared memory -- these stop matching, and the run stops.
+    declare -a CONTROL=(
+      "TELNET_ENABLED=0"
+      "IP_ADDR=10.1.1.1"
+      'USER_NAME="admin"'
+    )
+    MIB_MIN=2000
+    DOCROOT_EXPECT=143
+    ;;
+  v2.1.2)
+    ROOTFS="$WORK/extracted/v2.1.2/squashfs-root"
+    ENVDIR="$WORK/qemu-env-v2.1.2"
+    DUMP="$WORK/qemu-env-v2.1.2-flash.bin"
+    DUMP_SHA256="0d10c63fb86082a0cbf552f305d1134491513b001b49a026dbdce435f5578af5"
+    DUMP_ORIGIN="rebuilt by \`$0 --profile v2.1.2 mkflash\` from the published V2.1.2-B20150825 container, plus three synthesised regions -- H601 at 0x6000 and COMPDS/COMPCS at 0x8000/0xC000, all with zeroed payloads. reports/mkflash-2.1.2.json names every byte range and where it came from"
+    # Left empty on purpose until measured. The values this environment holds
+    # are whatever the *published* image defaults to, and this project has never
+    # read them; borrowing unit-2018's would be asserting that a build we have
+    # not started agrees with one we have. `check` refuses an empty CONTROL
+    # rather than passing over it, which is instrument bug 12's shape and the
+    # reason that refusal is written down.
+    declare -a CONTROL=()
+    MIB_MIN=0
+    DOCROOT_EXPECT=144
+    ;;
+  *)
+    echo "${0##*/}: unknown profile '$PROFILE' (have: unit-2018, v2.1.2)" >&2
+    exit 2 ;;
+esac
+
 PRISTINE="$ENVDIR/.mtd-pristine.bin"
-
-# The only backup of this unit's H601 block. If this hash does not match, the
-# input is not the image every finding in this repository was measured on.
-DUMP_SHA256="a800059a9b8c414df026a22b8423a5939d0f9bb793109d0f7ce086f6810f37ea"
-
-# Positive control: values this unit's configuration is known to hold, read in
-# W04-2 by a decoder that shares no code with the vendor's binary. If the
-# environment is wired up wrongly -- wrong image, empty device file, stale
-# shared memory -- these stop matching, and the run stops.
-declare -a CONTROL=(
-  "TELNET_ENABLED=0"
-  "IP_ADDR=10.1.1.1"
-  'USER_NAME="admin"'
-)
 
 die() { printf '%s: %s\n' "${0##*/}" "$*" >&2; exit 1; }
 note() { printf '  %s\n' "$*"; }
@@ -61,10 +119,76 @@ verify_dump() {
   local got
   got="$(sha256sum "$DUMP" | cut -d' ' -f1)"
   [ "$got" = "$DUMP_SHA256" ] || die \
-    "flash dump hash mismatch
+    "flash image hash mismatch for profile '$PROFILE'
        expected $DUMP_SHA256
        got      $got
-     This file is the only copy of this unit's H601 block. Not proceeding."
+     This image is: $DUMP_ORIGIN
+     Not proceeding."
+}
+
+# -------------------------------------------------------------- mkflash ----
+# Construct the profile's flash image from artefacts a stranger can obtain.
+#
+# This exists as a subcommand rather than as a paragraph in the runsheet because
+# G4 clause 3a's entire claim is "anyone can do this". A claim like that is
+# worth what its command line is worth: the steps are deterministic, so the
+# image has a fixed sha256, and the profile above pins it. If someone runs this
+# and gets a different hash, one of the two of us has a different container.
+cmd_mkflash() {
+  [ "$PROFILE" = "v2.1.2" ] || die \
+    "profile '$PROFILE' does not build its flash -- it stands on a real dump
+     read off the hardware ($DUMP). There is nothing here to construct."
+
+  local img="$WORK/firmware/TOTOLINK-N150RT-V2.1.2-B20150825.1601.web"
+  local parts="$WORK/l2-parts"
+  [ -f "$img" ] || die "no published container at $img (make fetch)"
+  mkdir -p "$parts"
+
+  # The structure checks read this unit's dump, and requiring one would defeat
+  # the point of the profile: a stranger has no dump, so a build that insists on
+  # one is not the reproduction path clause 3a asks for. They are therefore
+  # optional -- and their absence is *said*, because a check that quietly does
+  # not run is indistinguishable from a check that passed.
+  local -a vstruct=() vfmt=()
+  if [ -f "$DUMPREF" ]; then
+    vstruct=(--verify-structure-against "$DUMPREF")
+    vfmt=(--verify-format-against "$DUMPREF")
+    note "cross-checking layout against $DUMPREF"
+  else
+    note "no reference dump at $DUMPREF -- building WITHOUT the structure checks."
+    note "That is the normal case for anyone who does not own one of these units."
+  fi
+
+  # 1. The hardware setting. Bootstrap only: structurally valid, semantically
+  #    empty, and enough for apmib_init() to get past its first check.
+  python3 "$REPO/tools/mkhwsetting.py" --out "$parts/h601.bin" \
+    "${vfmt[@]}" || die "mkhwsetting failed"
+
+  # 2 and 3. The two settings blocks. The length is not a guess: libapmib prints
+  #    `Expect [sig=6G, ver=3, len=32858]!` when it rejects a bad one, so the
+  #    number below is the library's own statement of what it wants.
+  python3 "$REPO/tools/mkcompds.py" --out "$parts/compds.bin" --kind compds --length 32858 \
+    || die "mkcompds (COMPDS) failed"
+  python3 "$REPO/tools/mkcompds.py" --out "$parts/compcs.bin" --kind compcs --length 32858 \
+    || die "mkcompds (COMPCS) failed"
+
+  python3 "$REPO/tools/mkflash.py" \
+    --image "$img" --out "$DUMP" --json "$REPO/reports/mkflash-2.1.2.json" \
+    "${vstruct[@]}" \
+    --overlay "$parts/h601.bin@0x6000" \
+    --overlay "$parts/compds.bin@0x8000" \
+    --overlay "$parts/compcs.bin@0xC000" \
+    --overlay-origin "synthesised from public artefacts by tools/mkhwsetting.py (H601) and tools/mkcompds.py (COMPDS/COMPCS); all-zero payloads, no data from any physical unit" \
+    || die "mkflash failed"
+
+  local got; got="$(sha256sum "$DUMP" | cut -d' ' -f1)"
+  if [ "$got" = "$DUMP_SHA256" ]; then
+    note "sha256 matches the pinned value -- this build is bit-reproducible"
+  else
+    echo "  NOTE: sha256 is $got, the profile pins $DUMP_SHA256." >&2
+    echo "        If a generator changed on purpose, update DUMP_SHA256 in the" >&2
+    echo "        same commit so the change appears in the diff." >&2
+  fi
 }
 
 # ---------------------------------------------------------------- build ----
@@ -78,7 +202,27 @@ cmd_build() {
   command -v qemu-mips-static >/dev/null || die "qemu-mips-static not installed"
   need_root
 
-  rm -rf "$ENVDIR"
+  # A previous build leaves /proc mounted inside the environment, and `rm -rf`
+  # then walks into a live procfs: it fails on every entry it cannot remove,
+  # returns non-zero, and leaves a half-deleted tree. The copy that follows then
+  # merges into the wreckage and the *next* command reports
+  # `./qemu-mips-static: No such file or directory` -- a message that points
+  # nowhere near the cause. Found on the first v2.1.2 rebuild, 2026-08-18.
+  #
+  # Unmount first, and refuse to delete if the unmount did not take. `rm -rf`
+  # through a live mountpoint is the mechanism by which a tool deletes things
+  # outside the directory it was aimed at, so this is a refusal and not a retry.
+  if [ -d "$ENVDIR" ]; then
+    if mountpoint -q "$ENVDIR/proc"; then
+      umount "$ENVDIR/proc" 2>/dev/null || true
+    fi
+    if mountpoint -q "$ENVDIR/proc"; then
+      die "$ENVDIR/proc is still a mountpoint after umount.
+     Not running rm -rf through it. Unmount it by hand and re-run:
+       sudo umount $ENVDIR/proc"
+    fi
+    rm -rf "$ENVDIR"
+  fi
   cp -a "$ROOTFS" "$ENVDIR"
   cp "$(command -v qemu-mips-static)" "$ENVDIR/qemu-mips-static"
 
@@ -117,8 +261,11 @@ cmd_build() {
   # which reads the w6cg bundle straight out of the device file above.
   chroot "$ENVDIR" ./qemu-mips-static /bin/flash extr /web >/dev/null 2>&1 || true
 
-  echo "built $ENVDIR"
-  note "docroot files: $(find "$ENVDIR/var/web" -type f | wc -l)   (expect 143)"
+  echo "built $ENVDIR  (profile $PROFILE)"
+  # The count comes from the web bundle report for this build, not from a
+  # constant: 143 for unit-2018 and 144 for V2.1.2, and hard-coding either one
+  # makes the other look broken.
+  note "docroot files: $(find "$ENVDIR/var/web" -type f | wc -l)   (bundle declares $DOCROOT_EXPECT)"
   cmd_check
 }
 
@@ -128,6 +275,34 @@ cmd_build() {
 cmd_reset() {
   [ -f "$PRISTINE" ] || die "no pristine image; run build first"
   need_root
+
+  # The IPC removal below is HOST-GLOBAL: SysV segments have no namespace here,
+  # so `reset` on one profile destroys the segments the other profile's running
+  # boa is holding. That process then spins on
+  #   APMIB Semaphore Lock semop() failed !! [Invalid argument]
+  # forever, never binds, and the next `serve` times out with no output -- which
+  # is what happened on 2026-08-18 once a second profile existed, and it looked
+  # like a broken restart rather than a broken reset.
+  #
+  # So: stop everything in THIS environment first, and refuse if another
+  # profile's environment still has processes, rather than pulling the floor out
+  # from under it.
+  local other n
+  cmd_reap >/dev/null 2>&1 || true
+  for other in "$WORK"/qemu-env-*; do
+    [ -d "$other" ] || continue
+    [ "$other" = "$ENVDIR" ] && continue
+    n=0
+    for p in /proc/[0-9]*; do
+      [ "$(readlink "$p/root" 2>/dev/null)" = "$other" ] && n=$((n + 1))
+    done
+    [ "$n" -eq 0 ] || die \
+      "$n process(es) are still running in $other, and this reset would delete
+     the SysV segments they are using -- they have no namespace on this host.
+     Stop them first:
+       sudo $0 --profile ${other##*qemu-env-} reap"
+  done
+
   cp "$PRISTINE" "$ENVDIR/dev/mtdblock0"
   cp "$PRISTINE" "$ENVDIR/dev/mtd0"
   local id
@@ -137,7 +312,41 @@ cmd_reset() {
   for id in $(ipcs -s | awk 'NR>3 && $2 ~ /^[0-9]+$/ {print $2}'); do
     ipcrm -s "$id" 2>/dev/null || true
   done
-  rm -f "$ENVDIR/var/web/config.dat"
+  # -rf, not -f. `serve` deliberately makes this path a DIRECTORY so that boa's
+  # start-up open(O_RDWR|O_CREAT|O_TRUNC) returns EISDIR instead of taking the
+  # unaligned path that kills it under qemu-user -- see the comment above
+  # cmd_serve. `rm -f` cannot remove a directory, so after any `serve` this line
+  # failed, and because it is the last command in the function it made `reset`
+  # return non-zero while every restore above it had in fact succeeded. A caller
+  # that trusted the exit status saw "reset failed" and stopped; a caller that
+  # did not would have carried the previous run's docroot into the next
+  # measurement. Found 2026-08-18 by failopen-probe.sh, which is the first
+  # caller to check reset's exit status at all.
+  rm -rf "$ENVDIR/var/web/config.dat"
+  [ -e "$ENVDIR/var/web/config.dat" ] && die "could not clear $ENVDIR/var/web/config.dat"
+
+  # And restore the web server's own runtime config, which `build` composes the
+  # way `sysconf` does on the device: the template plus an appended Port line.
+  #
+  # This line exists because of what --alignfix made possible. Once handlers
+  # stopped dying inside libapmib they began running their side effects, and one
+  # of them re-ran the `cp -a /etc/boa/boa.conf.bak /var/boa.conf` half of
+  # sysconf's job without the append. The file went back to the upstream sample,
+  # in which `Port` is commented out -- so `serve`'s `sed s/^Port .*/` matched
+  # nothing, boa bound port 0, and every probe afterwards timed out with the
+  # environment otherwise healthy: `check` passed all three controls, because the
+  # flash was fine. It was not the flash.
+  #
+  # Same shape as instrument bugs 37 and 41: a restore trusted to restore
+  # everything, restoring less than everything. `reset` had always covered the
+  # flash and the SysV segments and never /var, and until handlers could write
+  # nothing in /var ever changed.
+  cp -a "$ENVDIR/etc/boa/boa.conf.bak" "$ENVDIR/var/boa.conf"
+  echo 'Port 80' >> "$ENVDIR/var/boa.conf"
+  grep -q '^Port ' "$ENVDIR/var/boa.conf" || die \
+    "restored $ENVDIR/var/boa.conf has no uncommented Port line, so serve's
+     rewrite would match nothing and boa would bind an arbitrary port"
+  return 0
 }
 
 # ---------------------------------------------------------------- check ----
@@ -147,6 +356,16 @@ cmd_reset() {
 cmd_check() {
   need_root
   local rc=0 want got n tmp
+  # An empty control set would let every loop below iterate zero times and the
+  # function return success -- instrument bug 12 exactly, a check that reports
+  # a pass when it has nothing to check. A profile with no controls is an
+  # uncalibrated profile and it says so.
+  if [ "${#CONTROL[@]}" -eq 0 ]; then
+    die "profile '$PROFILE' declares no positive control, so this check would
+     pass over an empty set and prove nothing. Measure the values this image
+     actually holds -- \`$0 --profile $PROFILE run /bin/flash all\` -- confirm
+     them against a second source, then pin them in CONTROL."
+  fi
   tmp="$(mktemp)"; trap 'rm -f "$tmp"' RETURN
 
   # Deliberately a file, not `printf ... | grep`. Under `set -o pipefail`,
@@ -171,7 +390,7 @@ cmd_check() {
 
   n="$(grep -c '=' "$tmp" || true)"
   note "MIB lines from the vendor binary: $n"
-  [ "$n" -gt 2000 ] || { echo "  control FAILED: too few MIB lines ($n)" >&2; rc=1; }
+  [ "$n" -gt "$MIB_MIN" ] || { echo "  control FAILED: too few MIB lines ($n, want > $MIB_MIN)" >&2; rc=1; }
   [ "$rc" -eq 0 ] || die "positive control failed - every result from this environment is suspect"
   echo "positive control passed"
 }
@@ -203,16 +422,133 @@ cmd_run() { need_root; exec chroot "$ENVDIR" ./qemu-mips-static "$@"; }
 # fetched from the emulated server, because the file it would serve is the
 # directory standing in the way. Links 1 and 2 of the chain stay device-only;
 # links 3, 4 and the gate reproduce here.
+# Who is listening on a TCP port, as a pid, or empty.
+#
+# The trailing `|| true` is load-bearing. `grep` exits 1 when the port is FREE,
+# which is the ordinary case, and under `set -euo pipefail` that made the whole
+# pipeline fail, which made the assignment fail, which made `serve` exit 1 --
+# printing nothing at all. A guard written to stop a stale server silently
+# stopped the server it was guarding, and the symptom was an empty line.
+port_holder() {
+  ss -ltnp 2>/dev/null | awk -v p=":$1\$" '$4 ~ p {print $0}' \
+    | grep -o 'pid=[0-9]*' | head -1 | cut -d= -f2 || true
+}
+
+# Every guest process still running inside THIS environment, found by the one
+# thing that cannot match the wrong process: /proc/<pid>/root resolves to the
+# chroot it is in. `pkill -f` was rejected once already for matching the calling
+# shell's own command line (see cmd_stop); matching on a command-line pattern
+# would also match the *other* profile's boa, which is a different environment
+# with a different flash and would be silently killed by a tool aimed here.
+env_pids() {
+  local p target
+  for p in /proc/[0-9]*; do
+    target="$(readlink "$p/root" 2>/dev/null)" || continue
+    [ "$target" = "$ENVDIR" ] && printf '%s\n' "${p#/proc/}"
+  done
+}
+
+# ------------------------------------------------------------------ reap ----
+# Kill every guest process belonging to this environment.
+#
+# `boa` under qemu-user does not survive several of its own handlers, and a
+# crashed process leaves the pidfile pointing at a corpse -- so `stop` reports
+# success and the process that was actually listening is still there. Over a
+# 58-handler sweep on 2026-08-18 that produced **32 orphans**, and the port was
+# held by an arbitrary old one. Every probe after the first crash was answered
+# by a server carrying state from an earlier point in the run, and the results
+# were nonsense in a way that looked like data.
+cmd_reap() {
+  need_root
+  local pids n
+  pids="$(env_pids)"
+  n="$(printf '%s' "$pids" | grep -c . || true)"
+  if [ "$n" -eq 0 ]; then echo "no processes running in $ENVDIR"; return 0; fi
+  echo "$pids" | xargs -r kill  2>/dev/null || true
+  sleep 1
+  echo "$pids" | xargs -r kill -9 2>/dev/null || true
+  rm -f "$ENVDIR/tmp/boa-emu.pid"
+  echo "reaped $n process(es) in $ENVDIR"
+}
+
 cmd_serve() {
   need_root
-  local port="${1:-8080}" conf="$ENVDIR/var/boa-emu.conf"
-  [ -f "$ENVDIR/var/boa.conf" ] || die "no /var/boa.conf in the environment; run build"
+  local port="8080" alignfix=0 preload=""
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --alignfix) alignfix=1; shift ;;
+      -*) die "serve: unknown option '$1' (have: --alignfix)" ;;
+      *) port="$1"; shift ;;
+    esac
+  done
+  local conf="$ENVDIR/var/boa-emu.conf"
+
+  # --------------------------------------------------------------- alignfix
+  # OFF BY DEFAULT, and that is the decision rather than the omission.
+  #
+  # qemu-user delivers SIGBUS for unaligned user-space accesses; the MIPS kernel
+  # on the device fixes them up and the program never notices. libapmib's
+  # `mib_write_to_raw` packs variable-length TLV records, so its halfword stores
+  # land on odd addresses as a matter of course -- which is why 39 of 57
+  # handlers "died" in the W07 sweep, why P8-24's recovery write could not be
+  # observed, and why nothing that saves configuration could be measured here.
+  # tools/alignfix/ removes that one divergence.
+  #
+  # It stays opt-in because turning it on changes what the environment IS.
+  # Every measurement this repository has recorded under emulation was taken
+  # without it, the CONTROL set above was established without it, and a flag
+  # that silently changed all of that would make two incomparable things look
+  # like one. So: the mode is chosen explicitly, printed here, and the fix-up
+  # count is written to the log where a report can pick it up. A run that fixes
+  # up 24 unaligned stores is not the same claim as one that fixes up none, and
+  # the difference has to be visible.
+  if [ "$alignfix" -eq 1 ]; then
+    local so="$ENVDIR/lib/alignfix.so"
+    if [ ! -f "$so" ]; then
+      note "alignfix: building tools/alignfix/alignfix.so"
+      bash "$REPO/tools/alignfix/build.sh" "$so" >/dev/null || die \
+        "alignfix: build failed. Run it directly to see why:
+       bash $REPO/tools/alignfix/build.sh /tmp/alignfix.so"
+    fi
+    preload="-E LD_PRELOAD=/lib/alignfix.so"
+    note "alignfix: ON -- unaligned accesses will be emulated, as the device's"
+    note "          kernel does. This environment is NOT byte-identical to the"
+    note "          one every earlier measurement was taken in."
+  else
+    note "alignfix: off (default). Handlers that write configuration will die"
+    note "          on a qemu SIGBUS inside libapmib; that is the emulator, not"
+    note "          the firmware. Pass --alignfix to remove that divergence."
+  fi
+
+  # Refuse to start on a port somebody else holds. Without this the checks below
+  # pass by talking to the incumbent: they verify a property of the *port*, not
+  # of the process this function started, and those are different claims.
+  local holder; holder="$(port_holder "$port")"
+  if [ -n "$holder" ]; then
+    die "port $port is already held by pid $holder ($(tr '\0' ' ' < "/proc/$holder/cmdline" 2>/dev/null))
+     Starting now would bind nothing and every check below would be answered by
+     that process instead. If it is a leftover of this environment:
+       sudo $0 --profile $PROFILE reap"
+  fi
+  # Name the directory. This message used to say only "run build", and when the
+  # work directory was resolved wrongly -- nested sudo makes SUDO_USER=root and
+  # sends everything to /root/fwre-work -- it sent the operator to rebuild an
+  # environment that was already correct, 55 times. A refusal that does not say
+  # where it looked cannot be distinguished from the thing it accuses you of.
+  [ -f "$ENVDIR/var/boa.conf" ] || die \
+    "no boa.conf at $ENVDIR/var/boa.conf
+     profile   $PROFILE
+     work dir  $WORK   (FWRE_WORK, else the invoking user's home)
+     If that work dir looks wrong, this is the sudo-inside-sudo trap: SUDO_USER
+     becomes root and \$WORK moves to /root. Pass FWRE_WORK explicitly.
+     If it looks right, the environment really is missing: run build."
   sed "s/^Port .*/Port $port/" "$ENVDIR/var/boa.conf" > "$conf"
 
   rm -rf "$ENVDIR/var/web/config.dat"
   mkdir -p "$ENVDIR/var/web/config.dat"
 
-  chroot "$ENVDIR" ./qemu-mips-static /bin/boa -f /var/boa-emu.conf \
+  # shellcheck disable=SC2086  # $preload is either empty or exactly two words
+  chroot "$ENVDIR" ./qemu-mips-static $preload /bin/boa -f /var/boa-emu.conf \
       >"$ENVDIR/tmp/boa-emu.log" 2>&1 &
   local pid=$!
   local i=0
@@ -235,12 +571,43 @@ cmd_serve() {
     echo "  control FAILED: blank.htm returned $code, expected 302 - the gate is" \
          "not behaving as it does on the device, so nothing measured here transfers" >&2; ok=1; fi
 
+  # And the check that the two above cannot make: is the process answering the
+  # one this function started? A control that cannot tell "my server is up" from
+  # "somebody's server is up" is the failure this whole subcommand exists to
+  # prevent, and it went undetected for a full sweep.
+  # `boa` daemonises. The pid bash hands back is the launcher's; the process
+  # that ends up holding the socket is its child, and after the launcher exits
+  # that child is re-parented to init. So "is the listener the pid I started"
+  # is the wrong question -- it is never true -- and the right one is whether
+  # the listener is running inside THIS environment, which /proc/<pid>/root
+  # answers exactly and which also tells the two profiles apart.
+  #
+  # This is also why orphans accumulated: the pidfile held the launcher's pid,
+  # so `stop` killed a process that had already exited, reported success, and
+  # left the server running. Thirty-two of them by the end of one sweep. The
+  # pidfile now holds the pid that owns the socket.
+  local holder_now holder_root
+  holder_now="$(port_holder "$port")"
+  if [ -z "$holder_now" ]; then
+    die "nothing is listening on $port after $i seconds.
+     The log is $ENVDIR/tmp/boa-emu.log"
+  fi
+  holder_root="$(readlink "/proc/$holder_now/root" 2>/dev/null || true)"
+  if [ "$holder_root" != "$ENVDIR" ]; then
+    die "port $port is held by pid $holder_now, whose root is
+       ${holder_root:-<unreadable>}
+     and this profile's environment is
+       $ENVDIR
+     Everything measured against it would belong to another environment.
+       sudo $0 --profile $PROFILE reap"
+  fi
+
   if [ "$ok" -ne 0 ]; then
-    kill "$pid" 2>/dev/null
+    kill "$holder_now" 2>/dev/null
     die "emulated server did not reproduce the gate; refusing to report it as up"
   fi
-  echo "$pid" > "$ENVDIR/tmp/boa-emu.pid"
-  echo "boa is serving on 127.0.0.1:$port (pid $pid).  Stop it with:"
+  echo "$holder_now" > "$ENVDIR/tmp/boa-emu.pid"
+  echo "boa is serving on 127.0.0.1:$port (pid $holder_now).  Stop it with:"
   echo "  sudo $0 stop"
 }
 
@@ -289,6 +656,7 @@ PY
 }
 
 case "${1:-}" in
+  mkflash) shift; cmd_mkflash "$@" ;;
   build) shift; cmd_build "$@" ;;
   reset) shift; cmd_reset "$@" ;;
   check) shift; cmd_check "$@" ;;
@@ -296,10 +664,22 @@ case "${1:-}" in
   run)   shift; cmd_run   "$@" ;;
   serve) shift; cmd_serve "$@" ;;
   stop)  shift; cmd_stop  "$@" ;;
+  reap)  shift; cmd_reap  "$@" ;;
   *) cat >&2 <<EOF
-usage: sudo $0 {build|reset|check|diff|run|serve|stop ...}
+usage: sudo $0 [--profile NAME] {build|reset|check|diff|run|serve|stop|reap ...}
 
-  build   create $ENVDIR from the unit-2018 rootfs + this unit's flash dump
+  --profile NAME   which firmware to stand up. Default unit-2018.
+        unit-2018  the build this unit runs, on this unit's own flash dump.
+                   Not reproducible by anyone else: neither half is downloadable.
+        v2.1.2     a published image and nothing else -- rootfs from the .web
+                   container, flash rebuilt from the same container by
+                   tools/mkflash.py. This is the profile G4 clause 3a is about.
+        Currently: $PROFILE -> $ENVDIR
+
+  mkflash construct the profile's flash image from a published container plus
+          synthesised settings regions. v2.1.2 only; unit-2018 stands on a
+          real dump and refuses
+  build   create $ENVDIR from the $PROFILE rootfs + its flash image
   reset   restore the flash image AND drop the SysV shm/sem the MIB cache uses
   check   positive control: three known values, read back through /bin/flash
   diff    what changed in the flash image, and whether 0x6493 still balances
@@ -309,8 +689,21 @@ usage: sudo $0 {build|reset|check|diff|run|serve|stop ...}
   serve   stand boa up on 127.0.0.1 and prove the gate behaves as it does on
           the device before saying it is up, e.g.
             sudo $0 serve 8080
+          --alignfix  emulate unaligned accesses the way the device's MIPS
+                      kernel does, via tools/alignfix/. OFF by default: it
+                      changes what the environment is, and every measurement
+                      recorded before 2026-08-18 was taken without it. Turn it
+                      on to reach any path that writes configuration -- without
+                      it libapmib's TLV serialiser takes a qemu SIGBUS and the
+                      handler looks like it crashed the server, e.g.
+                        sudo $0 serve 8080 --alignfix
   stop    stop it, by pidfile. Not \`pkill -f\`, which matches the calling
           shell's own command line and kills it
+  reap    kill EVERY guest process still running in this environment, found by
+          /proc/<pid>/root rather than by a command-line pattern. boa does not
+          survive several of its own handlers, and a crashed one leaves the
+          pidfile pointing at a corpse -- so orphans accumulate and an old one
+          keeps the port. Run this between sweeps
 
 Always: reset before a measurement. Restoring the file alone is not a reset.
 EOF

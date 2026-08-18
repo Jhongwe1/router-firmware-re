@@ -88,3 +88,9 @@ htmlcov/
 *.swp
 .DS_Store
 Thumbs.db
+
+# Built by tools/alignfix/build.sh. It is a MIPS object compiled from committed
+# source by a committed script, so committing it would add a binary that nothing
+# can check and that a reader cannot regenerate without the same toolchain
+# version. `make alignfix-test` rebuilds it in a temporary directory.
+tools/alignfix/*.so

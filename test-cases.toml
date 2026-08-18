@@ -31,9 +31,45 @@ schema_version = "1"
 # sha256 over (id, predict, refute) of every case that has a refutation.
 # Change a prediction and this must change in the same commit, where the diff
 # shows it. `python3 tools/rtcase.py freeze` prints the current value.
-sha256 = "69c342dce863dcc7d2450d3f45f97ad2b3753296a2c8756a54ec27604caffc55"
-committed = "2026-08-17"
-note = "W05 Day 0 — frozen before any request has been served to this device."
+sha256 = "a9bd2761074e0b349726ec0ee96f3280e30a81e13a034643c1c3581dfc7f10be"
+committed = "2026-08-18"
+note = """W05 Day 0 — frozen before any request has been served to this device.
+
+2026-08-18: two cases added, P0-11 and P3-14, both for G4 clause 3a — the L2
+reproduction on an image anyone can download. They are frozen here *before* the
+environment they describe has been built, and the commit that adds them carries
+no result. That ordering is the whole claim: the prediction that a
+container-only flash cannot start boa is on the record before the measurement
+that settles it, and both of them can fail in either direction.
+
+2026-08-18, later the same day — eleven cases gained a `predict` and a `refute`
+they never had, and one case is new. Every one of them was scheduled for W07 and
+none could have carried a result: P6-12, P8-2, P8-4, P8-6, P8-7, P8-11, P8-14,
+P8-16, P8-19, P9-4, plus the new P9-13. `make todo WEEK=W07` had been printing
+"(no refutation condition yet)" against them since the register was built, which
+is the tool doing its job — but it is a warning, not a blocker, and eleven of
+W07's rows were therefore unrecordable while the week's plan scheduled them all
+for one bench visit. Writing them the night before the visit rather than after it
+is the entire point of this file, so they are written now, from evidence that
+already exists: the W05 full-range TCP sweep, P1-10's live UPnP, P10-3's
+unauthenticated password change, P2-7's per-request Basic auth, the rootfs
+binary inventory, and the boot log. Three of them (P6-12, P8-4, P8-6) are
+narrower than their titles suggest, because prior measurements had already
+answered part of what they asked — and saying so is cheaper than re-measuring.
+
+P9-13 is new and it exists because P9-10 moved to W08. The half of P9-10 that is
+not irreversible — read the upgrade path, find out which header fields are
+actually checked — is W07 work and it is also plan Day 6's deliverable, which
+had no register row at all. One row now means one thing.
+
+P8-24 is new and was written from a line of `/bin/startup.sh` found while
+answering P8-8. It is frozen here before the experiment that settles it, and the
+experiment is a desktop one — corrupt both settings regions in the emulation
+profile's flash image and see what the boot script does. The prediction commits
+to "telnet ends up enabled" while naming the specific way it could be wrong
+(`flash reset1` running afterwards and overwriting the set), because that half
+is inference from the script's wording and not a measurement of what `flash
+default-sw` writes."""
 
 [schedule]
 # sha256 over (id, week) of every live case. `week` is deliberately NOT in
@@ -44,8 +80,8 @@ note = "W05 Day 0 — frozen before any request has been served to this device."
 # breaking the plan or editing the field. Editing it quietly is
 # indistinguishable from moving the goalposts, so now it hashes.
 # `python3 tools/rtcase.py schedule` prints the current value.
-sha256 = "fd9a23c53b8b39aea7a1da5cb6091c343fba922820c2a9512921ce0c99323fcc"
-committed = "2026-08-17"
+sha256 = "0384ce43144fec98721024035fa5d10023ba5de9ce5adaa0602bd3d8029199b4"
+committed = "2026-08-18"
 note = """The payload changed on 2026-08-17: it was (id, week) and is now
 (id, week, rescheduled_from, reschedule_date, reschedule_reason), so every
 declared hash before this line is on the old basis and cannot be compared to
@@ -58,11 +94,31 @@ exploit-development block. Same failure as the W05 four: the register was built
 by walking the playbook's sections, so cases landed in the week whose section
 number matched rather than the week whose plan admits them, and W06's plan
 forbids fuzzing outright. The reasons here are not "no time": P4-9 is blocked on
-the device (nothing respawns boa, so a run is ~45 requests per power cycle) AND
-in emulation (P0-9 refuted — boa cannot complete one GET under qemu-user), and
-the P5-1 chain has no oracle at all, because this unit has no shell and no
-gdbserver and nothing here has ever shown that a userspace fault prints
-registers on its console."""
+the device, because nothing respawns boa and a run costs ~45 requests per power
+cycle; and the P5-1 chain has no oracle *on the device*, because this unit has
+no shell and no gdbserver and nothing here has ever shown that a userspace fault
+prints registers on its console.
+
+Two clauses stood here until 2026-08-18 and both were wrong — the same two the
+reschedule reasons were corrected for on 2026-08-17. This paragraph said P4-9
+was blocked in emulation as well, citing "P0-9 refuted — boa cannot complete one
+GET under qemu-user", and that the P5-1 chain had no oracle at all. P0-9 came
+back `confirmed` that same evening: boa serves under qemu-user once the start-up
+`config.dat` write is made to fail, and qemu prints the signal and si_addr
+itself, so the oracle does exist on the desktop even though it does not on the
+device. Every *hashed* field was corrected that night. This note was not,
+because the schedule hash covers (id, week, rescheduled_from, reschedule_date,
+reschedule_reason) and not the prose that summarises them — so the register's
+own header went on asserting, for a day, the claim its own rows had already
+withdrawn, in the same file. Instrument bug 28, and the same shape as 23: a
+refuted claim surviving in a place no checker reads.
+
+2026-08-18, W07: one case moved, P9-10 → W08, and its reason is the only kind
+this project accepts for an irreversible step — ordering, not caution. The unit
+is the single point of failure for G2 and G4 and it is also the target of the
+twenty-odd W07 tests that have not run yet, so writing a modified image to its
+flash before those tests would be spending the week to buy one row. The half of
+P9-10 that is not irreversible became P9-13 and stays in W07."""
 
 [ledger]
 output = "test-ledger.md"
@@ -319,6 +375,17 @@ week = "W05"
 star = true
 predict = '完整 4 MiB 要 105 分鐘，但會被改到的只有前 64 KiB（`H601`/`COMPDS`/`COMPCS` 都在裡面），以 723 B/s 算約 90 秒。有了時間序列快照，不只能還原，還能**指出某個請求改了哪幾個 byte**'
 refute = '送出一個已知會寫設定的請求（例如 `formWsc` 的 `localPin`）之後，兩份快照的差異是 0 → 寫入沒有落到這 64 KiB，還原點的範圍就選錯了，P0-1 的完整備份才是唯一退路'
+
+[[case]]
+id = "P0-11"
+phase = "0"
+section = "3.8.6"
+title = "L2：只用公開映像建立模擬環境（不含任何本機專屬產物）"
+feasibility = 3
+exit_evidence = "static"
+week = "W06"
+predict = '''公開的 V2.1.2 容器只有三個 section —— `w6cg`@`0x010000`、`cr6c`@`0x060000`、`r6cr`@`0x180000`（`reports/n150rt-2.1.2.json`）—— **flash 的前 64 KiB 完全不在裡面**：boot loader、`H601`、`COMPDS`、`COMPCS` 都是出廠燒進去的。所以拿一份只由容器填出來的 flash 餵給 `qemu-user`，`apmib_init()` 會在硬體設定那一關失敗（`libapmib.so` 裡有 `Read hw setting header failed!` 與 `Invalid hw setting signature [sig=%c%c]!` 這兩條訊息），`boa` 起不來。L2 因此需要合成 `0x6000` 起的那一段，而合成要用的東西 —— MIB id 表、TLV 格式、8-bit checksum、LZSS —— 全部可以從公開的 `libapmib.so` 推導，不含任何本機祕密。'''
+refute = '''只用容器填出來的 flash，`boa` 就 bind 並回應 `login.htm` 200 → 映像自己會初始化，上面整套「需要合成」的論證作廢，L2 只是下載即跑；反方向同樣算反證 —— 合成之後 `boa` 仍然起不來 → 公開映像上不存在 L2 路徑，G4 clause 3a 失敗，而且要指出缺的究竟是哪一段。'''
 
 # ===========================================================================
 # Phase 1 — 偵察與指紋
@@ -752,6 +819,17 @@ star = true
 predict = 'gate 只看 .htm/.asp，所以寫入類 handler（formUpload / formPasswordSetup / formSaveConfig）全部在門外'
 refute = '寫入類端點被擋而讀取類沒被擋 → 門的判定不是純 URI 字串比對，P2-1 的結論要修'
 
+[[case]]
+id = "P3-14"
+phase = "3"
+section = "6.1"
+title = "L2：`localPin` 命令注入在公開映像 V2.1.2 上重現"
+feasibility = 3
+exit_evidence = "static"
+week = "W06"
+predict = '''`formWsc` 在 V2.1.2 的 `root_form[]` 裡（`0x0044a190`，`reports/ghidra-formtable-2.1.2.json`），而 `localPin` 那一行在 2015 與 2020 之間 byte-for-byte 相同（`notes/three-way-read.md`）。P3-5 已經在這台實機上動態證過同一行。所以在 L2 環境送同一發注入，`strace` 應該看得到被內插的命令走到 `execve`。'''
+refute = '''`strace` 裡沒有 `execve`，或內插的命令沒有被執行 → 「這條鏈不依賴這台獨有的 build」這個 L2 主張不成立，G4 clause 3a 失敗；同時 `notes/three-way-read.md` 的 byte-identical 讀法要重驗，因為它是這個預測唯一的靜態依據。'''
+
 # ===========================================================================
 # Phase 4 — 記憶體破壞
 # ===========================================================================
@@ -1107,6 +1185,8 @@ title = "其他 Realtek 診斷埠（20005 / 9999 / …）"
 feasibility = 2
 exit_evidence = "unverified"
 week = "W07"
+predict = 'TCP 側這一條已經被 `P1-2` 答完了：W05 跑的是 `nmap -sS -p-`，全 65535 個埠，開著的只有 80 / 52869 / 52881，所以 20005 / 9999 / 7777 / 8888 / 30005 / 4567 / 49152-49160 全部是關的，不需要重掃。**剩下的是 UDP，而 W05 的 UDP 只掃了十個埠**（`53,67,68,69,123,161,162,1900,5353,5555`）—— 20005 與 9999 從來沒有被 UDP 探測過。預期 UDP 側也全關，理由是這台的 55 個 ELF 裡沒有任何一支對應的診斷 daemon'
+refute = '任一個 UDP 埠有回應 → rootfs 的 ELF 清單漏了東西，與 `P6-4` 同一個結論，而那讓本專案所有「這台沒有 X」的說法一起失效。**反過來，沒有正對照的「全關」不算數**：同一輪裡必須有一個已知開著的 UDP 埠（1900 或 53）回應，否則 `nmap` 的 `open|filtered` 與真正的靜默無法分辨，那時「全關」量到的是鏈路而不是裝置'
 
 # ===========================================================================
 # Phase 7 — 無線層
@@ -1119,7 +1199,10 @@ section = "10.1"
 title = "WPS Pixie Dust"
 feasibility = 4
 exit_evidence = "presumed"
-week = "W07"
+week = "W08"
+rescheduled_from = "W07"
+reschedule_date = "2026-08-18"
+reschedule_reason = '''需要 monitor mode + 封包注入的無線網卡，而本實驗室只有乙太網卡（Realtek RTL8153，USB Gigabit Ethernet）。這不是時間問題也不是排序問題，是儀器不存在：沒有適配器就沒有量測，而「設定裡 WPS 是開的」不等於「這台的 WPS PIN 可以被還原」。採購清單與型號取捨見 docs/lab-inventory.md（建議 AR9271，約 US$30，因為這台只有 2.4 GHz）。另外三項（P7-3 / P7-6 / P7-9）就算買了也還要先解決輻射範圍的問題：deauth 與 beacon 注入會打到範圍內所有裝置，那跟兩個埠之間拉一條線是不同的同意情境，登記簿已經因為同一個理由砍掉三項。'''
 caution = "無線發射。全部 Phase 7 的項目都只對自有 SSID / 自有 client MAC 定向，不得廣播"
 predict = 'Realtek 的 WPS 實作歷來是 Pixie Dust 的典型目標'
 refute = 'wash 顯示 WPS 已鎖或未啟用 → 這條前提不成立'
@@ -1131,7 +1214,10 @@ section = "10.1"
 title = "WPS 線上 PIN 爆破 / 廠商預設 PIN"
 feasibility = 3
 exit_evidence = "presumed"
-week = "W07"
+week = "W08"
+rescheduled_from = "W07"
+reschedule_date = "2026-08-18"
+reschedule_reason = '''需要 monitor mode + 封包注入的無線網卡，而本實驗室只有乙太網卡（Realtek RTL8153，USB Gigabit Ethernet）。這不是時間問題也不是排序問題，是儀器不存在：沒有適配器就沒有量測，而「設定裡 WPS 是開的」不等於「這台的 WPS PIN 可以被還原」。採購清單與型號取捨見 docs/lab-inventory.md（建議 AR9271，約 US$30，因為這台只有 2.4 GHz）。另外三項（P7-3 / P7-6 / P7-9）就算買了也還要先解決輻射範圍的問題：deauth 與 beacon 注入會打到範圍內所有裝置，那跟兩個埠之間拉一條線是不同的同意情境，登記簿已經因為同一個理由砍掉三項。'''
 
 [[case]]
 id = "P7-3"
@@ -1140,7 +1226,10 @@ section = "10.2"
 title = "惡意 Beacon → Site Survey 表溢位"
 feasibility = 3
 exit_evidence = "presumed"
-week = "W07"
+week = "W08"
+rescheduled_from = "W07"
+reschedule_date = "2026-08-18"
+reschedule_reason = '''需要 monitor mode + 封包注入的無線網卡，而本實驗室只有乙太網卡（Realtek RTL8153，USB Gigabit Ethernet）。這不是時間問題也不是排序問題，是儀器不存在：沒有適配器就沒有量測，而「設定裡 WPS 是開的」不等於「這台的 WPS PIN 可以被還原」。採購清單與型號取捨見 docs/lab-inventory.md（建議 AR9271，約 US$30，因為這台只有 2.4 GHz）。另外三項（P7-3 / P7-6 / P7-9）就算買了也還要先解決輻射範圍的問題：deauth 與 beacon 注入會打到範圍內所有裝置，那跟兩個埠之間拉一條線是不同的同意情境，登記簿已經因為同一個理由砍掉三項。'''
 star = true
 caution = "無線發射，且 beacon 是廣播。需要衰減或屏蔽環境；不能在共用頻段直接灑"
 predict = '這台的 Site Survey 頁不需要憑證就能觸發（P2-1），所以掃描動作可以自己發起，不必等管理員'
@@ -1153,7 +1242,10 @@ section = "10.2"
 title = "惡意 WPS IE（Device Name 長度欄 2 bytes）"
 feasibility = 3
 exit_evidence = "presumed"
-week = "W07"
+week = "W08"
+rescheduled_from = "W07"
+reschedule_date = "2026-08-18"
+reschedule_reason = '''需要 monitor mode + 封包注入的無線網卡，而本實驗室只有乙太網卡（Realtek RTL8153，USB Gigabit Ethernet）。這不是時間問題也不是排序問題，是儀器不存在：沒有適配器就沒有量測，而「設定裡 WPS 是開的」不等於「這台的 WPS PIN 可以被還原」。採購清單與型號取捨見 docs/lab-inventory.md（建議 AR9271，約 US$30，因為這台只有 2.4 GHz）。另外三項（P7-3 / P7-6 / P7-9）就算買了也還要先解決輻射範圍的問題：deauth 與 beacon 注入會打到範圍內所有裝置，那跟兩個埠之間拉一條線是不同的同意情境，登記簿已經因為同一個理由砍掉三項。'''
 caution = "無線發射"
 
 [[case]]
@@ -1163,7 +1255,10 @@ section = "10.3"
 title = "PMKID（clientless）"
 feasibility = 3
 exit_evidence = "unverified"
-week = "W07"
+week = "W08"
+rescheduled_from = "W07"
+reschedule_date = "2026-08-18"
+reschedule_reason = '''需要 monitor mode + 封包注入的無線網卡，而本實驗室只有乙太網卡（Realtek RTL8153，USB Gigabit Ethernet）。這不是時間問題也不是排序問題，是儀器不存在：沒有適配器就沒有量測，而「設定裡 WPS 是開的」不等於「這台的 WPS PIN 可以被還原」。採購清單與型號取捨見 docs/lab-inventory.md（建議 AR9271，約 US$30，因為這台只有 2.4 GHz）。另外三項（P7-3 / P7-6 / P7-9）就算買了也還要先解決輻射範圍的問題：deauth 與 beacon 注入會打到範圍內所有裝置，那跟兩個埠之間拉一條線是不同的同意情境，登記簿已經因為同一個理由砍掉三項。'''
 
 [[case]]
 id = "P7-6"
@@ -1172,7 +1267,10 @@ section = "10.4"
 title = "Deauth → 4-way handshake → 離線爆破"
 feasibility = 4
 exit_evidence = "other-build"
-week = "W07"
+week = "W08"
+rescheduled_from = "W07"
+reschedule_date = "2026-08-18"
+reschedule_reason = '''需要 monitor mode + 封包注入的無線網卡，而本實驗室只有乙太網卡（Realtek RTL8153，USB Gigabit Ethernet）。這不是時間問題也不是排序問題，是儀器不存在：沒有適配器就沒有量測，而「設定裡 WPS 是開的」不等於「這台的 WPS PIN 可以被還原」。採購清單與型號取捨見 docs/lab-inventory.md（建議 AR9271，約 US$30，因為這台只有 2.4 GHz）。另外三項（P7-3 / P7-6 / P7-9）就算買了也還要先解決輻射範圍的問題：deauth 與 beacon 注入會打到範圍內所有裝置，那跟兩個埠之間拉一條線是不同的同意情境，登記簿已經因為同一個理由砍掉三項。'''
 caution = "只對自有 client 的 MAC 定向送。廣播 deauth 會打到範圍內所有第三方裝置，不做"
 predict = '無 WPA3/SAE，所以 handshake 一抓到就可離線爆破'
 refute = '抓不到 handshake → client 端有 PMF/802.11w，那本身是一個結論'
@@ -1184,7 +1282,10 @@ section = "10.5"
 title = "預設 PSK 推導（或直接讀 COMPDS）"
 feasibility = 3
 exit_evidence = "unverified"
-week = "W07"
+week = "W08"
+rescheduled_from = "W07"
+reschedule_date = "2026-08-18"
+reschedule_reason = '''需要 monitor mode + 封包注入的無線網卡，而本實驗室只有乙太網卡（Realtek RTL8153，USB Gigabit Ethernet）。這不是時間問題也不是排序問題，是儀器不存在：沒有適配器就沒有量測，而「設定裡 WPS 是開的」不等於「這台的 WPS PIN 可以被還原」。採購清單與型號取捨見 docs/lab-inventory.md（建議 AR9271，約 US$30，因為這台只有 2.4 GHz）。另外三項（P7-3 / P7-6 / P7-9）就算買了也還要先解決輻射範圍的問題：deauth 與 beacon 注入會打到範圍內所有裝置，那跟兩個埠之間拉一條線是不同的同意情境，登記簿已經因為同一個理由砍掉三項。'''
 predict = '出廠 PSK 已經在 COMPDS 裡解出來了，所以「推導」這條的價值只在於它是否為全型號通用'
 refute = '推導公式算出來的值與 COMPDS 裡的不同 → 公式不成立，只剩單機事實'
 
@@ -1205,7 +1306,10 @@ section = "10.7"
 title = "WDS / Repeater 模式 → KRACK"
 feasibility = 2
 exit_evidence = "unverified"
-week = "W07"
+week = "W08"
+rescheduled_from = "W07"
+reschedule_date = "2026-08-18"
+reschedule_reason = '''需要 monitor mode + 封包注入的無線網卡，而本實驗室只有乙太網卡（Realtek RTL8153，USB Gigabit Ethernet）。這不是時間問題也不是排序問題，是儀器不存在：沒有適配器就沒有量測，而「設定裡 WPS 是開的」不等於「這台的 WPS PIN 可以被還原」。採購清單與型號取捨見 docs/lab-inventory.md（建議 AR9271，約 US$30，因為這台只有 2.4 GHz）。另外三項（P7-3 / P7-6 / P7-9）就算買了也還要先解決輻射範圍的問題：deauth 與 beacon 注入會打到範圍內所有裝置，那跟兩個埠之間拉一條線是不同的同意情境，登記簿已經因為同一個理由砍掉三項。'''
 predict = 'build 日期 2017-11-21 晚於 KRACK 公開日 2017-10-16 僅一個月，Realtek 是否併入修補無公開紀錄，是純實測題'
 refute = '重放 message 3 沒有造成 nonce 重用 → 已修補，那是一個可寫的正面結論'
 
@@ -1216,7 +1320,10 @@ section = "10.8"
 title = "FragAttacks"
 feasibility = 2
 exit_evidence = "unverified"
-week = "W07"
+week = "W08"
+rescheduled_from = "W07"
+reschedule_date = "2026-08-18"
+reschedule_reason = '''需要 monitor mode + 封包注入的無線網卡，而本實驗室只有乙太網卡（Realtek RTL8153，USB Gigabit Ethernet）。這不是時間問題也不是排序問題，是儀器不存在：沒有適配器就沒有量測，而「設定裡 WPS 是開的」不等於「這台的 WPS PIN 可以被還原」。採購清單與型號取捨見 docs/lab-inventory.md（建議 AR9271，約 US$30，因為這台只有 2.4 GHz）。另外三項（P7-3 / P7-6 / P7-9）就算買了也還要先解決輻射範圍的問題：deauth 與 beacon 注入會打到範圍內所有裝置，那跟兩個埠之間拉一條線是不同的同意情境，登記簿已經因為同一個理由砍掉三項。'''
 
 [[case]]
 id = "P7-11"
@@ -1251,6 +1358,8 @@ title = "其他 7 個儲存型注入點"
 feasibility = 3
 exit_evidence = "unverified"
 week = "W07"
+predict = '扣掉 `P8-1` 的 DHCP hostname，另外七個是：無線 client 的 MAC / 名稱（`formWirelessTbl`）、UPnP `NewPortMappingDescription`、惡意 Beacon 的 SSID（Site Survey）、NetBIOS / mDNS 名稱、PPPoE server name、DDNS / NTP 回應、失敗登入的帳號名與 `User-Agent`（`formSysLog`）。**其中只有三個這一週測得到**：UPnP 描述欄（52869 開著，`P1-10` 已證實 miniigd 在跑）、`formSysLog` 那一組、以及 PPPoE server name（要架假 PPPoE，與 `P8-19` 同一趟）。惡意 Beacon 需要監聽模式網卡（已隨 `P7-3` 移到 W08），無線 client 名稱需要有裝置連上這台的 Wi-Fi，NetBIOS / mDNS 這台沒有對應 daemon —— 55 個 ELF 裡沒有 nmbd 也沒有 avahi。**每一個都先白盒讀模板再送封包**：docroot 的 143 個檔在 dump 裡，有沒有輸出編碼是讀得出來的'
+refute = '模板對這些欄位都做了輸出編碼 → 整組儲存型 XSS 收掉，而那是一個結論不是失敗。反過來，模板沒有編碼但實機送進去的值被截斷或消失 → 過濾發生在寫入端而不是輸出端，那要指出是哪一個 handler 做的，否則「有 XSS」與「送不進去」會被寫成同一件事'
 
 [[case]]
 id = "P8-3"
@@ -1272,6 +1381,8 @@ feasibility = 4
 exit_evidence = "presumed"
 week = "W07"
 caution = "會改掉 flash 裡的管理密碼。排在同一梯次最後，且要能用 P0-1 的備份還原"
+predict = '`P10-3` 已經在這台實機上證實：未認證 POST `/boafrm/formPasswordSetup`、表單裡一個現行密碼欄位都不帶，就改得掉管理密碼。所以這一條要測的**不是「改不改得掉」**——那是已知的——**而是跨站的那一半**：由受害者瀏覽器發出、`Origin` 與 `Referer` 指向攻擊者網域的表單 POST，會不會被同樣接受。`P2-7` 顯示這台從不送 `Set-Cookie`、授權是逐請求的 HTTP Basic，所以連「受害者要先登入」這個前提都不需要。預期完全成立'
+refute = '帶著外部 `Origin` / `Referer` 的 POST 行為與 `curl` 直送不同 → 存在某種來源檢查，`P8-3` 的前提要一起重寫；或密碼改掉了但新密碼登不進去 → 寫進 MIB 的欄位與登入路徑讀的欄位不是同一個，那比 CSRF 本身更值得追，因為它代表 `P10-3` 的「改掉了」是寫進了一個沒人讀的地方'
 
 [[case]]
 id = "P8-5"
@@ -1293,6 +1404,8 @@ title = "DNS rebinding 完整鏈"
 feasibility = 3
 exit_evidence = "unverified"
 week = "W07"
+predict = '這一條整條押在 `P8-5` 上：`check_host` 若不驗 Host，rebinding 在協定層成立。**但這台上 rebinding 的價值比手冊寫的低，而理由是本專案自己量出來的**——`P2-7` 已證實授權是逐請求的 HTTP Basic、這台從不送 `Set-Cookie`，而 `P2-1` 證實 `/boafrm/*` 在門外。攻擊者要的動作用 `P8-3` 的盲打 CSRF 就做得到，rebinding 只多買到一件事：**讀得到回應內容**，也就是把 `/config.dat` 抓回去'
+refute = '`P8-5` 顯示 Host 被檢查 → 這條在前提上就不成立，先解 Host 再談。或鏈建起來了但瀏覽器沒有重新解析（DNS pinning）→ 那是瀏覽器的行為不是這台的性質，要記成方法限制，**不准寫成「這台不受 rebinding 影響」**'
 
 [[case]]
 id = "P8-7"
@@ -1303,6 +1416,8 @@ feasibility = 3
 exit_evidence = "presumed"
 week = "W07"
 caution = "只在隔離網段做，WAN 側接的是假 ISP。真的把管理介面推上網際網路不在授權範圍"
+predict = '52869/tcp 開著（`P1-2`），且 `P1-10` 證實 miniigd 在跑，所以 `AddPortMapping` 打得到。預期 `NewInternalClient` 不會被驗證等於請求來源 IP，因此可以把 WAN 的一個埠映射到路由器自己的 `10.1.1.1:80`，而 `NewLeaseDuration=0` 讓它不過期。若成立，本手冊裡所有標成 LAN-only 的東西**在協定層上**都變成 WAN 可達'
+refute = '`AddPortMapping` 回 SOAP error，或映射建起來但 `NewInternalClient` 被強制改寫成請求來源 IP → 這個版本做了來源檢查，那要記下 miniigd 的版本。**版本要從 binary 認，不准從 banner 認**：`P1-10` 已經發現這台的 miniigd 自報 `Server: miniupnpd/1.4`，那是另一個 codebase 的名字。另一種反證是映射建起來了但 WAN 側打不通 → 那是 iptables 沒有跟著開，映射與轉發是兩件事'
 
 [[case]]
 id = "P8-8"
@@ -1346,6 +1461,8 @@ title = "假 NTP / 假 DDNS / 假 DNS 回應（SSRF 類）"
 feasibility = 3
 exit_evidence = "unverified"
 week = "W07"
+predict = '三類主動連線的 binary 全都在這台的 rootfs 裡：`/bin/ntpclient`、`/bin/ntp_inet`、`/bin/ntp.sh`；`/bin/ddns_inet`、`/bin/updatedd`、`/bin/ddns.sh`；`/bin/dnrd`、`/bin/dnsmasq`、`/bin/dns_protocl`。**但這一週能測到的只有觸發與觀測那一半**：要證明畸形回應會打壞解析器，得先讀那幾支 binary，而一支都沒讀過。預期 NTP 與 DDNS 在被啟用後會主動對外連線，流量是明文，在隔離網段上完整可觀測'
+refute = '隔離網段上抓不到任何 NTP 或 DDNS 的對外請求 → 這些 client 沒有被啟動，或觸發條件不是「WAN 連上」。那時**要先答出誰啟動它們、條件是什麼**，答不出來這條的判定就沒有基礎 —— 與 `P6-7` 對 `cwmpClient` 的要求同一個標準'
 
 [[case]]
 id = "P8-12"
@@ -1378,6 +1495,8 @@ feasibility = 4
 exit_evidence = "presumed"
 week = "W07"
 caution = "只掃隔離網段內自己的兩台。這一項的價值是論證影響範圍，不是真的去掃東西"
+predict = '`P3-3` 已在這台實機上確認 `formSysCmd` 未認證命令執行成立，`P8-15` 已盤點過命令面：rootfs 沒有 `nc` / `tftp` / `curl`，busybox 自報的 48 個 applet 也沒有，但 `/bin/wget`、`/bin/ping`、`/bin/traceroute`、`/bin/nslookup` 都在。**所以偵察做得到，但做法不是 `nmap`**，是拿 `ping` 的回傳碼與 `wget` 的連線行為當 oracle。這一項的價值是論證影響範圍：這台本身就是一台內網掃描器，而它坐在 NAT 的內側'
+refute = '`ping` 或 `wget` 在裝置上跑得起來卻沒有可觀測的回傳差異 → `P8-15` 的命令盤點漏掉了「存在」與「可用」的差別，那一條要補。或掃描輸出取不回來 → `P3-3` 的 docroot oracle 對多行輸出不適用，那是方法限制，要寫清楚而不是算成「掃不到」'
 
 [[case]]
 id = "P8-15"
@@ -1398,6 +1517,9 @@ title = "Slowloris（S-2）"
 feasibility = 4
 exit_evidence = "presumed"
 week = "W07"
+caution = "打完之後 boa 可能不會自己回來。排在同一梯次會弄掉 boa 的那幾項旁邊，不要排在需要 web 服務活著的測試前面"
+predict = 'Boa 0.94 是單行程 `select()` 迴圈，連線上限由編譯期常數與 `getrlimit` 決定，所以半開連線佔滿之後管理介面應該完全不回應。**但這一條的觀測面要先講清楚，否則量到的東西會被歸錯**：`P4-1` / `P4-3` 已經證實這台一個請求就能讓 `boa` 永久消失，所以「打完之後 80 埠不回應」在這台上有兩個成因。判定必須包含**停止攻擊之後服務自己回來**——會回來的是 DoS，不回來的是 `P4-*` 的崩潰'
+refute = '停止攻擊後服務沒有自己恢復 → 那不是 Slowloris，是把 `boa` 打死了，結果要歸到 `P4-*` 而不是這裡。或連線數拉到上限而管理介面照常回應 → 這個 build 不是單行程模型，`boa` 的連線處理要回頭讀'
 
 [[case]]
 id = "P8-17"
@@ -1430,6 +1552,8 @@ title = "WAN 側 DHCP / PPPoE 攻擊（S-7 / S-8）"
 feasibility = 3
 exit_evidence = "unverified"
 week = "W07"
+predict = '兩條路都存在：`/bin/udhcpc` 與 `/usr/share/udhcpc/eth1.{sh,bound,renew,deconfig}`（`eth1` 是 WAN），以及 `/bin/pppd`、`/bin/pppoe.sh`、`/bin/pppoe_conn_patch.sh`、`/bin/pppoe_disc_patch.sh`。**udhcpc 那條特別值得看**，因為 `eth1.bound` 是一支 shell 腳本，而 DHCP 回應裡的 hostname / domain / classless-route 是攻擊者完全可控的字串 —— 若腳本把它們不加引號地展開，那是一條**繞過 `boa` 的注入路徑**，與 `P8-8` 同一個類別而且從 WAN 側就打得到。先白盒讀 `eth1.bound`，再決定要不要架假 DHCP server'
+refute = '讀完發現 `eth1.bound` 對所有 DHCP 提供的值都加了引號，或只透過 `flash set` 寫進 MIB 而不做字串展開 → 這條收掉，而那是一個結論。或架起假 server 之後這台根本不從 WAN 要 DHCP → WAN 模式預設不是 DHCP，要先從 COMPCS 確認 `WAN_DHCP` 的值，不能從「它沒有要位址」推論成「它沒有這個功能」'
 
 [[case]]
 id = "P8-20"
@@ -1463,6 +1587,22 @@ feasibility = 3
 exit_evidence = "other-build"
 week = "W07"
 cut_reason = '不可逆，而且它的作用是把一個已知後門重新裝進一台已經修掉它的裝置。要證明的性質（無韌體簽章、無 anti-rollback）已經由靜態分析建立，回刷不會讓那個結論更真。'
+
+[[case]]
+id = "P8-24"
+phase = "8"
+section = "11.5"
+title = "設定區失效時開機腳本自己開 telnet（fail-open，本專案獨家）"
+feasibility = 4
+exit_evidence = "static"
+week = "W07"
+star = true
+predict = '''`/bin/startup.sh` 由 `rcS` 直接呼叫，開頭是這個結構：`flash test-dsconf` 失敗**而且** `flash test-csconf` 也失敗時，走 `flash default-sw`，然後**明文寫著 `flash set TELNET_ENABLED 1`**。也就是說兩個設定區同時無效，這台會用出廠預設開機**並且自己把 telnet 打開**，而 `/etc/passwd.org` 裡的 `root` / `123456` 與 `onlime_r` / `12345`（uid 0）從 2015 到現在沒動過（W02 的三版對照）。
+
+**但這條不能只從腳本讀出來，因為它取決於 `flash` 的語義而不是腳本的字面：** `$LOADDEFSW` 之後還有一段 `test-csconf` 失敗就跑 `$LOADDS`（`flash reset1`，把 default 蓋回 current）。若 `default-sw` 只修好 COMPDS 而沒修好 COMPCS，那個 `reset1` 會把剛剛 `set` 的 `TELNET_ENABLED 1` 蓋掉，整條就不成立。預測是**成立**，理由是 `default-sw` 的名字與位置都指向它同時建立兩區，但這一半是推論不是量測。
+
+若成立，它翻掉 `P8-12` 的前提：那一條說鏈卡在「fwrecon 沒有 COMPCS encoder，做不出有效的設定檔」，而這裡要的是**無效**的設定區，那不需要 encoder。'''
+refute = '''兩區都填成無效之後開機，`TELNET_ENABLED` 仍然是 0 → 對腳本的讀法錯了，或 `reset1` 把它蓋掉了。**兩種都要分辨清楚**：跑完之後既要讀 `flash get TELNET_ENABLED`，也要 dump 兩個設定區看誰被寫過，否則「沒開」會被寫成「這條不存在」而實際上是「開了又被關掉」——後者是同一個缺陷的另一種形狀。另一個反證方向：`test-dsconf` / `test-csconf` 的失敗條件比 checksum 嚴格得多（例如只認某個 signature），使得攻擊者能造成的損壞不會被判為無效 → 那這條在模擬下成立而在真實攻擊面上不成立，要照這樣寫。'''
 
 [[case]]
 id = "P8-23"
@@ -1521,6 +1661,8 @@ title = "搶重開機瞬間的救援窗口上傳韌體"
 feasibility = 2
 exit_evidence = "unverified"
 week = "W07"
+predict = '開機記錄（`dumps/uart-boot.log`）顯示 loader 印完 `---RealTek(RTL8196E)at 2014.04.22...` 之後**直接** `Jump to image start=0x80500000`，中間沒有任何網路初始化、沒有等待提示、沒有倒數。`P9-3` 進得去救援模式，但那是靠序列埠連續送 ESC 打斷開機才進去的，而 `reports/bootloader-unit-2018.json` 裡的 `IPCONFIG` / `AUTOBURN` / `LOADADDR` / TFTP 字串全部屬於命令模式。所以預期**這個救援窗口不是遠端可達的**：TFTP 堆疊只在命令模式下起來，而進命令模式需要 UART'
+refute = '在一次重開機期間，隔離網段上的主機對 loader 送 ARP 或 TFTP 請求得到回應，**而全程沒有碰序列埠** → loader 在 Linux 之前就服務網路。那麼任何能讓這台重開機的人（`P3-3` 的 `formSysCmd` 就可以）都能從 LAN 改寫韌體，這一條的嚴重度要整個上調，而且它會變成本專案最嚴重的發現。觀測要用被動 tcpdump 全程錄，不能只看主動探測有沒有回應 —— 窗口若只有幾百毫秒，主動探測會錯過它而被動錄不會'
 
 [[case]]
 id = "P9-5"
@@ -1529,7 +1671,10 @@ section = "12.4"
 title = "SPI 直讀 dump（第二支儀器）"
 feasibility = 2
 exit_evidence = "presumed"
-week = "W07"
+week = "W08"
+rescheduled_from = "W07"
+reschedule_date = "2026-08-18"
+reschedule_reason = '''需要 SPI 燒錄器與 SOIC-8 夾具，本實驗室沒有。這一項的價值不在「再讀一次」，而在**第二支獨立儀器**：目前 flash 的每一個 byte 級主張都只有一個來源 —— 透過 boot loader 自己的 FLR 指令、走裝置自己的 UART。兩次全讀 byte 相同是很強的內部檢查，但兩次都走同一條路。本 repo 的第一條證據規則就是「沒有單一工具的主張」，所以這一項是拿來修補那個弱點的，不是重複勞動。採購與電壓陷阱（常見 CH341A 板子對資料線輸出 5V，而這顆 flash 是 3.3V）見 docs/lab-inventory.md。'''
 star = true
 caution = "桌上那片 CH341A 實測是未改板的 5V 版本，每一支腳都對 3.3V 的顆粒輸出 5V。夾之前一定要量 CS#/CLK/DI"
 predict = '目前兩次全讀都走 bootloader 的 FLR，所以一個系統性錯誤的 FLR 對兩次讀取都是隱形的。第二支儀器就是為了打掉這個單點'
@@ -1542,7 +1687,10 @@ section = "12.4"
 title = "SPI 直寫植入"
 feasibility = 2
 exit_evidence = "presumed"
-week = "W07"
+week = "W08"
+rescheduled_from = "W07"
+reschedule_date = "2026-08-18"
+reschedule_reason = '''需要 SPI 燒錄器與 SOIC-8 夾具，本實驗室沒有。這一項的價值不在「再讀一次」，而在**第二支獨立儀器**：目前 flash 的每一個 byte 級主張都只有一個來源 —— 透過 boot loader 自己的 FLR 指令、走裝置自己的 UART。兩次全讀 byte 相同是很強的內部檢查，但兩次都走同一條路。本 repo 的第一條證據規則就是「沒有單一工具的主張」，所以這一項是拿來修補那個弱點的，不是重複勞動。採購與電壓陷阱（常見 CH341A 板子對資料線輸出 5V，而這顆 flash 是 3.3V）見 docs/lab-inventory.md。'''
 caution = "最高風險。P0-3 與 P9-3 都通過之前不做"
 
 [[case]]
@@ -1552,7 +1700,10 @@ section = "12.4"
 title = "讀 JEDEC ID（flash 型號的第二來源）"
 feasibility = 2
 exit_evidence = "presumed"
-week = "W07"
+week = "W08"
+rescheduled_from = "W07"
+reschedule_date = "2026-08-18"
+reschedule_reason = '''需要 SPI 燒錄器與 SOIC-8 夾具，本實驗室沒有。這一項的價值不在「再讀一次」，而在**第二支獨立儀器**：目前 flash 的每一個 byte 級主張都只有一個來源 —— 透過 boot loader 自己的 FLR 指令、走裝置自己的 UART。兩次全讀 byte 相同是很強的內部檢查，但兩次都走同一條路。本 repo 的第一條證據規則就是「沒有單一工具的主張」，所以這一項是拿來修補那個弱點的，不是重複勞動。採購與電壓陷阱（常見 CH341A 板子對資料線輸出 5V，而這顆 flash 是 3.3V）見 docs/lab-inventory.md。'''
 star = true
 predict = '目前「Eon EN25QH32B」只有一個來源：封裝上的字。flashrom 同意它是 4096 KiB 並不獨立，因為它的資料庫就是用同一個型號名索引的'
 refute = 'JEDEC ID 對應到別的廠牌或別的容量 → 封裝上的字被誤讀，或這顆是換過的'
@@ -1564,7 +1715,10 @@ section = "12.5"
 title = "EJTAG"
 feasibility = 1
 exit_evidence = "unverified"
-week = "W07"
+week = "W08"
+rescheduled_from = "W07"
+reschedule_date = "2026-08-18"
+reschedule_reason = '''需要 EJTAG 探針（BusPirate 或 FT2232 + OpenOCD），本實驗室沒有，而且板子上是否有可用的 EJTAG 焊盤本身也還沒確認過。docs/lab-inventory.md 對這一項的建議是**不要買**：boot loader 主控台已經提供記憶體讀寫，那是 EJTAG 在這裡會多給的大部分東西。所以這一項移到 W08 的意思是「留著不做」，不是「等器材」。'''
 
 [[case]]
 id = "P9-9"
@@ -1587,8 +1741,13 @@ section = "12.7"
 title = "改造韌體回刷 / implant"
 feasibility = 3
 exit_evidence = "presumed"
-week = "W07"
+week = "W08"
+rescheduled_from = "W07"
+reschedule_date = "2026-08-18"
+reschedule_reason = '''全 W07 唯一「最高風險且不可逆」的一項，而這台是 G2 與 G4 的單點故障，同時還是 W07 剩下二十幾項網路測試的靶。把不可逆的動作排在會用到那台機器的測試前面，是拿整週去換一項。所以 W07 只做到不可逆之前為止 —— 產生改造映像、從 binary 讀出升級路徑實際檢查哪幾個欄位 —— 那一半獨立成 P9-13；真正的回刷排在 W08 開頭，那時 W07 的量測都已經完成，而 P9-3 的 TFTP 救援路徑與 P0-3 的 FLW 寫回路徑都已經演練過，brick 之後有兩條回來的路。'''
 caution = "最高風險且不可逆。IMG_HEADER_T 的欄位順序已經在 tools/fwrecon/src/fwrecon/rtlimage.py 裡，不要重新猜"
+predict = '`P9-13` 若讀出升級路徑只驗 checksum 不驗簽章，那麼一個用 `fwrecon` 重組、checksum 算對的映像會被接受，implant 成立。回刷管道有兩條：web 的升級 handler，以及 boot loader 的 `IPCONFIG` + `AUTOBURN 1` + TFTP。**預期用後者**，因為它不經過 `boa`，失敗時人就已經在主控台前面'
+refute = '改造映像被拒絕 → `P9-13` 讀出來的檢查欄位不完整，回去讀，不要用試錯法逼它接受。或映像被接受但開機不起來 → 檢查通過不等於映像正確，那時 `P9-3` 的 TFTP 救援是唯一的路，而「救援路徑沒被演練過就不做這一項」是這條改期理由的全部內容'
 
 [[case]]
 id = "P9-11"
@@ -1597,7 +1756,10 @@ section = "12.8"
 title = "短接 SPI 強制落回 bootloader（HW-a）"
 feasibility = 3
 exit_evidence = "unverified"
-week = "W07"
+week = "W08"
+rescheduled_from = "W07"
+reschedule_date = "2026-08-18"
+reschedule_reason = '''需要 SPI 燒錄器與 SOIC-8 夾具，本實驗室沒有。這一項的價值不在「再讀一次」，而在**第二支獨立儀器**：目前 flash 的每一個 byte 級主張都只有一個來源 —— 透過 boot loader 自己的 FLR 指令、走裝置自己的 UART。兩次全讀 byte 相同是很強的內部檢查，但兩次都走同一條路。本 repo 的第一條證據規則就是「沒有單一工具的主張」，所以這一項是拿來修補那個弱點的，不是重複勞動。採購與電壓陷阱（常見 CH341A 板子對資料線輸出 5V，而這顆 flash 是 3.3V）見 docs/lab-inventory.md。'''
 
 [[case]]
 id = "P9-12"
@@ -1606,7 +1768,22 @@ section = "12.8"
 title = "換自製 flash / tftpboot RAM kernel（HW-b/c）"
 feasibility = 3
 exit_evidence = "unverified"
+week = "W08"
+rescheduled_from = "W07"
+reschedule_date = "2026-08-18"
+reschedule_reason = '''需要 SPI 燒錄器與 SOIC-8 夾具，本實驗室沒有。這一項的價值不在「再讀一次」，而在**第二支獨立儀器**：目前 flash 的每一個 byte 級主張都只有一個來源 —— 透過 boot loader 自己的 FLR 指令、走裝置自己的 UART。兩次全讀 byte 相同是很強的內部檢查，但兩次都走同一條路。本 repo 的第一條證據規則就是「沒有單一工具的主張」，所以這一項是拿來修補那個弱點的，不是重複勞動。採購與電壓陷阱（常見 CH341A 板子對資料線輸出 5V，而這顆 flash 是 3.3V）見 docs/lab-inventory.md。'''
+
+[[case]]
+id = "P9-13"
+phase = "9"
+section = "12.7"
+title = "韌體映像驗收檢查：這個 build 實際驗哪幾個欄位（純靜態，不回刷）"
+feasibility = 4
+exit_evidence = "unverified"
 week = "W07"
+star = true
+predict = '`P9-10` 改期到 W08 之後，留在 W07 的是它不可逆之前的那一半，而那一半本身就是 plan Day 6 的交付物：升級路徑到底檢查什麼。W01 的 `P0-7` 已經從兩個廠商映像還原出 `IMG_HEADER_T`（`tools/fwrecon/src/fwrecon/rtlimage.py`），欄位裡有 `hdr_chksum` 與 `chksum`。預期這個 build **只驗 checksum、不驗簽章、也不驗 `hw_version` 的 anti-rollback** —— 但「幾乎確定沒有簽章」不是結論，**要指到那個比對的位址，或者指出檢查應該在的位置而它不在**。同一個問題要對兩條回刷管道各答一次：web 的升級 handler，以及 boot loader 的 `AUTOBURN` 路徑，因為它們是兩份程式碼'
+refute = '讀出來發現有簽章驗證或 `hw_version` 比對 → `P9-10` 的 W08 計畫要整個重寫，而那比「沒有簽章」有意思得多。或兩條管道的檢查嚴格程度不同 → 那本身是發現：較鬆的那條就是實際的攻擊面，而它可能不是大家會去看的那條'
 
 # ===========================================================================
 # Phase 10 — 設定層

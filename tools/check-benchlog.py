@@ -198,6 +198,8 @@ def check(path: Path) -> int:
                 "written beforehand and stops. Say what was actually seen, or it "
                 "is a prediction rather than a check")
 
+    errors += check_sessions_are_paired(path)
+
     for e in errors:
         print(f"  FAIL  {e}", file=sys.stderr)
     if errors:
@@ -205,8 +207,80 @@ def check(path: Path) -> int:
         return 1
     note = f", {len(exempt)} exempted with a reason" if exempt else ""
     print(f"bench log OK — {len(found)} record cards{note}, every other one with "
-          "a verdict and a refutation check that names both halves")
+          "a verdict and a refutation check that names both halves; every session "
+          "PROGRESS.md records has an entry here on the same date")
     return 0
+
+
+DATE = re.compile(r"(20\d\d-\d\d-\d\d)")
+# A session heading in PROGRESS.md: "## W07 Day 3 — … — 2026-08-18",
+# "## W06 — 2026-08-17 (night)", "## W05 close-out, second pass — 2026-08-17".
+SESSION_HEADING = re.compile(r"^##\s+(W\d\d\b.*)$")
+
+
+def check_sessions_are_paired(bench_path: Path) -> list[str]:
+    """Every session PROGRESS.md records must appear in BENCH-LOG.md by date.
+
+    Why this exists
+    ---------------
+    BENCH-LOG.md owns two things: what was typed and seen on a bench day, **and
+    the plan written before touching anything**. The second half is the one that
+    gets forgotten, because on a desk-only day nothing was typed and the file
+    feels inapplicable — and yet a desk-only day is exactly when the next visit's
+    plan changes, which is exactly what has to be on the record *before* the
+    device is plugged in rather than after.
+
+    It was forgotten on 2026-08-18 (W07 Day 3), on a day that rewrote three of
+    the next visit's predictions. The author noticed, not a tool. Everything else
+    in this file checks the shape of a card that exists; nothing checked that a
+    session had an entry at all, which is the same blind spot instrument bug 22
+    had: the checker read only the file it was pointed at.
+
+    The rule is deliberately weak — it matches on **date**, not on content, so it
+    cannot judge whether the entry says anything useful. A checker that tried
+    would be guessing. This one only refuses the case that actually happens:
+    a session written up in PROGRESS.md with no line in BENCH-LOG.md at all.
+
+    Sessions predating BENCH-LOG.md's first entry are exempt, because W01-W04
+    had no device to be at.
+    """
+    progress = bench_path.parent / "PROGRESS.md"
+    if not progress.exists() or not bench_path.exists():
+        return []
+    # Headings only. Taking every date in the file makes the floor below far too
+    # early -- the prose refers back to W01-era dates -- and it also lets a
+    # passing mention of a date count as an entry for that day, which is the one
+    # thing this check must not accept.
+    bench_dates = {
+        d
+        for line in bench_path.read_text(encoding="utf-8").splitlines()
+        if line.startswith("#")
+        for d in DATE.findall(line)
+    }
+    if not bench_dates:
+        return []
+    first_bench_day = min(bench_dates)
+
+    problems: list[str] = []
+    for line in progress.read_text(encoding="utf-8").splitlines():
+        m = SESSION_HEADING.match(line)
+        if not m:
+            continue
+        heading = m.group(1).strip()
+        dates = DATE.findall(heading)
+        if not dates:
+            continue
+        day = dates[-1]
+        if day < first_bench_day:
+            continue
+        if day not in bench_dates:
+            problems.append(
+                f"PROGRESS.md records a session on {day} ({heading[:60]}) and "
+                f"{bench_path.name} has no entry for that date. If the device was "
+                "not touched, that is not an exemption: this file also owns the "
+                "plan written BEFORE the next visit, and a desk-only day is when "
+                "that plan changes")
+    return problems
 
 
 def main(argv: list[str]) -> int:

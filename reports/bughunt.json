@@ -1,0 +1,3791 @@
+{
+  "producer": "bughunt",
+  "schema_version": "1",
+  "rules": {
+    "R1": "request parameter -> strcpy/strcat/sprintf, unbounded",
+    "R2": "request parameter -> system/popen, directly or via a buffer written in the same function",
+    "R3": "request parameter -> fixed-size global object"
+  },
+  "r2_caveat": "BoaGate R2 has known false positives: 2 of 6 sites on unit-2018 produced no execution when fired at the device (W06, instrument bug 25). A site listed here is a candidate, not a finding.",
+  "known_cve": {
+    "form_formWsc:localPin": "CVE-2025-3987 / CVE-2025-4462 (same source line)",
+    "form_formWsc:peerPin": "CVE-2025-3987 family -- and REFUTED on this unit, W06 P3-1",
+    "form_formWsc:targetAPSsid": "CVE-2025-6299 -- and not an injection here, W06 P3-4",
+    "form_formSysCmd:sysCmd": "CVE-2024-51228 -- the CVE that names this build",
+    "form_formRoute:subnet": "no CVE; project-original D-1, WITHDRAWN W06 -- Talos TALOS-2023-1894 explains it as an sprintf misread"
+  },
+  "builds": {
+    "2.1.2": {
+      "source_sha256": "ddda5a4f3c65b54b96d8cc485f617daf049ad70eab42ac57e87b4b005f17d97a",
+      "findings": 139,
+      "by_rule": {
+        "R1": 96,
+        "R2": 5,
+        "R3": 38
+      },
+      "dispatch_entries": 59
+    },
+    "unit-2018": {
+      "source_sha256": "19fe29d71aa1cc1e893627f17a0f14b03ca75f6936318df4062df4fb153909f7",
+      "findings": 134,
+      "by_rule": {
+        "R1": 92,
+        "R2": 6,
+        "R3": 36
+      },
+      "dispatch_entries": 57
+    },
+    "3.4.0": {
+      "source_sha256": "2f53eeac28be0bd7ad23660834bbd249f87ec00e26cac611655143a8adb80a21",
+      "findings": 84,
+      "by_rule": {
+        "R1": 54,
+        "R2": 8,
+        "R3": 22
+      },
+      "dispatch_entries": 49
+    }
+  },
+  "residue": [
+    {
+      "rule": "R1",
+      "function": "FUN_00459bd4",
+      "parameter": "addrPoolEnd",
+      "builds": [
+        "unit-2018"
+      ],
+      "sink": {
+        "unit-2018": "strcpy"
+      },
+      "site": {
+        "unit-2018": "00459d50"
+      }
+    },
+    {
+      "rule": "R1",
+      "function": "FUN_00459bd4",
+      "parameter": "addrPoolStart",
+      "builds": [
+        "unit-2018"
+      ],
+      "sink": {
+        "unit-2018": "strcpy"
+      },
+      "site": {
+        "unit-2018": "00459d1c"
+      }
+    },
+    {
+      "rule": "R1",
+      "function": "FUN_00459bd4",
+      "parameter": "dnsaddr",
+      "builds": [
+        "unit-2018"
+      ],
+      "sink": {
+        "unit-2018": "strcpy"
+      },
+      "site": {
+        "unit-2018": "00459c6c"
+      }
+    },
+    {
+      "rule": "R1",
+      "function": "FUN_00459bd4",
+      "parameter": "interfacenameds",
+      "builds": [
+        "unit-2018"
+      ],
+      "sink": {
+        "unit-2018": "strcpy"
+      },
+      "site": {
+        "unit-2018": "00459cb0"
+      }
+    },
+    {
+      "rule": "R1",
+      "function": "FUN_00459d74",
+      "parameter": "routername",
+      "builds": [
+        "unit-2018"
+      ],
+      "sink": {
+        "unit-2018": "strcpy"
+      },
+      "site": {
+        "unit-2018": "00459e0c"
+      }
+    },
+    {
+      "rule": "R1",
+      "function": "FUN_0045d95c",
+      "parameter": "AdvDefaultPreference",
+      "builds": [
+        "unit-2018"
+      ],
+      "sink": {
+        "unit-2018": "strcpy"
+      },
+      "site": {
+        "unit-2018": "0045dd68"
+      }
+    },
+    {
+      "rule": "R1",
+      "function": "FUN_0045d95c",
+      "parameter": "interfacename",
+      "builds": [
+        "unit-2018"
+      ],
+      "sink": {
+        "unit-2018": "strcpy"
+      },
+      "site": {
+        "unit-2018": "0045d9d0"
+      }
+    },
+    {
+      "rule": "R1",
+      "function": "form_formAdvanceSetup",
+      "parameter": "submit-url",
+      "builds": [
+        "2.1.2",
+        "3.4.0",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "unit-2018": "strcpy",
+        "3.4.0": "strcpy"
+      },
+      "site": {
+        "2.1.2": "00448e98",
+        "unit-2018": "0044741c",
+        "3.4.0": "0043ba44"
+      }
+    },
+    {
+      "rule": "R1",
+      "function": "form_formAlgSip",
+      "parameter": "submit-url",
+      "builds": [
+        "3.4.0",
+        "unit-2018"
+      ],
+      "sink": {
+        "unit-2018": "strcpy",
+        "3.4.0": "strcpy"
+      },
+      "site": {
+        "unit-2018": "0041df50",
+        "3.4.0": "004170fc"
+      }
+    },
+    {
+      "rule": "R1",
+      "function": "form_formBufferMemory",
+      "parameter": "submit-url",
+      "builds": [
+        "2.1.2",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "unit-2018": "strcpy"
+      },
+      "site": {
+        "2.1.2": "00453f90",
+        "unit-2018": "0045305c"
+      }
+    },
+    {
+      "rule": "R1",
+      "function": "form_formDMZ",
+      "parameter": "submit-url",
+      "builds": [
+        "2.1.2",
+        "3.4.0",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "unit-2018": "strcpy",
+        "3.4.0": "strcpy"
+      },
+      "site": {
+        "2.1.2": "0041d5c0",
+        "unit-2018": "0041e2d0",
+        "3.4.0": "00417444"
+      }
+    },
+    {
+      "rule": "R1",
+      "function": "form_formDdns",
+      "parameter": "submit-url",
+      "builds": [
+        "2.1.2",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "unit-2018": "strcpy"
+      },
+      "site": {
+        "2.1.2": "00455130",
+        "unit-2018": "00454470"
+      }
+    },
+    {
+      "rule": "R1",
+      "function": "form_formDhcpv6s",
+      "parameter": "submit-url",
+      "builds": [
+        "2.1.2",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "unit-2018": "strcpy"
+      },
+      "site": {
+        "2.1.2": "0045d50c",
+        "unit-2018": "0045cd68"
+      }
+    },
+    {
+      "rule": "R1",
+      "function": "form_formDnsv6",
+      "parameter": "submit-url",
+      "builds": [
+        "2.1.2",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "unit-2018": "strcpy"
+      },
+      "site": {
+        "2.1.2": "0045ade0",
+        "unit-2018": "00459f5c"
+      }
+    },
+    {
+      "rule": "R1",
+      "function": "form_formDosCfg",
+      "parameter": "submit-url",
+      "builds": [
+        "2.1.2",
+        "3.4.0",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "unit-2018": "strcpy",
+        "3.4.0": "strcpy"
+      },
+      "site": {
+        "2.1.2": "00454cf8",
+        "unit-2018": "00453eec",
+        "3.4.0": "004450b8"
+      }
+    },
+    {
+      "rule": "R1",
+      "function": "form_formFilter",
+      "parameter": "comment",
+      "builds": [
+        "2.1.2",
+        "3.4.0",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "unit-2018": "strcpy",
+        "3.4.0": "strcpy"
+      },
+      "site": {
+        "2.1.2": "0041e1fc",
+        "unit-2018": "0041f094",
+        "3.4.0": "0041687c"
+      }
+    },
+    {
+      "rule": "R1",
+      "function": "form_formFilter",
+      "parameter": "ip6addr",
+      "builds": [
+        "2.1.2",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "unit-2018": "strcpy"
+      },
+      "site": {
+        "2.1.2": "0041dc74",
+        "unit-2018": "0041ea14"
+      }
+    },
+    {
+      "rule": "R1",
+      "function": "form_formFilter",
+      "parameter": "submit-url",
+      "builds": [
+        "2.1.2",
+        "3.4.0",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "unit-2018": "strcpy",
+        "3.4.0": "strcpy"
+      },
+      "site": {
+        "2.1.2": "0041e614",
+        "unit-2018": "0041f4bc",
+        "3.4.0": "00416bd8"
+      }
+    },
+    {
+      "rule": "R1",
+      "function": "form_formFilter",
+      "parameter": "url",
+      "builds": [
+        "2.1.2",
+        "3.4.0",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "unit-2018": "strcpy",
+        "3.4.0": "strcpy"
+      },
+      "site": {
+        "2.1.2": "0041e110",
+        "unit-2018": "0041efa8",
+        "3.4.0": "004166c4"
+      }
+    },
+    {
+      "rule": "R1",
+      "function": "form_formIPv6Addr",
+      "parameter": "submit-url",
+      "builds": [
+        "2.1.2",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "unit-2018": "strcpy"
+      },
+      "site": {
+        "2.1.2": "0045ba20",
+        "unit-2018": "0045b0ac"
+      }
+    },
+    {
+      "rule": "R1",
+      "function": "form_formIpQoS",
+      "parameter": "comment",
+      "builds": [
+        "2.1.2",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "unit-2018": "strcpy"
+      },
+      "site": {
+        "2.1.2": "0041f054",
+        "unit-2018": "0041ff38"
+      }
+    },
+    {
+      "rule": "R1",
+      "function": "form_formIpQoS",
+      "parameter": "l7_protocol",
+      "builds": [
+        "2.1.2",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "unit-2018": "strcpy"
+      },
+      "site": {
+        "2.1.2": "0041eaec",
+        "unit-2018": "0041f9c0"
+      }
+    },
+    {
+      "rule": "R1",
+      "function": "form_formIpQoS",
+      "parameter": "submit-url",
+      "builds": [
+        "2.1.2",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "unit-2018": "strcpy"
+      },
+      "site": {
+        "2.1.2": "0041f37c",
+        "unit-2018": "00420260"
+      }
+    },
+    {
+      "rule": "R1",
+      "function": "form_formIpv6Setup",
+      "parameter": "submit-url",
+      "builds": [
+        "2.1.2",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "unit-2018": "strcpy"
+      },
+      "site": {
+        "2.1.2": "0045cbc8",
+        "unit-2018": "0045c330"
+      }
+    },
+    {
+      "rule": "R1",
+      "function": "form_formNewSchedule",
+      "parameter": "submit-url",
+      "builds": [
+        "2.1.2",
+        "3.4.0",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "unit-2018": "strcpy",
+        "3.4.0": "strcpy"
+      },
+      "site": {
+        "2.1.2": "00447204",
+        "unit-2018": "0044aa2c",
+        "3.4.0": "00435e2c"
+      }
+    },
+    {
+      "rule": "R1",
+      "function": "form_formNtp",
+      "parameter": "submit-url",
+      "builds": [
+        "2.1.2",
+        "3.4.0",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "unit-2018": "strcpy",
+        "3.4.0": "strcpy"
+      },
+      "site": {
+        "2.1.2": "004534b0",
+        "unit-2018": "00452684",
+        "3.4.0": "00442a34"
+      }
+    },
+    {
+      "rule": "R1",
+      "function": "form_formOpMode2",
+      "parameter": "submit-url",
+      "builds": [
+        "2.1.2",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "unit-2018": "strcpy"
+      },
+      "site": {
+        "2.1.2": "00453918",
+        "unit-2018": "00452824"
+      }
+    },
+    {
+      "rule": "R1",
+      "function": "form_formPortFw",
+      "parameter": "comment",
+      "builds": [
+        "2.1.2",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "unit-2018": "strcpy"
+      },
+      "site": {
+        "2.1.2": "0041cbbc",
+        "unit-2018": "0041d610"
+      }
+    },
+    {
+      "rule": "R1",
+      "function": "form_formPortFw",
+      "parameter": "submit-url",
+      "builds": [
+        "2.1.2",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "unit-2018": "strcpy"
+      },
+      "site": {
+        "2.1.2": "0041cfdc",
+        "unit-2018": "0041d9dc"
+      }
+    },
+    {
+      "rule": "R1",
+      "function": "form_formRadvd",
+      "parameter": "submit-url",
+      "builds": [
+        "2.1.2",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "unit-2018": "strcpy"
+      },
+      "site": {
+        "2.1.2": "0045e764",
+        "unit-2018": "0045e014"
+      }
+    },
+    {
+      "rule": "R1",
+      "function": "form_formRebootSchedule",
+      "parameter": "submit-url",
+      "builds": [
+        "2.1.2",
+        "3.4.0",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "unit-2018": "strcpy",
+        "3.4.0": "strcpy"
+      },
+      "site": {
+        "2.1.2": "00446dac",
+        "unit-2018": "0044a57c",
+        "3.4.0": "00435a10"
+      }
+    },
+    {
+      "rule": "R1",
+      "function": "form_formRoute",
+      "parameter": "submit-url",
+      "builds": [
+        "2.1.2",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "unit-2018": "strcpy"
+      },
+      "site": {
+        "2.1.2": "004570d8",
+        "unit-2018": "004565e4"
+      }
+    },
+    {
+      "rule": "R1",
+      "function": "form_formSSH",
+      "parameter": "submit-url",
+      "builds": [
+        "2.1.2",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "unit-2018": "strcpy"
+      },
+      "site": {
+        "2.1.2": "00455334",
+        "unit-2018": "004546cc"
+      }
+    },
+    {
+      "rule": "R1",
+      "function": "form_formSchedule",
+      "parameter": "webpage",
+      "builds": [
+        "2.1.2",
+        "3.4.0",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "unit-2018": "strcpy",
+        "3.4.0": "strcpy"
+      },
+      "site": {
+        "2.1.2": "00446704",
+        "unit-2018": "00445984",
+        "3.4.0": "004354c0"
+      }
+    },
+    {
+      "rule": "R1",
+      "function": "form_formSpiFwall",
+      "parameter": "submit-url",
+      "builds": [
+        "2.1.2",
+        "3.4.0",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "unit-2018": "strcpy",
+        "3.4.0": "strcpy"
+      },
+      "site": {
+        "2.1.2": "0041d27c",
+        "unit-2018": "0041dcb8",
+        "3.4.0": "00416e8c"
+      }
+    },
+    {
+      "rule": "R1",
+      "function": "form_formStaticDHCP",
+      "parameter": "hostname",
+      "builds": [
+        "2.1.2",
+        "3.4.0",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "unit-2018": "strcpy",
+        "3.4.0": "strcpy"
+      },
+      "site": {
+        "2.1.2": "0041a8d4",
+        "unit-2018": "0041b0d4",
+        "3.4.0": "00414714"
+      }
+    },
+    {
+      "rule": "R1",
+      "function": "form_formSysLog",
+      "parameter": "submit-url",
+      "builds": [
+        "2.1.2",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "unit-2018": "strcpy"
+      },
+      "site": {
+        "2.1.2": "00453d84",
+        "unit-2018": "00452d60"
+      }
+    },
+    {
+      "rule": "R1",
+      "function": "form_formTcpipSetup",
+      "parameter": "submit-url",
+      "builds": [
+        "2.1.2",
+        "3.4.0",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "unit-2018": "strcpy",
+        "3.4.0": "strcpy"
+      },
+      "site": {
+        "2.1.2": "0041a6d8",
+        "unit-2018": "0041ac70",
+        "3.4.0": "00410520"
+      }
+    },
+    {
+      "rule": "R1",
+      "function": "form_formTunnel6",
+      "parameter": "submit-url",
+      "builds": [
+        "2.1.2",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "unit-2018": "strcpy"
+      },
+      "site": {
+        "2.1.2": "0045ac64",
+        "unit-2018": "0045a3a8"
+      }
+    },
+    {
+      "rule": "R1",
+      "function": "form_formVlan",
+      "parameter": "submit-url",
+      "builds": [
+        "2.1.2",
+        "3.4.0",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "unit-2018": "strcpy",
+        "3.4.0": "strcpy"
+      },
+      "site": {
+        "2.1.2": "0041c754",
+        "unit-2018": "0041d064",
+        "3.4.0": "0041c624"
+      }
+    },
+    {
+      "rule": "R1",
+      "function": "form_formWanTcpipSetup",
+      "parameter": "submit-url",
+      "builds": [
+        "2.1.2",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "unit-2018": "strcpy"
+      },
+      "site": {
+        "2.1.2": "00419710",
+        "unit-2018": "00419918"
+      }
+    },
+    {
+      "rule": "R1",
+      "function": "form_formWdsEncrypt",
+      "parameter": "submit-url",
+      "builds": [
+        "2.1.2",
+        "3.4.0",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "unit-2018": "strcpy",
+        "3.4.0": "strcpy"
+      },
+      "site": {
+        "2.1.2": "0044a154",
+        "unit-2018": "0044c924",
+        "3.4.0": "0043eafc"
+      }
+    },
+    {
+      "rule": "R1",
+      "function": "form_formWlAc",
+      "parameter": "comment",
+      "builds": [
+        "2.1.2",
+        "3.4.0",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "unit-2018": "strcpy",
+        "3.4.0": "strcpy"
+      },
+      "site": {
+        "2.1.2": "00448a9c",
+        "unit-2018": "0044bfc0",
+        "3.4.0": "00439f80"
+      }
+    },
+    {
+      "rule": "R1",
+      "function": "form_formWlAc",
+      "parameter": "submit-url",
+      "builds": [
+        "2.1.2",
+        "3.4.0",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "unit-2018": "strcpy",
+        "3.4.0": "strcpy"
+      },
+      "site": {
+        "2.1.2": "00448d78",
+        "unit-2018": "0044c280",
+        "3.4.0": "0043a220"
+      }
+    },
+    {
+      "rule": "R1",
+      "function": "form_formWlEncrypt",
+      "parameter": "submit-url",
+      "builds": [
+        "2.1.2",
+        "3.4.0",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "unit-2018": "strcpy",
+        "3.4.0": "strcpy"
+      },
+      "site": {
+        "2.1.2": "00448808",
+        "unit-2018": "00447234",
+        "3.4.0": "00439bc8"
+      }
+    },
+    {
+      "rule": "R1",
+      "function": "form_formWlSiteSurvey",
+      "parameter": "ifname",
+      "builds": [
+        "2.1.2",
+        "3.4.0",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "unit-2018": "strcpy",
+        "3.4.0": "strcpy"
+      },
+      "site": {
+        "2.1.2": "0044b850",
+        "unit-2018": "0044ac48",
+        "3.4.0": "0043c6bc"
+      }
+    },
+    {
+      "rule": "R1",
+      "function": "form_formWlSiteSurvey",
+      "parameter": "wlan_idx",
+      "builds": [
+        "2.1.2",
+        "3.4.0",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "sprintf",
+        "unit-2018": "sprintf",
+        "3.4.0": "sprintf"
+      },
+      "site": {
+        "2.1.2": "0044bce8",
+        "unit-2018": "0044b0e0",
+        "3.4.0": "0043cb1c"
+      }
+    },
+    {
+      "rule": "R1",
+      "function": "form_formWlSiteSurvey",
+      "parameter": "wlanif",
+      "builds": [
+        "2.1.2",
+        "3.4.0",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "sprintf",
+        "unit-2018": "sprintf",
+        "3.4.0": "sprintf"
+      },
+      "site": {
+        "2.1.2": "0044bb40",
+        "unit-2018": "0044af38",
+        "3.4.0": "0043ce08"
+      }
+    },
+    {
+      "rule": "R1",
+      "function": "form_formWlSiteSurveys",
+      "parameter": "ifname",
+      "builds": [
+        "2.1.2",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "unit-2018": "strcpy"
+      },
+      "site": {
+        "2.1.2": "0044c0dc",
+        "unit-2018": "0044b504"
+      }
+    },
+    {
+      "rule": "R1",
+      "function": "form_formWlWds",
+      "parameter": "comment",
+      "builds": [
+        "2.1.2",
+        "3.4.0",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "unit-2018": "strcpy",
+        "3.4.0": "strcpy"
+      },
+      "site": {
+        "2.1.2": "004497a8",
+        "unit-2018": "0044b9ac",
+        "3.4.0": "0043e644"
+      }
+    },
+    {
+      "rule": "R1",
+      "function": "form_formWlWds",
+      "parameter": "submit-url",
+      "builds": [
+        "2.1.2",
+        "3.4.0",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "unit-2018": "strcpy",
+        "3.4.0": "strcpy"
+      },
+      "site": {
+        "2.1.2": "00449b20",
+        "unit-2018": "0044bd08",
+        "3.4.0": "0043e91c"
+      }
+    },
+    {
+      "rule": "R1",
+      "function": "form_formWlanMultipleAP",
+      "parameter": "submit-url",
+      "builds": [
+        "2.1.2",
+        "3.4.0",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "sprintf",
+        "unit-2018": "sprintf",
+        "3.4.0": "sprintf"
+      },
+      "site": {
+        "2.1.2": "00449508",
+        "unit-2018": "00447ab8",
+        "3.4.0": "0043c580"
+      }
+    },
+    {
+      "rule": "R1",
+      "function": "form_formWlanRedirect",
+      "parameter": "wlan_id",
+      "builds": [
+        "2.1.2",
+        "3.4.0",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "sprintf",
+        "unit-2018": "sprintf",
+        "3.4.0": "sprintf"
+      },
+      "site": {
+        "2.1.2": "0043c624",
+        "unit-2018": "0043b5d4",
+        "3.4.0": "0043fddc"
+      }
+    },
+    {
+      "rule": "R1",
+      "function": "form_formWlanSetup",
+      "parameter": "wlan-url",
+      "builds": [
+        "2.1.2",
+        "3.4.0",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "unit-2018": "strcpy",
+        "3.4.0": "strcpy"
+      },
+      "site": {
+        "2.1.2": "00447b84",
+        "unit-2018": "00446354",
+        "3.4.0": "0043b8c8"
+      }
+    },
+    {
+      "rule": "R1",
+      "function": "form_formWsc",
+      "parameter": "submit-url",
+      "builds": [
+        "2.1.2",
+        "3.4.0",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "unit-2018": "strcpy",
+        "3.4.0": "strcpy"
+      },
+      "site": {
+        "2.1.2": "0044a37c",
+        "unit-2018": "00447d44",
+        "3.4.0": "0043fd04"
+      }
+    },
+    {
+      "rule": "R3",
+      "function": "form_formAdvanceSetup",
+      "parameter": "submit-url",
+      "builds": [
+        "2.1.2",
+        "3.4.0",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "unit-2018": "strcpy",
+        "3.4.0": "strcpy"
+      },
+      "site": {
+        "2.1.2": "00448e98",
+        "unit-2018": "0044741c",
+        "3.4.0": "0043ba44"
+      }
+    },
+    {
+      "rule": "R3",
+      "function": "form_formAlgSip",
+      "parameter": "submit-url",
+      "builds": [
+        "unit-2018"
+      ],
+      "sink": {
+        "unit-2018": "strcpy"
+      },
+      "site": {
+        "unit-2018": "0041df50"
+      }
+    },
+    {
+      "rule": "R3",
+      "function": "form_formBufferMemory",
+      "parameter": "submit-url",
+      "builds": [
+        "2.1.2",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "unit-2018": "strcpy"
+      },
+      "site": {
+        "2.1.2": "00453f90",
+        "unit-2018": "0045305c"
+      }
+    },
+    {
+      "rule": "R3",
+      "function": "form_formDMZ",
+      "parameter": "submit-url",
+      "builds": [
+        "2.1.2",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "unit-2018": "strcpy"
+      },
+      "site": {
+        "2.1.2": "0041d5c0",
+        "unit-2018": "0041e2d0"
+      }
+    },
+    {
+      "rule": "R3",
+      "function": "form_formDdns",
+      "parameter": "submit-url",
+      "builds": [
+        "2.1.2",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "unit-2018": "strcpy"
+      },
+      "site": {
+        "2.1.2": "00455130",
+        "unit-2018": "00454470"
+      }
+    },
+    {
+      "rule": "R3",
+      "function": "form_formDhcpv6s",
+      "parameter": "submit-url",
+      "builds": [
+        "2.1.2",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "unit-2018": "strcpy"
+      },
+      "site": {
+        "2.1.2": "0045d50c",
+        "unit-2018": "0045cd68"
+      }
+    },
+    {
+      "rule": "R3",
+      "function": "form_formDnsv6",
+      "parameter": "submit-url",
+      "builds": [
+        "2.1.2",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "unit-2018": "strcpy"
+      },
+      "site": {
+        "2.1.2": "0045ade0",
+        "unit-2018": "00459f5c"
+      }
+    },
+    {
+      "rule": "R3",
+      "function": "form_formDosCfg",
+      "parameter": "submit-url",
+      "builds": [
+        "2.1.2",
+        "3.4.0",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "unit-2018": "strcpy",
+        "3.4.0": "strcpy"
+      },
+      "site": {
+        "2.1.2": "00454cf8",
+        "unit-2018": "00453eec",
+        "3.4.0": "004450b8"
+      }
+    },
+    {
+      "rule": "R3",
+      "function": "form_formFilter",
+      "parameter": "submit-url",
+      "builds": [
+        "2.1.2",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "unit-2018": "strcpy"
+      },
+      "site": {
+        "2.1.2": "0041e614",
+        "unit-2018": "0041f4bc"
+      }
+    },
+    {
+      "rule": "R3",
+      "function": "form_formIPv6Addr",
+      "parameter": "submit-url",
+      "builds": [
+        "2.1.2",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "unit-2018": "strcpy"
+      },
+      "site": {
+        "2.1.2": "0045ba20",
+        "unit-2018": "0045b0ac"
+      }
+    },
+    {
+      "rule": "R3",
+      "function": "form_formIpQoS",
+      "parameter": "submit-url",
+      "builds": [
+        "2.1.2",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "unit-2018": "strcpy"
+      },
+      "site": {
+        "2.1.2": "0041f37c",
+        "unit-2018": "00420260"
+      }
+    },
+    {
+      "rule": "R3",
+      "function": "form_formIpv6Setup",
+      "parameter": "submit-url",
+      "builds": [
+        "2.1.2",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "unit-2018": "strcpy"
+      },
+      "site": {
+        "2.1.2": "0045cbc8",
+        "unit-2018": "0045c330"
+      }
+    },
+    {
+      "rule": "R3",
+      "function": "form_formNewSchedule",
+      "parameter": "submit-url",
+      "builds": [
+        "2.1.2",
+        "3.4.0",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "unit-2018": "strcpy",
+        "3.4.0": "strcpy"
+      },
+      "site": {
+        "2.1.2": "00447204",
+        "unit-2018": "0044aa2c",
+        "3.4.0": "00435e2c"
+      }
+    },
+    {
+      "rule": "R3",
+      "function": "form_formNtp",
+      "parameter": "submit-url",
+      "builds": [
+        "2.1.2",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "unit-2018": "strcpy"
+      },
+      "site": {
+        "2.1.2": "004534b0",
+        "unit-2018": "00452684"
+      }
+    },
+    {
+      "rule": "R3",
+      "function": "form_formOpMode2",
+      "parameter": "submit-url",
+      "builds": [
+        "2.1.2",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "unit-2018": "strcpy"
+      },
+      "site": {
+        "2.1.2": "00453918",
+        "unit-2018": "00452824"
+      }
+    },
+    {
+      "rule": "R3",
+      "function": "form_formPortFw",
+      "parameter": "submit-url",
+      "builds": [
+        "2.1.2",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "unit-2018": "strcpy"
+      },
+      "site": {
+        "2.1.2": "0041cfdc",
+        "unit-2018": "0041d9dc"
+      }
+    },
+    {
+      "rule": "R3",
+      "function": "form_formRadvd",
+      "parameter": "submit-url",
+      "builds": [
+        "2.1.2",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "unit-2018": "strcpy"
+      },
+      "site": {
+        "2.1.2": "0045e764",
+        "unit-2018": "0045e014"
+      }
+    },
+    {
+      "rule": "R3",
+      "function": "form_formRebootSchedule",
+      "parameter": "submit-url",
+      "builds": [
+        "2.1.2",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "unit-2018": "strcpy"
+      },
+      "site": {
+        "2.1.2": "00446dac",
+        "unit-2018": "0044a57c"
+      }
+    },
+    {
+      "rule": "R3",
+      "function": "form_formRoute",
+      "parameter": "submit-url",
+      "builds": [
+        "2.1.2",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "unit-2018": "strcpy"
+      },
+      "site": {
+        "2.1.2": "004570d8",
+        "unit-2018": "004565e4"
+      }
+    },
+    {
+      "rule": "R3",
+      "function": "form_formSSH",
+      "parameter": "submit-url",
+      "builds": [
+        "2.1.2",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "unit-2018": "strcpy"
+      },
+      "site": {
+        "2.1.2": "00455334",
+        "unit-2018": "004546cc"
+      }
+    },
+    {
+      "rule": "R3",
+      "function": "form_formSchedule",
+      "parameter": "webpage",
+      "builds": [
+        "2.1.2",
+        "3.4.0",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "unit-2018": "strcpy",
+        "3.4.0": "strcpy"
+      },
+      "site": {
+        "2.1.2": "00446704",
+        "unit-2018": "00445984",
+        "3.4.0": "004354c0"
+      }
+    },
+    {
+      "rule": "R3",
+      "function": "form_formSpiFwall",
+      "parameter": "submit-url",
+      "builds": [
+        "2.1.2",
+        "3.4.0",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "unit-2018": "strcpy",
+        "3.4.0": "strcpy"
+      },
+      "site": {
+        "2.1.2": "0041d27c",
+        "unit-2018": "0041dcb8",
+        "3.4.0": "00416e8c"
+      }
+    },
+    {
+      "rule": "R3",
+      "function": "form_formSysLog",
+      "parameter": "submit-url",
+      "builds": [
+        "2.1.2",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "unit-2018": "strcpy"
+      },
+      "site": {
+        "2.1.2": "00453d84",
+        "unit-2018": "00452d60"
+      }
+    },
+    {
+      "rule": "R3",
+      "function": "form_formTcpipSetup",
+      "parameter": "submit-url",
+      "builds": [
+        "2.1.2",
+        "3.4.0",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "unit-2018": "strcpy",
+        "3.4.0": "strcpy"
+      },
+      "site": {
+        "2.1.2": "0041a6d8",
+        "unit-2018": "0041ac70",
+        "3.4.0": "00410520"
+      }
+    },
+    {
+      "rule": "R3",
+      "function": "form_formTunnel6",
+      "parameter": "submit-url",
+      "builds": [
+        "2.1.2",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "unit-2018": "strcpy"
+      },
+      "site": {
+        "2.1.2": "0045ac64",
+        "unit-2018": "0045a3a8"
+      }
+    },
+    {
+      "rule": "R3",
+      "function": "form_formVlan",
+      "parameter": "submit-url",
+      "builds": [
+        "2.1.2",
+        "3.4.0",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "unit-2018": "strcpy",
+        "3.4.0": "strcpy"
+      },
+      "site": {
+        "2.1.2": "0041c754",
+        "unit-2018": "0041d064",
+        "3.4.0": "0041c624"
+      }
+    },
+    {
+      "rule": "R3",
+      "function": "form_formWanTcpipSetup",
+      "parameter": "submit-url",
+      "builds": [
+        "2.1.2",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "unit-2018": "strcpy"
+      },
+      "site": {
+        "2.1.2": "00419710",
+        "unit-2018": "00419918"
+      }
+    },
+    {
+      "rule": "R3",
+      "function": "form_formWdsEncrypt",
+      "parameter": "submit-url",
+      "builds": [
+        "2.1.2",
+        "3.4.0",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "unit-2018": "strcpy",
+        "3.4.0": "strcpy"
+      },
+      "site": {
+        "2.1.2": "0044a154",
+        "unit-2018": "0044c924",
+        "3.4.0": "0043eafc"
+      }
+    },
+    {
+      "rule": "R3",
+      "function": "form_formWlAc",
+      "parameter": "submit-url",
+      "builds": [
+        "2.1.2",
+        "3.4.0",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "unit-2018": "strcpy",
+        "3.4.0": "strcpy"
+      },
+      "site": {
+        "2.1.2": "00448d78",
+        "unit-2018": "0044c280",
+        "3.4.0": "0043a220"
+      }
+    },
+    {
+      "rule": "R3",
+      "function": "form_formWlEncrypt",
+      "parameter": "submit-url",
+      "builds": [
+        "2.1.2",
+        "3.4.0",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "unit-2018": "strcpy",
+        "3.4.0": "strcpy"
+      },
+      "site": {
+        "2.1.2": "00448808",
+        "unit-2018": "00447234",
+        "3.4.0": "00439bc8"
+      }
+    },
+    {
+      "rule": "R3",
+      "function": "form_formWlSiteSurvey",
+      "parameter": "ifname",
+      "builds": [
+        "2.1.2",
+        "3.4.0",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "unit-2018": "strcpy",
+        "3.4.0": "strcpy"
+      },
+      "site": {
+        "2.1.2": "0044b850",
+        "unit-2018": "0044ac48",
+        "3.4.0": "0043c6bc"
+      }
+    },
+    {
+      "rule": "R3",
+      "function": "form_formWlSiteSurveys",
+      "parameter": "ifname",
+      "builds": [
+        "2.1.2",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "unit-2018": "strcpy"
+      },
+      "site": {
+        "2.1.2": "0044c0dc",
+        "unit-2018": "0044b504"
+      }
+    },
+    {
+      "rule": "R3",
+      "function": "form_formWlWds",
+      "parameter": "submit-url",
+      "builds": [
+        "2.1.2",
+        "3.4.0",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "unit-2018": "strcpy",
+        "3.4.0": "strcpy"
+      },
+      "site": {
+        "2.1.2": "00449b20",
+        "unit-2018": "0044bd08",
+        "3.4.0": "0043e91c"
+      }
+    },
+    {
+      "rule": "R3",
+      "function": "form_formWlanRedirect",
+      "parameter": "wlan_id",
+      "builds": [
+        "2.1.2",
+        "3.4.0",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "sprintf",
+        "unit-2018": "sprintf",
+        "3.4.0": "sprintf"
+      },
+      "site": {
+        "2.1.2": "0043c624",
+        "unit-2018": "0043b5d4",
+        "3.4.0": "0043fddc"
+      }
+    },
+    {
+      "rule": "R3",
+      "function": "form_formWlanSetup",
+      "parameter": "wlan-url",
+      "builds": [
+        "2.1.2",
+        "3.4.0",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "unit-2018": "strcpy",
+        "3.4.0": "strcpy"
+      },
+      "site": {
+        "2.1.2": "00447b84",
+        "unit-2018": "00446354",
+        "3.4.0": "0043b8c8"
+      }
+    },
+    {
+      "rule": "R3",
+      "function": "form_formWsc",
+      "parameter": "submit-url",
+      "builds": [
+        "2.1.2",
+        "3.4.0",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "unit-2018": "strcpy",
+        "3.4.0": "strcpy"
+      },
+      "site": {
+        "2.1.2": "0044a37c",
+        "unit-2018": "00447d44",
+        "3.4.0": "0043fd04"
+      }
+    }
+  ],
+  "divergence": [
+    {
+      "rule": "R1",
+      "function": "FUN_00440c34",
+      "parameter": "submit-url",
+      "builds": [
+        "3.4.0"
+      ],
+      "sink": {
+        "3.4.0": "strcpy"
+      },
+      "site": {
+        "3.4.0": "00440c80"
+      },
+      "absent_from": [
+        "2.1.2",
+        "unit-2018"
+      ]
+    },
+    {
+      "rule": "R1",
+      "function": "FUN_00459bd4",
+      "parameter": "addrPoolEnd",
+      "builds": [
+        "unit-2018"
+      ],
+      "sink": {
+        "unit-2018": "strcpy"
+      },
+      "site": {
+        "unit-2018": "00459d50"
+      },
+      "absent_from": [
+        "2.1.2",
+        "3.4.0"
+      ]
+    },
+    {
+      "rule": "R1",
+      "function": "FUN_00459bd4",
+      "parameter": "addrPoolStart",
+      "builds": [
+        "unit-2018"
+      ],
+      "sink": {
+        "unit-2018": "strcpy"
+      },
+      "site": {
+        "unit-2018": "00459d1c"
+      },
+      "absent_from": [
+        "2.1.2",
+        "3.4.0"
+      ]
+    },
+    {
+      "rule": "R1",
+      "function": "FUN_00459bd4",
+      "parameter": "dnsaddr",
+      "builds": [
+        "unit-2018"
+      ],
+      "sink": {
+        "unit-2018": "strcpy"
+      },
+      "site": {
+        "unit-2018": "00459c6c"
+      },
+      "absent_from": [
+        "2.1.2",
+        "3.4.0"
+      ]
+    },
+    {
+      "rule": "R1",
+      "function": "FUN_00459bd4",
+      "parameter": "interfacenameds",
+      "builds": [
+        "unit-2018"
+      ],
+      "sink": {
+        "unit-2018": "strcpy"
+      },
+      "site": {
+        "unit-2018": "00459cb0"
+      },
+      "absent_from": [
+        "2.1.2",
+        "3.4.0"
+      ]
+    },
+    {
+      "rule": "R1",
+      "function": "FUN_00459d74",
+      "parameter": "routername",
+      "builds": [
+        "unit-2018"
+      ],
+      "sink": {
+        "unit-2018": "strcpy"
+      },
+      "site": {
+        "unit-2018": "00459e0c"
+      },
+      "absent_from": [
+        "2.1.2",
+        "3.4.0"
+      ]
+    },
+    {
+      "rule": "R1",
+      "function": "FUN_0045a638",
+      "parameter": "addrPoolEnd",
+      "builds": [
+        "2.1.2"
+      ],
+      "sink": {
+        "2.1.2": "strcpy"
+      },
+      "site": {
+        "2.1.2": "0045a7b4"
+      },
+      "absent_from": [
+        "3.4.0",
+        "unit-2018"
+      ]
+    },
+    {
+      "rule": "R1",
+      "function": "FUN_0045a638",
+      "parameter": "addrPoolStart",
+      "builds": [
+        "2.1.2"
+      ],
+      "sink": {
+        "2.1.2": "strcpy"
+      },
+      "site": {
+        "2.1.2": "0045a780"
+      },
+      "absent_from": [
+        "3.4.0",
+        "unit-2018"
+      ]
+    },
+    {
+      "rule": "R1",
+      "function": "FUN_0045a638",
+      "parameter": "dnsaddr",
+      "builds": [
+        "2.1.2"
+      ],
+      "sink": {
+        "2.1.2": "strcpy"
+      },
+      "site": {
+        "2.1.2": "0045a6d0"
+      },
+      "absent_from": [
+        "3.4.0",
+        "unit-2018"
+      ]
+    },
+    {
+      "rule": "R1",
+      "function": "FUN_0045a638",
+      "parameter": "interfacenameds",
+      "builds": [
+        "2.1.2"
+      ],
+      "sink": {
+        "2.1.2": "strcpy"
+      },
+      "site": {
+        "2.1.2": "0045a714"
+      },
+      "absent_from": [
+        "3.4.0",
+        "unit-2018"
+      ]
+    },
+    {
+      "rule": "R1",
+      "function": "FUN_0045a7d8",
+      "parameter": "routername",
+      "builds": [
+        "2.1.2"
+      ],
+      "sink": {
+        "2.1.2": "strcpy"
+      },
+      "site": {
+        "2.1.2": "0045a870"
+      },
+      "absent_from": [
+        "3.4.0",
+        "unit-2018"
+      ]
+    },
+    {
+      "rule": "R1",
+      "function": "FUN_0045d95c",
+      "parameter": "AdvDefaultPreference",
+      "builds": [
+        "unit-2018"
+      ],
+      "sink": {
+        "unit-2018": "strcpy"
+      },
+      "site": {
+        "unit-2018": "0045dd68"
+      },
+      "absent_from": [
+        "2.1.2",
+        "3.4.0"
+      ]
+    },
+    {
+      "rule": "R1",
+      "function": "FUN_0045d95c",
+      "parameter": "interfacename",
+      "builds": [
+        "unit-2018"
+      ],
+      "sink": {
+        "unit-2018": "strcpy"
+      },
+      "site": {
+        "unit-2018": "0045d9d0"
+      },
+      "absent_from": [
+        "2.1.2",
+        "3.4.0"
+      ]
+    },
+    {
+      "rule": "R1",
+      "function": "FUN_0045e048",
+      "parameter": "AdvDefaultPreference",
+      "builds": [
+        "2.1.2"
+      ],
+      "sink": {
+        "2.1.2": "strcpy"
+      },
+      "site": {
+        "2.1.2": "0045e454"
+      },
+      "absent_from": [
+        "3.4.0",
+        "unit-2018"
+      ]
+    },
+    {
+      "rule": "R1",
+      "function": "FUN_0045e048",
+      "parameter": "interfacename",
+      "builds": [
+        "2.1.2"
+      ],
+      "sink": {
+        "2.1.2": "strcpy"
+      },
+      "site": {
+        "2.1.2": "0045e0bc"
+      },
+      "absent_from": [
+        "3.4.0",
+        "unit-2018"
+      ]
+    },
+    {
+      "rule": "R1",
+      "function": "form_form2ndSetup",
+      "parameter": "submit-url",
+      "builds": [
+        "2.1.2"
+      ],
+      "sink": {
+        "2.1.2": "strcpy"
+      },
+      "site": {
+        "2.1.2": "004145ac"
+      },
+      "absent_from": [
+        "3.4.0",
+        "unit-2018"
+      ]
+    },
+    {
+      "rule": "R1",
+      "function": "form_formAlgSip",
+      "parameter": "submit-url",
+      "builds": [
+        "3.4.0",
+        "unit-2018"
+      ],
+      "sink": {
+        "unit-2018": "strcpy",
+        "3.4.0": "strcpy"
+      },
+      "site": {
+        "unit-2018": "0041df50",
+        "3.4.0": "004170fc"
+      },
+      "absent_from": [
+        "2.1.2"
+      ]
+    },
+    {
+      "rule": "R1",
+      "function": "form_formBufferMemory",
+      "parameter": "submit-url",
+      "builds": [
+        "2.1.2",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "unit-2018": "strcpy"
+      },
+      "site": {
+        "2.1.2": "00453f90",
+        "unit-2018": "0045305c"
+      },
+      "absent_from": [
+        "3.4.0"
+      ]
+    },
+    {
+      "rule": "R1",
+      "function": "form_formDdns",
+      "parameter": "submit-url",
+      "builds": [
+        "2.1.2",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "unit-2018": "strcpy"
+      },
+      "site": {
+        "2.1.2": "00455130",
+        "unit-2018": "00454470"
+      },
+      "absent_from": [
+        "3.4.0"
+      ]
+    },
+    {
+      "rule": "R1",
+      "function": "form_formDhcpv6s",
+      "parameter": "submit-url",
+      "builds": [
+        "2.1.2",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "unit-2018": "strcpy"
+      },
+      "site": {
+        "2.1.2": "0045d50c",
+        "unit-2018": "0045cd68"
+      },
+      "absent_from": [
+        "3.4.0"
+      ]
+    },
+    {
+      "rule": "R1",
+      "function": "form_formDnsv6",
+      "parameter": "submit-url",
+      "builds": [
+        "2.1.2",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "unit-2018": "strcpy"
+      },
+      "site": {
+        "2.1.2": "0045ade0",
+        "unit-2018": "00459f5c"
+      },
+      "absent_from": [
+        "3.4.0"
+      ]
+    },
+    {
+      "rule": "R1",
+      "function": "form_formFilter",
+      "parameter": "ip6addr",
+      "builds": [
+        "2.1.2",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "unit-2018": "strcpy"
+      },
+      "site": {
+        "2.1.2": "0041dc74",
+        "unit-2018": "0041ea14"
+      },
+      "absent_from": [
+        "3.4.0"
+      ]
+    },
+    {
+      "rule": "R1",
+      "function": "form_formIPv6Addr",
+      "parameter": "submit-url",
+      "builds": [
+        "2.1.2",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "unit-2018": "strcpy"
+      },
+      "site": {
+        "2.1.2": "0045ba20",
+        "unit-2018": "0045b0ac"
+      },
+      "absent_from": [
+        "3.4.0"
+      ]
+    },
+    {
+      "rule": "R1",
+      "function": "form_formIpQoS",
+      "parameter": "comment",
+      "builds": [
+        "2.1.2",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "unit-2018": "strcpy"
+      },
+      "site": {
+        "2.1.2": "0041f054",
+        "unit-2018": "0041ff38"
+      },
+      "absent_from": [
+        "3.4.0"
+      ]
+    },
+    {
+      "rule": "R1",
+      "function": "form_formIpQoS",
+      "parameter": "entry_name",
+      "builds": [
+        "3.4.0"
+      ],
+      "sink": {
+        "3.4.0": "strcpy"
+      },
+      "site": {
+        "3.4.0": "00419510"
+      },
+      "absent_from": [
+        "2.1.2",
+        "unit-2018"
+      ]
+    },
+    {
+      "rule": "R1",
+      "function": "form_formIpQoS",
+      "parameter": "entry_name,submit-url",
+      "builds": [
+        "3.4.0"
+      ],
+      "sink": {
+        "3.4.0": "strcpy"
+      },
+      "site": {
+        "3.4.0": "004198bc"
+      },
+      "absent_from": [
+        "2.1.2",
+        "unit-2018"
+      ]
+    },
+    {
+      "rule": "R1",
+      "function": "form_formIpQoS",
+      "parameter": "l7_protocol",
+      "builds": [
+        "2.1.2",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "unit-2018": "strcpy"
+      },
+      "site": {
+        "2.1.2": "0041eaec",
+        "unit-2018": "0041f9c0"
+      },
+      "absent_from": [
+        "3.4.0"
+      ]
+    },
+    {
+      "rule": "R1",
+      "function": "form_formIpQoS",
+      "parameter": "submit-url",
+      "builds": [
+        "2.1.2",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "unit-2018": "strcpy"
+      },
+      "site": {
+        "2.1.2": "0041f37c",
+        "unit-2018": "00420260"
+      },
+      "absent_from": [
+        "3.4.0"
+      ]
+    },
+    {
+      "rule": "R1",
+      "function": "form_formIpv6Setup",
+      "parameter": "submit-url",
+      "builds": [
+        "2.1.2",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "unit-2018": "strcpy"
+      },
+      "site": {
+        "2.1.2": "0045cbc8",
+        "unit-2018": "0045c330"
+      },
+      "absent_from": [
+        "3.4.0"
+      ]
+    },
+    {
+      "rule": "R1",
+      "function": "form_formOpMode",
+      "parameter": "submit-url",
+      "builds": [
+        "3.4.0"
+      ],
+      "sink": {
+        "3.4.0": "strcpy"
+      },
+      "site": {
+        "3.4.0": "004439f4"
+      },
+      "absent_from": [
+        "2.1.2",
+        "unit-2018"
+      ]
+    },
+    {
+      "rule": "R1",
+      "function": "form_formOpMode2",
+      "parameter": "submit-url",
+      "builds": [
+        "2.1.2",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "unit-2018": "strcpy"
+      },
+      "site": {
+        "2.1.2": "00453918",
+        "unit-2018": "00452824"
+      },
+      "absent_from": [
+        "3.4.0"
+      ]
+    },
+    {
+      "rule": "R1",
+      "function": "form_formPortFw",
+      "parameter": "comment",
+      "builds": [
+        "2.1.2",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "unit-2018": "strcpy"
+      },
+      "site": {
+        "2.1.2": "0041cbbc",
+        "unit-2018": "0041d610"
+      },
+      "absent_from": [
+        "3.4.0"
+      ]
+    },
+    {
+      "rule": "R1",
+      "function": "form_formPortFw",
+      "parameter": "ip_subnet,fw_ip",
+      "builds": [
+        "3.4.0"
+      ],
+      "sink": {
+        "3.4.0": "sprintf"
+      },
+      "site": {
+        "3.4.0": "004159b4"
+      },
+      "absent_from": [
+        "2.1.2",
+        "unit-2018"
+      ]
+    },
+    {
+      "rule": "R1",
+      "function": "form_formPortFw",
+      "parameter": "portFwDEl,submit-url",
+      "builds": [
+        "3.4.0"
+      ],
+      "sink": {
+        "3.4.0": "strcpy"
+      },
+      "site": {
+        "3.4.0": "00415d9c"
+      },
+      "absent_from": [
+        "2.1.2",
+        "unit-2018"
+      ]
+    },
+    {
+      "rule": "R1",
+      "function": "form_formPortFw",
+      "parameter": "service_type",
+      "builds": [
+        "3.4.0"
+      ],
+      "sink": {
+        "3.4.0": "strcpy"
+      },
+      "site": {
+        "3.4.0": "00415750"
+      },
+      "absent_from": [
+        "2.1.2",
+        "unit-2018"
+      ]
+    },
+    {
+      "rule": "R1",
+      "function": "form_formPortFw",
+      "parameter": "submit-url",
+      "builds": [
+        "2.1.2",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "unit-2018": "strcpy"
+      },
+      "site": {
+        "2.1.2": "0041cfdc",
+        "unit-2018": "0041d9dc"
+      },
+      "absent_from": [
+        "3.4.0"
+      ]
+    },
+    {
+      "rule": "R1",
+      "function": "form_formRadvd",
+      "parameter": "submit-url",
+      "builds": [
+        "2.1.2",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "unit-2018": "strcpy"
+      },
+      "site": {
+        "2.1.2": "0045e764",
+        "unit-2018": "0045e014"
+      },
+      "absent_from": [
+        "3.4.0"
+      ]
+    },
+    {
+      "rule": "R1",
+      "function": "form_formRebootCheck",
+      "parameter": "submit-url",
+      "builds": [
+        "3.4.0"
+      ],
+      "sink": {
+        "3.4.0": "strcpy"
+      },
+      "site": {
+        "3.4.0": "00443b74"
+      },
+      "absent_from": [
+        "2.1.2",
+        "unit-2018"
+      ]
+    },
+    {
+      "rule": "R1",
+      "function": "form_formRoute",
+      "parameter": "submit-url",
+      "builds": [
+        "2.1.2",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "unit-2018": "strcpy"
+      },
+      "site": {
+        "2.1.2": "004570d8",
+        "unit-2018": "004565e4"
+      },
+      "absent_from": [
+        "3.4.0"
+      ]
+    },
+    {
+      "rule": "R1",
+      "function": "form_formSSH",
+      "parameter": "submit-url",
+      "builds": [
+        "2.1.2",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "unit-2018": "strcpy"
+      },
+      "site": {
+        "2.1.2": "00455334",
+        "unit-2018": "004546cc"
+      },
+      "absent_from": [
+        "3.4.0"
+      ]
+    },
+    {
+      "rule": "R1",
+      "function": "form_formSiteSurveyProfile",
+      "parameter": "submit-url",
+      "builds": [
+        "3.4.0"
+      ],
+      "sink": {
+        "3.4.0": "strcpy"
+      },
+      "site": {
+        "3.4.0": "0044427c"
+      },
+      "absent_from": [
+        "2.1.2",
+        "unit-2018"
+      ]
+    },
+    {
+      "rule": "R1",
+      "function": "form_formStaticDHCP",
+      "parameter": "submit-url",
+      "builds": [
+        "2.1.2",
+        "3.4.0"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "3.4.0": "strcpy"
+      },
+      "site": {
+        "2.1.2": "0041acc4",
+        "3.4.0": "00414bac"
+      },
+      "absent_from": [
+        "unit-2018"
+      ]
+    },
+    {
+      "rule": "R1",
+      "function": "form_formSysLog",
+      "parameter": "submit-url",
+      "builds": [
+        "2.1.2",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "unit-2018": "strcpy"
+      },
+      "site": {
+        "2.1.2": "00453d84",
+        "unit-2018": "00452d60"
+      },
+      "absent_from": [
+        "3.4.0"
+      ]
+    },
+    {
+      "rule": "R1",
+      "function": "form_formTR069Config",
+      "parameter": "submit-url",
+      "builds": [
+        "3.4.0"
+      ],
+      "sink": {
+        "3.4.0": "strcpy"
+      },
+      "site": {
+        "3.4.0": "0044be18"
+      },
+      "absent_from": [
+        "2.1.2",
+        "unit-2018"
+      ]
+    },
+    {
+      "rule": "R1",
+      "function": "form_formTunnel6",
+      "parameter": "submit-url",
+      "builds": [
+        "2.1.2",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "unit-2018": "strcpy"
+      },
+      "site": {
+        "2.1.2": "0045ac64",
+        "unit-2018": "0045a3a8"
+      },
+      "absent_from": [
+        "3.4.0"
+      ]
+    },
+    {
+      "rule": "R1",
+      "function": "form_formUploadConfig",
+      "parameter": "submit-url",
+      "builds": [
+        "3.4.0"
+      ],
+      "sink": {
+        "3.4.0": "strcpy"
+      },
+      "site": {
+        "3.4.0": "00441914"
+      },
+      "absent_from": [
+        "2.1.2",
+        "unit-2018"
+      ]
+    },
+    {
+      "rule": "R1",
+      "function": "form_formWanTcpipSetup",
+      "parameter": "submit-url",
+      "builds": [
+        "2.1.2",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "unit-2018": "strcpy"
+      },
+      "site": {
+        "2.1.2": "00419710",
+        "unit-2018": "00419918"
+      },
+      "absent_from": [
+        "3.4.0"
+      ]
+    },
+    {
+      "rule": "R1",
+      "function": "form_formWep",
+      "parameter": "submit-url",
+      "builds": [
+        "2.1.2",
+        "3.4.0"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "3.4.0": "strcpy"
+      },
+      "site": {
+        "2.1.2": "00447d14",
+        "3.4.0": "00437944"
+      },
+      "absent_from": [
+        "unit-2018"
+      ]
+    },
+    {
+      "rule": "R1",
+      "function": "form_formWlSiteSurvey",
+      "parameter": "submit-url",
+      "builds": [
+        "3.4.0"
+      ],
+      "sink": {
+        "3.4.0": "strcpy"
+      },
+      "site": {
+        "3.4.0": "0043cfec"
+      },
+      "absent_from": [
+        "2.1.2",
+        "unit-2018"
+      ]
+    },
+    {
+      "rule": "R1",
+      "function": "form_formWlSiteSurveys",
+      "parameter": "ifname",
+      "builds": [
+        "2.1.2",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "unit-2018": "strcpy"
+      },
+      "site": {
+        "2.1.2": "0044c0dc",
+        "unit-2018": "0044b504"
+      },
+      "absent_from": [
+        "3.4.0"
+      ]
+    },
+    {
+      "rule": "R2",
+      "function": "form_formSysCmd",
+      "parameter": "sysCmd",
+      "builds": [
+        "unit-2018"
+      ],
+      "sink": {
+        "unit-2018": "system"
+      },
+      "site": {
+        "unit-2018": "0044ef2c"
+      },
+      "explained_by": "CVE-2024-51228 -- the CVE that names this build",
+      "absent_from": [
+        "2.1.2",
+        "3.4.0"
+      ]
+    },
+    {
+      "rule": "R2",
+      "function": "form_formWlSiteSurvey",
+      "parameter": "wlanif",
+      "builds": [
+        "3.4.0"
+      ],
+      "sink": {
+        "3.4.0": "system"
+      },
+      "site": {
+        "3.4.0": "0043ce10"
+      },
+      "absent_from": [
+        "2.1.2",
+        "unit-2018"
+      ]
+    },
+    {
+      "rule": "R3",
+      "function": "FUN_00440c34",
+      "parameter": "submit-url",
+      "builds": [
+        "3.4.0"
+      ],
+      "sink": {
+        "3.4.0": "strcpy"
+      },
+      "site": {
+        "3.4.0": "00440c80"
+      },
+      "absent_from": [
+        "2.1.2",
+        "unit-2018"
+      ]
+    },
+    {
+      "rule": "R3",
+      "function": "form_form2ndSetup",
+      "parameter": "submit-url",
+      "builds": [
+        "2.1.2"
+      ],
+      "sink": {
+        "2.1.2": "strcpy"
+      },
+      "site": {
+        "2.1.2": "004145ac"
+      },
+      "absent_from": [
+        "3.4.0",
+        "unit-2018"
+      ]
+    },
+    {
+      "rule": "R3",
+      "function": "form_formAlgSip",
+      "parameter": "submit-url",
+      "builds": [
+        "unit-2018"
+      ],
+      "sink": {
+        "unit-2018": "strcpy"
+      },
+      "site": {
+        "unit-2018": "0041df50"
+      },
+      "absent_from": [
+        "2.1.2",
+        "3.4.0"
+      ]
+    },
+    {
+      "rule": "R3",
+      "function": "form_formBufferMemory",
+      "parameter": "submit-url",
+      "builds": [
+        "2.1.2",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "unit-2018": "strcpy"
+      },
+      "site": {
+        "2.1.2": "00453f90",
+        "unit-2018": "0045305c"
+      },
+      "absent_from": [
+        "3.4.0"
+      ]
+    },
+    {
+      "rule": "R3",
+      "function": "form_formDMZ",
+      "parameter": "submit-url",
+      "builds": [
+        "2.1.2",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "unit-2018": "strcpy"
+      },
+      "site": {
+        "2.1.2": "0041d5c0",
+        "unit-2018": "0041e2d0"
+      },
+      "absent_from": [
+        "3.4.0"
+      ]
+    },
+    {
+      "rule": "R3",
+      "function": "form_formDdns",
+      "parameter": "submit-url",
+      "builds": [
+        "2.1.2",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "unit-2018": "strcpy"
+      },
+      "site": {
+        "2.1.2": "00455130",
+        "unit-2018": "00454470"
+      },
+      "absent_from": [
+        "3.4.0"
+      ]
+    },
+    {
+      "rule": "R3",
+      "function": "form_formDhcpv6s",
+      "parameter": "submit-url",
+      "builds": [
+        "2.1.2",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "unit-2018": "strcpy"
+      },
+      "site": {
+        "2.1.2": "0045d50c",
+        "unit-2018": "0045cd68"
+      },
+      "absent_from": [
+        "3.4.0"
+      ]
+    },
+    {
+      "rule": "R3",
+      "function": "form_formDnsv6",
+      "parameter": "submit-url",
+      "builds": [
+        "2.1.2",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "unit-2018": "strcpy"
+      },
+      "site": {
+        "2.1.2": "0045ade0",
+        "unit-2018": "00459f5c"
+      },
+      "absent_from": [
+        "3.4.0"
+      ]
+    },
+    {
+      "rule": "R3",
+      "function": "form_formFilter",
+      "parameter": "submit-url",
+      "builds": [
+        "2.1.2",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "unit-2018": "strcpy"
+      },
+      "site": {
+        "2.1.2": "0041e614",
+        "unit-2018": "0041f4bc"
+      },
+      "absent_from": [
+        "3.4.0"
+      ]
+    },
+    {
+      "rule": "R3",
+      "function": "form_formIPv6Addr",
+      "parameter": "submit-url",
+      "builds": [
+        "2.1.2",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "unit-2018": "strcpy"
+      },
+      "site": {
+        "2.1.2": "0045ba20",
+        "unit-2018": "0045b0ac"
+      },
+      "absent_from": [
+        "3.4.0"
+      ]
+    },
+    {
+      "rule": "R3",
+      "function": "form_formIpQoS",
+      "parameter": "entry_name,submit-url",
+      "builds": [
+        "3.4.0"
+      ],
+      "sink": {
+        "3.4.0": "strcpy"
+      },
+      "site": {
+        "3.4.0": "004198bc"
+      },
+      "absent_from": [
+        "2.1.2",
+        "unit-2018"
+      ]
+    },
+    {
+      "rule": "R3",
+      "function": "form_formIpQoS",
+      "parameter": "submit-url",
+      "builds": [
+        "2.1.2",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "unit-2018": "strcpy"
+      },
+      "site": {
+        "2.1.2": "0041f37c",
+        "unit-2018": "00420260"
+      },
+      "absent_from": [
+        "3.4.0"
+      ]
+    },
+    {
+      "rule": "R3",
+      "function": "form_formIpv6Setup",
+      "parameter": "submit-url",
+      "builds": [
+        "2.1.2",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "unit-2018": "strcpy"
+      },
+      "site": {
+        "2.1.2": "0045cbc8",
+        "unit-2018": "0045c330"
+      },
+      "absent_from": [
+        "3.4.0"
+      ]
+    },
+    {
+      "rule": "R3",
+      "function": "form_formNtp",
+      "parameter": "submit-url",
+      "builds": [
+        "2.1.2",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "unit-2018": "strcpy"
+      },
+      "site": {
+        "2.1.2": "004534b0",
+        "unit-2018": "00452684"
+      },
+      "absent_from": [
+        "3.4.0"
+      ]
+    },
+    {
+      "rule": "R3",
+      "function": "form_formOpMode2",
+      "parameter": "submit-url",
+      "builds": [
+        "2.1.2",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "unit-2018": "strcpy"
+      },
+      "site": {
+        "2.1.2": "00453918",
+        "unit-2018": "00452824"
+      },
+      "absent_from": [
+        "3.4.0"
+      ]
+    },
+    {
+      "rule": "R3",
+      "function": "form_formPortFw",
+      "parameter": "submit-url",
+      "builds": [
+        "2.1.2",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "unit-2018": "strcpy"
+      },
+      "site": {
+        "2.1.2": "0041cfdc",
+        "unit-2018": "0041d9dc"
+      },
+      "absent_from": [
+        "3.4.0"
+      ]
+    },
+    {
+      "rule": "R3",
+      "function": "form_formRadvd",
+      "parameter": "submit-url",
+      "builds": [
+        "2.1.2",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "unit-2018": "strcpy"
+      },
+      "site": {
+        "2.1.2": "0045e764",
+        "unit-2018": "0045e014"
+      },
+      "absent_from": [
+        "3.4.0"
+      ]
+    },
+    {
+      "rule": "R3",
+      "function": "form_formRebootCheck",
+      "parameter": "submit-url",
+      "builds": [
+        "3.4.0"
+      ],
+      "sink": {
+        "3.4.0": "strcpy"
+      },
+      "site": {
+        "3.4.0": "00443b74"
+      },
+      "absent_from": [
+        "2.1.2",
+        "unit-2018"
+      ]
+    },
+    {
+      "rule": "R3",
+      "function": "form_formRebootSchedule",
+      "parameter": "submit-url",
+      "builds": [
+        "2.1.2",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "unit-2018": "strcpy"
+      },
+      "site": {
+        "2.1.2": "00446dac",
+        "unit-2018": "0044a57c"
+      },
+      "absent_from": [
+        "3.4.0"
+      ]
+    },
+    {
+      "rule": "R3",
+      "function": "form_formRoute",
+      "parameter": "submit-url",
+      "builds": [
+        "2.1.2",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "unit-2018": "strcpy"
+      },
+      "site": {
+        "2.1.2": "004570d8",
+        "unit-2018": "004565e4"
+      },
+      "absent_from": [
+        "3.4.0"
+      ]
+    },
+    {
+      "rule": "R3",
+      "function": "form_formSSH",
+      "parameter": "submit-url",
+      "builds": [
+        "2.1.2",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "unit-2018": "strcpy"
+      },
+      "site": {
+        "2.1.2": "00455334",
+        "unit-2018": "004546cc"
+      },
+      "absent_from": [
+        "3.4.0"
+      ]
+    },
+    {
+      "rule": "R3",
+      "function": "form_formSiteSurveyProfile",
+      "parameter": "submit-url",
+      "builds": [
+        "3.4.0"
+      ],
+      "sink": {
+        "3.4.0": "strcpy"
+      },
+      "site": {
+        "3.4.0": "0044427c"
+      },
+      "absent_from": [
+        "2.1.2",
+        "unit-2018"
+      ]
+    },
+    {
+      "rule": "R3",
+      "function": "form_formStaticDHCP",
+      "parameter": "submit-url",
+      "builds": [
+        "2.1.2"
+      ],
+      "sink": {
+        "2.1.2": "strcpy"
+      },
+      "site": {
+        "2.1.2": "0041acc4"
+      },
+      "absent_from": [
+        "3.4.0",
+        "unit-2018"
+      ]
+    },
+    {
+      "rule": "R3",
+      "function": "form_formSysLog",
+      "parameter": "submit-url",
+      "builds": [
+        "2.1.2",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "unit-2018": "strcpy"
+      },
+      "site": {
+        "2.1.2": "00453d84",
+        "unit-2018": "00452d60"
+      },
+      "absent_from": [
+        "3.4.0"
+      ]
+    },
+    {
+      "rule": "R3",
+      "function": "form_formTunnel6",
+      "parameter": "submit-url",
+      "builds": [
+        "2.1.2",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "unit-2018": "strcpy"
+      },
+      "site": {
+        "2.1.2": "0045ac64",
+        "unit-2018": "0045a3a8"
+      },
+      "absent_from": [
+        "3.4.0"
+      ]
+    },
+    {
+      "rule": "R3",
+      "function": "form_formUploadConfig",
+      "parameter": "submit-url",
+      "builds": [
+        "3.4.0"
+      ],
+      "sink": {
+        "3.4.0": "strcpy"
+      },
+      "site": {
+        "3.4.0": "00441914"
+      },
+      "absent_from": [
+        "2.1.2",
+        "unit-2018"
+      ]
+    },
+    {
+      "rule": "R3",
+      "function": "form_formWanTcpipSetup",
+      "parameter": "submit-url",
+      "builds": [
+        "2.1.2",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "unit-2018": "strcpy"
+      },
+      "site": {
+        "2.1.2": "00419710",
+        "unit-2018": "00419918"
+      },
+      "absent_from": [
+        "3.4.0"
+      ]
+    },
+    {
+      "rule": "R3",
+      "function": "form_formWep",
+      "parameter": "submit-url",
+      "builds": [
+        "2.1.2",
+        "3.4.0"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "3.4.0": "strcpy"
+      },
+      "site": {
+        "2.1.2": "00447d14",
+        "3.4.0": "00437944"
+      },
+      "absent_from": [
+        "unit-2018"
+      ]
+    },
+    {
+      "rule": "R3",
+      "function": "form_formWlSiteSurveys",
+      "parameter": "ifname",
+      "builds": [
+        "2.1.2",
+        "unit-2018"
+      ],
+      "sink": {
+        "2.1.2": "strcpy",
+        "unit-2018": "strcpy"
+      },
+      "site": {
+        "2.1.2": "0044c0dc",
+        "unit-2018": "0044b504"
+      },
+      "absent_from": [
+        "3.4.0"
+      ]
+    }
+  ],
+  "islands": {
+    "2.1.2": {
+      "docroot": "/home/key/fwre-work/qemu-env-v2.1.2/var/web",
+      "files_read": 148,
+      "handlers_in_table": 59,
+      "handlers_named_by_ui": 48,
+      "islands": [
+        "formAdvanceSetup",
+        "formBufferMemory",
+        "formOpMode2",
+        "formSSH",
+        "formSchedule",
+        "formSiteSurveyProfile",
+        "formSpiFwall",
+        "formWep",
+        "formWizards",
+        "formWlSiteSurveys",
+        "formWlanMultipleAP"
+      ],
+      "island_detail": {
+        "formAdvanceSetup": {
+          "handler_addr": "00448dcc",
+          "gate_sites": [
+            {
+              "rule": "R1",
+              "parameter": "submit-url",
+              "sink": "strcpy",
+              "site": "00448e80"
+            },
+            {
+              "rule": "R1",
+              "parameter": "submit-url",
+              "sink": "strcpy",
+              "site": "00448e98"
+            },
+            {
+              "rule": "R3",
+              "parameter": "submit-url",
+              "sink": "strcpy",
+              "site": "00448e98"
+            }
+          ],
+          "params": [
+            "submit-url"
+          ]
+        },
+        "formBufferMemory": {
+          "handler_addr": "00453dc4",
+          "gate_sites": [
+            {
+              "rule": "R1",
+              "parameter": "submit-url",
+              "sink": "strcpy",
+              "site": "00453f78"
+            },
+            {
+              "rule": "R1",
+              "parameter": "submit-url",
+              "sink": "strcpy",
+              "site": "00453f90"
+            },
+            {
+              "rule": "R3",
+              "parameter": "submit-url",
+              "sink": "strcpy",
+              "site": "00453f90"
+            }
+          ],
+          "params": [
+            "submit-url"
+          ]
+        },
+        "formOpMode2": {
+          "handler_addr": "00453858",
+          "gate_sites": [
+            {
+              "rule": "R1",
+              "parameter": "submit-url",
+              "sink": "strcpy",
+              "site": "00453900"
+            },
+            {
+              "rule": "R1",
+              "parameter": "submit-url",
+              "sink": "strcpy",
+              "site": "00453918"
+            },
+            {
+              "rule": "R3",
+              "parameter": "submit-url",
+              "sink": "strcpy",
+              "site": "00453918"
+            }
+          ],
+          "params": [
+            "submit-url"
+          ]
+        },
+        "formSSH": {
+          "handler_addr": "00455168",
+          "gate_sites": [
+            {
+              "rule": "R1",
+              "parameter": "submit-url",
+              "sink": "strcpy",
+              "site": "0045531c"
+            },
+            {
+              "rule": "R1",
+              "parameter": "submit-url",
+              "sink": "strcpy",
+              "site": "00455334"
+            },
+            {
+              "rule": "R3",
+              "parameter": "submit-url",
+              "sink": "strcpy",
+              "site": "00455334"
+            }
+          ],
+          "params": [
+            "submit-url"
+          ]
+        },
+        "formSchedule": {
+          "handler_addr": "00446358",
+          "gate_sites": [
+            {
+              "rule": "R1",
+              "parameter": "webpage",
+              "sink": "strcpy",
+              "site": "004466ec"
+            },
+            {
+              "rule": "R1",
+              "parameter": "webpage",
+              "sink": "strcpy",
+              "site": "00446704"
+            },
+            {
+              "rule": "R3",
+              "parameter": "webpage",
+              "sink": "strcpy",
+              "site": "00446704"
+            }
+          ],
+          "params": [
+            "webpage"
+          ]
+        },
+        "formSiteSurveyProfile": {
+          "handler_addr": "004517ec",
+          "gate_sites": [],
+          "params": []
+        },
+        "formSpiFwall": {
+          "handler_addr": "0041d04c",
+          "gate_sites": [
+            {
+              "rule": "R1",
+              "parameter": "submit-url",
+              "sink": "strcpy",
+              "site": "0041d264"
+            },
+            {
+              "rule": "R1",
+              "parameter": "submit-url",
+              "sink": "strcpy",
+              "site": "0041d27c"
+            },
+            {
+              "rule": "R3",
+              "parameter": "submit-url",
+              "sink": "strcpy",
+              "site": "0041d27c"
+            }
+          ],
+          "params": [
+            "submit-url"
+          ]
+        },
+        "formWep": {
+          "handler_addr": "00447c38",
+          "gate_sites": [
+            {
+              "rule": "R1",
+              "parameter": "submit-url",
+              "sink": "strcpy",
+              "site": "00447cfc"
+            },
+            {
+              "rule": "R1",
+              "parameter": "submit-url",
+              "sink": "strcpy",
+              "site": "00447d14"
+            },
+            {
+              "rule": "R3",
+              "parameter": "submit-url",
+              "sink": "strcpy",
+              "site": "00447d14"
+            }
+          ],
+          "params": [
+            "submit-url"
+          ]
+        },
+        "formWizards": {
+          "handler_addr": "004511c4",
+          "gate_sites": [],
+          "params": []
+        },
+        "formWlSiteSurveys": {
+          "handler_addr": "0044bff4",
+          "gate_sites": [
+            {
+              "rule": "R1",
+              "parameter": "ifname",
+              "sink": "strcpy",
+              "site": "0044c0dc"
+            },
+            {
+              "rule": "R3",
+              "parameter": "ifname",
+              "sink": "strcpy",
+              "site": "0044c0dc"
+            }
+          ],
+          "params": [
+            "ifname"
+          ]
+        },
+        "formWlanMultipleAP": {
+          "handler_addr": "00448f18",
+          "gate_sites": [
+            {
+              "rule": "R1",
+              "parameter": "submit-url",
+              "sink": "sprintf",
+              "site": "00449508"
+            }
+          ],
+          "params": [
+            "submit-url"
+          ]
+        }
+      },
+      "ui_names_no_handler": [
+        "formAliasIP",
+        "formDlna",
+        "formNatAddrMap",
+        "formNoticeRegister",
+        "formRemoveUsb",
+        "formScript",
+        "formSysCmd"
+      ]
+    },
+    "unit-2018": {
+      "docroot": "/home/key/fwre-work/qemu-env-2018/var/web",
+      "files_read": 146,
+      "handlers_in_table": 57,
+      "handlers_named_by_ui": 43,
+      "islands": [
+        "formAdvanceSetup",
+        "formAlgSip",
+        "formBufferMemory",
+        "formNotice",
+        "formOpMode",
+        "formOpMode2",
+        "formSSH",
+        "formSchedule",
+        "formSiteSurveyProfile",
+        "formSpiFwall",
+        "formSysCmd",
+        "formWep",
+        "formWlSiteSurveys",
+        "formWlanMultipleAP"
+      ],
+      "island_detail": {
+        "formAdvanceSetup": {
+          "handler_addr": "0044734c",
+          "gate_sites": [
+            {
+              "rule": "R1",
+              "parameter": "submit-url",
+              "sink": "strcpy",
+              "site": "00447404"
+            },
+            {
+              "rule": "R1",
+              "parameter": "submit-url",
+              "sink": "strcpy",
+              "site": "0044741c"
+            },
+            {
+              "rule": "R3",
+              "parameter": "submit-url",
+              "sink": "strcpy",
+              "site": "0044741c"
+            }
+          ],
+          "params": [
+            "submit-url"
+          ]
+        },
+        "formAlgSip": {
+          "handler_addr": "0041dd38",
+          "gate_sites": [
+            {
+              "rule": "R1",
+              "parameter": "submit-url",
+              "sink": "strcpy",
+              "site": "0041df38"
+            },
+            {
+              "rule": "R1",
+              "parameter": "submit-url",
+              "sink": "strcpy",
+              "site": "0041df50"
+            },
+            {
+              "rule": "R3",
+              "parameter": "submit-url",
+              "sink": "strcpy",
+              "site": "0041df50"
+            }
+          ],
+          "params": [
+            "submit-url"
+          ]
+        },
+        "formBufferMemory": {
+          "handler_addr": "00452dec",
+          "gate_sites": [
+            {
+              "rule": "R1",
+              "parameter": "submit-url",
+              "sink": "strcpy",
+              "site": "00453044"
+            },
+            {
+              "rule": "R1",
+              "parameter": "submit-url",
+              "sink": "strcpy",
+              "site": "0045305c"
+            },
+            {
+              "rule": "R3",
+              "parameter": "submit-url",
+              "sink": "strcpy",
+              "site": "0045305c"
+            }
+          ],
+          "params": [
+            "submit-url"
+          ]
+        },
+        "formNotice": {
+          "handler_addr": "0045138c",
+          "gate_sites": [],
+          "params": []
+        },
+        "formOpMode": {
+          "handler_addr": "00450030",
+          "gate_sites": [],
+          "params": []
+        },
+        "formOpMode2": {
+          "handler_addr": "00452760",
+          "gate_sites": [
+            {
+              "rule": "R1",
+              "parameter": "submit-url",
+              "sink": "strcpy",
+              "site": "0045280c"
+            },
+            {
+              "rule": "R1",
+              "parameter": "submit-url",
+              "sink": "strcpy",
+              "site": "00452824"
+            },
+            {
+              "rule": "R3",
+              "parameter": "submit-url",
+              "sink": "strcpy",
+              "site": "00452824"
+            }
+          ],
+          "params": [
+            "submit-url"
+          ]
+        },
+        "formSSH": {
+          "handler_addr": "004544f0",
+          "gate_sites": [
+            {
+              "rule": "R1",
+              "parameter": "submit-url",
+              "sink": "strcpy",
+              "site": "004546b4"
+            },
+            {
+              "rule": "R1",
+              "parameter": "submit-url",
+              "sink": "strcpy",
+              "site": "004546cc"
+            },
+            {
+              "rule": "R3",
+              "parameter": "submit-url",
+              "sink": "strcpy",
+              "site": "004546cc"
+            }
+          ],
+          "params": [
+            "submit-url"
+          ]
+        },
+        "formSchedule": {
+          "handler_addr": "004455c8",
+          "gate_sites": [
+            {
+              "rule": "R1",
+              "parameter": "webpage",
+              "sink": "strcpy",
+              "site": "0044596c"
+            },
+            {
+              "rule": "R1",
+              "parameter": "webpage",
+              "sink": "strcpy",
+              "site": "00445984"
+            },
+            {
+              "rule": "R3",
+              "parameter": "webpage",
+              "sink": "strcpy",
+              "site": "00445984"
+            }
+          ],
+          "params": [
+            "webpage"
+          ]
+        },
+        "formSiteSurveyProfile": {
+          "handler_addr": "00450170",
+          "gate_sites": [],
+          "params": []
+        },
+        "formSpiFwall": {
+          "handler_addr": "0041da78",
+          "gate_sites": [
+            {
+              "rule": "R1",
+              "parameter": "submit-url",
+              "sink": "strcpy",
+              "site": "0041dca0"
+            },
+            {
+              "rule": "R1",
+              "parameter": "submit-url",
+              "sink": "strcpy",
+              "site": "0041dcb8"
+            },
+            {
+              "rule": "R3",
+              "parameter": "submit-url",
+              "sink": "strcpy",
+              "site": "0041dcb8"
+            }
+          ],
+          "params": [
+            "submit-url"
+          ]
+        },
+        "formSysCmd": {
+          "handler_addr": "0044ee2c",
+          "gate_sites": [
+            {
+              "rule": "R2",
+              "parameter": "sysCmd",
+              "sink": "system",
+              "site": "0044ef2c"
+            }
+          ],
+          "params": [
+            "sysCmd"
+          ]
+        },
+        "formWep": {
+          "handler_addr": "0043d8b0",
+          "gate_sites": [],
+          "params": []
+        },
+        "formWlSiteSurveys": {
+          "handler_addr": "0044b41c",
+          "gate_sites": [
+            {
+              "rule": "R1",
+              "parameter": "ifname",
+              "sink": "strcpy",
+              "site": "0044b504"
+            },
+            {
+              "rule": "R3",
+              "parameter": "ifname",
+              "sink": "strcpy",
+              "site": "0044b504"
+            }
+          ],
+          "params": [
+            "ifname"
+          ]
+        },
+        "formWlanMultipleAP": {
+          "handler_addr": "004474c8",
+          "gate_sites": [
+            {
+              "rule": "R1",
+              "parameter": "submit-url",
+              "sink": "sprintf",
+              "site": "00447ab8"
+            }
+          ],
+          "params": [
+            "submit-url"
+          ]
+        }
+      },
+      "ui_names_no_handler": [
+        "formOpdRedirect",
+        "formScript",
+        "formWanRedirect"
+      ]
+    }
+  },
+  "self_check": {
+    "gate_findings_joined_to_a_dispatch_entry": 341,
+    "not_joined": 16,
+    "note": "A finding that does not join is in a function the dispatch table does not point at -- a helper, or a handler reached another way. Some are expected; all of them being unjoined means the two reports disagree about addresses and nothing here is trustworthy."
+  }
+}

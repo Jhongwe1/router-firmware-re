@@ -23,9 +23,9 @@ UNIT_DUMP  := $(FWRE_WORK)/dumps/flash-n150rt-console-1.bin
 
 .DEFAULT_GOAL := help
 .PHONY: help setup verify fetch unpack venv test lint recon recon-unit diff check-reports \
-        rtcase rtcase-test todo ledger shellcheck ci clean-work qemu-env qemu-test probe-test \
+        rtcase rtcase-test todo ledger check-ledger shellcheck ci clean-work qemu-env qemu-test probe-test \
         loader-test loader-report doctor check-runsheet runsheet-test \
-        dump-test flash-tools-test photo-test write-test check-benchlog benchlog-test
+        dump-test flash-tools-test photo-test write-test failopen-test alignfix-test check-benchlog benchlog-test
 
 help: ## Show this help
 	@grep -hE '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) \
@@ -126,10 +126,17 @@ runsheet-test: ## Prove the runsheet checker can fail (29 cases)
 # The record-card template lived only in plan/, which is gitignored and which
 # committed files may not quote - so the format BENCH-LOG.md must follow lived
 # where BENCH-LOG.md could not cite it, and drifted out within a week.
-check-benchlog: ## Every bench record card carries a refutation condition
+#
+# It checks a second thing since 2026-08-18, and that one is about the file
+# existing rather than its cards being well formed: **every session PROGRESS.md
+# records must have an entry here on the same date.** A desk-only day feels
+# exempt - nothing was typed at the device - and it is precisely the day the
+# next visit's plan changes, which is the half of this file that gets forgotten.
+# W07 Day 3 forgot it; the author noticed, no tool could have.
+check-benchlog: ## Every bench record card carries a refutation condition, and every session has an entry
 	python3 tools/check-benchlog.py
 
-benchlog-test: ## Prove the bench-log checker can fail (13 cases)
+benchlog-test: ## Prove the bench-log checker can fail (17 cases)
 	bash tools/test-check-benchlog.sh
 
 rtcase: ## G3.75: the test register is frozen and every result carries evidence
@@ -144,6 +151,21 @@ rtcase-test: ## Prove the register gate can actually fail (34 cases)
 ledger: ## Regenerate test-ledger.md from the register + results
 	python3 tools/rtcase.py render
 	python3 tools/rtcase.py check
+
+# The same check .github/workflows/ci.yml runs, and it was the ONE step `make ci`
+# did not have. test-ledger.md is generated from the register; a session that
+# records a result and does not re-render leaves the two disagreeing, and the
+# only thing that noticed was GitHub. That is the failure mode this target
+# exists to remove: `make ci` said "everything CI checks" while being a strict
+# subset of it, so local green and remote red were possible and nothing local
+# could tell you which. Found 2026-08-18, on a staleness the previous session
+# had already committed.
+check-ledger: ## The generated ledger matches the register it comes from
+	@python3 tools/rtcase.py render
+	@git diff --exit-code -- test-ledger.md \
+	  || { echo "test-ledger.md was out of date and has just been regenerated."; \
+	       echo "Commit it in the same commit as the result that changed it."; \
+	       exit 1; }
 
 shellcheck: ## Lint the shell scripts, exactly as CI does
 	shellcheck --severity=warning tools/*.sh tools/setup/*.sh
@@ -183,6 +205,25 @@ photo-test: ## Prove the redaction and annotation guards fire (needs no photogra
 write-test: ## Prove the flash writer refuses every range it must not touch
 	bash tools/test-console-write.sh
 
+# The probe damages a flash image and asks the vendor's boot script what it does
+# about it, so every reading it produces is a difference from a control. Its
+# first working run reported seven states in which nothing happened, because the
+# boot script was being handed to qemu-user as if it were an ELF -- a complete,
+# plausible table of nothing. This suite covers the refusals that need no
+# emulation environment; the three in-run controls need root and a built profile
+# and are enforced a second time by check-reports.py on the committed artefact.
+failopen-test: ## Prove the fail-open probe's refusals fire (needs no device)
+	bash tools/test-failopen-probe.sh
+
+# The shim that removes qemu-user's one divergence from the device's kernel.
+# It has more leverage than anything else in tools/: with it on, code paths that
+# could not run at all do run, so a result taken with it and a result taken
+# without it are answers to different questions. Its suite therefore checks two
+# things a normal test would not -- that the build's architecture checks reject
+# a wrong architecture, and that the flag is still off by default.
+alignfix-test: ## Prove the alignment shim and its build checks can fail (needs no device)
+	bash tools/test-alignfix.sh
+
 # Like recon-unit and qemu-env: needs the flash dump read off my own unit, so it
 # is not in `recon`. The report it writes is mostly a claim about what the boot
 # loader does *not* contain, which is why its committed form carries a positive
@@ -199,7 +240,7 @@ loader-report: ## Unpack the boot loader's LZMA stage 2 (needs the flash dump)
 # `rtcase-test` is in here and not optional. It is the only thing proving the
 # register gate can fail; without it `make rtcase` going green means nothing,
 # which is the exact shape of instrument bug 12.
-ci: lint test shellcheck check-reports check-runsheet check-benchlog benchlog-test rtcase rtcase-test qemu-test probe-test loader-test runsheet-test dump-test flash-tools-test photo-test write-test ## Everything CI checks, except the container build
+ci: lint test shellcheck check-reports check-runsheet check-benchlog benchlog-test rtcase rtcase-test check-ledger qemu-test probe-test loader-test runsheet-test dump-test flash-tools-test photo-test write-test failopen-test alignfix-test ## Everything CI checks, except the container build
 	@echo "  ok   local CI equivalents passed (container build not included)"
 
 diff: venv ## Diff the two builds

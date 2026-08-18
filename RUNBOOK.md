@@ -1894,6 +1894,90 @@ bash tools/test-bench-probe.sh           # 8 個案例,不需要裝置
 
 ---
 
+### 8.11.7 `--alignfix`：把 `qemu-user` 跟裝置核心的那一個差異補掉（W07，2026-08-18）
+
+**為什麼需要它。** `handler-sweep.py` 報 **57 個 handler 裡有 39 個**被一個
+合法 POST 打死。那支工具自己把欄位命名成 `died_under_emulation` 並附上
+「這不是關於裝置的主張」，因為它答不出原因。W07 把 `gdb-multiarch` 接上
+`qemu-mips-static` 的 gdbstub，讓故障當場發生：
+
+```bash
+# 讓 boa 不要 daemonise（-d），並在第一道指令之前等除錯器（-g）
+sudo chroot /home/key/fwre-work/qemu-env-2018 ./qemu-mips-static -g 1234 \
+     /bin/boa -d -f /var/boa-emu.conf
+gdb-multiarch -batch -ex 'set architecture mips' -ex 'set endian big' \
+     -ex 'target remote 127.0.0.1:1234' -ex continue -ex 'x/8i $pc-24'
+```
+
+```text
+Program received signal SIGBUS, Bus error.
+=> 0x2b2c87dc:  sh  s7,0(s8)
+```
+
+那個位址在 `libapmib.so + 0x27d0`,函式是 **`mib_write_to_raw`**——把 MIB 打包
+成 TLV 寫進 flash 緩衝區的那一支。**變長記錄，欄位偏移天生是奇數。**
+MIPS Linux 核心會在 trap handler 裡替使用者空間補完未對齊存取，裝置上什麼事
+都不會發生；`qemu-user` 直接送 SIGBUS,而 `boa` 自己有一個 SIGBUS handler
+會 dump core 然後 abort。
+
+> 🏆 **所以那 39 個的共同點不是脆弱，是「它們會存設定」。**
+> 19 個「活著」的是參數不足提早返回、根本沒走到序列化器的。
+> 這也一併解釋了 `P8-24` 那個「寫入不可觀測」——`flash default-sw` 死在同一行。
+> **兩個分開記錄的觀察是同一個 bug。**
+
+**怎麼用：**
+
+```bash
+sudo FWRE_WORK=/home/key/fwre-work tools/qemu-env.sh --profile unit-2018 serve 8080 --alignfix
+sudo FWRE_WORK=/home/key/fwre-work python3 tools/handler-sweep.py --profile unit-2018 \
+     --alignfix --out reports/handler-sweep-unit-2018-alignfix.json
+bash tools/test-alignfix.sh          # 8 個守衛案例,不需要裝置也不需要 root
+```
+
+> ### ⚠️ 三件事，每一件都是踩過才寫下來的
+>
+> **1. 它預設關閉，而那是決定不是疏漏。** 打開它會改變這個環境**是什麼**。
+> 2026-08-18 以前所有模擬量測都是在沒有它的情況下取得的，profile 的陽性對照
+> 也是。一個安靜改掉這件事的旗標，會讓兩個不能並列的東西看起來像同一個。
+> `serve` 每次都印它是哪個模式。
+>
+> **2. 它會拒絕，而不是猜。** o32 的 `ucontext` 偏移是寫死的，而寫錯的偏移
+> 會產生看起來很合理的垃圾。所以 handler 會把復原出來的 `pc` 讀回去、要求
+> 那道指令解得出 `lh`/`lhu`/`sh`/`lw`/`sw`,**而且**要求用復原出來的暫存器
+> 算出的位址真的沒對齊。任一項不過就把 `SIG_DFL` 裝回去，讓程序照原本的方式
+> 死掉。`tools/test-alignfix.sh` 會編一支故意寫錯偏移的版本來證明那條路走得到。
+>
+> **3. 修好它當場弄壞了另一件事，而且是對照組抓到的。** 崩潰消失之後
+> handler 真的會存檔——而每次探測前的還原本來是**崩潰的副作用**。於是探測 N
+> 讀到的是探測 1..N-1 寫下去的東西。環境自己的陽性對照下一次 `check` 就回
+> `USER_NAME=""` 而不是 `"admin"`。現在 `--alignfix` 會把 `--reset-each`
+> 一起打開，而且掃描跑完會再跑一次 `check`,環境漂掉就讓整輪失敗。
+
+### 8.11.8 `tools/mipsref.py`：問「誰參照這個位址」，而且不靠 Ghidra
+
+`BoaXref` 的 `refs:` 用 Ghidra 的參照模型回答同一個問題。對 `check_auth_flag`
+它的答案是「一次寫、零次讀」——而**一個被寫但沒人讀的全域**是一個很強的主張，
+它決定那個上游缺陷在這個 build 上是活的還是死的。CLAUDE.md 的規矩是
+**沒有單一工具的主張**。
+
+```bash
+python3 tools/mipsref.py <binary> --addr 004899d8 --control 004899e0
+python3 tools/mipsref.py <binary> --segments      # RELRO / NX / GOT 在哪個段
+```
+
+它跟 Ghidra 獨立：沒有符號表、沒有分析資料庫、沒有參照模型，只解指令編碼。
+三種定址都掃——`lui`+`%lo` 配對、`gp` 相對、`$zero` 絕對——**漏掉任何一種，
+看起來會跟「乾淨」一模一樣**。`gp` 不是從 Ghidra 拿的，是從 ELF 自己的
+`PT_DYNAMIC` 算 `DT_PLTGOT + 0x7ff0`；`sstrip` 吃掉的是 section header，
+segment 還在，所以這條路在這個語料上走得通而 `readelf -S` 走不通。
+
+> **`--control` 是重點不是選項。** 它指定一個**必須**回報至少一次讀和一次寫的
+> 位址。解碼錯、`gp` 算錯、file offset 對 vaddr 的換算錯——控制組都會回零，
+> 這支工具就 exit 2,而不是印出一個很有自信的空答案。那是 `BoaGate` 學了兩次
+> 的同一課。
+
+---
+
 ## 8.12 實機場次：每一步為什麼存在
 
 > ## 🔴 這一節一個命令都不放，而那是 CI 執行的
@@ -2584,6 +2668,60 @@ handler 拿到 `""` 字面量的位址然後 `strcpy` 進去，而那在唯讀�
 > 🔴 **`P2-6`（協定層畸形）排在整節最後**，因為它最可能弄掛 server。
 
 ---
+
+### 8.12.22 三個請求，而它們排在第 3 站最前面　→ `runsheet.md` `A3.13`
+
+**為什麼是這一節開場，而不是埠掃描。**
+
+第 3 站原本的順序是偵察在前、寫入在後，而 `A3.13` 比偵察更前面，理由不是它更
+重要，是**它的成本是零而它的結論可能推翻一整條線**。三個 GET，不寫任何東西，
+不用斷電，在一台完全沒有被這一場動過的機器上跑。
+
+而它要驗的東西有一個性質，是這個專案到目前為止沒有遇過的：**它依賴一塊沒有人
+寫過的堆疊記憶體裡剛好是什麼。** 模擬環境上那塊是零，理由很可能是結構性的
+——`process_header_end` 是請求路徑上最深的框架，而 Linux 給的是清零的堆疊頁——
+但那是一個論證，不是一次量測。**在裝置上執行過之前，`D-15` 不會寄給任何人。**
+
+**為什麼四個請求而不是一個。**
+
+一個「不帶密碼也進得去」的成功，在這台上有**兩個**互相獨立的解釋，而它們是
+不同的缺陷：
+
+| | 機制 | 分支 |
+|---|---|---|
+| `D-4` | 儲存的密碼是空的，所以比對被整個跳過 | `0x0040bd18` |
+| `D-15` | 儲存的密碼是好的，比對有跑，但它比對的是一塊沒人寫過的緩衝區 | `0x0040bd48` |
+
+分辨它們的是 `wrongpw` 那一列：**`D-4` 之下錯密碼也會過，`D-15` 之下錯密碼會被
+擋。** 所以那一列不是湊數的對照組，它是唯一能把兩個缺陷分開的觀測。
+
+如果 `A3.7` 的 `wrongpw` 回 `200`，代表這台的密碼在某個時間點被設成空的（
+`A3.11.2` 就會做這件事），那 `A3.13` 量到的東西沒有意義，要先把密碼設回非空
+再重跑。**這是本檔唯一一個「前一節的副作用會讓後一節的結果失效」的地方**，
+而它之所以不會被順序解決，是因為兩節之間隔著整個第 3 站。
+
+**為什麼請求本體不在 runsheet 裡。**
+
+`D-15` 尚未通報，而且它在**公開映像上也成立** —— 那跟這個專案其他的發現不一樣，
+其他的都綁在一台沒有人下載得到的 build 上。`docs/disclosure.md` 的規則說
+reproduction 跟著揭露狀態走，所以請求在 repo 外面，runsheet 指過去。
+
+**而這條規則在 `A3.11.2` 上沒有被遵守**，那是一個治理缺陷而不是筆誤：沒有任何
+工具同時讀 `docs/disclosure.md` 和 `runsheet.md`，所以一個宣稱和一個指令可以
+無限期地互相矛盾。記在 `docs/disclosure.md § A governance defect`，`A3.13` 是
+第一節照新做法寫的。
+
+**`Host` 那一半為什麼要打一發預期會失敗的。**
+
+`A3.13.2` 的最後一發送一個帶 HTML 標記的 `Host`，而**預期是它被編碼**。
+模擬環境上兩個 sink 都編碼了 —— `Location` 走 URL-encode、HTML body 走實體 ——
+所以那一發預期不會產生 XSS。
+
+打它的理由是：`D-14` 目前被評為「low，而且明確不是 XSS」，而那個評級**完全建立
+在編碼有做這件事上**。一個只驗證自己預期成立的那半邊的測試，量到的是自己的
+預期。如果實機上沒有編碼，`D-14` 就從 open redirect 變成未認證的反射型 XSS，
+而那是完全不同的一列。
+
 
 ## 9. 驗收
 

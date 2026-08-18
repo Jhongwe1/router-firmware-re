@@ -1,0 +1,120 @@
+{
+  "producer": "mipsref",
+  "binary": "/home/key/fwre-work/extracted/unit-2018/squashfs-root/bin/boa",
+  "source_sha256": "19fe29d71aa1cc1e893627f17a0f14b03ca75f6936318df4062df4fb153909f7",
+  "bytes": 485012,
+  "dt_pltgot": 4743152,
+  "gp": 4775904,
+  "control": "004899e0",
+  "control_ok": true,
+  "targets": {
+    "0x00486270": [
+      {
+        "file_offset": 49180,
+        "vaddr": 4243484,
+        "word": 2407826064,
+        "mnemonic": "lw",
+        "form": "gp-relative",
+        "base_reg": 28,
+        "reads": true,
+        "writes": false
+      },
+      {
+        "file_offset": 49204,
+        "vaddr": 4243508,
+        "word": 2407826064,
+        "mnemonic": "lw",
+        "form": "gp-relative",
+        "base_reg": 28,
+        "reads": true,
+        "writes": false
+      },
+      {
+        "file_offset": 79996,
+        "vaddr": 4274300,
+        "word": 2407826064,
+        "mnemonic": "lw",
+        "form": "gp-relative",
+        "base_reg": 28,
+        "reads": true,
+        "writes": false
+      },
+      {
+        "file_offset": 80020,
+        "vaddr": 4274324,
+        "word": 2407826064,
+        "mnemonic": "lw",
+        "form": "gp-relative",
+        "base_reg": 28,
+        "reads": true,
+        "writes": false
+      },
+      {
+        "file_offset": 314696,
+        "vaddr": 4509000,
+        "word": 2407826064,
+        "mnemonic": "lw",
+        "form": "gp-relative",
+        "base_reg": 28,
+        "reads": true,
+        "writes": false
+      },
+      {
+        "file_offset": 323900,
+        "vaddr": 4518204,
+        "word": 2407826064,
+        "mnemonic": "lw",
+        "form": "gp-relative",
+        "base_reg": 28,
+        "reads": true,
+        "writes": false
+      }
+    ],
+    "0x004899dc": [
+      {
+        "file_offset": 49152,
+        "vaddr": 4243456,
+        "word": 2353175004,
+        "mnemonic": "lw",
+        "form": "lo-half",
+        "base_reg": 2,
+        "reads": true,
+        "writes": false
+      }
+    ],
+    "0x004899e8": [
+      {
+        "file_offset": 49272,
+        "vaddr": 4243576,
+        "word": 612669928,
+        "mnemonic": "addiu",
+        "form": "lo-half",
+        "base_reg": 4,
+        "reads": false,
+        "writes": false
+      }
+    ],
+    "0x004899e0": [
+      {
+        "file_offset": 48724,
+        "vaddr": 4243028,
+        "word": 2890111456,
+        "mnemonic": "sw",
+        "form": "lo-half",
+        "base_reg": 2,
+        "reads": false,
+        "writes": true
+      },
+      {
+        "file_offset": 49144,
+        "vaddr": 4243448,
+        "word": 2353240544,
+        "mnemonic": "lw",
+        "form": "lo-half",
+        "base_reg": 2,
+        "reads": true,
+        "writes": false
+      }
+    ]
+  }
+}

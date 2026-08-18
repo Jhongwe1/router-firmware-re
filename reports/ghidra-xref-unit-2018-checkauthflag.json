@@ -1,0 +1,16 @@
+{
+  "producer": "ghidra:BoaXref",
+  "program": "boa",
+  "source_sha256": "19fe29d71aa1cc1e893627f17a0f14b03ca75f6936318df4062df4fb153909f7",
+  "language": "MIPS:BE:32:default",
+  "image_base": "00400000",
+  "function_count": 764,
+  "reverse_depth": 4,
+  "self_check": {"unresolved_selectors": [], "verdict": "consistent"},
+  "data_xrefs": [
+    {"selector":"refs:004899d8","target":"004899d8","site":"0040be20","access":"write","in":"process_header_end","in_entry":"0040bb1c","insn":"sw v1,-0x6628(v0)"}
+  ],
+  "functions": [
+
+  ]
+}

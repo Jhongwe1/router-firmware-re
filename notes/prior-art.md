@@ -400,6 +400,141 @@ inference, and the instruction-level reading has not been done.**
 
 ---
 
+## 2026-08-18 — the searches ran, and the biggest result is that the SDK source is public
+
+**All three items below were searched. Two of them came back with prior art that
+this project did not know existed, and the method that found it was new.**
+
+### The method: search for the *source*, not only for advisories
+
+`docs/disclosure.md` step 2 says to search by **handler name**, because the
+`D-1` search by product returned nothing and the search by handler returned Cisco
+Talos on the first page. That rule is right and it was still too narrow. Searching
+by **symbol** — `process_header_end`, `MIB_SUPER_NAME`, `check_auth_flag` — turned
+up something no advisory search would have:
+
+> **The Realtek rtl819x SDK's `boa` source is on GitHub**, in at least two
+> independent GPL drops from *different vendors*:
+> `Saturn49/wecb` (Actiontec WECB3000N, `WECB-0.16.8.4-GPL.tgz`) and
+> `vankel/rtl819x-SDK`. Both carry `rtl819x/users/boa/src/request.c` and
+> `rtl819x/users/boa/apmib/apmib.h`.
+
+Neither is TOTOLINK's drop, so agreement between them and this unit's binary is
+evidence about the **SDK lineage**, not about TOTOLINK — and that limit has to
+travel with every use of it. What it bought, in one afternoon:
+
+- the two never-written stack buffers turn out to be `admin_name` and
+  `admin_password`, filled from `MIB_SUPER_NAME` / `MIB_SUPER_PASSWORD` in the
+  source and from nothing at all in every build of this product;
+- `apmib.h` gives the MIB ids — `SUPER_NAME` 180, `SUPER_PASSWORD` 181,
+  `USER_NAME` 182, `USER_PASSWORD` 183 — which match, byte for byte, the table
+  this project recovered from **this unit's own `libapmib.so`**. That table had
+  never been checked against anything outside this repository;
+- an unbraced assignment to a global (`check_auth_flag`) that is a real upstream
+  defect and dead code here.
+
+**This project reads binaries because the vendor publishes no source. It had
+never asked whether somebody else's drop of the same SDK was public.** That is
+the same failure shape as §"How this note failed" — a survey organised around the
+wrong axis — and the fix is the same kind of rule: **an SDK name is a search term,
+and it finds source where a product name finds only advisories.**
+
+### `D-15`, the supervisor credential pair — searched four ways, nothing found
+
+| searched | what came back |
+|---|---|
+| `process_header_end` + uninitialised stack + authentication | **CVE-2007-4915** — Intersil-extended Boa 0.93.15, a **long username** overwrites the in-memory admin password. Same function, same feature, opposite mechanism: a write where this is a *missing* write. Not this |
+| `Boa/0.94.14rc21` alone | exploit-db 51139, the `HEAD` bypass — already here, already refuted on this build |
+| Realtek rtl819x Jungle SDK + auth bypass | Talos's fifteen 2023–24 reports: ten stack overflows, one heap overflow, two arbitrary-code-execution, one CSRF, one firmware-update-without-consent. **No authentication defect of any kind** |
+| the symbol `check_auth_flag` | nothing |
+
+**No prior art found**, which is weaker than *new*: the source carrying it has
+been public the whole time, so "nobody published it" is not "nobody could see it".
+
+### `D-17`, the `dnsspoof` write — searched by behaviour, nothing found
+
+The binary name collides with dsniff's well-known tool, so the search was on the
+behaviour: Realtek captive-portal DNS responder, `wan_disconnect`, `StartDnsSpoof`.
+Everything returned was CVE-2022-27255 (eCos SIP ALG) and the 2021 UPnP/SSDP
+series. **No prior art found.**
+
+### `D-12` has two halves and prior art covers one of them
+
+This is the result that costs something.
+
+> **CVE-2023-34435 / TALOS-2023-1874** — *"Realtek rtl819x Jungle SDK v3.4.11 …
+> arbitrary firmware update … the WBR-6013, throughout the whole firmware upgrade
+> process, never checks the validity of the uploaded firmware"*, filed as
+> **CWE-347, improper verification of a cryptographic signature**, against
+> `/boafrm/formUpload`.
+
+That is [`bughunt.md`](bughunt.md) row **#13** — *"acceptance is a 4-byte tag
+`memcmp` plus an unkeyed additive checksum; no signature, no `hw_version`, no
+anti-rollback"* — and it is **not this project's finding.** What is still worth
+stating, and is a different claim, is *which* checks exist and where: Talos says
+"never checks the validity", this repository says the acceptance is
+`UpgradeByData` at `0x00460798`, a tag `memcmp`, `FUN_00460600` at `0x00460a98`
+summing big-endian halfwords to zero and `FUN_00460690` at `0x00460aec` summing
+bytes to zero. **"There is no check" and "here is the check, and it is an unkeyed
+sum" are different sentences, and the second is the useful one for anyone writing
+an OTA path.**
+
+The **other** half — `FUN_0044f7b4` fetching from `http://sl.totolink.software`
+over plain HTTP, reached from `form_formSaveConfig`, which does not enter the
+gate — searched by domain, by symbol (`CheckRFW`, `submit_rfw_upgrade`) and by
+binary name (`batchRemoteUpgrade`): **no prior art found.** The only hit was an
+OpenWrt forum thread listing `batchRemoteUpgrade` in a **TOTOLINK A3002RU**
+filesystem, which is a presence observation and not an analysis — and A3002RU is
+one of the six models CVE-2024-51228 names, so it is a data point for `P8-21`
+rather than for this row.
+
+**And there is a disagreement worth keeping**, the same shape as `D-6`: Talos
+scores CVE-2023-34435 `PR:H`. On this build the trigger for the remote-update path
+is a `POST /boafrm/formSaveConfig`, which `P2-1` established does not enter the
+gate at all.
+
+### `D-16`, the `miniigd` SOAP `system()` site — unchanged
+
+Still almost certainly CVE-2014-8361, still verification rather than discovery.
+
+### One more, found while searching for something else
+
+**CVE-2023-47677 / TALOS-2023-1872** reports a CSRF defect in the same SDK's
+`boa`, on `/boafrm/formSysCmd`, no authentication required, and describes a CSRF
+protection that "attempts to prevent API calls until an HTML form page loads
+first", bypassable via an `iframe`. That bears on `P8-3` and `P8-4`, whose frozen
+predictions say there is no CSRF protection at all. **The mechanism Talos
+describes is not the one in this binary** — what is here is an IP-address session
+with an uptime-derived expiry
+([`auth-session-ip.md`](auth-session-ip.md)) — but a published advisory naming
+CSRF on this SDK exists, and `P8-3`'s result has to cite it rather than read as a
+discovery.
+
+---
+
+## Not searched yet — three items, and this section exists because of §"How this note failed"
+
+**2026-08-18.** Three findings from W07 Day 2 are candidates for being this
+project's own, and **none has had the by-handler search**. Listing them here
+rather than only in `docs/disclosure.md` is the change §"How this note failed"
+promised: the gap that let CVE-2024-51228 go unfound for two weeks was that this
+file had no 2024 entries and nothing recorded that it had not looked.
+
+| finding | register | what to search, and it is not the product name |
+|---|---|---|
+| A second credential pair compared against never-written stack, matched by empty fields | `P2-9` · `D-15` | `boa` + "uninitialised"/"uninitialized stack" + authentication; Realtek rtl819x SDK + Basic auth bypass; the `process_header_end` symbol; and **`Boa 0.94.14rc21` on its own** — the 2023 search in §"a published bypass against this exact Boa version" found one that did not apply, and the next one might |
+| A 16-byte append past a 256-byte buffer in `dnsspoof` | `P6-10` · `D-17` | the binary name is generic and collides with the well-known dsniff tool, so search the *behaviour*: Realtek captive-portal DNS responder, `wan_disconnect`, `StartDnsSpoof` |
+| Plain-HTTP firmware fetch on an unauthenticated trigger, with additive-checksum-only image validation | `P8-10` + `P9-13` · `D-12` | `sl.totolink.software`; `batchRemoteUpgrade`; `submit_rfw_upgrade`; TOTOLINK + firmware update + MITM |
+
+**A fourth is already known not to be ours.** `miniigd`'s SOAP `system()` site
+(`D-16`) is almost certainly **CVE-2014-8361** — CISA KEV, a Mirai payload since
+2015. It is listed under the CVE table above, not here.
+
+**The rule this section is enforcing**: a search by *product* returned nothing
+for `D-1` and a search by *handler* returned Cisco Talos on the first page. Until
+each row above has had the second kind, none of them is described as new, in this
+repository or anywhere else.
+
 ## Sources
 
 - Pierre Kim, TOTOLINK series, 2015-07-16 — <https://pierrekim.github.io/blog/2015-07-16-backdoor-credentials-found-in-4-TOTOLINK-products.html> and companion posts

@@ -70,6 +70,35 @@ make recon             # every report a downloadable image supports
 make ci                # ← the 276 checks
 ```
 
+### Running the firmware, with no device — G4 clause 3a
+
+Added 2026-08-18. This is the part of the attack chain a stranger can execute,
+and it needs nothing but the download:
+
+```bash
+sudo tools/qemu-env.sh --profile v2.1.2 mkflash   # rebuild the flash from the container
+sudo tools/qemu-env.sh --profile v2.1.2 build     # unpack the rootfs, populate /var
+sudo tools/qemu-env.sh --profile v2.1.2 serve 8081
+```
+
+`serve` refuses to report the server up unless an exempt page returns 200 **and**
+a gated page returns 302, so "it started" is never confused with "it is behaving
+like the firmware". Then the published CVE-2025-3987 injection, unauthenticated,
+against your own local process — the full write-up with its controls is
+[`poc/05-l2-published-image.md`](poc/05-l2-published-image.md).
+
+Two things to expect, because neither is obvious:
+
+- **The flash image has a pinned sha256.** `mkflash` compares against it. A
+  different hash means you have a different container, not a different mood.
+- **The first 64 KiB of that image is not in the download** and never can be.
+  Boot loader, `H601`, `COMPDS` and `COMPCS` are written at manufacture. Three
+  regions are synthesised with zeroed payloads;
+  [`reports/mkflash-2.1.2.json`](reports/mkflash-2.1.2.json) names every byte
+  range and its origin. **So every setting in this environment is zero** — no
+  address, no SSID, no password — and nothing about shipped defaults can be
+  concluded from it.
+
 ### Why `make ci` is the interesting one
 
 Most of a reverse-engineering repository is assertions. This part is not:
@@ -112,6 +141,37 @@ header: each says which real failure it was written after.
 Nothing in T1 touches the 2018 build. Every `boa` claim it can verify is about
 V2.1.2 or V3.4.0 — **two binaries this device has never run.** That distinction
 is the whole reason gate G3.5 exists.
+
+That now cuts sharper than it used to. The emulated environment above runs a
+real command injection, and it is **not** the chain this project's headline
+result is about: `formSysCmd` (CVE-2024-51228) is in the 2018 build's dispatch
+table and in *neither* downloadable image, so that chain cannot be reproduced by
+anyone who does not own one of these units. T1 gets you the *class* of defect on
+firmware you can obtain. It cannot get you this device.
+
+`flash default`, the vendor's own configuration generator, also **will not run**
+here — it dies on an unaligned store the device's MIPS kernel fixes in its trap
+handler and `qemu-user` does not. If you are wondering why emulating Realtek SDK
+firmware from a download so often "almost" works, that is the reason, and it is
+measured rather than folklore.
+
+> **Added 2026-08-18, and it cuts the other way for once.** One finding *does*
+> reproduce at T1 on the published image, and it is currently the most serious
+> thing in `docs/disclosure.md`: `boa`'s HTTP Basic path compares the supplied
+> credentials against **two** pairs of stack buffers, and the second pair is
+> never written by anything. See `notes/uninit-credential-pair.md` for the
+> addresses and the six-row response table with its controls.
+>
+> **The request that triggers it is deliberately not in this repository.** It is
+> unreported, and `docs/disclosure.md`'s rule is that a reproduction follows the
+> disclosure state. So T1 can show you the *code* — the three reads and the
+> absence of any write, in a binary you can download and hash — and it cannot
+> hand you the request. That is the rule working, not an oversight, and it is the
+> first time on this project that T1 has been the *stronger* tier for something.
+>
+> What T1 still cannot tell you about it: whether it fires on silicon. The
+> buffers are zero under `qemu-user` on two profiles, and the argument that they
+> are zero for a structural reason is an argument.
 
 ---
 

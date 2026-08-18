@@ -51,13 +51,13 @@ W05 週計畫原本要另外建一份 `notes/prediction-scorecard.md`（12 條�
 
 | | |
 |---|---|
-| 登記項目 | **130**（排入 121，砍掉 9） |
-| 已寫反證條件（凍結） | **102** / 121 |
-| 已執行 | **51** |
+| 登記項目 | **134**（排入 125，砍掉 9） |
+| 已寫反證條件（凍結） | **117** / 125 |
+| 已執行 | **63** |
 | 其中以真機動態證據收掉 | **43** |
-| 其中以模擬環境執行收掉（**不是矽上**） | **4** |
-| 判定成立 / 判定不成立 | **28** / **11** |
-| 凍結雜湊 | `69c342dce863dcc7d2450d3f45f97ad2b3753296a2c8756a54ec27604caffc55` |
+| 其中以模擬環境執行收掉（**不是矽上**） | **11** |
+| 判定成立 / 判定不成立 | **36** / **14** |
+| 凍結雜湊 | `a9bd2761074e0b349726ec0ee96f3280e30a81e13a034643c1c3581dfc7f10be` |
 
 ## 排程：哪一週要打掉哪些
 
@@ -69,8 +69,9 @@ W05 週計畫原本要另外建一份 `notes/prediction-scorecard.md`（12 條�
 | **W02** | Phase 0, 9 | 2 / 2 | `▰▰▰▰▰▰▰▰▰▰` |
 | **W04-2** | Phase 0 | 2 / 2 | `▰▰▰▰▰▰▰▰▰▰` |
 | **W05** | Phase 0, 1, 2, 3, 6, 9 | 27 / 27 | `▰▰▰▰▰▰▰▰▰▰` |
-| **W06** | Phase 0, 2, 3, 4, 5, 10 | 18 / 18 | `▰▰▰▰▰▰▰▰▰▰` |
-| **W07** | Phase 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 | 1 / 71 | `▱▱▱▱▱▱▱▱▱▱` |
+| **W06** | Phase 0, 2, 3, 4, 5, 10 | 20 / 20 | `▰▰▰▰▰▰▰▰▰▰` |
+| **W07** | Phase 1, 2, 3, 4, 5, 6, 8, 9, 10 | 11 / 57 | `▰▰▱▱▱▱▱▱▱▱` |
+| **W08** | Phase 7, 9 | 0 / 16 | `▱▱▱▱▱▱▱▱▱▱` |
 
 ## 圖例
 
@@ -98,8 +99,9 @@ W05 週計畫原本要另外建一份 `notes/prediction-scorecard.md`（12 條�
 | P0-8 | 開機腳本審閱：找 MIB 值被拼進 shell 的地方 | 3.8.5 | ★★★★☆ | 🟥 | W04-2 | 🔶 rcS 已審；但 /bin/*.sh 的 MIB→shell 內插普查沒有寫進任何 committed note，P8-8 目前無可引用證據 | [skt-analysis.md](notes/skt-analysis.md) · [credentials.md](notes/credentials.md) |
 | P0-9 | qemu / FirmAE 模擬環境（桌機 fuzz 用） | 3.8.6 | ★★☆☆☆ | 🟧 | W06 | 🟪 boa serves under qemu-user after all, and W05 finding 6 was too strong. The alignment trap is real but confined to one path: -strace shows SIGBUS at an odd address (si_addr=0x00492b41) immediately after open("/web/config.dat",O_RDWR|O_CREAT|O_TRUNC) at start-up, i.e. while GENERATING config.dat, not while serving. Make that one open() fail (config.dat is a directory) and boa prints Create config file error!, binds, and answers: login.htm 200 (exempt), blank.htm 302 (gated), status.htm 200/30087B - the gate model W04-2 read at instruction level, reproduced with no device attached. POST /boafrm/formSysCmd with sysCmd=cat /etc/version > /var/web/w06emu.txt;# returns the build string through the docroot oracle, and the same POST without the ;# idiom yields HTTP 204 0 bytes - the empty-file trap predicted from the format string %s 2>&1 > %s. Controls: /bin/flash get IP_ADDR works, guest /bin/wget completes HTTP against a host server, the target file 302s before the test, and a POST carrying no sysCmd creates nothing. Desktop fuzz route is open. Cost, stated: /config.dat cannot be fetched from the emulated server because the file standing in for it is the directory that keeps boa alive, so chain links 1-2 stay device-only. tools/qemu-env.sh serve refuses to report success unless both gate controls hold. | [qemu-env.sh](tools/qemu-env.sh) · [emulation-2018.md](notes/emulation-2018.md) |
 | **P0-10** | 每次動手前抓 64 KiB 設定區快照（0x0–0x10000） | 3.2 | ★★★★★ | 🟥 | W05 | 🔶 基準快照已取，與 8/16 完整 dump 的前 64 KiB 逐 byte 相同。反證條件要一次寫入後的差分，那是 W06 | [BENCH-LOG.md](BENCH-LOG.md) |
+| P0-11 | L2：只用公開映像建立模擬環境（不含任何本機專屬產物） | 3.8.6 | ★★★☆☆ | 🟥 | W06 | 🟪 預測命中，連拒絕訊息的字串都對。只由公開容器（w6cg@0x010000 / cr6c@0x060000 / r6cr@0x180000）填出來的 flash，apmib_init() 印 Invalid hw setting signature [sig=  ]! 然後 Initialize AP MIB failed! —— flash 前 64 KiB（boot loader / H601 / COMPDS / COMPCS）出廠燒錄，不在任何可下載映像裡。合成三段（H601 1172 B、COMPDS/COMPCS 各 3909 B，payload 全零、checksum 依廠商規則算、LZSS 用廠商自己的 decoder 反覆驗過）之後 apmib 起來了：2399 行 MIB，boa bind，login.htm 200 / blank.htm 302 閘門行為與實機一致。映像本身提供 82.9% 的 flash，144/144 網頁全部由公開容器解出。附帶量到：libapmib 沒有內建 HW setting 預設值（所以硬失敗），而廠商自己的 flash default 在 qemu-user 下 SIGBUS（si_addr=0x004332a7，實機 MIPS kernel 的 trap handler 會修）。H601 格式（H6/01/u16 len=1166/payload 8-bit sum=0）獨立推導出來，其末位元組就是 W06 用 diff 找到的 0x6493。 | [mkflash-2.1.2.json](reports/mkflash-2.1.2.json) · [05-l2-published-image.md](poc/05-l2-published-image.md) · [mkhwsetting.py](tools/mkhwsetting.py) |
 
-<details><summary>Phase 0 的預測與反證條件（10/10 項已凍結）</summary>
+<details><summary>Phase 0 的預測與反證條件（11/11 項已凍結）</summary>
 
 **P0-1 — flash 全讀 ×2 + sha256 比對（救命繩 L-1）**
 
@@ -151,6 +153,11 @@ W05 週計畫原本要另外建一份 `notes/prediction-scorecard.md`（12 條�
 
 - 預測：完整 4 MiB 要 105 分鐘，但會被改到的只有前 64 KiB（`H601`/`COMPDS`/`COMPCS` 都在裡面），以 723 B/s 算約 90 秒。有了時間序列快照，不只能還原，還能**指出某個請求改了哪幾個 byte**
 - **反證：送出一個已知會寫設定的請求（例如 `formWsc` 的 `localPin`）之後，兩份快照的差異是 0 → 寫入沒有落到這 64 KiB，還原點的範圍就選錯了，P0-1 的完整備份才是唯一退路**
+
+**P0-11 — L2：只用公開映像建立模擬環境（不含任何本機專屬產物）**
+
+- 預測：公開的 V2.1.2 容器只有三個 section —— `w6cg`@`0x010000`、`cr6c`@`0x060000`、`r6cr`@`0x180000`（`reports/n150rt-2.1.2.json`）—— **flash 的前 64 KiB 完全不在裡面**：boot loader、`H601`、`COMPDS`、`COMPCS` 都是出廠燒進去的。所以拿一份只由容器填出來的 flash 餵給 `qemu-user`，`apmib_init()` 會在硬體設定那一關失敗（`libapmib.so` 裡有 `Read hw setting header failed!` 與 `Invalid hw setting signature [sig=%c%c]!` 這兩條訊息），`boa` 起不來。L2 因此需要合成 `0x6000` 起的那一段，而合成要用的東西 —— MIB id 表、TLV 格式、8-bit checksum、LZSS —— 全部可以從公開的 `libapmib.so` 推導，不含任何本機祕密。
+- **反證：只用容器填出來的 flash，`boa` 就 bind 並回應 `login.htm` 200 → 映像自己會初始化，上面整套「需要合成」的論證作廢，L2 只是下載即跑；反方向同樣算反證 —— 合成之後 `boa` 仍然起不來 → 公開映像上不存在 L2 路徑，G4 clause 3a 失敗，而且要指出缺的究竟是哪一段。**
 
 </details>
 
@@ -248,7 +255,7 @@ W05 週計畫原本要另外建一份 `notes/prediction-scorecard.md`（12 條�
 | P2-6 | HTTP 協定層畸形（0.9 風格 / 版本號 / chunked） | 5.6 | ★★★☆☆ | 🟦 | W06 | ✅ Boa 0.94 answers malformed requests with 400 rather than mis-parsing them, which is what the prediction said. GET / with no version returns a bare HTTP/0.9 body with no status line; HTTP/9.9 returns 400; a chunked POST returns 400; and an HTTP/1.1 request with no Host header returns 200 where RFC 2616 requires 400 — a spec deviation, not a memory-safety one. The server survived all four. | [BENCH-LOG.md](BENCH-LOG.md) |
 | P2-7 | 認證狀態的邏輯繞過（session 模型 T-1~T-4） | 5.7 | ★★★☆☆ | 🟨 | W05 | ❌ 預測的『這台沒有 session』那半是對的，但**它指名的機制是錯的**，而反證條件逐字成立。10.1.1.100 認證成功之後：.101 不帶憑證 302、.100 不帶憑證 302、.101 帶憑證 200。formLogin 一個 cookie 都沒設，而且裝置從來不送 Set-Cookie。所以授權是**每個請求各自的 HTTP Basic**，0x004899d8 不是全機共用的授權狀態 —— PROGRESS 開放 #9 的問法要改 | [BENCH-LOG.md](BENCH-LOG.md) |
 | P2-8 | 憑證直闖：admin/admin 與 Basic Auth | 5.8 | ★★★★★ | 🟥 | W05 | ✅ admin/admin —— 從這台自己 flash 的 COMPCS 解出來的明文，經 HTTP Basic 直接認證成功（/password.htm 302→200），並開啟其餘 68 個被擋頁面。CVE-2019-19823 端到端。反證條件（連續 50 次錯誤後被鎖）沒有觸發：50 次全部拒絕，第 51 次用正確密碼仍然 200，無鎖定、無失敗計數 | [BENCH-LOG.md](BENCH-LOG.md) |
-| P2-9 | 未初始化的第二對憑證緩衝區（sp+0x18 / sp+0x38） | 5.8 | ★☆☆☆☆ | 🟥 | W07 | ⬜ | — |
+| P2-9 | 未初始化的第二對憑證緩衝區（sp+0x18 / sp+0x38） | 5.8 | ★☆☆☆☆ | 🟥 | W07 | 🟪 Fired. process_header_end compares supplied credentials against TWO pairs: strcmp(user, sp+0x18) at 0x0040bd48 and its partner sp+0x38 at 0x0040bd90 grant req->0xb0 = 2, while the real pair from apmib_get(0xb6)/apmib_get(0xb7) at sp+0x58/sp+0x78 grants 1. Across the whole 1964-byte function the only instructions touching sp+0x18 and sp+0x38 are three reads - no sw, sb, sh, no apmib_get, no strcpy. A Basic header with both fields empty returns 200/333 on a gated page, byte-identical to the real credentials, while empty-user-with-password, user-with-empty-password, wrong-user-wrong-password and admin-with-wrong-password all return 302 and no-Authorization returns 302. Stored credentials were admin/admin, BOTH NON-EMPTY, read back through the vendor flash binary in the same run, so this is not D-4 (the branch at 0x0040bd18 was not taken). /password.htm goes 302 unauthenticated to 200 with 5332 bytes. Reproduces on the PUBLISHED v2.1.2 profile too - different binary, synthesised flash, credentials set first because its defaults are empty and trip D-4 instead. NOT ESTABLISHED, and the note says so at length: prior art unsearched, what level 2 buys over level 1 unread, whether the buffers can hold CHOSEN bytes unknown, and everything so far is emulation on two profiles but one emulator. Device confirmation is three requests and no power cycle. | [uninit-credential-pair.md](notes/uninit-credential-pair.md) |
 | P2-10 | 登入計時預言（timing oracle） | 5.9 | ★☆☆☆☆ | 🟦 | W07 | ⬜ | — |
 
 <details><summary>Phase 2 的預測與反證條件（10/10 項已凍結）</summary>
@@ -324,8 +331,9 @@ W05 週計畫原本要另外建一份 `notes/prediction-scorecard.md`（12 條�
 | P3-11 | download.cgi QUERY_STRING 注入 | 6.6 | ★☆☆☆☆ | 🟨 | W07 | ⬜ | — |
 | P3-12 | Beastmode 家族 /cgi-bin/* 注入 | 6.6 | ★☆☆☆☆ | 🟨 | W07 | ⬜ | — |
 | **P3-13** | 未認證的設定「寫入」端點盤點（不要只找讀的） | 6.7 | ★★★★☆ | 🟥 | W05 | ✅ bench-probe writes,**GET only,一個 handler 都沒有執行**(GET 在這個 build 上走不到 handleForm)。全部 57 個 /boafrm/formX → 302 → home.htm(門沒跑);全部 57 個 /boafrm/formX.htm → 302 → login.htm(門跑了,擋掉)。測試自己點名的三個(formUpload / formPasswordSetup / formSaveConfig)與其餘 54 個完全同一種行為,所以反證條件「寫入類被擋而讀取類沒被擋」不成立。唯一例外是 formLogin.htm 回 404 而非 302 —— 因為 `formLogin` 在閘門的豁免清單上(W04-2 在指令層級讀出的 11 個字串之一),路徑含有它就豁免,門不跑,落到檔案層找不到檔。**那是閘門模型預測的第 57 個資料點,而它沒有被擬合過。** | [BENCH-LOG.md](BENCH-LOG.md) |
+| P3-14 | L2：`localPin` 命令注入在公開映像 V2.1.2 上重現 | 6.1 | ★★★☆☆ | 🟥 | W06 | 🟪 未認證 POST /boafrm/formWsc（localPin），在只用公開映像建起來的環境裡命令執行成立。主要證據是 qemu 自己的 syscall trace：fork() 之後 execve("/bin/sh",{"sh","-c","flash set HW_WLAN0_WSC_PIN 1;cat /etc/version > /var/web/l2pin.txt;#"}) —— 內插後的字串逐字可見。第二通道是 docroot：檔案存在，內容是 TOTOLINK-N150RT-V2.1.2，也就是這個公開 build 自己報出自己的版本。判別對照兩發，同一 handler 同一 session 同一請求形狀：peerPin 沒有、targetAPSsid 沒有、只有 localPin 有 —— 與 W06 在 2018 build 實機上的三向判別完全一致（P3-1 refuted / P3-4 不是注入 / P3-5 confirmed），兩個相隔五年的 build 對「哪一個參數是缺陷」給出同一個答案。陷阱：boa 處理完這個 handler 就死（HTTP 000），一個 server instance 只能打一發；第一次量測先送了對照發、把 server 打死，於是把真正的 payload 記成沒有反應 —— 那是治具的空結果，不是韌體的。 | [05-l2-published-image.md](poc/05-l2-published-image.md) · [mkflash-2.1.2.json](reports/mkflash-2.1.2.json) |
 
-<details><summary>Phase 3 的預測與反證條件（14/14 項已凍結）</summary>
+<details><summary>Phase 3 的預測與反證條件（15/15 項已凍結）</summary>
 
 **P3-0 — 建立回顯通道（docroot 回寫 + 帶外）**
 
@@ -399,6 +407,11 @@ W05 週計畫原本要另外建一份 `notes/prediction-scorecard.md`（12 條�
 - 預測：gate 只看 .htm/.asp，所以寫入類 handler（formUpload / formPasswordSetup / formSaveConfig）全部在門外
 - **反證：寫入類端點被擋而讀取類沒被擋 → 門的判定不是純 URI 字串比對，P2-1 的結論要修**
 
+**P3-14 — L2：`localPin` 命令注入在公開映像 V2.1.2 上重現**
+
+- 預測：`formWsc` 在 V2.1.2 的 `root_form[]` 裡（`0x0044a190`，`reports/ghidra-formtable-2.1.2.json`），而 `localPin` 那一行在 2015 與 2020 之間 byte-for-byte 相同（`notes/three-way-read.md`）。P3-5 已經在這台實機上動態證過同一行。所以在 L2 環境送同一發注入，`strace` 應該看得到被內插的命令走到 `execve`。
+- **反證：`strace` 裡沒有 `execve`，或內插的命令沒有被執行 → 「這條鏈不依賴這台獨有的 build」這個 L2 主張不成立，G4 clause 3a 失敗；同時 `notes/three-way-read.md` 的 byte-identical 讀法要重驗，因為它是這個預測唯一的靜態依據。**
+
 </details>
 
 ## Phase 4 — 記憶體破壞（會弄掛 boa）
@@ -411,7 +424,7 @@ W05 週計畫原本要另外建一份 `notes/prediction-scorecard.md`（12 條�
 | **P4-4** | ifname / wlan_id 的 20-byte 階梯（偏移與 100 那組完全不同） | 7.2 | ★★★★★ | 🟥 | W06 | ❌ ifname and wlan_id at 16, 20, 24, 40, 80, 120 and 160 bytes on formWlanSetup: 200 every time, server alive every time. The 20-byte buffer class R3 separates from the 100-byte one produces no observable difference here either. | [BENCH-LOG.md](BENCH-LOG.md) |
 | P4-5 | stack 溢位群（12 個函式、20+ 參數） | 7.3 | ★★★★☆ | 🟥 | W07 | ⬜ | — |
 | P4-6 | 已知 CVE 溢位端點逐一驗（12 條） | 7.4 | ★★★☆☆ | 🟨 | W07 | ⬜ | — |
-| **P4-7** | submit-url 全 57 端點通殺 + 存活探針 | 7.5 | ★★★☆☆ | 🟥 | W07 | ⬜ | — |
+| **P4-7** | submit-url 全 57 端點通殺 + 存活探針 | 7.5 | ★★★☆☆ | 🟥 | W07 | 🟪 全 58 個端點掃過（57 個分派表 handler + 一個不存在的負對照），每一發之前 reap + reset + serve，所以每一發都從同一份 flash 開始。結果：39 個在模擬下讓 boa 消失，19 個存活，39 次重啟 0 次失敗。對照成立：formLogin 200 且存活、formNotARealHandler 404。預測說「四個有 CVE 編號的是取樣不是集合」—— 39 不是四。反證條件（只有那四個有反應）沒有觸發。**這不是對實機的主張**：qemu-user 對未對齊存取丟 SIGBUS，而實機的 MIPS kernel 會在 trap handler 裡修掉，所以報告裡的欄位叫 died_under_emulation。它是一份要拿去實機驗的候選清單，而 W06 在實機上量到的一發請求斷線（docs/disclosure.md D-11）本來就說不出是哪一類 handler。存活的 19 個裡包含 formSysCmd（CVE 那一個）本身，所以「會死」跟「有缺陷」不是同一件事。這一輪之前有三次無效的量測：治具讓 32 個孤兒 boa 累積、port 被任意一個舊的持有，而 serve 的對照通過了，因為它驗的是 port 的性質而不是它自己啟動的那個 process。 | [handler-sweep-unit-2018.json](reports/handler-sweep-unit-2018.json) · [handler-sweep.py](tools/handler-sweep.py) |
 | P4-8 | 超長 HTTP 標頭 / 參數數量炸彈 / Range | 7.6 | ★★★☆☆ | 🟦 | W07 | ⬜ | — |
 | P4-9 | boofuzz 系統化 fuzz | 7.7 | ★★★★☆ | — | W07 | ⬜ | — |
 
@@ -533,7 +546,7 @@ W05 週計畫原本要另外建一份 `notes/prediction-scorecard.md`（12 條�
 | **P6-11** | telnet / ssh 埠（預測兩個都關） | 9.10 | ★★★★★ | 🟥 | W05 | ✅ 23 closed（TELNET_ENABLED=0）、22 closed（旗標為 1 但 rootfs 無 SSH daemon）。COMPCS 解出來的旗標與實際生效的一致 | [BENCH-LOG.md](BENCH-LOG.md) |
 | P6-12 | 其他 Realtek 診斷埠（20005 / 9999 / …） | 9.11 | ★★☆☆☆ | 🟦 | W07 | ⬜ | — |
 
-<details><summary>Phase 6 的預測與反證條件（11/12 項已凍結）</summary>
+<details><summary>Phase 6 的預測與反證條件（12/12 項已凍結）</summary>
 
 **P6-1 — UPnP SOAP 注入（CVE-2014-8361，4 個欄位）**
 
@@ -590,23 +603,26 @@ W05 週計畫原本要另外建一份 `notes/prediction-scorecard.md`（12 條�
 - 預測：23 關因為 TELNET_ENABLED=0 且 /bin/sysconf 只在旗標為 1 時起 telnetd；22 關因為旗標是 1 但整個 rootfs 沒有 SSH daemon。這條預測寫在任何網路測試之前
 - **反證：任一個是開的 → COMPCS 解出來的旗標不是實際生效的那份，compcs-decode.md 與 credentials.md 都要改**
 
-</details>
+**P6-12 — 其他 Realtek 診斷埠（20005 / 9999 / …）**
 
-> ⚠️ 本 Phase 還有 **1** 項沒寫反證條件。在寫出來以前不能記錄結果（`rtcase check` 會擋）：`P6-12`
+- 預測：TCP 側這一條已經被 `P1-2` 答完了：W05 跑的是 `nmap -sS -p-`，全 65535 個埠，開著的只有 80 / 52869 / 52881，所以 20005 / 9999 / 7777 / 8888 / 30005 / 4567 / 49152-49160 全部是關的，不需要重掃。**剩下的是 UDP，而 W05 的 UDP 只掃了十個埠**（`53,67,68,69,123,161,162,1900,5353,5555`）—— 20005 與 9999 從來沒有被 UDP 探測過。預期 UDP 側也全關，理由是這台的 55 個 ELF 裡沒有任何一支對應的診斷 daemon
+- **反證：任一個 UDP 埠有回應 → rootfs 的 ELF 清單漏了東西，與 `P6-4` 同一個結論，而那讓本專案所有「這台沒有 X」的說法一起失效。**反過來，沒有正對照的「全關」不算數**：同一輪裡必須有一個已知開著的 UDP 埠（1900 或 53）回應，否則 `nmap` 的 `open|filtered` 與真正的靜默無法分辨，那時「全關」量到的是鏈路而不是裝置**
+
+</details>
 
 ## Phase 7 — 無線層
 
 | ID | 項目 | § | 可行性 | 出場證據 | 排程 | 結果 | 證據 |
 |---|---|---|---|---|---|---|---|
-| P7-1 | WPS Pixie Dust | 10.1 | ★★★★☆ | 🟨 | W07 | ⬜ | — |
-| P7-2 | WPS 線上 PIN 爆破 / 廠商預設 PIN | 10.1 | ★★★☆☆ | 🟨 | W07 | ⬜ | — |
-| **P7-3** | 惡意 Beacon → Site Survey 表溢位 | 10.2 | ★★★☆☆ | 🟨 | W07 | ⬜ | — |
-| P7-4 | 惡意 WPS IE（Device Name 長度欄 2 bytes） | 10.2 | ★★★☆☆ | 🟨 | W07 | ⬜ | — |
-| P7-5 | PMKID（clientless） | 10.3 | ★★★☆☆ | 🟦 | W07 | ⬜ | — |
-| P7-6 | Deauth → 4-way handshake → 離線爆破 | 10.4 | ★★★★☆ | 🟧 | W07 | ⬜ | — |
-| P7-7 | 預設 PSK 推導（或直接讀 COMPDS） | 10.5 | ★★★☆☆ | 🟦 | W07 | ⬜ | — |
-| P7-9 | WDS / Repeater 模式 → KRACK | 10.7 | ★★☆☆☆ | 🟦 | W07 | ⬜ | — |
-| P7-10 | FragAttacks | 10.8 | ★★☆☆☆ | 🟦 | W07 | ⬜ | — |
+| P7-1 | WPS Pixie Dust | 10.1 | ★★★★☆ | 🟨 | W08 | ⬜ | — |
+| P7-2 | WPS 線上 PIN 爆破 / 廠商預設 PIN | 10.1 | ★★★☆☆ | 🟨 | W08 | ⬜ | — |
+| **P7-3** | 惡意 Beacon → Site Survey 表溢位 | 10.2 | ★★★☆☆ | 🟨 | W08 | ⬜ | — |
+| P7-4 | 惡意 WPS IE（Device Name 長度欄 2 bytes） | 10.2 | ★★★☆☆ | 🟨 | W08 | ⬜ | — |
+| P7-5 | PMKID（clientless） | 10.3 | ★★★☆☆ | 🟦 | W08 | ⬜ | — |
+| P7-6 | Deauth → 4-way handshake → 離線爆破 | 10.4 | ★★★★☆ | 🟧 | W08 | ⬜ | — |
+| P7-7 | 預設 PSK 推導（或直接讀 COMPDS） | 10.5 | ★★★☆☆ | 🟦 | W08 | ⬜ | — |
+| P7-9 | WDS / Repeater 模式 → KRACK | 10.7 | ★★☆☆☆ | 🟦 | W08 | ⬜ | — |
+| P7-10 | FragAttacks | 10.8 | ★★☆☆☆ | 🟦 | W08 | ⬜ | — |
 
 <details><summary>Phase 7 的預測與反證條件（5/9 項已凍結）</summary>
 
@@ -648,43 +664,66 @@ W05 週計畫原本要另外建一份 `notes/prediction-scorecard.md`（12 條�
 
 | ID | 項目 | § | 可行性 | 出場證據 | 排程 | 結果 | 證據 |
 |---|---|---|---|---|---|---|---|
-| P8-1 | DHCP hostname → 儲存型 XSS（先白盒讀模板） | 11.1 | ★★★☆☆ | 🟦 | W07 | ⬜ | — |
+| P8-1 | DHCP hostname → 儲存型 XSS（先白盒讀模板） | 11.1 | ★★★☆☆ | 🟦 | W07 | 🟥 The white-box read the prediction asked for, and the refutation did not fire: there is no escaping. But the templates were the wrong place and the case as written would have looked in them - dhcptbl.htm contains no field at all, only <% dhcpClientList(); %>, so the value is written by a C function inside boa and grepping 146 template files would have found nothing. What boa does have is req_write_escape_html with an entity table for double-quote, apostrophe, backslash, less-than and greater-than. It has exactly SIX callers and every one is an upstream Boa status page - 403, 404, 301, 302, 411 - plus send_redirect_perm. Not one Realtek ASP list renderer calls it, and boa carries 105 table-markup format strings whose data-bearing ones are raw %s, two of them inside HTML attribute values where a single double-quote suffices. So the five 2025 XSS CVEs are five instances of one omission covering roughly thirty render functions - the same shape as W03 turning "dat files are not restricted" into "everything without htm in the path". NOT established: that a hostname carrying markup survives udhcpd and the lease table to reach dhcpClientList. Filtering on the WRITE side would close the point as effectively as escaping on the read side and nothing here looked at the write side; that is P8-2 and it stays open. | [xss-escaping.md](notes/xss-escaping.md) · [ghidra-xref-unit-2018-escape.json](reports/ghidra-xref-unit-2018-escape.json) |
 | P8-2 | 其他 7 個儲存型注入點 | 11.1 | ★★★☆☆ | 🟦 | W07 | ⬜ | — |
 | P8-3 | CSRF drive-by → RCE | 11.2 | ★★★★☆ | 🟨 | W07 | ⬜ | — |
 | P8-4 | CSRF 改密碼 → 正常登入 | 11.2 | ★★★★☆ | 🟨 | W07 | ⬜ | — |
-| **P8-5** | check_host 到底檢查什麼（rebinding 的前提） | 11.3 | ★★★☆☆ | 🟦 | W07 | ⬜ | — |
+| **P8-5** | check_host 到底檢查什麼（rebinding 的前提） | 11.3 | ★★★☆☆ | 🟦 | W07 | 🟪 check_host exists, is strict, is enforced, and never runs. It is at 0x00410470, 272 bytes: first char alphanumeric, length under 64, later chars alphanumeric or - or ., no leading or doubled dot, last char alphanumeric. process_header_end tests the verdict at 0x0040bca4 and a failure reaches send_r_bad_request at 0x0040bccc, a 400. Six instructions earlier, 0x0040bbec branches past the entire host block when vhost_root is NULL, landing on the same label the success path uses - and VHostRoot is commented out in both /etc/boa/boa.conf.bak line 150 and the runtime /var/boa.conf, so vhost_root is NULL on every boot. Measured, not inferred: seventeen Host values against the emulated server, nine of which check_host would reject including empty, 300 chars, spaces, underscores and punctuation, all returned 200, with login.htm/blank.htm controls holding. Bonus, and it is its own finding: the client Host at req+0x60 IS reflected into the gate redirect Location, giving an unauthenticated open redirect on every gated path - but both sinks encode correctly (URL-encoding in Location, HTML entities in the body), so it is not XSS. | [host-header-and-redirect.md](notes/host-header-and-redirect.md) · [ghidra-xref-unit-2018-checkhost.json](reports/ghidra-xref-unit-2018-checkhost.json) |
 | P8-6 | DNS rebinding 完整鏈 | 11.3 | ★★★☆☆ | 🟦 | W07 | ⬜ | — |
 | P8-7 | UPnP 自曝：把 LAN-only 升級成 WAN 可達 | 11.4 | ★★★☆☆ | 🟨 | W07 | ⬜ | — |
-| **P8-8** | MIB 值被拼進開機腳本的 shell 命令（白盒定位） | 11.5 | ★★★☆☆ | 🟨 | W07 | ⬜ | — |
-| **P8-10** | batchRemoteUpgrade 的對外連線（白盒未讀） | 11.7 | ★★★☆☆ | 🟦 | W07 | ⬜ | — |
+| **P8-8** | MIB 值被拼進開機腳本的 shell 命令（白盒定位） | 11.5 | ★★★☆☆ | 🟨 | W07 | ❌ Refuted at all three sites the prediction named, each for a different reason, and the complete inventory is nine flash get sites of which only two are eval. snmpd.sh:36-44 is the strongest sink - eval, not interpolation, and flash get quotes string values with double quotes where a backtick still executes - but none of its nine SNMP_ names exists in this build MIB table. Two instruments: the table recovered from libapmib.so has SNMP_RO_COMMUNITY and SNMP_RW_COMMUNITY only, and the vendor own /bin/flash answers flash get SNMP_NAME with a usage dump and rc=255. The script asks SNMP_ROCOMMUNITY - one underscore apart, scripts and MIB table from different SDK vintages, which is also why snmpd smbd smbpasswd nmbd are all absent from /bin while three scripts driving them ship. smb.sh and smbbak.sh capture MIB values with backticks but feed a config file and argv after word-splitting, no eval so no execution. The one live eval is startup.sh:25 over WLAN_BAND2G5G_SELECT and it DOES run at boot - see P8-24, where the transcript shows the shell reporting Invalid: not found from flash error text. So the class exists on this device and no attacker-controlled value currently reaches it. | [config-failopen.md](notes/config-failopen.md) · [mib-table-unit-2018.json](reports/mib-table-unit-2018.json) |
+| **P8-10** | batchRemoteUpgrade 的對外連線（白盒未讀） | 11.7 | ★★★☆☆ | 🟦 | W07 | 🟥 It makes outbound connections, they are plain HTTP, and the trigger is unauthenticated. /bin/batchRemoteUpgrade carries its flow in its string table: wget -q -c http://%s:%s/fw/totolink/%s/ -O /tmp/index.htm, then cat /tmp/index.htm | grep %s >/tmp/fwList, then wget -c http://%s:%s/fw/totolink/%s/%s -O /tmp/%s. It imports system, sprintf and strcpy, and sysconf starts it as batchRemoteUpgrade with six arguments. The same job exists inside boa: FUN_0044f7b4, reached from form_formSaveConfig, reads submit_rfw_check (0x0044f804), submit_rfw_download (0x0044f824) and submit_rfw_upgrade (0x0044f844) from the POST body and calls CheckRFW at 0x0044f88c with the literal host sl.totolink.software and model TWN150RTV2, then DownloadWithPercents and InitRFWUpgrade. auth-flow-2018.md and P2-1 both put POST /boafrm/* outside the gate. Combined with P9-13 (additive checksum, no signature) the class is a supply-chain path that needs DNS or MITM control and no memory-corruption exploit. STATIC ONLY - nothing has been executed; the device half is scheduled and the write half stays with P9-10 in W08. | [firmware-upgrade-path.md](notes/firmware-upgrade-path.md) · [ghidra-xref-unit-2018-rfw.json](reports/ghidra-xref-unit-2018-rfw.json) |
 | P8-11 | 假 NTP / 假 DDNS / 假 DNS 回應（SSRF 類） | 11.7 | ★★★☆☆ | 🟦 | W07 | ⬜ | — |
 | **P8-12** | 上傳 config 開 telnet（卡在 fwrecon 缺 encoder） | 11.8 | ★★☆☆☆ | 🟨 | W07 | ⬜ | — |
 | P8-14 | 以 formSysCmd 掃內網（借合法功能做偵察） | 11.10 | ★★★★☆ | 🟨 | W07 | ⬜ | — |
 | P8-15 | 命令路由器把 flash / 記憶體交出來（論證影響） | 11.11 | ★★★★☆ | 🟨 | W07 | 🔶 命令盤點那半收掉，兩個來源：rootfs 裡沒有 nc/netcat/tftp/curl/telnet 的 ELF，且 busybox 自報的 48 個 applet 也沒有（對照組 uptime 有回應）。/bin/wget 確實存在，與預測相符。外洩本身未演示 | [emulation-2018.md](notes/emulation-2018.md) |
 | P8-16 | Slowloris（S-2） | 11.12 | ★★★★☆ | 🟨 | W07 | ⬜ | — |
 | P8-17 | ARP MITM 竊聽明文憑證（S-3） | 11.12 | ★★★★☆ | 🟥 | W07 | ⬜ | — |
-| **P8-18** | 上傳 filename= 注入（S-11，白盒未讀） | 11.12 | ★★★★☆ | 🟦 | W07 | ⬜ | — |
+| **P8-18** | 上傳 filename= 注入（S-11，白盒未讀） | 11.12 | ★★★★☆ | 🟦 | W07 | ❌ Refuted exactly as the refutation condition anticipated. FUN_0044f360 @0x0044f360 is 272 bytes and every path through it returns an integer OFFSET, not a string: it strstrs four Content-Type markers, and failing those it uses filename= at 0x0044f408 purely as a landmark - strchr for the closing quote at 0x0044f424, one more strstr at 0x0044f440, then return (p - body) + 4. The filename is never copied, never reaches sprintf, never becomes a path or a shell string. form_formUpload uses the return value as UpgradeByData third argument and touches no other multipart header. Note the scope: formUploadConfig is a DIFFERENT handler, is not covered here, and is still unread - that one belongs to P8-12. | [firmware-upgrade-path.md](notes/firmware-upgrade-path.md) |
 | P8-19 | WAN 側 DHCP / PPPoE 攻擊（S-7 / S-8） | 11.12 | ★★★☆☆ | 🟦 | W07 | ⬜ | — |
 | P8-20 | iwpriv 隱藏 ioctl + 暫存器 peek/poke（S-6） | 11.12 | ★★★☆☆ | 🟥 | W07 | ⬜ | — |
 | **P8-21** | 同型號橫向抄襲（S-15：A3002RU / N300RT / N302RE） | 11.12 | ★★★★★ | 🟨 | W07 | ⬜ | — |
+| **P8-24** | 設定區失效時開機腳本自己開 telnet（fail-open，本專案獨家） | 11.5 | ★★★★☆ | 🟥 | W07 | 🔶 The branch is reached, the write is not observable. With both region signatures zeroed startup.sh printed its own line 23 verbatim - Default configuration invalid, reset default! - which is the branch whose line 43 is flash set TELNET_ENABLED 1. What it then writes cannot be measured here: flash default-sw and flash reset1 both die on qemu-user SIGBUS, so the image is byte-identical before and after in all seven damage states. The control that makes that a statement about the recovery path rather than about the environment: a plain flash set WAN_DHCP 7 writes and reads back in the same environment. Two refinements the prediction did not have. (1) The two validity tests differ: test-dsconf checks the DECOMPRESSED header (sig=6G ver=3 len=31878) and tolerates a flipped payload byte, test-csconf additionally runs mib_tlv_init and does not - so reaching the fail-open branch requires damaging COMPDS header specifically, not just corrupting the settings area. (2) startup.sh line 25 eval flash get WLAN_BAND2G5G_SELECT executed and the shell reported Invalid: not found, i.e. flash error text became a command - the P8-8 sink is live on the boot path even though nothing attacker-controlled reaches it. | [failopen-unit-2018.json](reports/failopen-unit-2018.json) · [config-failopen.md](notes/config-failopen.md) · [failopen-probe.sh](tools/failopen-probe.sh) |
 | P8-23 | 從 config.dat 反推 MIB 結構（差分法） | 11.14 | ★★★☆☆ | 🟥 | W07 | ⬜ | — |
 
-<details><summary>Phase 8 的預測與反證條件（12/20 項已凍結）</summary>
+<details><summary>Phase 8 的預測與反證條件（21/21 項已凍結）</summary>
 
 **P8-1 — DHCP hostname → 儲存型 XSS（先白盒讀模板）**
 
 - 預測：143 個 docroot 檔在 dump 裡，所以模板可以先白盒讀，不必黑盒猜
 - **反證：模板對 hostname 有跳脫 → 這個注入點不成立，但另外 7 個還要各自看**
 
+**P8-2 — 其他 7 個儲存型注入點**
+
+- 預測：扣掉 `P8-1` 的 DHCP hostname，另外七個是：無線 client 的 MAC / 名稱（`formWirelessTbl`）、UPnP `NewPortMappingDescription`、惡意 Beacon 的 SSID（Site Survey）、NetBIOS / mDNS 名稱、PPPoE server name、DDNS / NTP 回應、失敗登入的帳號名與 `User-Agent`（`formSysLog`）。**其中只有三個這一週測得到**：UPnP 描述欄（52869 開著，`P1-10` 已證實 miniigd 在跑）、`formSysLog` 那一組、以及 PPPoE server name（要架假 PPPoE，與 `P8-19` 同一趟）。惡意 Beacon 需要監聽模式網卡（已隨 `P7-3` 移到 W08），無線 client 名稱需要有裝置連上這台的 Wi-Fi，NetBIOS / mDNS 這台沒有對應 daemon —— 55 個 ELF 裡沒有 nmbd 也沒有 avahi。**每一個都先白盒讀模板再送封包**：docroot 的 143 個檔在 dump 裡，有沒有輸出編碼是讀得出來的
+- **反證：模板對這些欄位都做了輸出編碼 → 整組儲存型 XSS 收掉，而那是一個結論不是失敗。反過來，模板沒有編碼但實機送進去的值被截斷或消失 → 過濾發生在寫入端而不是輸出端，那要指出是哪一個 handler 做的，否則「有 XSS」與「送不進去」會被寫成同一件事**
+
 **P8-3 — CSRF drive-by → RCE**
 
 - 預測：沒有 CSRF token，且 P2-1 顯示 POST /boafrm/* 在門外，所以連「已登入」這個前提都不需要
 - **反證：存在任何 token 或 Referer 檢查 → 前提不成立**
 
+**P8-4 — CSRF 改密碼 → 正常登入**
+
+- ⚠️ **會改掉 flash 裡的管理密碼。排在同一梯次最後，且要能用 P0-1 的備份還原**
+- 預測：`P10-3` 已經在這台實機上證實：未認證 POST `/boafrm/formPasswordSetup`、表單裡一個現行密碼欄位都不帶，就改得掉管理密碼。所以這一條要測的**不是「改不改得掉」**——那是已知的——**而是跨站的那一半**：由受害者瀏覽器發出、`Origin` 與 `Referer` 指向攻擊者網域的表單 POST，會不會被同樣接受。`P2-7` 顯示這台從不送 `Set-Cookie`、授權是逐請求的 HTTP Basic，所以連「受害者要先登入」這個前提都不需要。預期完全成立
+- **反證：帶著外部 `Origin` / `Referer` 的 POST 行為與 `curl` 直送不同 → 存在某種來源檢查，`P8-3` 的前提要一起重寫；或密碼改掉了但新密碼登不進去 → 寫進 MIB 的欄位與登入路徑讀的欄位不是同一個，那比 CSRF 本身更值得追，因為它代表 `P10-3` 的「改掉了」是寫進了一個沒人讀的地方**
+
 **P8-5 — check_host 到底檢查什麼（rebinding 的前提）**
 
 - 預測：沒有人讀過 check_host。桌面資料說「Boa 0.94 不驗 Host 所以 rebinding 完全成立」，那是對上游 Boa 的說法，不是對這台的
 - **反證：Host 填任意值被拒 → rebinding 這條線要先解決 Host 才談得上**
+
+**P8-6 — DNS rebinding 完整鏈**
+
+- 預測：這一條整條押在 `P8-5` 上：`check_host` 若不驗 Host，rebinding 在協定層成立。**但這台上 rebinding 的價值比手冊寫的低，而理由是本專案自己量出來的**——`P2-7` 已證實授權是逐請求的 HTTP Basic、這台從不送 `Set-Cookie`，而 `P2-1` 證實 `/boafrm/*` 在門外。攻擊者要的動作用 `P8-3` 的盲打 CSRF 就做得到，rebinding 只多買到一件事：**讀得到回應內容**，也就是把 `/config.dat` 抓回去
+- **反證：`P8-5` 顯示 Host 被檢查 → 這條在前提上就不成立，先解 Host 再談。或鏈建起來了但瀏覽器沒有重新解析（DNS pinning）→ 那是瀏覽器的行為不是這台的性質，要記成方法限制，**不准寫成「這台不受 rebinding 影響」****
+
+**P8-7 — UPnP 自曝：把 LAN-only 升級成 WAN 可達**
+
+- ⚠️ **只在隔離網段做，WAN 側接的是假 ISP。真的把管理介面推上網際網路不在授權範圍**
+- 預測：52869/tcp 開著（`P1-2`），且 `P1-10` 證實 miniigd 在跑，所以 `AddPortMapping` 打得到。預期 `NewInternalClient` 不會被驗證等於請求來源 IP，因此可以把 WAN 的一個埠映射到路由器自己的 `10.1.1.1:80`，而 `NewLeaseDuration=0` 讓它不過期。若成立，本手冊裡所有標成 LAN-only 的東西**在協定層上**都變成 WAN 可達
+- **反證：`AddPortMapping` 回 SOAP error，或映射建起來但 `NewInternalClient` 被強制改寫成請求來源 IP → 這個版本做了來源檢查，那要記下 miniigd 的版本。**版本要從 binary 認，不准從 banner 認**：`P1-10` 已經發現這台的 miniigd 自報 `Server: miniupnpd/1.4`，那是另一個 codebase 的名字。另一種反證是映射建起來了但 WAN 側打不通 → 那是 iptables 沒有跟著開，映射與轉發是兩件事**
 
 **P8-8 — MIB 值被拼進開機腳本的 shell 命令（白盒定位）**
 
@@ -696,15 +735,32 @@ W05 週計畫原本要另外建一份 `notes/prediction-scorecard.md`（12 條�
 - 預測：`/bin/batchRemoteUpgrade` 在這台的 command_exec_binaries 名單裡（`reports/n150rt-unit-2018.json`，32 支之一），也就是它自己會呼叫 shell；路由器主動發起的連線全都是攻擊面，而本專案從來沒讀過它
 - **反證：讀完發現它不發起任何對外連線，或那條 exec 路徑不可從外部觸發 → 這個空白區關掉，這也是一個結論**
 
+**P8-11 — 假 NTP / 假 DDNS / 假 DNS 回應（SSRF 類）**
+
+- 預測：三類主動連線的 binary 全都在這台的 rootfs 裡：`/bin/ntpclient`、`/bin/ntp_inet`、`/bin/ntp.sh`；`/bin/ddns_inet`、`/bin/updatedd`、`/bin/ddns.sh`；`/bin/dnrd`、`/bin/dnsmasq`、`/bin/dns_protocl`。**但這一週能測到的只有觸發與觀測那一半**：要證明畸形回應會打壞解析器，得先讀那幾支 binary，而一支都沒讀過。預期 NTP 與 DDNS 在被啟用後會主動對外連線，流量是明文，在隔離網段上完整可觀測
+- **反證：隔離網段上抓不到任何 NTP 或 DDNS 的對外請求 → 這些 client 沒有被啟動，或觸發條件不是「WAN 連上」。那時**要先答出誰啟動它們、條件是什麼**，答不出來這條的判定就沒有基礎 —— 與 `P6-7` 對 `cwmpClient` 的要求同一個標準**
+
 **P8-12 — 上傳 config 開 telnet（卡在 fwrecon 缺 encoder）**
 
 - 預測：fwrecon compcs 只有 decode（lzss_decode / decode_region / decode_file），沒有 encoder，所以這條鏈卡在自家工具而不是裝置
 - **反證：不需要重算 checksum 也能被接受 → Decode 那邊讀出來的 8-bit payload checksum 不是強制的，那條鏈立刻打開**
 
+**P8-14 — 以 formSysCmd 掃內網（借合法功能做偵察）**
+
+- ⚠️ **只掃隔離網段內自己的兩台。這一項的價值是論證影響範圍，不是真的去掃東西**
+- 預測：`P3-3` 已在這台實機上確認 `formSysCmd` 未認證命令執行成立，`P8-15` 已盤點過命令面：rootfs 沒有 `nc` / `tftp` / `curl`，busybox 自報的 48 個 applet 也沒有，但 `/bin/wget`、`/bin/ping`、`/bin/traceroute`、`/bin/nslookup` 都在。**所以偵察做得到，但做法不是 `nmap`**，是拿 `ping` 的回傳碼與 `wget` 的連線行為當 oracle。這一項的價值是論證影響範圍：這台本身就是一台內網掃描器，而它坐在 NAT 的內側
+- **反證：`ping` 或 `wget` 在裝置上跑得起來卻沒有可觀測的回傳差異 → `P8-15` 的命令盤點漏掉了「存在」與「可用」的差別，那一條要補。或掃描輸出取不回來 → `P3-3` 的 docroot oracle 對多行輸出不適用，那是方法限制，要寫清楚而不是算成「掃不到」**
+
 **P8-15 — 命令路由器把 flash / 記憶體交出來（論證影響）**
 
 - 預測：55 個 ELF 裡有 `wget`，沒有 `nc` / `tftp` / `curl`（`reports/n150rt-unit-2018.json`）。但那份清單只涵蓋 ELF，busybox applet 是 symlink 不會出現在裡面 —— 所以「沒有 nc」目前只是預測，不是已知
 - **反證：裝置上 `nc` 或 `tftp` 可用 → 它們是 busybox applet，binaries 清單量的是 ELF 而不是可用命令。那條差異要寫下來，因為本專案有好幾個結論建立在「這台沒有 X」上面**
+
+**P8-16 — Slowloris（S-2）**
+
+- ⚠️ **打完之後 boa 可能不會自己回來。排在同一梯次會弄掉 boa 的那幾項旁邊，不要排在需要 web 服務活著的測試前面**
+- 預測：Boa 0.94 是單行程 `select()` 迴圈，連線上限由編譯期常數與 `getrlimit` 決定，所以半開連線佔滿之後管理介面應該完全不回應。**但這一條的觀測面要先講清楚，否則量到的東西會被歸錯**：`P4-1` / `P4-3` 已經證實這台一個請求就能讓 `boa` 永久消失，所以「打完之後 80 埠不回應」在這台上有兩個成因。判定必須包含**停止攻擊之後服務自己回來**——會回來的是 DoS，不回來的是 `P4-*` 的崩潰
+- **反證：停止攻擊後服務沒有自己恢復 → 那不是 Slowloris，是把 `boa` 打死了，結果要歸到 `P4-*` 而不是這裡。或連線數拉到上限而管理介面照常回應 → 這個 build 不是單行程模型，`boa` 的連線處理要回頭讀**
 
 **P8-17 — ARP MITM 竊聽明文憑證（S-3）**
 
@@ -716,6 +772,11 @@ W05 週計畫原本要另外建一份 `notes/prediction-scorecard.md`（12 條�
 - 預測：multipart 的 filename 欄常被直接用在檔案路徑或 shell 字串；這台的上傳 handler 從來沒讀過
 - **反證：讀完發現 filename 沒有被使用 → 空白區關掉**
 
+**P8-19 — WAN 側 DHCP / PPPoE 攻擊（S-7 / S-8）**
+
+- 預測：兩條路都存在：`/bin/udhcpc` 與 `/usr/share/udhcpc/eth1.{sh,bound,renew,deconfig}`（`eth1` 是 WAN），以及 `/bin/pppd`、`/bin/pppoe.sh`、`/bin/pppoe_conn_patch.sh`、`/bin/pppoe_disc_patch.sh`。**udhcpc 那條特別值得看**，因為 `eth1.bound` 是一支 shell 腳本，而 DHCP 回應裡的 hostname / domain / classless-route 是攻擊者完全可控的字串 —— 若腳本把它們不加引號地展開，那是一條**繞過 `boa` 的注入路徑**，與 `P8-8` 同一個類別而且從 WAN 側就打得到。先白盒讀 `eth1.bound`，再決定要不要架假 DHCP server
+- **反證：讀完發現 `eth1.bound` 對所有 DHCP 提供的值都加了引號，或只透過 `flash set` 寫進 MIB 而不做字串展開 → 這條收掉，而那是一個結論。或架起假 server 之後這台根本不從 WAN 要 DHCP → WAN 模式預設不是 DHCP，要先從 COMPCS 確認 `WAN_DHCP` 的值，不能從「它沒有要位址」推論成「它沒有這個功能」**
+
 **P8-20 — iwpriv 隱藏 ioctl + 暫存器 peek/poke（S-6）**
 
 - 預測：iwpriv 在 /bin 裡，所以拿到 shell 之後可以直接對驅動下私有 ioctl
@@ -726,20 +787,21 @@ W05 週計畫原本要另外建一份 `notes/prediction-scorecard.md`（12 條�
 - 預測：CVE-2024-51228 點名六個產品，全是同一顆 Realtek Boa 的 -CX- build。本專案只有其中一台，對另外五台不作任何宣稱
 - **反證：拿到另一台的映像後發現 dispatch table 不同 → 「同一顆」的假設不成立，CX 這個標記的意義要重新問**
 
+**P8-24 — 設定區失效時開機腳本自己開 telnet（fail-open，本專案獨家）**
+
+- 預測：`/bin/startup.sh` 由 `rcS` 直接呼叫，開頭是這個結構：`flash test-dsconf` 失敗**而且** `flash test-csconf` 也失敗時，走 `flash default-sw`，然後**明文寫著 `flash set TELNET_ENABLED 1`**。也就是說兩個設定區同時無效，這台會用出廠預設開機**並且自己把 telnet 打開**，而 `/etc/passwd.org` 裡的 `root` / `123456` 與 `onlime_r` / `12345`（uid 0）從 2015 到現在沒動過（W02 的三版對照）。
+
+**但這條不能只從腳本讀出來，因為它取決於 `flash` 的語義而不是腳本的字面：** `$LOADDEFSW` 之後還有一段 `test-csconf` 失敗就跑 `$LOADDS`（`flash reset1`，把 default 蓋回 current）。若 `default-sw` 只修好 COMPDS 而沒修好 COMPCS，那個 `reset1` 會把剛剛 `set` 的 `TELNET_ENABLED 1` 蓋掉，整條就不成立。預測是**成立**，理由是 `default-sw` 的名字與位置都指向它同時建立兩區，但這一半是推論不是量測。
+
+若成立，它翻掉 `P8-12` 的前提：那一條說鏈卡在「fwrecon 沒有 COMPCS encoder，做不出有效的設定檔」，而這裡要的是**無效**的設定區，那不需要 encoder。
+- **反證：兩區都填成無效之後開機，`TELNET_ENABLED` 仍然是 0 → 對腳本的讀法錯了，或 `reset1` 把它蓋掉了。**兩種都要分辨清楚**：跑完之後既要讀 `flash get TELNET_ENABLED`，也要 dump 兩個設定區看誰被寫過，否則「沒開」會被寫成「這條不存在」而實際上是「開了又被關掉」——後者是同一個缺陷的另一種形狀。另一個反證方向：`test-dsconf` / `test-csconf` 的失敗條件比 checksum 嚴格得多（例如只認某個 signature），使得攻擊者能造成的損壞不會被判為無效 → 那這條在模擬下成立而在真實攻擊面上不成立，要照這樣寫。**
+
 **P8-23 — 從 config.dat 反推 MIB 結構（差分法）**
 
 - 預測：大部分已經由 libapmib 的 Decode 完成；剩下的是用 GUI 改一個已知值再差分，補完 offset ↔ MIB 對照
 - **反證：改一個值之後差分出來的 offset 與 Decode 推出來的不一致 → 兩條路徑其中一條錯了，先把它們對齊**
 
 </details>
-
-> ⚠️ **P8-4** — 會改掉 flash 裡的管理密碼。排在同一梯次最後，且要能用 P0-1 的備份還原
-
-> ⚠️ **P8-7** — 只在隔離網段做，WAN 側接的是假 ISP。真的把管理介面推上網際網路不在授權範圍
-
-> ⚠️ **P8-14** — 只掃隔離網段內自己的兩台。這一項的價值是論證影響範圍，不是真的去掃東西
-
-> ⚠️ 本 Phase 還有 **8** 項沒寫反證條件。在寫出來以前不能記錄結果（`rtcase check` 會擋）：`P8-2`、`P8-4`、`P8-6`、`P8-7`、`P8-11`、`P8-14`、`P8-16`、`P8-19`
 
 ## Phase 9 — 實體
 
@@ -749,16 +811,17 @@ W05 週計畫原本要另外建一份 `notes/prediction-scorecard.md`（12 條�
 | P9-2 | FLR / DB 全 flash 讀出（＝ P0-1） | 12.2 | ★★★★★ | 🟥 | W02 | ✅ FLR+DB 105 分鐘、零 chunk 重試；W01 導出的三個 burn address 全中 | [flash-layout.md](notes/flash-layout.md) · [flashdump-unit-2018.json](reports/flashdump-unit-2018.json) |
 | P9-3 | bootloader TFTP / HTTP 救援 | 12.3 | ★★★★☆ | 🟥 | W05 | 🔶 救援模式進得去,凍結的反證條件不成立。AUTOBURN 0 → AutoBurning=0;IPCONFIG 10.1.1.1 → Now your Target IP is 10.1.1.1(**冒號形式兩個都回 Unknown command !,說明文字不是語法**)。網路活著,兩個來源:ARP 解析成功,以及 kernel 自己的 rx_packets 0→1。TFTP 服務確認會回應 —— 對一個不存在的檔名回 516 bytes 的 DATA(opcode 3)。判 partial 是因為預測寫的是「tftp **put** 可用」,而上傳依本場的非破壞性上限不做。**我自己寫在計畫裡的成功條件(ping 有回應、MAC 是這台)兩半都不成立,而那是我的條件錯了**:TFTP-only 的堆疊沒有義務實作 ICMP,loader 的 MAC 是從 IP 合成的(0a 01 01 01 = 10.1.1.1)。計畫外:TFTP GET 不看檔名,吐出的 516 bytes 與 flash 0x060010 起的 cr6c 酬載逐 byte 相同 —— 列為開放題。 | [BENCH-LOG.md](BENCH-LOG.md) |
 | P9-4 | 搶重開機瞬間的救援窗口上傳韌體 | 12.3 | ★★☆☆☆ | 🟦 | W07 | ⬜ | — |
-| **P9-5** | SPI 直讀 dump（第二支儀器） | 12.4 | ★★☆☆☆ | 🟨 | W07 | ⬜ | — |
-| P9-6 | SPI 直寫植入 | 12.4 | ★★☆☆☆ | 🟨 | W07 | ⬜ | — |
-| **P9-7** | 讀 JEDEC ID（flash 型號的第二來源） | 12.4 | ★★☆☆☆ | 🟨 | W07 | ⬜ | — |
-| P9-8 | EJTAG | 12.5 | ★☆☆☆☆ | 🟦 | W07 | ⬜ | — |
+| **P9-5** | SPI 直讀 dump（第二支儀器） | 12.4 | ★★☆☆☆ | 🟨 | W08 | ⬜ | — |
+| P9-6 | SPI 直寫植入 | 12.4 | ★★☆☆☆ | 🟨 | W08 | ⬜ | — |
+| **P9-7** | 讀 JEDEC ID（flash 型號的第二來源） | 12.4 | ★★☆☆☆ | 🟨 | W08 | ⬜ | — |
+| P9-8 | EJTAG | 12.5 | ★☆☆☆☆ | 🟦 | W08 | ⬜ | — |
 | P9-9 | Reset 按鈕行為 | 12.6 | ★★★★★ | 🟥 | W07 | ⬜ | — |
-| P9-10 | 改造韌體回刷 / implant | 12.7 | ★★★☆☆ | 🟨 | W07 | ⬜ | — |
-| P9-11 | 短接 SPI 強制落回 bootloader（HW-a） | 12.8 | ★★★☆☆ | 🟦 | W07 | ⬜ | — |
-| P9-12 | 換自製 flash / tftpboot RAM kernel（HW-b/c） | 12.8 | ★★★☆☆ | 🟦 | W07 | ⬜ | — |
+| P9-10 | 改造韌體回刷 / implant | 12.7 | ★★★☆☆ | 🟨 | W08 | ⬜ | — |
+| P9-11 | 短接 SPI 強制落回 bootloader（HW-a） | 12.8 | ★★★☆☆ | 🟦 | W08 | ⬜ | — |
+| P9-12 | 換自製 flash / tftpboot RAM kernel（HW-b/c） | 12.8 | ★★★☆☆ | 🟦 | W08 | ⬜ | — |
+| **P9-13** | 韌體映像驗收檢查：這個 build 實際驗哪幾個欄位（純靜態，不回刷） | 12.7 | ★★★★☆ | 🟦 | W07 | 🟥 Checksum only, and the addresses are in the note. UpgradeByData @0x00460798 (1608 bytes) is the whole acceptance path and it does exactly three things: memcmp against the four-byte section tags cr6c/w6cg/r6cr at 0x004608cc, 0x00460924, 0x0046097c; a checksum, FUN_00460600 called at 0x00460a98 for cr6c and r6cr and FUN_00460690 at 0x00460aec for w6cg; and a strncmp at 0x00460a04 against a model string the caller supplies. Both checksums are additive with no key - FUN_00460600 sums big-endian halfwords and requires 0, FUN_00460690 sums bytes and requires 0 with a length cap of 0x800000. No signature, no hw_version, no anti-rollback: strings over the whole binary finds no signature/RSA/pubkey/pem/hw_version match, and the listing has no room for one. Read at instruction level with BoaListing, not from the decompiler. The model string form_formUpload passes at 0x0044f4dc is the literal TOTOLINK-N150RT-V2.1.0 while this unit reports TOTOLINK-CX-N150RT-V2.1.6-B20171121.1002, and nothing compares the two - the accepted label is an older, published version string. | [firmware-upgrade-path.md](notes/firmware-upgrade-path.md) · [ghidra-xref-unit-2018-upgrade.json](reports/ghidra-xref-unit-2018-upgrade.json) |
 
-<details><summary>Phase 9 的預測與反證條件（6/12 項已凍結）</summary>
+<details><summary>Phase 9 的預測與反證條件（9/13 項已凍結）</summary>
 
 **P9-1 — UART 攔 bootloader → init=/bin/sh**
 
@@ -774,6 +837,11 @@ W05 週計畫原本要另外建一份 `notes/prediction-scorecard.md`（12 條�
 
 - 預測：IPCONFIG + tftp put 可用，這是磚了之後唯一的救援路徑
 - **反證：救援模式進不去 → P0-3 的抹除還原就是唯一的救命繩，寫 flash 的風險等級全部上調**
+
+**P9-4 — 搶重開機瞬間的救援窗口上傳韌體**
+
+- 預測：開機記錄（`dumps/uart-boot.log`）顯示 loader 印完 `---RealTek(RTL8196E)at 2014.04.22...` 之後**直接** `Jump to image start=0x80500000`，中間沒有任何網路初始化、沒有等待提示、沒有倒數。`P9-3` 進得去救援模式，但那是靠序列埠連續送 ESC 打斷開機才進去的，而 `reports/bootloader-unit-2018.json` 裡的 `IPCONFIG` / `AUTOBURN` / `LOADADDR` / TFTP 字串全部屬於命令模式。所以預期**這個救援窗口不是遠端可達的**：TFTP 堆疊只在命令模式下起來，而進命令模式需要 UART
+- **反證：在一次重開機期間，隔離網段上的主機對 loader 送 ARP 或 TFTP 請求得到回應，**而全程沒有碰序列埠** → loader 在 Linux 之前就服務網路。那麼任何能讓這台重開機的人（`P3-3` 的 `formSysCmd` 就可以）都能從 LAN 改寫韌體，這一條的嚴重度要整個上調，而且它會變成本專案最嚴重的發現。觀測要用被動 tcpdump 全程錄，不能只看主動探測有沒有回應 —— 窗口若只有幾百毫秒，主動探測會錯過它而被動錄不會**
 
 **P9-5 — SPI 直讀 dump（第二支儀器）**
 
@@ -791,13 +859,22 @@ W05 週計畫原本要另外建一份 `notes/prediction-scorecard.md`（12 條�
 - 預測：reset 會把 COMPCS 覆寫回 COMPDS；但 H601 那塊（MAC 與射頻校正）不在其中，reset 不會還原它
 - **反證：reset 之後 H601 的內容改變 → 出廠區的範圍判斷錯了，這會直接影響 P0-3 的風險評估**
 
+**P9-10 — 改造韌體回刷 / implant**
+
+- ⚠️ **最高風險且不可逆。IMG_HEADER_T 的欄位順序已經在 tools/fwrecon/src/fwrecon/rtlimage.py 裡，不要重新猜**
+- 預測：`P9-13` 若讀出升級路徑只驗 checksum 不驗簽章，那麼一個用 `fwrecon` 重組、checksum 算對的映像會被接受，implant 成立。回刷管道有兩條：web 的升級 handler，以及 boot loader 的 `IPCONFIG` + `AUTOBURN 1` + TFTP。**預期用後者**，因為它不經過 `boa`，失敗時人就已經在主控台前面
+- **反證：改造映像被拒絕 → `P9-13` 讀出來的檢查欄位不完整，回去讀，不要用試錯法逼它接受。或映像被接受但開機不起來 → 檢查通過不等於映像正確，那時 `P9-3` 的 TFTP 救援是唯一的路，而「救援路徑沒被演練過就不做這一項」是這條改期理由的全部內容**
+
+**P9-13 — 韌體映像驗收檢查：這個 build 實際驗哪幾個欄位（純靜態，不回刷）**
+
+- 預測：`P9-10` 改期到 W08 之後，留在 W07 的是它不可逆之前的那一半，而那一半本身就是 plan Day 6 的交付物：升級路徑到底檢查什麼。W01 的 `P0-7` 已經從兩個廠商映像還原出 `IMG_HEADER_T`（`tools/fwrecon/src/fwrecon/rtlimage.py`），欄位裡有 `hdr_chksum` 與 `chksum`。預期這個 build **只驗 checksum、不驗簽章、也不驗 `hw_version` 的 anti-rollback** —— 但「幾乎確定沒有簽章」不是結論，**要指到那個比對的位址，或者指出檢查應該在的位置而它不在**。同一個問題要對兩條回刷管道各答一次：web 的升級 handler，以及 boot loader 的 `AUTOBURN` 路徑，因為它們是兩份程式碼
+- **反證：讀出來發現有簽章驗證或 `hw_version` 比對 → `P9-10` 的 W08 計畫要整個重寫，而那比「沒有簽章」有意思得多。或兩條管道的檢查嚴格程度不同 → 那本身是發現：較鬆的那條就是實際的攻擊面，而它可能不是大家會去看的那條**
+
 </details>
 
 > ⚠️ **P9-6** — 最高風險。P0-3 與 P9-3 都通過之前不做
 
-> ⚠️ **P9-10** — 最高風險且不可逆。IMG_HEADER_T 的欄位順序已經在 tools/fwrecon/src/fwrecon/rtlimage.py 裡，不要重新猜
-
-> ⚠️ 本 Phase 還有 **6** 項沒寫反證條件。在寫出來以前不能記錄結果（`rtcase check` 會擋）：`P9-4`、`P9-6`、`P9-8`、`P9-10`、`P9-11`、`P9-12`
+> ⚠️ 本 Phase 還有 **4** 項沒寫反證條件。在寫出來以前不能記錄結果（`rtcase check` 會擋）：`P9-6`、`P9-8`、`P9-11`、`P9-12`
 
 ## Phase 10 — 設定層
 
@@ -807,7 +884,7 @@ W05 週計畫原本要另外建一份 `notes/prediction-scorecard.md`（12 條�
 | P10-2 | config 檔名字典掃描（20+ 路徑） | 13.1 | ★★★☆☆ | 🟦 | W06 | ✅ 156 paths: the 143 names in this unit own w6cg bundle plus 13 suspects that are not in it. Of the 13, only config.dat answers 200, and it is the only 200 in the whole scan that is not a bundle name — boa creates it at start-up. Distribution 83x302 / 73x200. The three 000 in the raw output were the scan own liveness-control lines, which had been formatted with a leading 000 to align the columns and were therefore indistinguishable from failures. | [BENCH-LOG.md](BENCH-LOG.md) |
 | P10-3 | 未認證改管理密碼 | 13.2 | ★★★★☆ | 🟨 | W06 | ✅ Confirmed in its strongest form and at the first attempt. The form carries Cusername/Cpassword fields for the CURRENT credentials; the handler does not check them. An unauthenticated POST to /boafrm/formPasswordSetup carrying no current-password field at all changed the administrator password: old credentials went 200 to 302 and the new ones 302 to 200. So the chain is shorter than planned — reading the password out of config.dat first is not necessary. | [BENCH-LOG.md](BENCH-LOG.md) |
 | **P10-4** | 把密碼設成空字串 → 全機無認證（本專案獨家） | 13.2 | ★★★☆☆ | 🟥 | W06 | ✅ With USER_PASSWORD empty, password.htm returns 200 and 5322 bytes of real HTML with no Authorization header at all, and home.htm, wlbasic.htm, ddns.htm and status.htm likewise. A WRONG password also returns 200, so the comparison is skipped entirely rather than matching empty against empty. That is the beq at 0x0040bd18 as W04-2 read it. With P10-3 this is a complete unauthenticated takeover: docs/disclosure.md D-4 says reachability matters more than the branch, and the path exists. First run of this test built its URLs from a loop variable the WSL dispatch strips, so four requests all went to / and four 200s nearly became a headline. | [BENCH-LOG.md](BENCH-LOG.md) |
-| **P10-7** | 出廠私鑰 /etc/privateKey.key（未讀） | 13.4 | ★★★☆☆ | 🟦 | W07 | ⬜ | — |
+| **P10-7** | 出廠私鑰 /etc/privateKey.key（未讀） | 13.4 | ★★★☆☆ | 🟦 | W07 | ❌ The premise is wrong for this unit and the answer is that the key is unusable. The register said the rootfs has two factory private keys; that is a statement about V2.1.2 plus V3.4.0. THIS unit has one: /etc/dropbear_rsa_host_key, 282 bytes, dropbear wire format, ssh-rsa with a 0x81-byte modulus so 1024-bit. /etc/privateKey.key is V3.4.0 only. And there is no SSH daemon in the rootfs at all - no dropbear, no dropbearmulti, no sshd among the binaries - while sysconf still does mkdir /var/dropbear and copies the key there at boot. So the key ships, is installed on every boot, and nothing can present it; P6-11 measured port 22 closed on the device, which is the same conclusion from the other side. It stays a shipped-identical-key class item for OTHER models that do run dropbear, which is a P8-21 question, not this unit. | [n150rt-unit-2018.json](reports/n150rt-unit-2018.json) |
 | **P10-10** | 收工還原 + 基準線比對 | 13.7 | ★★★★★ | — | W06 | ✅ Not one unattributable byte. Four 64 KiB snapshots were taken through the boot loader across the session. H601 (0x6000-0x8000): nine bytes moved and all nine came back — the eight ASCII digits of HW_WLAN0_WSC_PIN plus the region checksum at 0x006493, which the device recomputed itself. The final read is byte-identical BOTH to the pre-injection snapshot AND to the 2026-08-16 full dump, taken before this project had ever written to the device. The boot loader region never moved at all. COMPDS and COMPCS differ, and every field is named: COMPCS moved in exactly two, SYSCMD_SELECT and WPS_FIRST, which are the two handlers that were fired; COMPDS moved in twenty-five, all converging on COMPCS values, which is D-10 and not a side effect of any single test. New baseline for the next session: COMPCS vs COMPDS differ in 0 of 343. And a procedure correction that cost nothing to learn but would have cost a session to guess: restoring COMPDS at the START of a bench session is pointless, because any POST rewrites it from COMPCS before the session ends. It belongs at the end. | [BENCH-LOG.md](BENCH-LOG.md) · [runsheet.md](runsheet.md) |
 
 <details><summary>Phase 10 的預測與反證條件（6/6 項已凍結）</summary>

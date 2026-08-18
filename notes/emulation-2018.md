@@ -375,6 +375,67 @@ it is recorded, not resolved.
   a statement about the MTD layer, made from the code and from how NOR flash
   works, and it has not been observed on this unit.
 
+## 7a. It could not decide anything that writes configuration either — and that one was fixable
+
+**Found 2026-08-18, and it invalidates the shape of a result this project had
+already recorded.** `handler-sweep.py` reported **39 of 57 handlers dying on a
+single well-formed POST** and wrote the field as `died_under_emulation` because
+it could not say why. The why, caught by attaching `gdb-multiarch` to
+`qemu-mips-static`'s gdbstub and letting the fault happen:
+
+```
+Program received signal SIGBUS, Bus error.
+=> 0x2b2c87dc:  sh  s7,0(s8)
+```
+
+`libapmib.so + 0x27d0`, inside **`mib_write_to_raw`** (`0x2680`, 0x228 bytes) —
+the serialiser that packs the MIB into the raw flash buffer. Its records are
+variable-length TLVs, so the halfword store lands on an odd address as a matter
+of routine. **Linux/MIPS emulates unaligned user-space accesses in its trap
+handler and the device never notices; `qemu-user` raises `SIGBUS`, and `boa`
+installs a handler that dumps core and aborts.**
+
+So the 39 were not fragile handlers. They were **the handlers that reach the
+config serialiser** — and the 19 "survivors" are the ones that bail out early
+because the probe body carried only `submit-url`. `formSysCmd` is among the
+survivors for exactly that reason, which had looked like a curiosity.
+
+[`tools/alignfix/`](../tools/alignfix/) removes the divergence: a freestanding
+`LD_PRELOAD` shim, built for MIPS big-endian with raw syscalls and no libc
+dependency, which installs a `SIGBUS` handler, decodes the faulting `lh`/`lhu`/
+`sh`/`lw`/`sw`, performs the access a byte at a time and advances `pc`. It also
+interposes `sigaction` and `signal` so `boa` cannot take `SIGBUS` back. With it
+loaded, `formNtp` returns **302 and the server survives**, and the log shows
+**24 fix-ups, every one at the same `pc` and every one at an odd address.**
+
+Three things about it that are not incidental:
+
+1. **It is off by default**, and `serve` prints which mode it is in. Turning it
+   on changes what the environment *is*; every measurement recorded before this
+   date was taken without it, and a flag that silently changed that would make
+   two incomparable things look like one.
+2. **It refuses rather than guessing.** The o32 `ucontext` offsets are
+   hard-coded, and wrong hard-coded offsets produce plausible garbage. So the
+   handler re-reads the instruction at the recovered `pc` and requires it to
+   decode as one of five forms, *and* requires the address computed from the
+   recovered registers to actually be misaligned. Either check failing restores
+   `SIG_DFL` and lets the process die exactly as it did before.
+   `tools/test-alignfix.sh` builds a deliberately mis-offset shim to prove that
+   path is reachable, and points the build's architecture checks at a host
+   x86-64 object to prove they discriminate.
+3. **Fixing it broke something else immediately, and a control caught it.**
+   With the crashes gone the handlers actually *save*, and the sweep's per-probe
+   restore had been a side effect of the crash: probe N was reading what probes
+   1..N-1 wrote. The environment's own positive control returned
+   `USER_NAME=""` instead of `"admin"` on the next `check`. `--reset-each`
+   now defaults to on whenever `--alignfix` is on, and the sweep re-runs
+   `check` after its last probe and fails the run if the environment has drifted.
+
+**And it explains a second, unrelated result.** `P8-24` recorded that the
+fail-open recovery write "is not observable, because `flash default-sw` and
+`flash reset1` both die on a `qemu-user` SIGBUS". Same binary path, same cause.
+Two separately-recorded observations were one bug.
+
 ---
 
 ## 8. How the first version of this note was wrong

@@ -173,6 +173,25 @@ jobs:
       - name: flash writer — every range it must refuse, and two it must accept
         run: bash tools/test-console-write.sh
 
+      # And two more that were in `make ci` and not here — the same divergence
+      # this job's own header describes, found again on 2026-08-18 and this time
+      # in both directions at once: the ledger check was here and not in
+      # `make ci`, and these two were in `make ci` and not here. Two lists both
+      # calling themselves "everything CI checks", neither containing the other.
+      - name: fail-open probe — the refusals that need no environment
+        run: bash tools/test-failopen-probe.sh
+
+      # alignfix.so is a MIPS big-endian object, so this suite is the only one
+      # here that needs a cross-compiler. Installing it rather than skipping is
+      # deliberate and it is the same call the photo suite makes above: the
+      # shim's build checks are what prove a *little*-endian object would be
+      # rejected, and a suite that skips cannot prove that of anything.
+      - name: alignment shim — its refusals, and that the flag is still off by default
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq gcc-mips-linux-gnu binutils-mips-linux-gnu
+          bash tools/test-alignfix.sh
+
   toolbox-image:
     name: toolchain image builds
     runs-on: ubuntu-24.04

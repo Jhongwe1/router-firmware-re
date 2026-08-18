@@ -10,7 +10,7 @@ function in the binary.
 
 > 🚧 **In progress since 2026-07-30. G0 ✅ · G1 ✅ · G2 ✅ passed 2026-08-16 ·
 > G3 ✅ passed 2026-08-11 · G3.5 ✅ · G3.75 ✅ both passed 2026-08-17 ·
-> G4 ⚠️ four of five, 2026-08-17.**
+> G4 ✅ passed 2026-08-18, clause 3 split into 3a met / 3b impossible.**
 >
 > **Latest (W06, 2026-08-17): an unauthenticated HTTP POST changed nine specific
 > bytes on this router's SPI flash, and all nine are named.** Eight are the ASCII
@@ -436,8 +436,8 @@ that is not backed by a command someone else can re-run.
   - [x] **the `FLW` recovery path rehearsed** — this is G3.5 #5, cited and not restated. Closed 2026-08-17
   - [x] **isolation verified** — exactly two MAC addresses on the segment, eight packets each, no DNS and nothing outbound. The control is that the capture recorded 16 packets at all: an earlier one recorded **zero**, and zero proves nothing until the link is known to deliver
   - [x] **IoC pre-check** — both halves, against criteria written before the check: **the live config differs from this unit's own factory baseline in 4 of 343 entries**, no fifth, and every port the register named is closed
-  - [x] **the prediction ledger is frozen** ← [`test-ledger.md`](test-ledger.md) — **130** registered tests, **102** carrying a written refutation condition, hashed and committed **before any request is served**; W05 closed **27 of 27**
-  - [x] **the disclosure register is written** ← [`docs/disclosure.md`](docs/disclosure.md) — eight candidate originals, what each is worth, and the rule that decides what gets published
+  - [x] **the prediction ledger is frozen** ← [`test-ledger.md`](test-ledger.md) — **134** registered tests, **117** carrying a written refutation condition, hashed and committed **before any request is served**; W05 closed **27 of 27**
+  - [x] **the disclosure register is written** ← [`docs/disclosure.md`](docs/disclosure.md) — seventeen rows, what each is worth, and the rule that decides what gets published
 
   > ### ★ Why this gate exists
   >
@@ -466,21 +466,47 @@ that is not backed by a command someone else can re-run.
   > backdoor, and the wireless attacks whose radiation reaches third parties.
   > None of them produce a checkable fact about this device.
 
-- [ ] **G4 — a PoC a stranger can follow** (W05–W06) ⚠️ **four of five, 2026-08-17** ← [PROGRESS.md](PROGRESS.md#w06--2026-08-17-night)
+- [x] **G4 — a PoC a stranger can follow** (W05–W06) ✅ **passed 2026-08-18**, clause 3 split ← [PROGRESS.md](PROGRESS.md#w07-day-0--g4-closed--2026-08-18)
   - [x] a chain on the physical unit, each link separately pointable — [`poc/`](poc/)
   - [x] **at least one link evidenced out of band**, not from the HTTP response — **two**: ICMP echo requests sourced from the router, and nine named bytes on the SPI NOR
-  - [ ] **an L2 path: anyone, a downloadable image, emulation** — ❌ see below
+  - [x] **3a — an L2 path for the command-injection primitive**: anyone, a downloadable image, emulation — [`poc/05`](poc/05-l2-published-image.md), `P0-11` + `P3-14`
+  - [x] **3b — an L2 path for the L1 chain** — ❌ **impossible by construction, and recorded as the finding.** See below
   - [x] every PoC document opens with a scope table saying which builds were tested and which were not
   - [x] [`poc/run.sh`](poc/run.sh) fails and names the failing step — 11 checks against the device, 8 under emulation, and it caught two defects **in itself** on its first run
 
-  > ❌ **The clause that failed, and why it is worth more than passing would have
-  > been.** The plan assumed the L2 reproduction would run the `localPin` line,
-  > which *is* byte-identical in the 2015 and 2020 images. W04-2 then moved G4's
-  > target to `formSysCmd` for a good reason — it is the CVE that names the build
-  > this unit runs — and nobody noticed that **the new target is in neither
-  > downloadable image's dispatch table**, so the chain cannot exist there at all.
-  > Two individually correct decisions whose combination was not. The route is now
-  > open (see below) and closing it is a desktop task with no device.
+  > ❌ **Clause 3 was split rather than met, and the half that cannot be met is
+  > the finding.** The plan assumed the L2 reproduction would run the `localPin`
+  > line, which *is* byte-identical in the 2015 and 2020 images. W04-2 then moved
+  > G4's target to `formSysCmd` for a good reason — it is the CVE that names the
+  > build this unit runs — and nobody noticed that **the new target is in neither
+  > downloadable image's dispatch table** (`0x0044ee2c` here, absent in both), so
+  > that chain cannot exist there at all. Two individually correct decisions whose
+  > combination was not. **A CVE naming a build nobody can download is not
+  > reproducible by anyone who does not already own one**, and no amount of work
+  > changes that — so 3b is closed as impossible instead of carried as a debt.
+  >
+  > ✅ **3a is met and it is not a consolation prize.** An unauthenticated
+  > `POST /boafrm/formWsc` executed a command inside an environment built from the
+  > published V2.1.2 container and nothing else. `qemu`'s own syscall trace shows
+  > `execve("/bin/sh",{"sh","-c","flash set HW_WLAN0_WSC_PIN 1;cat /etc/version > …"})`,
+  > and the file it wrote contains `TOTOLINK-N150RT-V2.1.2` — the published build
+  > naming itself through a command it was made to run. Two controls on the same
+  > handler in the same session, `peerPin` and `targetAPSsid`, did nothing — the
+  > **same three-way discrimination W06 measured on silicon**, five years of
+  > firmware apart.
+  >
+  > 🔵 **What the download does not contain, measured rather than assumed.** The
+  > container has exactly three sections and the **first 64 KiB of flash is in
+  > none of them** — boot loader, `H601`, `COMPDS`, `COMPCS` are written at
+  > manufacture. A flash holding only what the container declares gets as far as
+  > `Invalid hw setting signature` and stops. 82.9 % of the image is reconstructed
+  > from the download; the remaining three regions are synthesised with zeroed
+  > payloads and **no byte is copied from any physical unit** —
+  > [`reports/mkflash-2.1.2.json`](reports/mkflash-2.1.2.json) names every range.
+  > The vendor's own `flash default` would generate the real thing "from hard
+  > code" and **cannot run under `qemu-user`**: it dies on an unaligned store the
+  > device's MIPS kernel fixes in its trap handler. That one difference is why
+  > Realtek-SDK userland resists emulation from a download.
 
   > ✅ **`boa` serves under `qemu-user` after all, and W05 said it could not.**
   > The alignment trap is real, but `-strace` puts it in one place: `boa` takes
@@ -515,7 +541,7 @@ that is not backed by a command someone else can re-run.
   > silicon.**
 
 - [ ] **G5 — published write-up** (W08–W09) — a stranger understands the whole chain in 10 minutes
-- [ ] **W07 — systematic bug hunt** (no gate) — 8 categories, not driven by known CVEs
+- [ ] **W07 — systematic bug hunt** (no gate) — 8 categories, not driven by known CVEs. **11 of 57 register rows closed**, all of them at the desk; the deliverable is [`notes/bughunt.md`](notes/bughunt.md), twenty verdicts each pointing at a file under `reports/`, and a *relatively safe* section the same size as the verdict table. Three of the twenty are this project's own findings **withdrawn**, and one more turned out to have a CVE against it — the most recent retraction came from building an instrument that could tell the emulator's behaviour from the firmware's ([`tools/alignfix/`](tools/alignfix/)), not from arguing about a caveat
 - [ ] **W10 — close-out, disclosure admin, buffer**
 
 ## What is here
@@ -538,7 +564,7 @@ that is not backed by a command someone else can re-run.
 | [`poc/`](poc/) | **The reproductions** — two public CVE chains with the requests, the flash-byte evidence, and one file that deliberately carries **no request at all** because what it describes has not been reported to anyone. `run.sh` runs against a device or against an emulated copy, and says which step failed |
 | [`docs/report-draft.md`](docs/report-draft.md) | **The report that has not been sent** — what would go to TWCERT/CC, what is attached and what is not, and the one step that is blocking it |
 | [`docs/disclosure.md`](docs/disclosure.md) | **The disclosure register** — what might be new, what state it is in, and the rule separating a finding from a reproduction from tradecraft. Two entries were **withdrawn** on 2026-08-17, one of them by prior art that a by-handler search found in a single query |
-| [`test-ledger.md`](test-ledger.md) | **The test register, generated** — 130 tests with their predictions frozen before the first request, what would refute each, and what nine items were cut and why (Traditional Chinese) |
+| [`test-ledger.md`](test-ledger.md) | **The test register, generated** — 134 tests with their predictions frozen before the first request, what would refute each, and what nine items were cut and why (Traditional Chinese) |
 | [`notes/attack-surface.md`](notes/attack-surface.md) | Where to look, ranked |
 | [`notes/ghidra-triage.md`](notes/ghidra-triage.md) | Which functions to open first, and why — with the three W01 calls W03 overturned |
 | [`notes/dispatch-table.md`](notes/dispatch-table.md) | `root_form[]` recovered: every `/boafrm/` route in both builds, and what changed between them |

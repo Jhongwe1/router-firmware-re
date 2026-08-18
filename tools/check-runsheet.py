@@ -517,10 +517,17 @@ def check(path: Path, runbook: Path) -> int:
         # An explicit escape hatch, because some results genuinely have no
         # procedure -- and saying which, with a reason, is honest where silence
         # is not.
+        # findall, not search. `search` takes the FIRST match, and on 2026-08-18
+        # the first match was the appendix paragraph *explaining* this mechanism,
+        # which quotes `<!-- no-procedure: ... -->` inline and therefore parses as
+        # an empty exemption block sitting above the real one. Two genuinely
+        # exempted cases were reported as unexempted and the block naming them was
+        # never read. A checker defeated by its own documentation is the same
+        # shape as bugs 22, 23 and 28: the text and the thing it describes are
+        # different objects, and only one of them was being looked at.
         exempt = set()
-        m = re.search(r"(?s)<!--\s*no-procedure:(.*?)-->", text)
-        if m:
-            exempt = set(re.findall(r"\b(P\d+-\d+)\b", m.group(1)))
+        for block in re.findall(r"(?s)<!--\s*no-procedure:(.*?)-->", text):
+            exempt |= set(re.findall(r"\b(P\d+-\d+)\b", block))
         gap = sorted(owed - set(claimed) - exempt)
         if gap:
             errors.append(

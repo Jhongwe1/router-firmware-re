@@ -607,8 +607,151 @@
       ],
       "note": "Not one unattributable byte. Four 64 KiB snapshots were taken through the boot loader across the session. H601 (0x6000-0x8000): nine bytes moved and all nine came back — the eight ASCII digits of HW_WLAN0_WSC_PIN plus the region checksum at 0x006493, which the device recomputed itself. The final read is byte-identical BOTH to the pre-injection snapshot AND to the 2026-08-16 full dump, taken before this project had ever written to the device. The boot loader region never moved at all. COMPDS and COMPCS differ, and every field is named: COMPCS moved in exactly two, SYSCMD_SELECT and WPS_FIRST, which are the two handlers that were fired; COMPDS moved in twenty-five, all converging on COMPCS values, which is D-10 and not a side effect of any single test. New baseline for the next session: COMPCS vs COMPDS differ in 0 of 343. And a procedure correction that cost nothing to learn but would have cost a session to guess: restoring COMPDS at the START of a bench session is pointless, because any POST rewrites it from COMPCS before the session ends. It belongs at the end.",
       "case_freeze_sha256": "7f1a5d3a229dc909ba81d7eda712f68dba3d19f38a150bb97ab9fc2259e6cc7a"
+    },
+    {
+      "id": "P0-11",
+      "date": "2026-08-18",
+      "verdict": "confirmed",
+      "evidence_kind": "emulated",
+      "artefacts": [
+        "reports/mkflash-2.1.2.json",
+        "poc/05-l2-published-image.md",
+        "tools/mkhwsetting.py"
+      ],
+      "note": "預測命中，連拒絕訊息的字串都對。只由公開容器（w6cg@0x010000 / cr6c@0x060000 / r6cr@0x180000）填出來的 flash，apmib_init() 印 Invalid hw setting signature [sig=  ]! 然後 Initialize AP MIB failed! —— flash 前 64 KiB（boot loader / H601 / COMPDS / COMPCS）出廠燒錄，不在任何可下載映像裡。合成三段（H601 1172 B、COMPDS/COMPCS 各 3909 B，payload 全零、checksum 依廠商規則算、LZSS 用廠商自己的 decoder 反覆驗過）之後 apmib 起來了：2399 行 MIB，boa bind，login.htm 200 / blank.htm 302 閘門行為與實機一致。映像本身提供 82.9% 的 flash，144/144 網頁全部由公開容器解出。附帶量到：libapmib 沒有內建 HW setting 預設值（所以硬失敗），而廠商自己的 flash default 在 qemu-user 下 SIGBUS（si_addr=0x004332a7，實機 MIPS kernel 的 trap handler 會修）。H601 格式（H6/01/u16 len=1166/payload 8-bit sum=0）獨立推導出來，其末位元組就是 W06 用 diff 找到的 0x6493。",
+      "case_freeze_sha256": "8bd00d69f4229512a241e337de04cd74433bbe1439038808aa1aa04aa4535c0b"
+    },
+    {
+      "id": "P3-14",
+      "date": "2026-08-18",
+      "verdict": "confirmed",
+      "evidence_kind": "emulated",
+      "artefacts": [
+        "poc/05-l2-published-image.md",
+        "reports/mkflash-2.1.2.json"
+      ],
+      "note": "未認證 POST /boafrm/formWsc（localPin），在只用公開映像建起來的環境裡命令執行成立。主要證據是 qemu 自己的 syscall trace：fork() 之後 execve(\"/bin/sh\",{\"sh\",\"-c\",\"flash set HW_WLAN0_WSC_PIN 1;cat /etc/version > /var/web/l2pin.txt;#\"}) —— 內插後的字串逐字可見。第二通道是 docroot：檔案存在，內容是 TOTOLINK-N150RT-V2.1.2，也就是這個公開 build 自己報出自己的版本。判別對照兩發，同一 handler 同一 session 同一請求形狀：peerPin 沒有、targetAPSsid 沒有、只有 localPin 有 —— 與 W06 在 2018 build 實機上的三向判別完全一致（P3-1 refuted / P3-4 不是注入 / P3-5 confirmed），兩個相隔五年的 build 對「哪一個參數是缺陷」給出同一個答案。陷阱：boa 處理完這個 handler 就死（HTTP 000），一個 server instance 只能打一發；第一次量測先送了對照發、把 server 打死，於是把真正的 payload 記成沒有反應 —— 那是治具的空結果，不是韌體的。",
+      "case_freeze_sha256": "f81d07b36e0e09f07e9adbf2b641577615db1c78c4bc8f7dac907aaf5e007902"
+    },
+    {
+      "id": "P4-7",
+      "date": "2026-08-18",
+      "verdict": "confirmed",
+      "evidence_kind": "emulated",
+      "artefacts": [
+        "reports/handler-sweep-unit-2018.json",
+        "tools/handler-sweep.py"
+      ],
+      "note": "全 58 個端點掃過（57 個分派表 handler + 一個不存在的負對照），每一發之前 reap + reset + serve，所以每一發都從同一份 flash 開始。結果：39 個在模擬下讓 boa 消失，19 個存活，39 次重啟 0 次失敗。對照成立：formLogin 200 且存活、formNotARealHandler 404。預測說「四個有 CVE 編號的是取樣不是集合」—— 39 不是四。反證條件（只有那四個有反應）沒有觸發。**這不是對實機的主張**：qemu-user 對未對齊存取丟 SIGBUS，而實機的 MIPS kernel 會在 trap handler 裡修掉，所以報告裡的欄位叫 died_under_emulation。它是一份要拿去實機驗的候選清單，而 W06 在實機上量到的一發請求斷線（docs/disclosure.md D-11）本來就說不出是哪一類 handler。存活的 19 個裡包含 formSysCmd（CVE 那一個）本身，所以「會死」跟「有缺陷」不是同一件事。這一輪之前有三次無效的量測：治具讓 32 個孤兒 boa 累積、port 被任意一個舊的持有，而 serve 的對照通過了，因為它驗的是 port 的性質而不是它自己啟動的那個 process。",
+      "case_freeze_sha256": "dd3dd6cc0f2295b9ec8c2412701d5960e4d7a507bd9d9b3380f4b7673e284ec0"
+    },
+    {
+      "id": "P8-24",
+      "date": "2026-08-18",
+      "verdict": "partial",
+      "evidence_kind": "emulated",
+      "artefacts": [
+        "reports/failopen-unit-2018.json",
+        "notes/config-failopen.md",
+        "tools/failopen-probe.sh"
+      ],
+      "note": "The branch is reached, the write is not observable. With both region signatures zeroed startup.sh printed its own line 23 verbatim - Default configuration invalid, reset default! - which is the branch whose line 43 is flash set TELNET_ENABLED 1. What it then writes cannot be measured here: flash default-sw and flash reset1 both die on qemu-user SIGBUS, so the image is byte-identical before and after in all seven damage states. The control that makes that a statement about the recovery path rather than about the environment: a plain flash set WAN_DHCP 7 writes and reads back in the same environment. Two refinements the prediction did not have. (1) The two validity tests differ: test-dsconf checks the DECOMPRESSED header (sig=6G ver=3 len=31878) and tolerates a flipped payload byte, test-csconf additionally runs mib_tlv_init and does not - so reaching the fail-open branch requires damaging COMPDS header specifically, not just corrupting the settings area. (2) startup.sh line 25 eval flash get WLAN_BAND2G5G_SELECT executed and the shell reported Invalid: not found, i.e. flash error text became a command - the P8-8 sink is live on the boot path even though nothing attacker-controlled reaches it.",
+      "case_freeze_sha256": "8f0202e6dbfdf12f0ef2749197b1dfd56cff171f9170975683dc661203174336"
+    },
+    {
+      "id": "P8-8",
+      "date": "2026-08-18",
+      "verdict": "refuted",
+      "evidence_kind": "emulated",
+      "artefacts": [
+        "notes/config-failopen.md",
+        "reports/mib-table-unit-2018.json"
+      ],
+      "note": "Refuted at all three sites the prediction named, each for a different reason, and the complete inventory is nine flash get sites of which only two are eval. snmpd.sh:36-44 is the strongest sink - eval, not interpolation, and flash get quotes string values with double quotes where a backtick still executes - but none of its nine SNMP_ names exists in this build MIB table. Two instruments: the table recovered from libapmib.so has SNMP_RO_COMMUNITY and SNMP_RW_COMMUNITY only, and the vendor own /bin/flash answers flash get SNMP_NAME with a usage dump and rc=255. The script asks SNMP_ROCOMMUNITY - one underscore apart, scripts and MIB table from different SDK vintages, which is also why snmpd smbd smbpasswd nmbd are all absent from /bin while three scripts driving them ship. smb.sh and smbbak.sh capture MIB values with backticks but feed a config file and argv after word-splitting, no eval so no execution. The one live eval is startup.sh:25 over WLAN_BAND2G5G_SELECT and it DOES run at boot - see P8-24, where the transcript shows the shell reporting Invalid: not found from flash error text. So the class exists on this device and no attacker-controlled value currently reaches it.",
+      "case_freeze_sha256": "dd2ca263be6f90e62c80d05583bba6810e07c6aba42f1e8debe56c1ef51aeb00"
+    },
+    {
+      "id": "P9-13",
+      "date": "2026-08-18",
+      "verdict": "confirmed",
+      "evidence_kind": "static",
+      "artefacts": [
+        "notes/firmware-upgrade-path.md",
+        "reports/ghidra-xref-unit-2018-upgrade.json"
+      ],
+      "note": "Checksum only, and the addresses are in the note. UpgradeByData @0x00460798 (1608 bytes) is the whole acceptance path and it does exactly three things: memcmp against the four-byte section tags cr6c/w6cg/r6cr at 0x004608cc, 0x00460924, 0x0046097c; a checksum, FUN_00460600 called at 0x00460a98 for cr6c and r6cr and FUN_00460690 at 0x00460aec for w6cg; and a strncmp at 0x00460a04 against a model string the caller supplies. Both checksums are additive with no key - FUN_00460600 sums big-endian halfwords and requires 0, FUN_00460690 sums bytes and requires 0 with a length cap of 0x800000. No signature, no hw_version, no anti-rollback: strings over the whole binary finds no signature/RSA/pubkey/pem/hw_version match, and the listing has no room for one. Read at instruction level with BoaListing, not from the decompiler. The model string form_formUpload passes at 0x0044f4dc is the literal TOTOLINK-N150RT-V2.1.0 while this unit reports TOTOLINK-CX-N150RT-V2.1.6-B20171121.1002, and nothing compares the two - the accepted label is an older, published version string.",
+      "case_freeze_sha256": "d6ac0ce9b45cd3aa5120e1e20b034a3746bd50319998f608822d96587b33625c"
+    },
+    {
+      "id": "P8-10",
+      "date": "2026-08-18",
+      "verdict": "confirmed",
+      "evidence_kind": "static",
+      "artefacts": [
+        "notes/firmware-upgrade-path.md",
+        "reports/ghidra-xref-unit-2018-rfw.json"
+      ],
+      "note": "It makes outbound connections, they are plain HTTP, and the trigger is unauthenticated. /bin/batchRemoteUpgrade carries its flow in its string table: wget -q -c http://%s:%s/fw/totolink/%s/ -O /tmp/index.htm, then cat /tmp/index.htm | grep %s >/tmp/fwList, then wget -c http://%s:%s/fw/totolink/%s/%s -O /tmp/%s. It imports system, sprintf and strcpy, and sysconf starts it as batchRemoteUpgrade with six arguments. The same job exists inside boa: FUN_0044f7b4, reached from form_formSaveConfig, reads submit_rfw_check (0x0044f804), submit_rfw_download (0x0044f824) and submit_rfw_upgrade (0x0044f844) from the POST body and calls CheckRFW at 0x0044f88c with the literal host sl.totolink.software and model TWN150RTV2, then DownloadWithPercents and InitRFWUpgrade. auth-flow-2018.md and P2-1 both put POST /boafrm/* outside the gate. Combined with P9-13 (additive checksum, no signature) the class is a supply-chain path that needs DNS or MITM control and no memory-corruption exploit. STATIC ONLY - nothing has been executed; the device half is scheduled and the write half stays with P9-10 in W08.",
+      "case_freeze_sha256": "e88da237fa4f05ec16f57fbb3329c6f17773fe72e13aa41797f844937d111b39"
+    },
+    {
+      "id": "P8-18",
+      "date": "2026-08-18",
+      "verdict": "refuted",
+      "evidence_kind": "static",
+      "artefacts": [
+        "notes/firmware-upgrade-path.md"
+      ],
+      "note": "Refuted exactly as the refutation condition anticipated. FUN_0044f360 @0x0044f360 is 272 bytes and every path through it returns an integer OFFSET, not a string: it strstrs four Content-Type markers, and failing those it uses filename= at 0x0044f408 purely as a landmark - strchr for the closing quote at 0x0044f424, one more strstr at 0x0044f440, then return (p - body) + 4. The filename is never copied, never reaches sprintf, never becomes a path or a shell string. form_formUpload uses the return value as UpgradeByData third argument and touches no other multipart header. Note the scope: formUploadConfig is a DIFFERENT handler, is not covered here, and is still unread - that one belongs to P8-12.",
+      "case_freeze_sha256": "db9b72411323981827590810335d5ec905a2695405ade596f9e6ebebc91cc390"
+    },
+    {
+      "id": "P8-5",
+      "date": "2026-08-18",
+      "verdict": "confirmed",
+      "evidence_kind": "emulated",
+      "artefacts": [
+        "notes/host-header-and-redirect.md",
+        "reports/ghidra-xref-unit-2018-checkhost.json"
+      ],
+      "note": "check_host exists, is strict, is enforced, and never runs. It is at 0x00410470, 272 bytes: first char alphanumeric, length under 64, later chars alphanumeric or - or ., no leading or doubled dot, last char alphanumeric. process_header_end tests the verdict at 0x0040bca4 and a failure reaches send_r_bad_request at 0x0040bccc, a 400. Six instructions earlier, 0x0040bbec branches past the entire host block when vhost_root is NULL, landing on the same label the success path uses - and VHostRoot is commented out in both /etc/boa/boa.conf.bak line 150 and the runtime /var/boa.conf, so vhost_root is NULL on every boot. Measured, not inferred: seventeen Host values against the emulated server, nine of which check_host would reject including empty, 300 chars, spaces, underscores and punctuation, all returned 200, with login.htm/blank.htm controls holding. Bonus, and it is its own finding: the client Host at req+0x60 IS reflected into the gate redirect Location, giving an unauthenticated open redirect on every gated path - but both sinks encode correctly (URL-encoding in Location, HTML entities in the body), so it is not XSS.",
+      "case_freeze_sha256": "979a8e969984427721db3003853dc31308ba29e4caaafe55ac4667e0045c675e"
+    },
+    {
+      "id": "P2-9",
+      "date": "2026-08-18",
+      "verdict": "confirmed",
+      "evidence_kind": "emulated",
+      "artefacts": [
+        "notes/uninit-credential-pair.md"
+      ],
+      "note": "Fired. process_header_end compares supplied credentials against TWO pairs: strcmp(user, sp+0x18) at 0x0040bd48 and its partner sp+0x38 at 0x0040bd90 grant req->0xb0 = 2, while the real pair from apmib_get(0xb6)/apmib_get(0xb7) at sp+0x58/sp+0x78 grants 1. Across the whole 1964-byte function the only instructions touching sp+0x18 and sp+0x38 are three reads - no sw, sb, sh, no apmib_get, no strcpy. A Basic header with both fields empty returns 200/333 on a gated page, byte-identical to the real credentials, while empty-user-with-password, user-with-empty-password, wrong-user-wrong-password and admin-with-wrong-password all return 302 and no-Authorization returns 302. Stored credentials were admin/admin, BOTH NON-EMPTY, read back through the vendor flash binary in the same run, so this is not D-4 (the branch at 0x0040bd18 was not taken). /password.htm goes 302 unauthenticated to 200 with 5332 bytes. Reproduces on the PUBLISHED v2.1.2 profile too - different binary, synthesised flash, credentials set first because its defaults are empty and trip D-4 instead. NOT ESTABLISHED, and the note says so at length: prior art unsearched, what level 2 buys over level 1 unread, whether the buffers can hold CHOSEN bytes unknown, and everything so far is emulation on two profiles but one emulator. Device confirmation is three requests and no power cycle.",
+      "case_freeze_sha256": "041ae274edf58dac7298418067b6d9c904cc7c782991baf6d64fdd0dee54d81a"
+    },
+    {
+      "id": "P10-7",
+      "date": "2026-08-18",
+      "verdict": "refuted",
+      "evidence_kind": "static",
+      "artefacts": [
+        "reports/n150rt-unit-2018.json"
+      ],
+      "note": "The premise is wrong for this unit and the answer is that the key is unusable. The register said the rootfs has two factory private keys; that is a statement about V2.1.2 plus V3.4.0. THIS unit has one: /etc/dropbear_rsa_host_key, 282 bytes, dropbear wire format, ssh-rsa with a 0x81-byte modulus so 1024-bit. /etc/privateKey.key is V3.4.0 only. And there is no SSH daemon in the rootfs at all - no dropbear, no dropbearmulti, no sshd among the binaries - while sysconf still does mkdir /var/dropbear and copies the key there at boot. So the key ships, is installed on every boot, and nothing can present it; P6-11 measured port 22 closed on the device, which is the same conclusion from the other side. It stays a shipped-identical-key class item for OTHER models that do run dropbear, which is a P8-21 question, not this unit.",
+      "case_freeze_sha256": "4e7a8bc0235beeed976e3c921b6c792c50dfea935e8f4a1f26e21a0dc798c5e7"
+    },
+    {
+      "id": "P8-1",
+      "date": "2026-08-18",
+      "verdict": "confirmed",
+      "evidence_kind": "static",
+      "artefacts": [
+        "notes/xss-escaping.md",
+        "reports/ghidra-xref-unit-2018-escape.json"
+      ],
+      "note": "The white-box read the prediction asked for, and the refutation did not fire: there is no escaping. But the templates were the wrong place and the case as written would have looked in them - dhcptbl.htm contains no field at all, only <% dhcpClientList(); %>, so the value is written by a C function inside boa and grepping 146 template files would have found nothing. What boa does have is req_write_escape_html with an entity table for double-quote, apostrophe, backslash, less-than and greater-than. It has exactly SIX callers and every one is an upstream Boa status page - 403, 404, 301, 302, 411 - plus send_redirect_perm. Not one Realtek ASP list renderer calls it, and boa carries 105 table-markup format strings whose data-bearing ones are raw %s, two of them inside HTML attribute values where a single double-quote suffices. So the five 2025 XSS CVEs are five instances of one omission covering roughly thirty render functions - the same shape as W03 turning \"dat files are not restricted\" into \"everything without htm in the path\". NOT established: that a hostname carrying markup survives udhcpd and the lease table to reach dhcpClientList. Filtering on the WRITE side would close the point as effectively as escaping on the read side and nothing here looked at the write side; that is P8-2 and it stays open.",
+      "case_freeze_sha256": "956b5eb65bb1ea49a9080521950aae83c04dcb73aca35f0f0428b494906c8301"
     }
   ],
   "register": "test-cases.toml",
-  "register_freeze_sha256": "69c342dce863dcc7d2450d3f45f97ad2b3753296a2c8756a54ec27604caffc55"
+  "register_freeze_sha256": "a9bd2761074e0b349726ec0ee96f3280e30a81e13a034643c1c3581dfc7f10be"
 }

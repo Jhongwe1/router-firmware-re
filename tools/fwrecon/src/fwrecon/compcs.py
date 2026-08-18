@@ -188,6 +188,139 @@ def lzss_decode(payload: bytes, limit: int, fill: int = RING_FILL) -> bytes:
     return bytes(out)
 
 
+def lzss_encode(data: bytes, fill: int = RING_FILL, *, max_candidates: int = 64) -> bytes:
+    """The inverse of :func:`lzss_decode`, and the thing this module lacked.
+
+    Written 2026-08-18 because two separate pieces of work stalled on the same
+    absence. `P8-12` -- upload a configuration that turns telnet on -- has been
+    parked as "blocked, fwrecon has no encoder" since the register was written.
+    And G4's L2 environment needs a *default* settings block for a published
+    image, because that block is written at manufacture and ships in no
+    download: `apmib_init()` prints
+
+        Invalid default setting signature or version number [sig=.., ver=-1, len=-1]!
+        Expect [sig=6G, ver=3, len=32858]!
+
+    and refuses to start. The vendor's own `flash default` would generate one,
+    but it dies under qemu-user on an unaligned store the real MIPS kernel fixes
+    up, so the generator is unavailable exactly where it is needed.
+
+    Correctness here is not argued, it is checked: :func:`encode_region` runs
+    the result back through :func:`lzss_decode` -- the decoder transcribed from
+    the vendor's own `Decode` -- and refuses to return anything that does not
+    round-trip. An encoder verified against its own idea of the format would be
+    worth nothing.
+
+    Greedy, with a 3-gram index over the ring rather than an exhaustive scan; a
+    full search is O(n * 4096 * 18) and this is called on 32 KiB blobs. The
+    ratio is not the point -- fitting inside the 16 KiB the flash layout gives
+    each region is, and `max_candidates` is the knob if that ever gets tight.
+    """
+    match_max = 0x0F + MATCH_MIN
+    mask = RING_SIZE - 1
+    ring = bytearray([fill]) * RING_SIZE
+    r = RING_START
+    out = bytearray()
+    index: dict[bytes, list[int]] = {}
+    i, n = 0, len(data)
+    flag_pos, flag_bit, flags = 0, 0, 0
+
+    while i < n:
+        if flag_bit == 0:
+            flag_pos = len(out)
+            out.append(0)
+            flags = 0
+
+        best_len, best_pos = 0, 0
+        if i + MATCH_MIN <= n:
+            for pos in index.get(bytes(data[i : i + MATCH_MIN]), ()):
+                ln = 0
+                while ln < match_max and i + ln < n and ring[(pos + ln) & mask] == data[i + ln]:
+                    ln += 1
+                if ln > best_len:
+                    best_len, best_pos = ln, pos
+                    if ln == match_max:
+                        break
+
+        if best_len >= MATCH_MIN:
+            out.append(best_pos & 0xFF)
+            out.append((((best_pos >> 8) & 0x0F) << 4) | (best_len - MATCH_MIN))
+            take = best_len
+        else:
+            flags |= 1 << flag_bit
+            out.append(data[i])
+            take = 1
+        out[flag_pos] = flags
+        flag_bit = (flag_bit + 1) & 7
+
+        for k in range(take):
+            ring[r] = data[i + k]
+            # Index the 3-gram that *ends* at the byte just written, so every
+            # candidate position names a window whose bytes are all present.
+            start = (r - MATCH_MIN + 1) & mask
+            key = bytes(ring[(start + j) & mask] for j in range(MATCH_MIN))
+            slots = index.setdefault(key, [])
+            slots.insert(0, start)
+            if len(slots) > max_candidates:
+                del slots[max_candidates:]
+            r = (r + 1) & mask
+        i += take
+
+    return bytes(out)
+
+
+def encode_region(
+    body: bytes, magic: bytes, *, comp_rate: int | None = None, max_bytes: int | None = None
+) -> bytes:
+    """Wrap `body` as an on-flash COMPCS/COMPDS region, and prove it decodes.
+
+    `body` is the *decompressed* form in full, sig and version included -- the
+    thing :func:`decode_region` hands back before it starts walking TLVs.
+
+    `comp_rate` defaults to the ratio actually achieved, rounded up. It is not a
+    format field -- the vendor uses it as `malloc(comp_rate * comp_len)` -- so a
+    fixed constant is wrong in a way that only shows up on the device: the
+    vendor's 7 suits their 6.05x on a real configuration, and an all-zero blob
+    compresses 8.4x, which would have the library allocate less than it decodes
+    into. Copying the vendor's constant looked like fidelity and was a heap
+    overflow. Pass it explicitly only to reproduce a specific image.
+    """
+    if len(magic) != 6:
+        raise CompcsError(f"magic must be 6 bytes, got {len(magic)}: {magic!r}")
+    payload = lzss_encode(body)
+    if comp_rate is None:
+        comp_rate = -(-len(body) // len(payload)) if payload else 1
+    if not 1 <= comp_rate <= 0xFFFF:
+        raise CompcsError(f"comp_rate {comp_rate} does not fit the u16 the header has")
+
+    # The vendor decodes into malloc(comp_rate * comp_len) and does not check
+    # (see lzss_decode). An encoder that emits a header the vendor's own
+    # allocator cannot honour is writing a heap overflow into a config file.
+    budget = comp_rate * len(payload)
+    if budget < len(body):
+        raise CompcsError(
+            f"comp_rate {comp_rate} x compLen {len(payload)} = {budget} is smaller "
+            f"than the {len(body)} bytes this decodes to, which would overflow "
+            f"libapmib's own buffer on the device. Raise comp_rate."
+        )
+
+    round_tripped = lzss_decode(payload, budget)
+    if round_tripped != body:
+        raise CompcsError(
+            f"round-trip failed: encoded {len(body)} bytes, the vendor's own "
+            f"decoder gives back {len(round_tripped)}. Not emitting this."
+        )
+
+    region = magic + struct.pack(">HI", comp_rate, len(payload)) + payload
+    if max_bytes is not None and len(region) > max_bytes:
+        raise CompcsError(
+            f"region is {len(region)} bytes and the slot is {max_bytes}. "
+            f"The flash layout puts COMPDS at 0x8000 and COMPCS at 0xC000, so "
+            f"each has 16 KiB and neither may run into the next."
+        )
+    return region
+
+
 # ------------------------------------------------------------------ rendering
 
 _PRINTABLE = set(range(0x20, 0x7F))
