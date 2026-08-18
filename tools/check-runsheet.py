@@ -120,6 +120,11 @@ OWN_TOOLS = {
     # stale without anything saying so.
     "tools/paramfuzz.py", "tools/crash-triage.py", "tools/formtable-scan.py",
     "tools/handler-sweep.py",
+    # Added 2026-08-19 with A1.10, A3.1.4, A3.18 and A3.24. All four are new
+    # enough that their flags are still moving, and three of them are cited by a
+    # step a stranger is expected to follow front to back.
+    "tools/device-liveness.py", "tools/cve-endpoints.py", "tools/rogue-dhcp.py",
+    "tools/mipsref.py",
 }
 
 
