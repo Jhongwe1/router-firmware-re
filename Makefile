@@ -25,7 +25,7 @@ UNIT_DUMP  := $(FWRE_WORK)/dumps/flash-n150rt-console-1.bin
 .PHONY: help setup verify fetch unpack venv test lint recon recon-unit diff check-reports \
         rtcase rtcase-test todo ledger check-ledger shellcheck ci clean-work qemu-env qemu-test probe-test \
         loader-test loader-report doctor check-runsheet runsheet-test \
-        dump-test flash-tools-test photo-test write-test failopen-test alignfix-test check-benchlog benchlog-test config-diff-test count-checks
+        dump-test flash-tools-test photo-test write-test failopen-test alignfix-test check-benchlog benchlog-test config-diff-test count-checks liveness liveness-test dhcp-test mipsref-reports
 
 help: ## Show this help
 	@grep -hE '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) \
@@ -227,6 +227,30 @@ alignfix-test: ## Prove the alignment shim and its build checks can fail (needs 
 config-diff-test: ## Drive config-diff's comparison and its refusals (needs no root)
 	bash tools/test-config-diff.sh
 
+# Open item 73: every check `make doctor` ran asked whether the HOST was ready.
+# The device had a persistent, self-inflicted WAN outage for two days and four
+# bench sessions did not notice, because nothing asked the device anything. This
+# does, in one unauthenticated GET.
+liveness: ## Can the router still route? `make liveness` or `make liveness HOST=10.1.1.1`
+	python3 tools/device-liveness.py $(if $(HOST),--host $(HOST),) 	  --mib "$(EX)/unit-2018/squashfs-root/lib/libapmib.so"
+
+liveness-test: ## Prove the liveness check can say no (19 cases, needs no device)
+	bash tools/test-device-liveness.sh
+
+# The tool hands out addresses to anything that asks, so its first refusal --
+# one named interface, and not the one carrying the default route -- is the
+# load-bearing part, and it has to be provable without a wire.
+dhcp-test: ## Prove the rogue DHCP server's encoders and refusals (needs no device)
+	bash tools/test-rogue-dhcp.sh
+
+# Regenerating these by hand is how the first one came to name a GOT slot as
+# though it were the variable. The command is the evidence for what the report
+# measured, so it lives where it can be re-run rather than in a shell history.
+mipsref-reports: ## Re-scan the auth-session globals (needs the extracted rootfs)
+	@test -f "$(EX)/unit-2018/squashfs-root/bin/boa" || 	  { echo "no $(EX)/unit-2018/squashfs-root/bin/boa - run tools/unpack-firmware.sh"; exit 2; }
+	python3 tools/mipsref.py "$(EX)/unit-2018/squashfs-root/bin/boa" 	  --sym beforeuptime --sym authipaddr --sym nowuptime --addr 004899e8 	  --control 004899e0 --control-indirect 004899e0 	  --json $(REPORTS)/mipsref-unit-2018-authsession.json
+	python3 tools/mipsref.py "$(EX)/unit-2018/squashfs-root/bin/boa" 	  --addr 004899d8 --control 004899e0 --control-indirect 004899e0 	  --json $(REPORTS)/mipsref-unit-2018-checkauthflag.json
+
 count-checks: ## How many guard checks make ci runs, per suite (REPRODUCE.md quotes the total)
 	bash tools/count-checks.sh
 
@@ -246,7 +270,7 @@ loader-report: ## Unpack the boot loader's LZMA stage 2 (needs the flash dump)
 # `rtcase-test` is in here and not optional. It is the only thing proving the
 # register gate can fail; without it `make rtcase` going green means nothing,
 # which is the exact shape of instrument bug 12.
-ci: lint test shellcheck check-reports check-runsheet check-benchlog benchlog-test rtcase rtcase-test check-ledger qemu-test probe-test loader-test runsheet-test dump-test flash-tools-test photo-test write-test failopen-test alignfix-test config-diff-test ## Everything CI checks, except the container build
+ci: lint test shellcheck check-reports check-runsheet check-benchlog benchlog-test rtcase rtcase-test check-ledger qemu-test probe-test loader-test runsheet-test dump-test flash-tools-test photo-test write-test failopen-test alignfix-test config-diff-test liveness-test dhcp-test ## Everything CI checks, except the container build
 	@echo "  ok   local CI equivalents passed (container build not included)"
 
 diff: venv ## Diff the two builds

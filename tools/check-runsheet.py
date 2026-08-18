@@ -92,6 +92,15 @@ CLOSES_SHOWN = CLOSES + " …）"     # noqa: RUF001  — how it reads in a mess
 
 META_HEADER = "| 層 | 動到裝置 | 為什麼這一節存在 | 最後驗證 |"
 
+# (marker, the only station whose device state can run it, what it means).
+# A command is evidence of the state it needs, and that evidence is checkable.
+STATE_MARKERS = [
+    ("--at-prompt", 2, "the flag means the board is already halted at <RealTek>"),
+    ("console-dump.py dump", 2, "FLR + DB are boot-loader commands"),
+    ("console-dump.py catch", 2, "it streams ESC across power-on to halt the board"),
+    ("http://10.1.1.1", 3, "nothing is served until the board has booted"),
+]
+
 RUNBOOK_812_SUB = re.compile(r"^### (8\.12\.(\d+))\b(.*)$")
 COMMAND_LANGS = {"bash", "sh", "powershell", "shell", "ps1", ""}
 
@@ -433,6 +442,39 @@ def check(path: Path, runbook: Path) -> int:
                 f"{path.name}:{ln}: step {name} sits under 第 {current} 站. "
                 f"Its number says 第 {want} 站, and the number is what tells a "
                 "reader what state the board has to be in")
+
+        # The heading being under the right station is not the same as the
+        # *commands* being runnable in that station's device state, and the
+        # check above only ever saw the heading. A3.24 carried a
+        # `console-dump.py dump --at-prompt` for a year of revisions: that flag
+        # means "the board is already sitting at <RealTek>", which is 第 2 站,
+        # inside a step filed under 第 3 站 where the board is booted and
+        # serving. Reading A1.1 -> A4.2 front to back is supposed to BE a
+        # correct order to run it in; a step that cannot execute where it sits
+        # breaks that promise silently. Found 2026-08-19, alongside the same
+        # command naming the wrong flash offset. PROGRESS open item 71.
+        # Only command fences, and only where the prose has not already sent the
+        # reader to the other station. A3.8's recovery path legitimately says
+        # "回 A2.2 搶 bootloader" and then gives a boot-loader
+        # command; that is a correct instruction, not a misfiled step. So the
+        # escape hatch is naming the station you are sending the reader to --
+        # which is the thing that makes it correct in the first place.
+        for cmd_line, cmd_text in commands:
+            if not (ln < cmd_line < end):
+                continue
+            for marker, only_in, what in STATE_MARKERS:
+                if marker not in cmd_text or want == only_in:
+                    continue
+                lead = NL.join(lines[max(0, cmd_line - 14):cmd_line])
+                if re.search(rf"A{only_in}\.\d|第 {only_in} 站", lead):
+                    continue
+                errors.append(
+                    f"{path.name}:{cmd_line}: step {name} is filed under 第 "
+                    f"{want} 站 and runs `{marker}`, which needs 第 {only_in} 站 "
+                    f"({what}). The station number IS the device state, so this "
+                    "command cannot be run where the document puts it. If it is "
+                    f"a deliberate detour, say so: name A{only_in}.x or 第 "
+                    f"{only_in} 站 in the lines above it")
 
         # what it closes: from the heading, and nowhere else
         m = CLOSES_RE.search(heading)

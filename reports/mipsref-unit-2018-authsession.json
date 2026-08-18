@@ -1,120 +1,377 @@
 {
   "producer": "mipsref",
+  "schema": 2,
   "binary": "/home/key/fwre-work/extracted/unit-2018/squashfs-root/bin/boa",
   "source_sha256": "19fe29d71aa1cc1e893627f17a0f14b03ca75f6936318df4062df4fb153909f7",
   "bytes": 485012,
   "dt_pltgot": 4743152,
   "gp": 4775904,
+  "dynsym_count": 423,
+  "got": {
+    "base": 4743152,
+    "local_gotno": 13,
+    "gotsym": 13,
+    "symtabno": 424,
+    "end": 4744848
+  },
   "control": "004899e0",
+  "control_indirect": "004899e0",
   "control_ok": true,
+  "control_indirect_ok": true,
   "targets": {
-    "0x00486270": [
-      {
-        "file_offset": 49180,
-        "vaddr": 4243484,
-        "word": 2407826064,
-        "mnemonic": "lw",
-        "form": "gp-relative",
-        "base_reg": 28,
-        "reads": true,
-        "writes": false
+    "0x004899e8": {
+      "symbol": null,
+      "got_slot": null,
+      "summary": {
+        "direct_loads": 0,
+        "direct_stores": 0,
+        "address_taken": 1,
+        "indirect_loads": 0,
+        "indirect_stores": 0,
+        "args_to_calls": 0,
+        "hi_confirmed": 1
       },
-      {
-        "file_offset": 49204,
-        "vaddr": 4243508,
-        "word": 2407826064,
-        "mnemonic": "lw",
-        "form": "gp-relative",
-        "base_reg": 28,
-        "reads": true,
-        "writes": false
+      "direct": [
+        {
+          "file_offset": 49272,
+          "vaddr": 4243576,
+          "word": 612669928,
+          "mnemonic": "addiu",
+          "form": "lo-half",
+          "kind": "address-taken",
+          "base_reg": 4,
+          "into_reg": 4,
+          "hi_confirmed": true,
+          "reads": false,
+          "writes": false,
+          "follow_ended": "redefined"
+        }
+      ],
+      "indirect": []
+    },
+    "0x004899dc": {
+      "symbol": "beforeuptime",
+      "got_slot": 4743400,
+      "summary": {
+        "direct_loads": 1,
+        "direct_stores": 0,
+        "address_taken": 1,
+        "indirect_loads": 0,
+        "indirect_stores": 1,
+        "args_to_calls": 0,
+        "hi_confirmed": 1
       },
-      {
-        "file_offset": 79996,
-        "vaddr": 4274300,
-        "word": 2407826064,
-        "mnemonic": "lw",
-        "form": "gp-relative",
-        "base_reg": 28,
-        "reads": true,
-        "writes": false
+      "direct": [
+        {
+          "file_offset": 49152,
+          "vaddr": 4243456,
+          "word": 2353175004,
+          "mnemonic": "lw",
+          "form": "lo-half",
+          "kind": "load",
+          "base_reg": 2,
+          "into_reg": 2,
+          "hi_confirmed": true,
+          "reads": true,
+          "writes": false
+        },
+        {
+          "file_offset": 323892,
+          "vaddr": 4518196,
+          "word": 2407760136,
+          "mnemonic": "lw",
+          "form": "got",
+          "kind": "address-taken",
+          "base_reg": 28,
+          "into_reg": 3,
+          "hi_confirmed": null,
+          "reads": false,
+          "writes": false,
+          "note": "loads &beforeuptime out of GOT slot 0x004860e8",
+          "follow_ended": "redefined"
+        }
+      ],
+      "indirect": [
+        {
+          "kind": "indirect-store",
+          "mnemonic": "sw",
+          "vaddr": 4518208,
+          "file_offset": 323904,
+          "displacement": 0,
+          "effective": 4757980,
+          "value_reg": 2,
+          "base_reg": 3,
+          "word": 2892103680,
+          "delay_slot": false,
+          "from_vaddr": 4518196,
+          "via": "got"
+        }
+      ]
+    },
+    "0x0048fbd8": {
+      "symbol": "authipaddr",
+      "got_slot": 4743792,
+      "summary": {
+        "direct_loads": 0,
+        "direct_stores": 0,
+        "address_taken": 6,
+        "indirect_loads": 1,
+        "indirect_stores": 0,
+        "args_to_calls": 6,
+        "hi_confirmed": 0
       },
-      {
-        "file_offset": 80020,
-        "vaddr": 4274324,
-        "word": 2407826064,
-        "mnemonic": "lw",
-        "form": "gp-relative",
-        "base_reg": 28,
-        "reads": true,
-        "writes": false
+      "direct": [
+        {
+          "file_offset": 49180,
+          "vaddr": 4243484,
+          "word": 2407826064,
+          "mnemonic": "lw",
+          "form": "got",
+          "kind": "address-taken",
+          "base_reg": 28,
+          "into_reg": 4,
+          "hi_confirmed": null,
+          "reads": false,
+          "writes": false,
+          "note": "loads &authipaddr out of GOT slot 0x00486270",
+          "follow_ended": "clobbered-by-call"
+        },
+        {
+          "file_offset": 49204,
+          "vaddr": 4243508,
+          "word": 2407826064,
+          "mnemonic": "lw",
+          "form": "got",
+          "kind": "address-taken",
+          "base_reg": 28,
+          "into_reg": 4,
+          "hi_confirmed": null,
+          "reads": false,
+          "writes": false,
+          "note": "loads &authipaddr out of GOT slot 0x00486270",
+          "follow_ended": "clobbered-by-call"
+        },
+        {
+          "file_offset": 79996,
+          "vaddr": 4274300,
+          "word": 2407826064,
+          "mnemonic": "lw",
+          "form": "got",
+          "kind": "address-taken",
+          "base_reg": 28,
+          "into_reg": 4,
+          "hi_confirmed": null,
+          "reads": false,
+          "writes": false,
+          "note": "loads &authipaddr out of GOT slot 0x00486270",
+          "follow_ended": "clobbered-by-call"
+        },
+        {
+          "file_offset": 80020,
+          "vaddr": 4274324,
+          "word": 2407826064,
+          "mnemonic": "lw",
+          "form": "got",
+          "kind": "address-taken",
+          "base_reg": 28,
+          "into_reg": 4,
+          "hi_confirmed": null,
+          "reads": false,
+          "writes": false,
+          "note": "loads &authipaddr out of GOT slot 0x00486270",
+          "follow_ended": "clobbered-by-call"
+        },
+        {
+          "file_offset": 314696,
+          "vaddr": 4509000,
+          "word": 2407826064,
+          "mnemonic": "lw",
+          "form": "got",
+          "kind": "address-taken",
+          "base_reg": 28,
+          "into_reg": 4,
+          "hi_confirmed": null,
+          "reads": false,
+          "writes": false,
+          "note": "loads &authipaddr out of GOT slot 0x00486270",
+          "follow_ended": "clobbered-by-call"
+        },
+        {
+          "file_offset": 323900,
+          "vaddr": 4518204,
+          "word": 2407826064,
+          "mnemonic": "lw",
+          "form": "got",
+          "kind": "address-taken",
+          "base_reg": 28,
+          "into_reg": 4,
+          "hi_confirmed": null,
+          "reads": false,
+          "writes": false,
+          "note": "loads &authipaddr out of GOT slot 0x00486270",
+          "follow_ended": "clobbered-by-call"
+        }
+      ],
+      "indirect": [
+        {
+          "kind": "arg-to-call",
+          "mnemonic": "jal/jalr",
+          "vaddr": 4243492,
+          "file_offset": 49188,
+          "arg_reg": 4,
+          "word": 52492297,
+          "delay_slot": false,
+          "note": "$4 still holds &authipaddr, so the callee may read or write through it",
+          "from_vaddr": 4243484,
+          "via": "got"
+        },
+        {
+          "kind": "indirect-load",
+          "mnemonic": "lbu",
+          "vaddr": 4243516,
+          "file_offset": 49212,
+          "displacement": 0,
+          "effective": 4783064,
+          "value_reg": 2,
+          "base_reg": 4,
+          "word": 2424438784,
+          "delay_slot": false,
+          "from_vaddr": 4243508,
+          "via": "got"
+        },
+        {
+          "kind": "arg-to-call",
+          "mnemonic": "jal/jalr",
+          "vaddr": 4243540,
+          "file_offset": 49236,
+          "arg_reg": 4,
+          "word": 52492297,
+          "delay_slot": false,
+          "note": "$4 still holds &authipaddr, so the callee may read or write through it",
+          "from_vaddr": 4243508,
+          "via": "got"
+        },
+        {
+          "kind": "arg-to-call",
+          "mnemonic": "jal/jalr",
+          "vaddr": 4274304,
+          "file_offset": 80000,
+          "arg_reg": 4,
+          "word": 52492297,
+          "delay_slot": false,
+          "note": "$4 still holds &authipaddr, so the callee may read or write through it",
+          "from_vaddr": 4274300,
+          "via": "got"
+        },
+        {
+          "kind": "arg-to-call",
+          "mnemonic": "jal/jalr",
+          "vaddr": 4274328,
+          "file_offset": 80024,
+          "arg_reg": 4,
+          "word": 52492297,
+          "delay_slot": false,
+          "note": "$4 still holds &authipaddr, so the callee may read or write through it",
+          "from_vaddr": 4274324,
+          "via": "got"
+        },
+        {
+          "kind": "arg-to-call",
+          "mnemonic": "jal/jalr",
+          "vaddr": 4509008,
+          "file_offset": 314704,
+          "arg_reg": 4,
+          "word": 52492297,
+          "delay_slot": false,
+          "note": "$4 still holds &authipaddr, so the callee may read or write through it",
+          "from_vaddr": 4509000,
+          "via": "got"
+        },
+        {
+          "kind": "arg-to-call",
+          "mnemonic": "jal/jalr",
+          "vaddr": 4518216,
+          "file_offset": 323912,
+          "arg_reg": 4,
+          "word": 52492297,
+          "delay_slot": false,
+          "note": "$4 still holds &authipaddr, so the callee may read or write through it",
+          "from_vaddr": 4518204,
+          "via": "got"
+        }
+      ]
+    },
+    "0x004899e0": {
+      "symbol": "nowuptime",
+      "got_slot": 4743332,
+      "summary": {
+        "direct_loads": 1,
+        "direct_stores": 1,
+        "address_taken": 1,
+        "indirect_loads": 0,
+        "indirect_stores": 1,
+        "args_to_calls": 0,
+        "hi_confirmed": 2
       },
-      {
-        "file_offset": 314696,
-        "vaddr": 4509000,
-        "word": 2407826064,
-        "mnemonic": "lw",
-        "form": "gp-relative",
-        "base_reg": 28,
-        "reads": true,
-        "writes": false
-      },
-      {
-        "file_offset": 323900,
-        "vaddr": 4518204,
-        "word": 2407826064,
-        "mnemonic": "lw",
-        "form": "gp-relative",
-        "base_reg": 28,
-        "reads": true,
-        "writes": false
-      }
-    ],
-    "0x004899dc": [
-      {
-        "file_offset": 49152,
-        "vaddr": 4243456,
-        "word": 2353175004,
-        "mnemonic": "lw",
-        "form": "lo-half",
-        "base_reg": 2,
-        "reads": true,
-        "writes": false
-      }
-    ],
-    "0x004899e8": [
-      {
-        "file_offset": 49272,
-        "vaddr": 4243576,
-        "word": 612669928,
-        "mnemonic": "addiu",
-        "form": "lo-half",
-        "base_reg": 4,
-        "reads": false,
-        "writes": false
-      }
-    ],
-    "0x004899e0": [
-      {
-        "file_offset": 48724,
-        "vaddr": 4243028,
-        "word": 2890111456,
-        "mnemonic": "sw",
-        "form": "lo-half",
-        "base_reg": 2,
-        "reads": false,
-        "writes": true
-      },
-      {
-        "file_offset": 49144,
-        "vaddr": 4243448,
-        "word": 2353240544,
-        "mnemonic": "lw",
-        "form": "lo-half",
-        "base_reg": 2,
-        "reads": true,
-        "writes": false
-      }
-    ]
+      "direct": [
+        {
+          "file_offset": 48724,
+          "vaddr": 4243028,
+          "word": 2890111456,
+          "mnemonic": "sw",
+          "form": "lo-half",
+          "kind": "store",
+          "base_reg": 2,
+          "into_reg": null,
+          "hi_confirmed": true,
+          "reads": false,
+          "writes": true
+        },
+        {
+          "file_offset": 49144,
+          "vaddr": 4243448,
+          "word": 2353240544,
+          "mnemonic": "lw",
+          "form": "lo-half",
+          "kind": "load",
+          "base_reg": 2,
+          "into_reg": 3,
+          "hi_confirmed": true,
+          "reads": true,
+          "writes": false
+        },
+        {
+          "file_offset": 323908,
+          "vaddr": 4518212,
+          "word": 2407760068,
+          "mnemonic": "lw",
+          "form": "got",
+          "kind": "address-taken",
+          "base_reg": 28,
+          "into_reg": 3,
+          "hi_confirmed": null,
+          "reads": false,
+          "writes": false,
+          "note": "loads &nowuptime out of GOT slot 0x004860a4",
+          "follow_ended": "clobbered-by-call"
+        }
+      ],
+      "indirect": [
+        {
+          "kind": "indirect-store",
+          "mnemonic": "sw",
+          "vaddr": 4518220,
+          "file_offset": 323916,
+          "displacement": 0,
+          "effective": 4757984,
+          "value_reg": 2,
+          "base_reg": 3,
+          "word": 2892103680,
+          "delay_slot": true,
+          "from_vaddr": 4518212,
+          "via": "got"
+        }
+      ]
+    }
   }
 }

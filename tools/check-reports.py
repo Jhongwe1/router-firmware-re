@@ -464,6 +464,30 @@ def main(argv: list[str]) -> int:
                 errors.append(
                     f"{path.name}: self_check is {doc.get('self_check')!r}")
 
+        elif str(doc.get("producer", "")) == "cve-endpoints":
+            counts["ghidra"] += 1
+            # The failure mode is a clean, short, wrong report: a parser that
+            # read three rows out of notes/cve-status.md instead of thirty-three
+            # produces exactly the same shape as one that read them all, and a
+            # matcher that says "absent" to everything produces a table full of
+            # interesting-looking negatives. Both are caught by the controls and
+            # by nothing else, so a report that did not run them is not evidence.
+            if doc.get("control_ok") is not True:
+                errors.append(
+                    f"{path.name}: control_ok is {doc.get('control_ok')!r} - the "
+                    "positive control (formSysCmd/sysCmd), the negative control "
+                    "or the parse floor did not hold, so every 'not present on "
+                    "this build' below is unusable")
+            if not doc.get("source_sha256"):
+                errors.append(
+                    f"{path.name}: no source_sha256 - the report cannot name the "
+                    "binary whose dispatch table it read")
+            if int(doc.get("root_form_entries") or 0) < 1:
+                errors.append(
+                    f"{path.name}: root_form_entries is "
+                    f"{doc.get('root_form_entries')!r}; an empty dispatch table "
+                    "makes every endpoint look absent")
+
         elif str(doc.get("producer", "")) == "mipsref":
             counts["ghidra"] += 1
             # tools/mipsref.py answers "who references this address" from
@@ -487,6 +511,27 @@ def main(argv: list[str]) -> int:
                     "whose control address did not come back with both a read and "
                     "a write proves nothing about the addresses that came back "
                     "empty, and must not be committed as evidence")
+            # Schema 2 added the dereference pass, and with it a second control.
+            # The first one was green throughout the run whose `beforeuptime`
+            # answer the device refuted: 0x004899e0 has a direct read and a
+            # direct store, so it exercised only the addressing form the scanner
+            # could already see. A control proves the path it travels. This one
+            # requires a store found *through a register*, so a build that lost
+            # the pass fails here instead of quietly reproducing version 1's
+            # numbers -- which is the shape of the failure, not a hypothetical.
+            if doc.get("schema", 1) >= 2:
+                if doc.get("control_indirect_ok") is not True:
+                    errors.append(
+                        f"{path.name}: control_indirect_ok is "
+                        f"{doc.get('control_indirect_ok')!r} - the dereference "
+                        "pass was not proved to run, so every 'no writes' answer "
+                        "in this file is the version 1 answer")
+                if not doc.get("dynsym_count"):
+                    errors.append(
+                        f"{path.name}: dynsym_count is "
+                        f"{doc.get('dynsym_count')!r} - without .dynsym a GOT "
+                        "slot cannot be told from a variable, and reporting a "
+                        "slot as a datum is exactly what schema 2 exists to stop")
 
         elif str(doc.get("producer", "")).startswith("ghidra:") or (
             "program" in doc and "matches" in doc

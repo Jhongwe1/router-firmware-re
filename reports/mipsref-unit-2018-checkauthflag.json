@@ -1,46 +1,124 @@
 {
   "producer": "mipsref",
+  "schema": 2,
   "binary": "/home/key/fwre-work/extracted/unit-2018/squashfs-root/bin/boa",
   "source_sha256": "19fe29d71aa1cc1e893627f17a0f14b03ca75f6936318df4062df4fb153909f7",
   "bytes": 485012,
   "dt_pltgot": 4743152,
   "gp": 4775904,
+  "dynsym_count": 423,
+  "got": {
+    "base": 4743152,
+    "local_gotno": 13,
+    "gotsym": 13,
+    "symtabno": 424,
+    "end": 4744848
+  },
   "control": "004899e0",
+  "control_indirect": "004899e0",
   "control_ok": true,
+  "control_indirect_ok": true,
   "targets": {
-    "0x004899d8": [
-      {
-        "file_offset": 48672,
-        "vaddr": 4242976,
-        "word": 2890111448,
-        "mnemonic": "sw",
-        "form": "lo-half",
-        "base_reg": 2,
-        "reads": false,
-        "writes": true
-      }
-    ],
-    "0x004899e0": [
-      {
-        "file_offset": 48724,
-        "vaddr": 4243028,
-        "word": 2890111456,
-        "mnemonic": "sw",
-        "form": "lo-half",
-        "base_reg": 2,
-        "reads": false,
-        "writes": true
+    "0x004899d8": {
+      "symbol": null,
+      "got_slot": null,
+      "summary": {
+        "direct_loads": 0,
+        "direct_stores": 1,
+        "address_taken": 0,
+        "indirect_loads": 0,
+        "indirect_stores": 0,
+        "args_to_calls": 0,
+        "hi_confirmed": 1
       },
-      {
-        "file_offset": 49144,
-        "vaddr": 4243448,
-        "word": 2353240544,
-        "mnemonic": "lw",
-        "form": "lo-half",
-        "base_reg": 2,
-        "reads": true,
-        "writes": false
-      }
-    ]
+      "direct": [
+        {
+          "file_offset": 48672,
+          "vaddr": 4242976,
+          "word": 2890111448,
+          "mnemonic": "sw",
+          "form": "lo-half",
+          "kind": "store",
+          "base_reg": 2,
+          "into_reg": null,
+          "hi_confirmed": true,
+          "reads": false,
+          "writes": true
+        }
+      ],
+      "indirect": []
+    },
+    "0x004899e0": {
+      "symbol": "nowuptime",
+      "got_slot": 4743332,
+      "summary": {
+        "direct_loads": 1,
+        "direct_stores": 1,
+        "address_taken": 1,
+        "indirect_loads": 0,
+        "indirect_stores": 1,
+        "args_to_calls": 0,
+        "hi_confirmed": 2
+      },
+      "direct": [
+        {
+          "file_offset": 48724,
+          "vaddr": 4243028,
+          "word": 2890111456,
+          "mnemonic": "sw",
+          "form": "lo-half",
+          "kind": "store",
+          "base_reg": 2,
+          "into_reg": null,
+          "hi_confirmed": true,
+          "reads": false,
+          "writes": true
+        },
+        {
+          "file_offset": 49144,
+          "vaddr": 4243448,
+          "word": 2353240544,
+          "mnemonic": "lw",
+          "form": "lo-half",
+          "kind": "load",
+          "base_reg": 2,
+          "into_reg": 3,
+          "hi_confirmed": true,
+          "reads": true,
+          "writes": false
+        },
+        {
+          "file_offset": 323908,
+          "vaddr": 4518212,
+          "word": 2407760068,
+          "mnemonic": "lw",
+          "form": "got",
+          "kind": "address-taken",
+          "base_reg": 28,
+          "into_reg": 3,
+          "hi_confirmed": null,
+          "reads": false,
+          "writes": false,
+          "note": "loads &nowuptime out of GOT slot 0x004860a4",
+          "follow_ended": "clobbered-by-call"
+        }
+      ],
+      "indirect": [
+        {
+          "kind": "indirect-store",
+          "mnemonic": "sw",
+          "vaddr": 4518220,
+          "file_offset": 323916,
+          "displacement": 0,
+          "effective": 4757984,
+          "value_reg": 2,
+          "base_reg": 3,
+          "word": 2892103680,
+          "delay_slot": true,
+          "from_vaddr": 4518212,
+          "via": "got"
+        }
+      ]
+    }
   }
 }

@@ -269,6 +269,39 @@ PY
     *)      skip "no route to the 10.1.1.0/24 segment yet (only the default route matches) — runsheet.md A3.1 adds one" ;;
   esac
 fi
+
+# Everything above this line asks whether the HOST is ready. None of it asks
+# whether the DEVICE still works, and on 2026-08-17 an unauthenticated POST
+# round of this project's own wrote DHCP_MTU_SIZE=0 into the unit's flash. The
+# WAN has been dead on every boot since; four bench sessions ran and not one
+# noticed, because nothing was looking. PROGRESS.md open item 73.
+#
+# One unauthenticated GET /config.dat returns the whole live configuration --
+# the gate does not run for a path with no .htm -- so this costs one request,
+# no credentials and no shell, and it reads the persistent state, which is the
+# class of breakage that survives a reboot and therefore the class that goes
+# unnoticed. A device that is off is skipped, not failed: exit 3 means nothing
+# was measured, and that is a third answer on purpose.
+head_ "tier 3 — the device can still do its job"
+if [ ! -x "$VENV/bin/python" ]; then
+  skip "no analysis venv, so the served configuration cannot be decoded — make venv"
+else
+  mib="$EX/unit-2018/squashfs-root/lib/libapmib.so"
+  live_args=(--host 10.1.1.1 --timeout 8)
+  [ -f "$mib" ] && live_args+=(--mib "$mib")
+  live_out="$(python3 tools/device-liveness.py "${live_args[@]}" 2>&1)"
+  case "$?" in
+    0) ok "10.1.1.1 serves its configuration and every primary-function field holds"
+       drift="$(printf '%s\n' "$live_out" | sed -n 's/^  \([0-9]*\) field(s) differ.*/\1/p')"
+       [ -n "$drift" ] && [ "$drift" != 0 ] && \
+         skip "$drift field(s) differ from the frozen 2026-08-16 baseline — expected after W05/W06/W07, but read the list before blaming a measurement on the device" ;;
+    3) skip "10.1.1.1 did not answer /config.dat — normal before the device is powered on. Nothing about the device has been measured" ;;
+    1) bad "the device answered and it is NOT doing its job: $(printf '%s\n' "$live_out" | sed -n 's/^  FAIL  //p' | tr '\n' ';')" \
+           "python3 tools/device-liveness.py   # the failing field names what breaks. Do not start a session on this: every negative result gets a second explanation" ;;
+    *) bad "device-liveness could not decide: $(printf '%s\n' "$live_out" | tail -1)" \
+           "python3 tools/device-liveness.py   # read the refusal" ;;
+  esac
+fi
 fi
 
 # ----------------------------------------------------------------- summary
