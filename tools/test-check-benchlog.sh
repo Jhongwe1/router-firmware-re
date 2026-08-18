@@ -136,5 +136,62 @@ else
 fi
 
 echo
+echo "=== every session PROGRESS.md records has an entry here ==="
+#
+# Added 2026-08-18, the day the rule it enforces was broken. A desk-only session
+# rewrote three of the next bench visit's predictions and wrote nothing in the
+# bench log, because nothing had been typed at the device and the file felt
+# inapplicable. The author caught it; no tool could have. These four cases are
+# the ones that separate "the check works" from "the check is present".
+#
+S="$TMP/sessions"; mkdir -p "$S"
+{ echo '```text'; good_card; echo '```'; } > "$S/cards.md"
+
+mk_pair() {  # mk_pair <bench-heading-line...> ; PROGRESS body on stdin
+  cat "$S/cards.md" > "$S/BENCH-LOG.md"
+  printf '%s\n' "$@" >> "$S/BENCH-LOG.md"
+  cat > "$S/PROGRESS.md"
+}
+
+mk_pair '# 2026-08-17 — a session that happened' <<'EOF'
+## W06 — 2026-08-17 (night)
+## W07 Day 3 — a desk-only day — 2026-08-18
+EOF
+expect_refusal "a PROGRESS session with no bench-log entry for that date is refused" \
+               "PROGRESS.md records a session on 2026-08-18" "$S/BENCH-LOG.md"
+
+mk_pair '# 2026-08-17 — a session that happened' \
+        '# 2026-08-18 — the plan for the next visit, written before touching anything' <<'EOF'
+## W06 — 2026-08-17 (night)
+## W07 Day 3 — a desk-only day — 2026-08-18
+EOF
+if "$PY" "$TOOL" "$S/BENCH-LOG.md" >/dev/null 2>&1; then
+  ok "a session WITH an entry on the same date is accepted"
+else
+  bad "a session with a matching entry was refused"
+fi
+
+# The floor. W01-W04 predate the bench log because they predate the device.
+mk_pair '# 2026-08-17 — the first bench day' <<'EOF'
+## W03 — 2026-08-10
+## W04 — 2026-08-11
+EOF
+if "$PY" "$TOOL" "$S/BENCH-LOG.md" >/dev/null 2>&1; then
+  ok "sessions predating the bench log's first entry are exempt"
+else
+  bad "a pre-bench-log session was wrongly refused"
+fi
+
+# And the one that makes the heading rule load-bearing: a date mentioned only in
+# prose is a reference, not an entry. Taking any date anywhere would accept this.
+mk_pair '# 2026-08-17 — a session that happened' \
+        'On 2026-08-18 the desk work changed three predictions.' <<'EOF'
+## W06 — 2026-08-17 (night)
+## W07 Day 3 — a desk-only day — 2026-08-18
+EOF
+expect_refusal "a date mentioned only in prose does not count as an entry" \
+               "PROGRESS.md records a session on 2026-08-18" "$S/BENCH-LOG.md"
+
+echo
 echo "  $pass passed, $fail failed"
 [ "$fail" -eq 0 ] || exit 1

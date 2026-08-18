@@ -112,7 +112,19 @@ reader undefended.
 | **`runsheet.md` Part A** | **the exact commands, verbatim expected output, stop conditions, the verify-after step, the gotcha at the point it bites** | edited freely |
 | **`runsheet.md` Part B** | which sections a week runs, in what order, plus its extras | **append-only** |
 | **`RUNBOOK.md` §8.12** | **why each step exists**, how it went wrong the first time, cross-week reasoning | edited freely, **zero command fences — CI enforces it** |
-| **`BENCH-LOG.md`** | what was actually typed and seen on a given day; the plan written *before* touching anything | **append-only** |
+| **`BENCH-LOG.md`** | what was actually typed and seen on a given day; **the plan written *before* touching anything** | **append-only** |
+
+- **Every session gets a `BENCH-LOG.md` entry, including the ones that never
+  touch the device.** This is the rule that keeps getting missed, and the reason
+  is always the same: on a desk-only day nothing was typed, so the file feels
+  inapplicable — and a desk-only day is exactly when the *next* visit's plan
+  changes, which is the half of this file that has to be on the record **before**
+  the device is plugged in rather than after. W07 Day 3 rewrote three of the
+  bench visit's predictions and wrote nothing here; the author caught it.
+  `make ci` now refuses a `PROGRESS.md` session heading with no `BENCH-LOG.md`
+  heading on the same date (`tools/check-benchlog.py`, 17 guard cases). A
+  desk-only entry carries no record cards — it carries what changed in the plan
+  and why.
 
 - **Part A is four stations, and the station number IS the device state**:
   `A1.x` desktop, `A2.x` stopped at `<RealTek>`, `A3.x` booted and serving,

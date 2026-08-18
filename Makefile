@@ -126,10 +126,17 @@ runsheet-test: ## Prove the runsheet checker can fail (29 cases)
 # The record-card template lived only in plan/, which is gitignored and which
 # committed files may not quote - so the format BENCH-LOG.md must follow lived
 # where BENCH-LOG.md could not cite it, and drifted out within a week.
-check-benchlog: ## Every bench record card carries a refutation condition
+#
+# It checks a second thing since 2026-08-18, and that one is about the file
+# existing rather than its cards being well formed: **every session PROGRESS.md
+# records must have an entry here on the same date.** A desk-only day feels
+# exempt - nothing was typed at the device - and it is precisely the day the
+# next visit's plan changes, which is the half of this file that gets forgotten.
+# W07 Day 3 forgot it; the author noticed, no tool could have.
+check-benchlog: ## Every bench record card carries a refutation condition, and every session has an entry
 	python3 tools/check-benchlog.py
 
-benchlog-test: ## Prove the bench-log checker can fail (13 cases)
+benchlog-test: ## Prove the bench-log checker can fail (17 cases)
 	bash tools/test-check-benchlog.sh
 
 rtcase: ## G3.75: the test register is frozen and every result carries evidence
