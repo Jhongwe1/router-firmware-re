@@ -173,7 +173,7 @@ models with different endpoint naming. It does not.
 | CVE | endpoint / parameter | class | located in our images |
 |---|---|---|---|
 | CVE-2025-3987 | `/boafrm/formWsc` → `localPin` | command injection | [`sink-inventory.md`](sink-inventory.md) §1 |
-| CVE-2025-4462 | `/boafrm/formWsc` → `localPin` | buffer overflow | §1 — **the same line of code as 3987** |
+| CVE-2025-4462 | `/boafrm/formWsc` → `localPin` | buffer overflow | §1 — **the same line of code as 3987**; **measured on two builds 2026-08-18**, see below |
 | CVE-2025-6299 | `/boa/formWSC` → `targetAPSsid` | command injection | §2 |
 | CVE-2025-3988 | `/boafrm/formPortFw` → `service_type` | buffer overflow | argtrace, V3.4.0 |
 | CVE-2025-3989 | `/boafrm/formStaticDHCP` → `Hostname` | buffer overflow | argtrace, both builds |
@@ -184,6 +184,50 @@ models with different endpoint naming. It does not.
 | CVE-2025-3994/3996 | `/home.htm` → `Comment` | XSS | not examined |
 | CVE-2025-3995 | `/boafrm/fromStaticDHCP` → `Hostname` | XSS | not examined |
 | CVE-2025-4460/4461 | URL-filtering / virtual-server pages | XSS | not examined |
+| CVE-2026-7218 | `/boafrm/formWsc` → `localPin` | buffer overflow | added 2026-08-18; N300RT 3.4.0-B20250430, `is_cmd_string_valid` |
+| CVE-2021-35395 | Realtek Jungle SDK `boa`/`webs` — `submit-url` and siblings | buffer overflow | added 2026-08-18. **The SDK-level name for the whole `submit-url` class above**, which the per-product 2025 ids are instances of. Realtek's own advisory and the Talos TALOS-2023-187x/189x series on the LevelOne WBR-6013 quote the same `req_get_cstream_var` + `strcpy` shape |
+
+### 2026-08-18 — CVE-2025-4462 measured, and a process failure worth more than the measurement
+
+**This table answered a question that was asked again as if it were open.**
+`PROGRESS.md` open item #64 was written as *"Is the `localPin` overflow already
+published? Not searched."* — while this row, and
+[`cve-status.md`](cve-status.md)'s copy of it, had been committed since W04.
+The finding was written up without opening the register, and the answer was then
+looked for on the internet. **A register nobody opens is a register that does not
+exist**, and `docs/disclosure.md` now carries a step 0 that says to open this
+file first.
+
+What the measurement adds, now that it is placed correctly:
+[`cve-status.md`](cve-status.md) predicted from static reading that the overflow
+is *"identical in the 2015 image"*. On 2026-08-18 that was measured under
+emulation on both the 2015 image and this unit's 2017 build:
+
+| | `unit-2018` (2017-11) | `v2.1.2` (2015-08) |
+|---|---|---|
+| `s0` … `s6` | 481 · 485 · 489 · 493 · 497 · 501 · 505 | 485 · 489 · 493 · 497 · 501 · 505 · 509 |
+| `ra`, and `$pc` is loaded from it | **509** | **513** |
+| `s7` | untouched | untouched |
+
+Neither build is the one CVE-2025-4462 names (3.4.0-B20190525) and the offsets
+are not published anywhere the four search paths reached. **A confirmed static
+prediction, not a rediscovery.**
+→ [`crash-triage-v2.1.2-wsc-cyclic.json`](../reports/crash-triage-v2.1.2-wsc-cyclic.json)
+
+### What four search paths did NOT find
+
+The **absent**-parameter half of the `submit-url` idiom —
+[`absent-parameter-strcpy.md`](absent-parameter-strcpy.md), the `(A)` case,
+where omitting the parameter makes the accessor return the address of a pooled
+`""` literal in `.rodata` and the vendor's `OK_MSG` macro writes twelve bytes
+through it. **Every published identifier above is the long-value case.** Searched
+2026-08-18 four ways: CVE/NVD by product and parameter, exploit databases and PoC
+repositories, the Realtek SDK source in third-party GPL drops, and vendor and
+research write-ups. Nothing found.
+
+**This is a negative search result, not a claim of novelty.** It is recorded here
+so that the next person to write it up can see how hard it was looked for and
+decide whether that was hard enough.
 
 **Second: the naming check W01 asked for was worth asking, and two of them are
 wrong.** `handleForm` matches route names *exactly*

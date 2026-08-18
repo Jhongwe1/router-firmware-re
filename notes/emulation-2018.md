@@ -438,6 +438,54 @@ Two separately-recorded observations were one bug.
 
 ---
 
+## 7b. And it was never isolated from the host at all
+
+Added 2026-08-18, and it is the most expensive thing on this page.
+
+`chroot` changes the filesystem root. It is **not** isolation, and nothing else
+stood between the guest and the host: no PID namespace, no seccomp, and the whole
+tool runs as root because it needs to `chroot`. A guest is therefore free to make
+any syscall the host kernel offers.
+
+One of them does. A single POST to `/boafrm/formWsc` on the `v2.1.2` profile
+reaches, in the guest's own trace under `qemu-mips-static -strace`:
+
+```
+19 execve("/bin/sh",{"sh","-c","reboot -f",NULL})
+```
+
+`busybox reboot -f` is a bare `reboot(2)`. qemu-user passes it through, the host
+kernel obeys, and **the host powered off — three times before the cause was
+named.** Each time it looked like the harness hanging: output stopping mid-run, a
+report never written, `/tmp` empty afterwards. Memory was never below 7 GB; the
+process count fell from 68 to 36 in one second, which is an orderly shutdown.
+**The thing that would have explained it was the thing being shut down.**
+
+Six controlled runs, host boot time unchanged throughout, establish that it is
+the request rather than a timer and that it is per build:
+
+| profile | request | reaches `reboot` |
+|---|---|---|
+| v2.1.2 | none, or an empty body, or `formSelLang` | no |
+| **v2.1.2** | **`formWsc`, `localPin=1234`** | **yes** |
+| unit-2018 | none | no |
+| unit-2018 | `formWsc`, `localPin=1234` | no — 7,495 bytes to `/dev/mtdblock0`, then `flash write-current` and `sysconf wlaninit wlaninterface` |
+
+Every guest now starts through one function in `qemu-env.sh`, `guest()`, which is
+`unshare --pid --fork chroot …`. In a PID namespace `reboot(2)` signals that
+namespace's own init, which is what it means on the device. It also fixes the
+orphan problem: killing the namespace's init takes its children with it, and
+children exec'd through binfmt were exactly what `reap` was invented for and
+could not match by argv.
+
+That change broke `serve` immediately and correctly — `boa` daemonises, the
+launcher exits, and the launcher *was* the namespace's init, so the kernel killed
+everything else in it. `-d` keeps it in the foreground.
+
+> **A failure mode of an emulation environment does not stay inside the emulation
+> environment.** This one had been reachable since W06 and was found by being
+> stepped on, not by being thought of.
+
 ## 8. How the first version of this note was wrong
 
 **It counted the document root with `ls` and got 90.** `fwrecon` says 143, so

@@ -1,0 +1,56 @@
+{
+  "producer": "config-diff",
+  "schema_version": "1",
+  "profile": "unit-2018",
+  "image": "/home/key/fwre-work/qemu-env-2018/dev/mtdblock0",
+  "pristine": "/home/key/fwre-work/qemu-env-2018/.mtd-pristine.bin",
+  "region_offset": "0x00C000",
+  "mib": "DHCP_LEASE_TIME",
+  "mib_table": "/home/key/fwre-work/extracted/unit-2018/squashfs-root/lib/libapmib.so",
+  "value_before": "480",
+  "value_after": "4321",
+  "alignfix_fixups": 12,
+  "region": {
+    "magic": "COMPCS",
+    "role": "current setting",
+    "comp_rate": 7,
+    "comp_len": 7478,
+    "decompressed_len": 45226,
+    "declared_len": 45218
+  },
+  "flash_diff": [
+    {
+      "offset": "0x00c060",
+      "before": "0x01",
+      "after": "0x10",
+      "region_relative": "0x60",
+      "where": "inside the compressed payload -- NOT comparable to a decoded field offset"
+    },
+    {
+      "offset": "0x00c062",
+      "before": "0xe0",
+      "after": "0xe1",
+      "region_relative": "0x62",
+      "where": "inside the compressed payload -- NOT comparable to a decoded field offset"
+    },
+    {
+      "offset": "0x00dd41",
+      "before": "0xa8",
+      "after": "0x98",
+      "region_relative": "0x1d41",
+      "where": "after the compressed payload (+11 past its end)"
+    }
+  ],
+  "decoded_diff": [
+    {
+      "name": "DHCP_LEASE_TIME",
+      "offset": 91,
+      "length": 4,
+      "raw_before": "000001e0",
+      "raw_after": "000010e1"
+    }
+  ],
+  "decoded_appeared": [],
+  "decoded_vanished": [],
+  "problems": []
+}

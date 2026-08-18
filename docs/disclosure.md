@@ -139,8 +139,61 @@ Left as the author's call, and left visible rather than quietly fixed.
 - **The `submit-url` overflow idiom, the `localPin` injection, the plaintext
   credentials and the 2015 backdoor account all have identifiers.** Locating
   them in a third build is verification work, not discovery.
+- **The `localPin` *overflow* has one too, and it was already in this
+  repository.** On 2026-08-18 this project measured full `$pc` and `s0`–`s6`
+  control from a single unauthenticated POST to `/boafrm/formWsc`, on two builds,
+  and wrote it up as an unsearched finding. It was not unsearched:
+  [`notes/prior-art.md`](../notes/prior-art.md) has listed **CVE-2025-4462**
+  against `/boafrm/formWsc` → `localPin` since W04, and
+  [`notes/cve-status.md`](../notes/cve-status.md) carries the same row marked 🟥
+  with the sentence *"The same line of source as 3987, and identical in the 2015
+  image."* **The register answered the question and nobody opened it.** A web
+  search run the next day returned the same identifier, which is the least useful
+  way to be right:
+
+  | identifier | what it names |
+  |---|---|
+  | **CVE-2025-4462** | N150RT 3.4.0-B20190525, `/boafrm/formWsc`, `localPin`, buffer overflow, remote, public PoC, disclosed 2025-05-09 |
+  | CVE-2026-7218 | the same parameter on N300RT 3.4.0-B20250430 |
+  | CVE-2025-3987 | command injection at the same endpoint |
+  | CVE-2019-19824 | the `localPin` command injection already tracked here |
+  | CVE-2021-35395 | the Realtek SDK `submit-url` overflow — the `(B)` half of the idiom |
+
+  Of those, only CVE-2026-7218 and CVE-2021-35395 were new to this repository;
+  the rest were already in the register.
+
+  Neither build measured here is a build any of those name, and the frame offsets
+  (`ra` at 509 on the 2017 build, 513 on the 2015 one) are not published anywhere
+  the four search paths reached. **That is a smaller claim than the one that was
+  nearly written, and it is the true one** — but it is also, read the other way,
+  a *larger* one than "we rediscovered a CVE": `cve-status.md` predicted
+  statically that the overflow is identical in the 2015 image, and that
+  prediction is now measured. A confirmed static prediction is worth more than a
+  rediscovery, and it is what should have been written.
+
+  **Step 2 of the procedure below is amended because of this.** It used to say
+  "search". Searching the internet first is what produced a day-late answer to a
+  question this repository had already answered, twice in one day — the second
+  being `formSysCmd`, where `notes/formSysCmd-analysis.md` had carried the
+  conclusion since W04. The order is now: **`notes/prior-art.md` first, then
+  `notes/cve-status.md`, then outside sources** — and a web result that merely
+  agrees with the register is not a finding, it is a check.
+- **What the search did *not* find** is the `(A)` half: a *missing* parameter
+  making the accessor return the address of a pooled `""` literal, which the
+  vendor's `OK_MSG` macro then writes twelve bytes through. Every published item
+  above is the long-value case. A negative search result is not a claim of
+  novelty and is recorded here as what it is — four paths, nothing found,
+  `notes/absent-parameter-strcpy.md` §4.
 
 ## Procedure when something does become reportable
+
+> **Step 0, added 2026-08-18 and out of order on purpose: open
+> [`notes/prior-art.md`](../notes/prior-art.md) before writing the finding up,
+> not before reporting it.** The register is searchable by handler and by
+> parameter and it is 30 KB of work already done. Twice on 2026-08-18 a
+> conclusion was re-derived from outside sources that the register already held,
+> and in both cases the write-up had already been committed by the time anyone
+> looked. **A register nobody opens is a register that does not exist.**
 
 1. Demonstrate it on the hardware, with the request and response recorded, and
    register the result (`tools/rtcase.py record`) so the claim carries evidence.

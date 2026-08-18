@@ -323,6 +323,47 @@ else
   "$PY" tools/check-runsheet.py "$RS" 2>&1 | sed 's/^/          /'
 fi
 
+# The direction that fires BEFORE a session rather than after it.
+#
+# Everything above keys on `executed`, so a week that has not started reads as
+# fully covered. That is not hypothetical: on 2026-08-18 W07 had 58 live rows,
+# 2 claimed, 11 exempted and 47 with neither, 32 of them scheduled for a bench
+# visit the same evening. W08 is the fixture for it because it has sixteen live
+# rows and zero results, so only the new rule can fire and a pass here cannot be
+# the old rule passing by accident.
+write_good
+sed -i 's|## B-W99|## B-W08|' "$RS"
+out="$("$PY" tools/check-runsheet.py "$RS" 2>&1)"; rc=$?
+if [ "$rc" -eq 0 ]; then
+  bad "a runsheet covering a week whose rows have no procedure was accepted"
+elif printf '%s' "$out" | grep -qF "scheduled test(s) with no procedure"; then
+  ok "a scheduled test with no step is reported before it has ever run"
+else
+  bad "the pre-session gap was reported for the wrong reason:"
+  printf '%s\n' "$out" | sed 's/^/          /'
+fi
+
+# And the same escape hatch has to work for it, or a week that genuinely has no
+# bench procedure -- because its rows are desk work -- could never be declared.
+write_good
+"$PY" - "$RS" <<'PYEOF'
+import pathlib, sys, tomllib
+p = pathlib.Path(sys.argv[1])
+reg = tomllib.loads(pathlib.Path("test-cases.toml").read_text("utf-8"))
+ids = sorted(c["id"] for c in reg["case"]
+             if str(c.get("week")) == "W08"
+             and not str(c.get("cut_reason", "")).strip())
+s = p.read_text("utf-8").replace("## B-W99", "## B-W08")
+s += "\n<!-- no-procedure: " + " ".join(ids) + " -- fixture -->\n"
+p.write_text(s, "utf-8")
+PYEOF
+if "$PY" tools/check-runsheet.py "$RS" >/dev/null 2>&1; then
+  ok "an outstanding row may be exempted, so an honest gap is still declarable"
+else
+  bad "a scheduled-but-unrun row could not be exempted"
+  "$PY" tools/check-runsheet.py "$RS" 2>&1 | sed 's/^/          /'
+fi
+
 # Instrument bug 31, 2026-08-18. The checker used re.search, which takes the
 # FIRST match -- and the appendix paragraph that *documents* this escape hatch
 # quotes the marker inline, so it parsed as an empty exemption block sitting

@@ -2459,3 +2459,133 @@ Talos,CWE-347,同一顆 SDK。`bughunt.md` 第 13 列不是我們的發現。**
 **V3.4.0 的模擬 profile 開了頭就停掉。** 它的 COMPDS 長度**必須**從 V3.4.0
 自己的 `libapmib` 推出來 —— `mkflash` 裡那個 32858 是 V2.1.2 的函式庫在講它
 自己 —— 抄過去會造出「第二種相信第一個環境的方法」，不是第二個環境。
+
+
+## 2026-08-18（二）W07 Day 4 —— 第二場桌面
+
+**登記簿 W07 從 11/58 走到 28/58，全部是桌面工作。**
+
+### 做了什麼
+
+- **`tools/crash-triage.py`**（新）：用 qemu-user 的 gdbstub 抓訊號、暫存器、
+  故障指令，並把寫入目標對照 binary 自己的 program header 分類。沒有對照組就拒絕跑。
+- **`tools/paramfuzz.py`**（新）：四個維度（長度階梯、de Bruijn、參數缺席、協定炸彈），
+  輸入清單全部由 `BoaGate` 自己的輸出算出來。
+- **`tools/formtable-scan.py`**（新）：不讀指令、不用 Ghidra 的 `root_form[]` 復原。
+  在 `unit-2018` 上與 Ghidra 57/57 相同。
+- **`tools/bench-probe.py`**：POST 防護從「一定要有 `submit-url`」改成逐 handler 的
+  對照表 —— 舊版把最需要擋的那一個放行了。
+- **`tools/check-runsheet.py`**：新增「排程但還沒跑的列也要有程序」。
+- **`tools/qemu-env.sh`**：環境檢查移到 `--alignfix` 區塊之前（儀器缺陷 44）。
+- **`runsheet.md`**：新增 `A1.5`–`A1.9` 與 `A3.14`–`A3.24`，共 16 節；
+  **`RUNBOOK.md` §8.12.23–§8.12.38** 一對一配對。
+- **`firmware/SOURCES.json`**：三個新映像（N300RT V2.1.6、N200RE V3.2.0、
+  N300RT V3.4.0），全部第三方鏡像，雜湊只證明連續性。
+
+### 量到什麼
+
+1. **五個 handler 在參數缺席時把 web server 打掉**，五個死在同一條 `strcpy`、
+   同一個位址 `0x004725d0`（唯讀段裡的 `""` 字面量）。
+   對照組：`webpage=`（有值但空）走同一條分支卻活著。
+2. **`formWsc` 的 `localPin` 800 bytes → `$pc` 完全可控**，偏移 509。
+3. **六個 build 的分派表**：這台的 57 個是 N300RT V2.1.6 的 61 個的嚴格子集；
+   `formSysCmd` 的移除是**逐產品**的，不是逐版本號的。
+
+### 學到什麼（三條，都不是關於這台路由器的）
+
+1. **一個反證繼承了產生它的那個東西的覆蓋率。** 三個手挑的 handler 是一個沒有人
+   寫下來的覆蓋率，而它讓一整個缺陷類別被寫掉三個星期。
+2. **只在事後才生效的檢查，從來不是檢查。** 作業單看起來每週都是滿的，
+   因為它只在結果出現之後才被要求 —— 也就是說它從來沒有在場次之前存在過。
+3. **當兩個拒絕會為同一個原因觸發，先觸發的那個必須是知道原因的那個。**
+   儀器缺陷 44 花掉的時間，全部在追一個編譯器問題，而編譯器沒有問題。
+
+### 沒做完的
+
+- **`formWsc` 那一發在公開的 V2.1.2 映像上成不成立** —— 今天沒跑成，
+  `reset` 被殘留行程擋下。**這是下一場第一件事。**
+- **prior-art 一次都沒搜。**
+- `P8-23`（設定區差分）的程序寫好了，沒有執行。
+
+## 2026-08-18（二）W07 Day 5 —— 第三場桌面，而最貴的一課是我自己的檔案
+
+**登記簿 W07 從 28/58 走到 29/58。**桌面那三件全部做完，進站還沒開始。
+一天下來，**真正值錢的不是量到的東西，是兩次「我重新推導了自己 W04 就寫過的結論」。**
+
+### 做了什麼
+
+- **`tools/qemu-env.sh`**：三個缺陷。`env_pids` 的最後一句 `[ … ] && printf`
+  在最後一個 `/proc` 項目上為假 → 回傳 1 → `set -e` 把 `reap` 在第一個 `kill`
+  之前結束掉（**exit 1，零輸出，什麼都沒殺**）；`cmd_reset` 印出的修復指令
+  `--profile 2018` 被它自己的解析器 exit 2 退掉；`cmd_serve` 用
+  `code="$(curl …)"` 讀狀態碼，沒有伺服器時 curl exit 7 直接把腳本帶走，
+  **那個會指出 log 檔在哪的拒絕訊息永遠印不出來**。
+- **`tools/qemu-env.sh` 的 `guest()`**（新）：所有 guest 改走
+  `unshare --pid --fork chroot …`。理由見下。
+- **`tools/crash-triage.py`**：收尾多一步 `reap` —— 舊的
+  `pkill -f "qemu-mips-static -g 1234"` 比對不到 guest fork 出去的
+  `mips-binfmt-P /bin/ntp_inet`。
+- **`tools/bench-probe.py`**：`formWsc` 進 `HAZARDOUS`。
+- **`tools/config-diff.py`**（新）+ **`tools/test-config-diff.sh`**（11 案）：
+  `A1.9` 整節換成一支會拒絕的工具。
+- **`tools/test-qemu-env.sh`**：新增 7 案（12 非特權 / 21 帶 dump 與 root），
+  四個突變體全部被對應的案例殺掉。
+- **文件**：`PROGRESS` / `BENCH-LOG` / `runsheet` A1.7 A1.9 + Part B 增補之二 /
+  `RUNBOOK` §8.12.25 §8.12.27 / `README` 板 / `study/QA.md` 七題 /
+  `notes/` 六份（`absent-parameter-strcpy`、`prior-art`、`cve-status`、
+  `bughunt`、`formSysCmd-analysis`、`submit-url-overflow`、`emulation-2018`）。
+
+### 量到什麼
+
+1. **`formWsc` 的溢位在公開的 V2.1.2 映像上成立**，`ra` 在 **513**（這台是 509），
+   `s0`–`s6` 依序往外，`s7` 兩邊都沒被動到。`unit-2018` 那一欄是獨立重跑的，
+   **完整重現昨天的數字**。
+2. **參數缺席那一類在 V2.1.2 上是七個，不是五個** —— 多的是 `formNtp` 與
+   `formWlanSetup`，**W06 手挑的三個裡的兩個**。
+3. **`chroot` 不是隔離**：guest 走到 `system("reboot -f")`，`reboot(2)` 直接打到
+   宿主核心，把整台 WSL 關掉三次。六格矩陣證明是那一發造成的、不是計時器，
+   而且逐 build 不同：2015 重開機，2017 寫 7,495 bytes 進 `/dev/mtdblock0`
+   再重起 wlan0。
+4. **`P8-23` 成立**：解壓空間裡只有一個欄位動，`DHCP_LEASE_TIME` offset 91。
+   而 flash 層的三個 byte 落在**壓縮酬載**與其後 11 bytes —— 兩個座標系。
+5. **廠商原始碼裡的 `OK_MSG(url)` 巨集**就是 `(A)` 那一半，而兄弟巨集
+   `ERR_MSG(msg)` 根本不碰 `url`。
+
+### 學到什麼（三條，一條比一條難看）
+
+1. **我重新推導了自己 W04 就寫過的兩個結論，而且是去網路上推導的。**
+   開放題 #64（`localPin` 溢位有沒有被公開）寫的是「一次都沒搜」——
+   而 `notes/prior-art.md` 第 176 行、`notes/cve-status.md` 第 48 行
+   **從 W04 起就有 CVE-2025-4462**。開放題 #67（`formSysCmd` 是被加進去的嗎）
+   的答案，`notes/formSysCmd-analysis.md` 從 W04 就寫著 Pierre Kim 的公告與
+   「這是那個修補本身」的推論，連反證方式都寫好了。
+
+   **一個沒有人打開的登記簿，等於不存在。**`docs/disclosure.md` 現在多了一個
+   第 0 步：先開 `notes/prior-art.md`，再開 `cve-status.md`，最後才是外部來源；
+   而一個只是跟登記簿一致的網路結果算檢查，不算發現。
+
+   唯一的好消息，而且它是真的好消息：`cve-status.md` 那句
+   **"identical in the 2015 image" 是一個靜態預測，今天在那個映像上被量到了。**
+   **一個被證實的靜態預測比一次「重新發現 CVE」值錢得多**，那才是昨天該寫的東西。
+
+2. **一個測試可以重現它要抓的那個機制。** `reap` 的守衛案例我第一版寫成
+   `if ( set -e; … ); then` —— 而 `if` 的條件裡 `set -e` 是關掉的，
+   跟 `cmd_reset` 用 `|| true` 呼叫它是同一條規則。
+   **測試通過，bug 還在。**
+   更麻煩的是第二層：非 root 時 `readlink` 讀不到 `/proc/*/root`，迴圈最後一圈走
+   `continue`（status 0），缺陷根本不出現 —— **而 `reap` 只能 root 跑，CI 不是 root。**
+
+3. **場次之前把步驟寫出來是必要的，不是充分的。** `A1.9` 昨天寫好，今天第一次執行，
+   錯兩次：沒帶 alignfix（`flash set` 印完 `Bus error` 之後不會結束），
+   以及叫人比較兩個不在同一座標系的數字（第一次跑出來差 2 bytes，
+   **看起來「差不多對」**）。
+   **一個沒被執行過的步驟，是一個關於指令的預測，不是指令。**
+
+### 沒做完的
+
+- **進站 30 列** —— 要通電，留給實機那一場。
+- **V2.1.1-B20150708** —— 能把 #67 的「移除」那半直接證死，一條指令，沒下載。
+- **`guest()` 沒有守衛案例** —— 有人把 `unshare` 拿掉不會有任何東西響。
+  這正是 `reap` 昨天的狀態（開放題 #69）。
+- **`RUNBOOK.md` 有 172 行半形標點**，而 `CLAUDE.md` 說它 2026-08-17 正規化過。
+  量了，沒改，記進 `PROGRESS § Corrections`。

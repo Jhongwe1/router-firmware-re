@@ -6,9 +6,17 @@
     "verify them, which is what actually matters for reproducing a result.",
     "",
     "'expected' hashes marked null are pinned on first successful fetch; see",
-    "firmware/MANIFEST.json for the recorded values and fetch timestamps."
+    "firmware/MANIFEST.json for the recorded values and fetch timestamps.",
+    "",
+    "2026-08-18: three images were added that are NOT this device's firmware -",
+    "two N300RT and one N200RE. They carry a `model` field for that reason and",
+    "the `device` block above still describes the one unit this project owns.",
+    "They are here because register rows need them: P8-21 names N300RT in its",
+    "refutation condition, and the N200RE build is the closest publicly",
+    "downloadable point in time to the build this unit actually runs. A claim",
+    "derived from one of them is a claim about an image, never about hardware",
+    "nobody here has."
   ],
-
   "device": {
     "vendor": "TOTOLINK",
     "model": "N150RT",
@@ -18,7 +26,6 @@
     "eol": true,
     "ownership": "personally owned"
   },
-
   "images": [
     {
       "id": "n150rt-2.1.2-b20150825",
@@ -89,13 +96,106 @@
         "different bytes later, that is a signal to investigate rather than a",
         "reason to re-pin."
       ]
+    },
+    {
+      "id": "n300rt-2.1.6-b20160516",
+      "filename": "TOTOLINK-N300RT-V2.1.6-B20160516.1249.web",
+      "model": "N300RT",
+      "product_version": "2.1.6",
+      "build": "B20160516.1249",
+      "released": "2016-05-16",
+      "role": "sibling model - the only image here that is not an N150RT, and the reason it is here is a register row, not curiosity",
+      "why": [
+        "P8-21 asks whether the six products CVE-2024-51228 names are one codebase or six, and its frozen refutation is literally 'obtain another model's image and find a different dispatch table'. N300RT is one of the six. Until 2026-08-18 that row sat on the bench list, where it did not belong: it needs an image, not a router.",
+        "It is also the same product version this unit reports (V2.1.6) at the published build B20160516, which is the build the N150RT V2.1.6 entry under `wanted` is a 40%-complete download of. Different model, so it does NOT close that gap - but it is a complete 2016 V2.1.6 of this SDK family, which nothing else here is."
+      ],
+      "sources": [
+        {
+          "kind": "mirror",
+          "url": "https://files.3net.ua/firmware/totolink/TOTOLINK-N300RT-V2.1.6-B20160516.1249.web",
+          "note": "Third-party firmware mirror; the same one the V3.4.0 entry above came from. TOTOLINK publishes no signature, so these hashes assert continuity and never authenticity: they say two people fetched the same bytes, not that TOTOLINK produced them. Fetched in a browser on 2026-08-18 - the Zone.Identifier alternate data stream the OS wrote at download time is on disk beside each file. If the mirror serves different bytes later that is a signal to investigate, not a reason to re-pin."
+        }
+      ],
+      "expected": {
+        "size": 3497913,
+        "md5": "a2e1300af0ea169d565d6a05d1b9e95f",
+        "sha1": "3abcdcea8800268cce238d13cbfaccade294ba06",
+        "sha256": "04e36e8d56a924b2dd230f0a43a1610e3a6a3ade54cb301f635f65b4a11e243c"
+      },
+      "notes": [
+        "Container starts with a w6cg section (77 36 63 67), i.e. the 2015-family layout this unit also has, rather than the cr6c-first layout of V3.4.0.",
+        "No claim is made here about N300RT hardware. This project owns one N150RT; everything derived from this image is a statement about an image."
+      ]
+    },
+    {
+      "id": "n200re-3.2.0-b20180330",
+      "filename": "TOTOLINK-N200RE-V3.2.0-B20180330.1757.web",
+      "model": "N200RE",
+      "product_version": "3.2.0",
+      "build": "B20180330.1757",
+      "released": "2018-03-30",
+      "role": "nearest-in-time publicly downloadable build to the one this unit runs",
+      "why": [
+        "This unit runs TOTOLINK-CX-N150RT-V2.1.6-B20171121.1002, which is on no download page. Every boa finding in this repository is therefore measured either on a 2015 image, on a 2020 image, or on a build nobody else can obtain - and the last of those is the one that matters and the one that cannot be reproduced.",
+        "B20180330 is four months later than B20171121 and is downloadable. It does not make this unit's build reproducible; it makes it possible to ask whether a defect found here also stands in a 2018-era image a reader can fetch, which is the difference between a finding somebody can check and one they have to take on trust.",
+        "Two rows want this specifically: bughunt.md #5 (the supervisor credential pair, currently bounded to 2015 and to this unit) and #20 (the 601-second IP session arm, currently read only in this unit's binary)."
+      ],
+      "sources": [
+        {
+          "kind": "mirror",
+          "url": "https://files.3net.ua/firmware/totolink/TOTOLINK-N200RE-V3.2.0-B20180330.1757.web",
+          "note": "Third-party firmware mirror; the same one the V3.4.0 entry above came from. TOTOLINK publishes no signature, so these hashes assert continuity and never authenticity: they say two people fetched the same bytes, not that TOTOLINK produced them. Fetched in a browser on 2026-08-18 - the Zone.Identifier alternate data stream the OS wrote at download time is on disk beside each file. If the mirror serves different bytes later that is a signal to investigate, not a reason to re-pin."
+        }
+      ],
+      "expected": {
+        "size": 3395987,
+        "md5": "8b570af5a04b1d8a1af837b71dc3ae26",
+        "sha1": "489adb6d13759db84d1d536dd393edbc23b1d28e",
+        "sha256": "af81c400992f0c7caf79e937a236d0200019142d77328a99821b570cc17f58c2"
+      },
+      "notes": [
+        "Also a w6cg-first container, so the 2015-family web bundle machinery in tools/fwrecon applies to it unchanged.",
+        "Downloaded 2026-08-18; nothing has been extracted from it yet. It is declared here before it is read so that the declaration cannot be written to match what was found."
+      ]
+    },
+    {
+      "id": "n300rt-3.4.0-b20190315",
+      "filename": "TOTOLINK-N300RT-V3.4.0-B20190315.1747.web",
+      "model": "N300RT",
+      "product_version": "3.4.0",
+      "build": "B20190315.1747",
+      "released": "2019-03-15",
+      "role": "a date, not a defect - it brackets when the vendor changed the authentication path",
+      "why": [
+        "uninit-credential-pair.md establishes that the second, never-written credential comparison is present in 2015 and in this unit's 2018 build and absent from V3.4.0-B20201030. That places the change somewhere in a five-year window, which is not a timeline.",
+        "A V3.4.0 built 2019-03-15 splits that window. Whichever way it comes out is informative: present means the removal is late and deliberate, absent means it happened before this build and the 2020 image is not where to look."
+      ],
+      "sources": [
+        {
+          "kind": "mirror",
+          "url": "https://files.3net.ua/firmware/totolink/TOTOLINK-N300RT-V3.4.0-B20190315.1747.web",
+          "note": "Third-party firmware mirror; the same one the V3.4.0 entry above came from. TOTOLINK publishes no signature, so these hashes assert continuity and never authenticity: they say two people fetched the same bytes, not that TOTOLINK produced them. Fetched in a browser on 2026-08-18 - the Zone.Identifier alternate data stream the OS wrote at download time is on disk beside each file. If the mirror serves different bytes later that is a signal to investigate, not a reason to re-pin."
+        }
+      ],
+      "expected": {
+        "size": 3434555,
+        "md5": "098edcccce5d75eb3d8510bb05d3cec9",
+        "sha1": "ebdbc44539f1b07d8df7a4e29cc03508b48c8ba2",
+        "sha256": "a0974d746107d192eeaceb44f8f80b06fa5a3fde3c487947f344a1679d4dceda"
+      },
+      "notes": [
+        "cr6c-first container, like the N150RT V3.4.0.",
+        "Same-version different-model, so a difference between this and N150RT-V3.4.0-B20201030 is a difference in EITHER date OR model and the two are not separable from these two files alone. Anything concluded from it has to say so."
+      ]
     }
   ],
-
   "wanted": [
     {
       "note": "Additional V2-line builds (2.1.1 / 2.1.3) are listed on Softpedia but sit behind an interstitial that blocks scripted fetch - confirmed again 2026-08-16 against PowerShell HEAD, curl with three user-agents, and a page fetch, all 403. A browser session succeeds where a script does not, which is how the 2.1.6 entry below was obtained.",
-      "versions": ["2.1.1", "2.1.3"]
+      "versions": [
+        "2.1.1",
+        "2.1.3"
+      ]
     },
     {
       "id": "n150rt-2.1.6-b20160516",

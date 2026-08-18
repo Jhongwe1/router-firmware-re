@@ -3611,3 +3611,528 @@ measured and none of it is recorded; the bench block has not started.
 | **2. Record the desk block** | ❌ | `P1-9`, the `P3-8`…`P3-12` static halves, `P5-3`, `P5-7`, `P5-6`, then the `P4` / `P5` chain. `P4-7` now has a second, better result to record against it |
 | **3. Freeze the bench predictions** | ❌ | Three are new as of today, and one — the 601-second window — has no runsheet step at all. **This gates the visit** |
 | **4. The bench visit** | ✅ | 32 rows, station order per `runsheet.md` Part B `B-W07`, `P9-9` last |
+
+## W07 Day 4 — the refutation that inherited a coverage nobody wrote down — 2026-08-18
+
+**Register: W07 goes 11/58 → 28/58.** Every row closed today is desk work; the
+bench visit still has not happened. One case is new (`P2-11`) and one frozen
+prediction was edited before firing (`P4-9`), both with the hash changed in the
+same commit.
+
+### The result: `P4-1` was refuted correctly, and the class is alive
+
+W06 measured, on the device, that omitting `submit-url` from a POST to `formNtp`,
+`formWlanSetup` and `formSelLang` does nothing. `P4-1` went down `refuted` and
+`bughunt.md` row 18 wrote the class off. **That measurement stands and the
+conclusion drawn from it does not.**
+
+With `tools/alignfix/` making configuration writes executable at last, the sweep
+was re-run with an **empty body** instead of a well-formed `submit-url`:
+**five of 58 handlers remove the web server** — `formSchedule`,
+`formAdvanceSetup`, `formDnsv6`, `formOpMode2`, `formSSH` — against three
+controls that held. `tools/crash-triage.py`, written today, then put a number on
+each of them by driving `qemu-user`'s gdbstub instead of reading a log:
+
+| | |
+|---|---|
+| all five | `pc = 0x2b32721c` (uClibc `strcpy`), `sb v1,0(a2)`, store target **`0x004725d0`** |
+| `0x004725d0` | the pooled `""` literal — **815** `addiu` references, and it lives inside the `R-X` `PT_LOAD` (`0x00400000`–`0x00473044`) |
+| five distinct `ra` | `0x00445974` `0x0044740c` `0x00459f4c` `0x00452814` `0x004546bc` — five call sites, one defect |
+
+**The control is the part worth keeping.** Send `webpage=` — *present and
+empty*. Same branch, `*s2` still `'\0'`, `strcpy` still runs, **server
+survives**. The only difference is where the pointer points. So the finding is
+not "this handler crashes"; it is *the accessor's default for an absent
+parameter is the address of a literal, and the code writes through it*.
+
+**Why W06 could not have found it.** 47 of 57 handlers carry the idiom and only
+**5** reach it on a parameter-free POST; the other 42 return earlier. Three
+handlers drawn from 47 had roughly one chance in four each. And the fifth,
+`formSchedule`, was unreachable by that method at all — **its parameter is
+`webpage`, so it dies with a perfectly well-formed `submit-url` present.**
+
+> **This is the third of this project's own results overturned, and the first
+> overturned by widening the sample rather than by fixing an instrument.** The
+> transferable sentence is not "the earlier test was sloppy". It is: **a
+> refutation inherits the coverage of whatever produced it, and three
+> hand-picked handlers is a coverage nobody wrote down.**
+→ [`notes/absent-parameter-strcpy.md`](notes/absent-parameter-strcpy.md)
+
+### And one that is a different defect entirely
+
+The length ladder — the same run, a different dimension — found `form_formWsc`'s
+`localPin` dying at 800 bytes and surviving at 260. A de Bruijn pattern read the
+frame straight off:
+
+```
+localPin = 800 x 'A'   ->   pc = ra = s0..s6 = 0x41414141
+offsets:  s0 481 · s1 485 · s2 489 · s3 493 · s4 497 · s5 501 · s6 505 · ra 509
+```
+
+509 is consistent with `BoaGate`'s own `sp-540` for that parameter. No canary,
+no `PT_GNU_RELRO`, no PIE, `RWX` `GNU_STACK`, in all three N150RT builds.
+**Unauthenticated, one POST, no chain: the program counter and seven saved
+registers are attacker-controlled — under emulation.**
+
+Nothing has been jumped to, no payload exists, `qemu-user`'s address space is
+not the device's, and whether an overflow on `localPin` is already published has
+**not been searched**. The request itself is not in this repository; it is in
+`$FWRE_WORK/disclosure/`, under the same rule as `D-15`.
+
+### The dispatch table has a second source, and it changed a sentence
+
+`root_form[]` decided what "the attack surface" means in every week so far, and
+until today it had exactly **one** producer. These binaries are `sstrip`'d —
+`readelf -S` returns nothing — so no standard tool could cross-read it.
+
+`tools/formtable-scan.py` reads program headers and looks for the *shape* of the
+table in the writable segment: no decompiler, no analysis database, no symbol
+table. On this unit it recovers **57 of 57, at the same address, with zero
+disagreement** against the Ghidra report.
+
+The author downloaded three sibling images this afternoon, so the scan ran on
+six builds:
+
+| 2015-08 N150RT | 2016-05 N300RT | 2017-11 this unit | 2018-03 N200RE | 2019-03 N300RT | 2020-10 N150RT |
+|---|---|---|---|---|---|
+| 59 | 61 | **57** | 60 | 50 | 49 |
+
+- **This unit's 57 are a strict subset of N300RT V2.1.6's 61**, and of N200RE
+  V3.2.0's 60. `P8-21` asked whether CVE-2024-51228's six products are one
+  codebase; "strict subset" is a stronger answer than "different".
+- **`formSysCmd` is absent from V2.1.2 (2015), present in 2016/2017/2018, still
+  present in N300RT V3.4.0-B20190315, and absent from N150RT V3.4.0-B20201030.**
+  So *"3.4.0 removed it"* is false as stated — the removal is **per product**,
+  and only six builds side by side show it. `bughunt.md` row 22.
+
+> ⚠️ **The method is validated on one build and assumed on five.** `--compare`
+> proves it against Ghidra on `unit-2018`; the other five have no reference. The
+> only indirect evidence is the subset relation itself — a scanner that
+> truncated tables would produce scattered gaps, not a clean subset. **That is
+> not a proof and the claim carries the sentence.**
+
+### Instrument work
+
+- **`tools/crash-triage.py`** — signal, registers, faulting instruction, and the
+  store target classified against the binary's own program headers. Refuses to
+  run without a control. Two costs paid to write it: `boa` daemonises, so gdb
+  followed a parent that exits (`-d` fixes it, and the flag is in the binary's
+  own usage string); and SIGBUS must be passed through, because with
+  `--alignfix` the firmware takes dozens per configuration write by design.
+- **`tools/paramfuzz.py`** — four dimensions, input set computed from
+  `BoaGate`'s own findings. The `absent` dimension is the one that pays and it
+  is new: a length ladder cannot find a value that is *missing*.
+- **`tools/formtable-scan.py`** — above. `--expect` names a symbol that must be
+  found, so a wrong stride or a wrong image base exits 2 instead of returning a
+  confident empty answer.
+- **`tools/bench-probe.py`'s POST guard was keyed on the wrong thing.** It
+  refuses a POST without `submit-url`, citing this exact mechanism — and
+  `formSchedule` reads `webpage`, so the one handler that most needed the guard
+  went through it. Now a per-handler map.
+- **`tools/check-runsheet.py`** gained the rule below, and `tools/qemu-env.sh`
+  had its environment check moved above the `--alignfix` block.
+
+### The runsheet had never been written before a session, and nothing could say so
+
+The coverage rule added on 2026-08-17 keys on `executed`. So a row acquires a
+result, and *only then* does anything demand a procedure for it. Measured today:
+
+| week | live | executed | claimed by a step | exempted | **gap** |
+|---|---|---|---|---|---|
+| W05 | 27 | 27 | 27 | 0 | 0 |
+| W06 | 20 | 20 | 18 | 2 | 0 |
+| **W07** | **58** | **11** | **2** | 11 | **47** |
+
+**W05 and W06 read as covered because they are finished. W07 read as covered
+because it had not started** — and 32 of those 47 were scheduled for a bench
+visit the same evening, including `P2-11`, whose own bench plan says in as many
+words that it has no procedure and cannot be improvised on the night.
+
+`check-runsheet.py` now applies the same rule one step earlier: every **live**
+row scheduled for a week the runsheet claims to cover needs a step or a written
+reason, whether or not it has run. Part B is append-only, so adding a `## B-W0N`
+block is the act that turns the requirement on for that week and it cannot be
+quietly turned off. It fired on all 47; **all 47 now have a step** — five new
+desktop sections (`A1.5`–`A1.9`) and eleven new bench sections
+(`A3.14`–`A3.24`), each paired one-to-one with a new `RUNBOOK` §8.12.x.
+
+> **Back-filling a runsheet is not the same document as following one, and only
+> the second kind can be wrong in a way you find out about in time.**
+
+### Instrument bug 44 — the refusal that knew the answer fired second
+
+A probe matrix wrapped in its own `sudo` produced seven rows of "the server did
+not answer" and nothing else. The cause is the documented nested-`sudo` trap:
+`SUDO_USER` becomes `root`, `$WORK` moves to `/root/fwre-work`, and the
+environment is not there. **`qemu-env.sh` says exactly that — one check below the
+one that fires.** The `--alignfix` block runs first, finds no `alignfix.so` under
+a directory that does not exist, tries to build one there, and dies with
+*"alignfix: build failed. Run it directly to see why"*. Running it directly
+writes to `/tmp` and **succeeds**, which confirms the wrong diagnosis.
+
+The first hypothesis it suggested — `ETXTBSY` on a mapped `alignfix.so` — was
+tested and **refuted** before the real cause was found: the build succeeds while
+`boa` is running. The environment check now runs first.
+
+> **When two refusals can fire for the same cause, the one that names the cause
+> has to be the one that fires.**
+
+### Corrections to the register, both made before anything was sent
+
+| | |
+|---|---|
+| **`P4-9`'s `refute` was replaced** | It named "P4-3's known crash" as the positive control. P4-3 is `refuted` on this build — `formNtp` echoes `submit-url` into `Location`, 800 bytes come back as 799, no crash at any length. **The control did not exist**, so the second clause was permanently true and the whole condition degraded into "zero crashes means the harness is broken" — which reads a correct negative result as an instrument failure. Replaced with `formSchedule`, which is measured. `[freeze].sha256` changed in the same commit |
+| **`P2-11` is new** | The 601-second IP session window. Frozen **before** the visit that is the only thing able to answer it, with the emulator excluded inside the refutation rather than left as an option, because `qemu-user`'s `sysinfo()` returns the host's uptime. Its refutation runs in two directions and the second accuses this project's own instruments |
+
+### Deliberately not done
+
+| Item | Why |
+|---|---|
+| **The V2.1.2 reproduction of the `formWsc` overflow** | Started and it did not run: `reset` refused because a leftover guest process from the `unit-2018` profile was still alive, which is the tool being right. **This is the single most valuable outstanding desk measurement** — it decides whether the finding is reproducible by anyone or only on a build nobody can download |
+| **`P8-23`, the settings-region differential** | `A1.9` is written and was not executed. It is the first row this environment can answer that it never could before |
+| **`P5-2` ret2libc** | It needs the libc base to be stable across restarts, and the honest version of that question is about the device, not about `qemu-user`'s mmap layout |
+| **Any prior-art search for the two new findings** | `docs/disclosure.md` step 2 requires it before anything is reported, and nothing is being reported. **CVE-2019-19824 names `localPin` for command injection; whether an overflow on it is published is unknown and must not be assumed either way** |
+| **Reporting anything to anyone** | Both new findings are emulated. The rule has not moved |
+
+### Open, carried forward
+
+63. **Does the `formWsc` overflow reproduce on the published V2.1.2 image?** If
+    it does, this is the first memory-corruption finding here that a reader can
+    check without owning the hardware. `tools/crash-triage.py --profile v2.1.2`
+    is written and has not been run.
+64. **Is the `localPin` overflow already published?** Not searched. The
+    parameter is famous for a different defect, which is exactly the shape that
+    produced the `CVE-2023-34435` correction three days ago.
+65. **Why do 42 of the 47 handlers carrying the idiom return before reaching
+    it?** The five that do not are `formSchedule`, `formAdvanceSetup`,
+    `formDnsv6`, `formOpMode2`, `formSSH`, and nothing explains what they have in
+    common beyond "no early return".
+66. **`formtable-scan.py` is validated on one build of six.** The other five
+    have no independent reference at all.
+67. **`formSysCmd` is absent from the 2015 build and present from 2016.** It was
+    *added*, and nothing here says why or by whom.
+
+### Where W07 stands, and what the next session does first
+
+| Next | Needs the device? | Note |
+|---|---|---|
+| **1. `A1.7.2` on the `v2.1.2` profile** | ❌ | Open #63. `sudo tools/qemu-env.sh --profile 2018 reap` first — that is what stopped it |
+| **2. `A1.9`** | ❌ | `P8-23`, and it is the first thing `--alignfix` made possible that has not been spent |
+| **3. Prior-art, per handler, four ways** | ❌ | Open #64. Required by `docs/disclosure.md` step 2 before either new finding is worth a draft |
+| **4. The bench visit** | ✅ | 30 rows, and **every one of them now has a written step**. Station order per `runsheet.md` Part B `B-W07` + its 2026-08-18 supplement; `A3.2` moved forward for the 601-second window; `P9-9` last |
+
+## W07 Day 5 — the tool printed a fix its own parser rejects — 2026-08-18
+
+**Register: W07 goes 28/58 → 29/58.** One row closed (`P8-23`), and it is the
+first thing this environment could answer that it never could before. Everything
+else today was either an open question being closed or an instrument being
+repaired, and the repairs are the larger half.
+
+### The measurement that did not run yesterday, and why it could not have
+
+Yesterday's last entry says the V2.1.2 reproduction "started and it did not run:
+`reset` refused because a leftover guest process from the `unit-2018` profile was
+still alive, which is the tool being right". The tool was right about the
+process. Everything it then said about what to do next was wrong, in two
+independent ways, and together they are a closed loop:
+
+* `cmd_reset`'s refusal derives the profile name it prints from the environment
+  **directory** — `${dir##*qemu-env-}`. The directory is `qemu-env-2018`; the
+  profile is `unit-2018`. So it printed `sudo tools/qemu-env.sh --profile 2018
+  reap`, and the parser six hundred lines above rejects `2018` with exit 2. The
+  same expression is correct for the other profile, whose directory happens to
+  match its name — which is why it survived every session in which only one
+  profile existed.
+* Typed correctly, `reap` **exits 1, prints nothing, and kills nothing.**
+  `env_pids`'s last statement was `[ "$target" = "$ENVDIR" ] && printf …`; on the
+  final `/proc` entry — never a guest — the test is false, the `&&` list returns
+  1, that becomes the function's status, and `set -e` ends the script at
+  `pids="$(env_pids)"`, before the first `kill`.
+
+So the reset refused, named a command that is itself refused, and the correct
+spelling of that command did nothing without saying so. **Neither half is visible
+in the output of a successful run** — which is the property `test-qemu-env.sh`
+exists for, and the suite had no case for `reap` at all.
+
+> **A refusal that names the fix is worth exactly what the fix is worth, and
+> nothing was checking that the command it printed can be run.**
+
+### It stayed invisible for two reasons, and the first one is embarrassing
+
+The first guard case written for `env_pids` passed against the broken function.
+It was written as `if ( set -euo pipefail; …; ); then` — and POSIX disables
+`set -e` for everything in the condition of an `if`. **The test reproduced the
+mechanism it was written to catch.** So does `cmd_reset`, which calls
+`cmd_reap … || true` and therefore ran it with `set -e` inert: reap worked in the
+one place its result was discarded, and only there.
+
+The second reason is privilege. As an ordinary user almost every
+`/proc/PID/root` is unreadable, `readlink` fails, the iteration ends on
+`continue` — status 0 — and the defect does not appear at all. **It exists only
+under root, and `reap` requires root.** CI is not root. The cases now stub
+`readlink` and simulate the privilege rather than the situation.
+
+Four mutants, each reverting one line, each killed by the case written for it:
+the trailing `&&`, the directory-derived hint, a reversed profile map, and an
+`env_pids` that reports nothing.
+→ `tools/test-qemu-env.sh`, 12 cases unprivileged and 21 with the dump and root
+
+### `chroot` is not isolation, and the host found out three times
+
+With the deadlock cleared, the V2.1.2 run died mid-case and took the whole WSL
+virtual machine with it. Three times. Each time it looked like the harness
+hanging: partial output, no report written, `/tmp` empty afterwards. Memory was
+never below 7 GB — the process count fell from 68 to 36 in one second, which is
+an orderly shutdown, not an OOM.
+
+Run inside `unshare --pid --fork`, under `qemu-mips-static -strace`, the guest
+says it itself:
+
+```
+19 execve("/bin/sh",{"sh","-c","reboot -f",NULL})
+```
+
+`busybox reboot -f` is a bare `reboot(2)`. qemu-user hands it to the host kernel,
+`qemu-env.sh` runs as root, and there was no namespace between the two. Six
+controlled runs, host boot time unchanged throughout:
+
+| profile | request | guest reaches `reboot` |
+|---|---|---|
+| v2.1.2 | no POST at all | no |
+| v2.1.2 | empty body to `formWsc` | no |
+| v2.1.2 | `formSelLang`, empty body | no |
+| **v2.1.2** | **`formWsc`, `localPin=1234`** | **yes** |
+| unit-2018 | no POST | no |
+| unit-2018 | `formWsc`, `localPin=1234` | no — `flash write-current`, then `sysconf wlaninit wlaninterface` |
+
+So it is the request and not a timer, and it is per build. **The 2015 build
+reboots on a WPS PIN submission; the 2017 build writes 7,495 bytes to
+`/dev/mtdblock0` and re-initialises the wireless interface instead.** Both are
+now one entry in `tools/bench-probe.py`'s `HAZARDOUS` map, which did not carry
+`formWsc` — and either outcome turns every endpoint after it in a sweep into
+"connection refused", the exact false negative that file was written to prevent.
+
+Guests now start through one function, `guest()` = `unshare --pid --fork
+chroot …`. That broke `serve` immediately and correctly: `boa` daemonises, the
+launcher exits, and the launcher was the namespace's init, so the kernel killed
+everything else in it. `-d` keeps it in the foreground; the process holding the
+socket is then the namespace's own init, so killing it takes its children with
+it — which is the orphan problem the comment beside the pidfile was written about.
+
+### Open #63: yes, and the frame is one word larger
+
+`formWsc` is in the dispatch table of all six builds scanned and `localPin` is in
+all six binaries' strings. With a clean control on the V2.1.2 profile — and
+**neither `formNtp:` nor `formWsc:localPin=1234` is one there**, the first faults
+and the second reboots the guest — the answer is unambiguous.
+
+| | unit-2018 (2017-11) | v2.1.2 (2015-08) |
+|---|---|---|
+| `s0` … `s6` | 481 · 485 · 489 · 493 · 497 · 501 · 505 | 485 · 489 · 493 · 497 · 501 · 505 · 509 |
+| **`ra`, and `$pc` is loaded from it** | **509** | **513** |
+| `s7` | untouched, `0x0048bb04` | untouched, `0x00490ad4` |
+
+Same registers saved, same order, frame one word larger on the older build. The
+`unit-2018` column reproduces yesterday's numbers exactly from a separate run, so
+this is also a replication of the measurement it is being compared against.
+→ [`reports/crash-triage-v2.1.2-wsc.json`](reports/crash-triage-v2.1.2-wsc.json),
+[`reports/crash-triage-v2.1.2-wsc-cyclic.json`](reports/crash-triage-v2.1.2-wsc-cyclic.json),
+[`reports/crash-triage-unit-2018-wsc-cyclic.json`](reports/crash-triage-unit-2018-wsc-cyclic.json)
+
+**The absent-parameter class is wider on the published image: seven handlers, not
+five.** Same instruction, same verdict, different address — `0x00476418`, in
+V2.1.2's `R-X` `PT_LOAD`. The two extra are `formNtp` and `formWlanSetup`, **two
+of the three handlers W06 hand-picked to test the class and found clean.** They
+were clean; W06 measured the 2017 build. The refutation inherited the coverage of
+its handler sample *and* of its build, and widening the first was never going to
+show the second.
+→ [`reports/crash-triage-v2.1.2.json`](reports/crash-triage-v2.1.2.json)
+
+### Open #64: the answer was in this repository, in two files, since W04
+
+The question was written as "Not searched." **That was false when it was
+written.** `notes/prior-art.md` has carried
+
+> `| CVE-2025-4462 | /boafrm/formWsc → localPin | buffer overflow | §1 — the same line of code as 3987 |`
+
+since W04, and `notes/cve-status.md` carries the same row marked 🟥 with the
+sentence **"The same line of source as 3987, and identical in the 2015 image."**
+Both are committed, both are linked from the README, and one of them is this
+project's *prior-art register* — the file whose entire job is to answer exactly
+this question.
+
+So the failure was not a search that did not happen. It was a finding written up
+without opening the register that already answered it, and then, today, an answer
+looked for on the internet rather than in the repository. The internet agreed,
+which is the least useful way to be right.
+
+That changes what today's measurement is worth, and **upward, not downward**:
+`cve-status.md` predicted from static reading alone that the overflow is
+"identical in the 2015 image". Today it is measured on that image, with the frame
+offset. **A confirmed static prediction is a better result than a rediscovered
+CVE**, and it is what should have been written yesterday.
+
+The surrounding identifiers, all already in `prior-art.md`: **CVE-2025-3987**
+(command injection, the same line of source), **CVE-2025-3993** (`submit-url` at
+the same handler), **CVE-2019-19824**. New today and not previously in the
+register: **CVE-2026-7218** (same parameter, N300RT 3.4.0-B20250430) and
+**CVE-2021-35395** as the Realtek-SDK-level name for the `submit-url` class. Both
+added to `notes/prior-art.md`.
+
+**What no search found**, in either the register or four web paths: the `(A)`
+half — an *absent* parameter making the accessor return the address of a pooled
+`""` literal. Every published item is the long-value case. That is a negative
+search result and is recorded as one.
+
+### The vendor shipped the mechanism as a macro, and it answers #65
+
+The fourth prior-art path — the Realtek SDK is in other vendors' GPL drops — is
+the one that paid. In `rtl819x/users/boa/src/apform.h`:
+
+```c
+#define OK_MSG(url) { \
+	needReboot = 1; \
+	if(strlen(url) == 0) \
+		strcpy(url,"/wizard.htm"); \
+```
+
+`url` is what `req_get_cstream_var(wp, ("submit-url"), "")` returned. When the
+parameter is absent that is the address of the `""` literal, and the macro writes
+twelve bytes through it. **This is a third independent source for the mechanism —
+Ghidra, the emulated fault, and now the vendor's own source** — and it sits
+upstream of every handler that expands the macro rather than being a per-handler
+mistake.
+
+It also answers **#65** without another measurement. The sibling macro is
+`ERR_MSG(msg)`, which takes a message and never touches `url`: a handler that
+fails validation early goes down that path, and only one that reaches a
+successful apply calls `OK_MSG`. That is what the 42 have in common. And the
+`#else` arm of the same `#ifdef REBOOT_CHECK` has no `strcpy` at all, so whether
+a build carries the defect is a **build-time flag** — a sharper prediction than
+"some builds do".
+
+The same header also shows the redirect parameter is named per handler —
+`submit-url`, `webpage`, `wlan-url`, `mesh-url` — which is the map
+`bench-probe.py` had to rediscover empirically yesterday.
+
+### #67, and it is the same mistake a second time in one day
+
+The question was "`formSysCmd` was *added*, and nothing here says why or by
+whom." **`notes/formSysCmd-analysis.md` has said why since W04**: Pierre Kim's
+2015-07-16 advisory names N150RT-V2 vulnerable "until last firmware
+TOTOLINK-N150RT-V2.1.1-B20150708.1548", V2.1.2-B20150825 is the next build six
+weeks later, and that note already draws the conclusion — *"the fix, observed"* —
+and already states its own falsification: read V2.1.1's `root_form[]`.
+
+So #67 as written was a question this repository had answered, asked again. Twice
+in one day, the same shape.
+
+What today adds is not nothing: **a second, independent source for the removal
+half.** `formSysCmd-analysis.md` argued it from dates plus one decompiled table.
+`formtable-scan.py` reads the table out of the program headers with no decompiler
+and no analysis database, across six builds, and produces the whole sequence —
+absent 2015-08, present 2016-05, 2017-11, 2018-03 and in N300RT V3.4.0-B20190315,
+absent again in N150RT V3.4.0-B20201030. **The reintroduction is the half no note
+carried**, and it is the half that needs explaining: a handler removed in the
+release that answered a disclosure is back within nine months and then stays for
+five years.
+
+### Instrument work
+
+- **Bug 45** — `reap` exits 1 without reaping, silently, and only under root.
+  Above.
+- **Bug 46** — `cmd_reset`'s refusal prints `--profile <directory suffix>`, which
+  its own parser rejects for `unit-2018` and accepts for `v2.1.2`. There is now
+  one reverse map, `profile_of_envdir`, and a guard case that walks every profile
+  through the parser and back.
+- **Bug 47** — guests ran in a `chroot`, as root, with no namespace. Above.
+- **Bug 48** — `cmd_serve` reads its control codes with `code="$(curl …)"`. With
+  nothing listening curl exits 7, `set -e` ends the script there, and the refusal
+  written for exactly that case — the one that names `boa-emu.log` — could never
+  print. `serve` exited a bare 7 and said nothing. The listening check now runs
+  before the two content controls. Same shape as bug 44.
+- **Bug 49** — `crash-triage.py` cleaned up with
+  `pkill -f "qemu-mips-static -g 1234"`, which cannot match what the guest forks:
+  children go through binfmt as `mips-binfmt-P /bin/ntp_inet`. One of those
+  survived a whole session and is what blocked the reset. It now calls `reap`.
+- **`tools/config-diff.py`** — new, and it is what closes `P8-23`. It drives the
+  write under `--alignfix`, bounds it, and compares the decoded field tables
+  rather than the flash bytes. `tools/test-config-diff.sh`, 11 cases, drives the
+  comparison directly and needs neither root nor fwrecon.
+
+### The runsheet step that was written and never run
+
+`A1.9` was written yesterday, by the session that added a checker forbidding a
+live row with no procedure. Run today, it is wrong twice:
+
+1. **`flash set` on a COMPCS field hangs without `alignfix`.** The guest prints
+   `qemu: uncaught target signal 10 (Bus error) - core dumped` and then does not
+   exit. The step passed no preload and set no ceiling, so it reads as slow.
+2. **It compares two coordinate systems.** `qemu-env.sh diff` reports offsets into
+   the flash image, where the region is compressed — 7,478 bytes for 45,226
+   decompressed. `fwrecon compcs` reports offsets into the decompressed payload.
+   The first run put `0x00c060` beside "offset 91", two apart and nearly right,
+   which is worse than being obviously wrong.
+
+> **Writing the procedure before the session was necessary and is not sufficient.
+> Yesterday's rule catches a row with no step. Nothing catches a step that has
+> never been executed — and a step that has never been executed is a prediction
+> about a command, not a command.**
+
+### Corrections to the plan
+
+| | |
+|---|---|
+| **Two of today's three "answered" open questions were already answered in this repository.** | #64 was in `notes/prior-art.md` and `notes/cve-status.md` from W04; #67 was in `notes/formSysCmd-analysis.md` from W04. Both were re-derived from outside sources today, and the first draft of this section presented both as new. Corrected in place, with what it said before quoted above, because the failure is the interesting part: **this project's own registers are not read before its findings are written.** The rule that follows is now in `docs/disclosure.md`: the prior-art step reads `notes/prior-art.md` *first*, and a web search is what you do when the register comes back empty |
+| **The remote CI has not run on this branch since `067d0cc`, two commits before this session started.** | `.github/workflows/ci.yml` triggers on `push: branches: [main]` and on `pull_request`. PR #15 for `w07-bughunt` was **merged** at 06:05 today, so every push to the branch since then — including `e819596`, yesterday's tip, and all four of today's commits — has triggered **nothing**. Local `make ci` is green and that has never been the same claim. Opening a new PR is the only thing that starts a run, and it is left for the author to do rather than done here |
+| **The two CI lists had diverged a fourth time**, and this time it was mine. | `tools/test-config-diff.sh`, added today, was in `make ci` and not in `.github/workflows/ci.yml`. Found by diffing the two files with a five-line script, not by noticing. Both lists now reference the same set; the script is in the session scratchpad rather than the repo, which means the fifth divergence will be found the same way |
+| **`REPRODUCE.md`'s front page said 276 guard checks. It was 304 before this session and is 322 after.** | The number a stranger reads first, and nothing could re-derive it. `tools/count-checks.sh` now does, states its counting rule, and is wired to `make count-checks`; it is deliberately *not* in `make ci`, because a suite that grows should not turn the build red. Found by trying to update the figure and discovering it matched neither the old total nor the new one |
+| **`CLAUDE.md` says the Chinese files were normalised to fullwidth punctuation on 2026-08-17. `RUNBOOK.md` was not, or has drifted since.** | 172 of its 3,852 lines still carry a halfwidth `,` or `:` between two CJK characters, including every section added on 2026-08-18. `runsheet.md` has 11, `LOG.md` 3, `study/QA.md` 6; `BENCH-LOG.md`'s 124 are exempt by rule. Measured, not fixed: 172 lines is not a silent edit, and there is no checker, which is why it drifted back the day after it was done. The new text added today follows the rule, which makes the boundary visible in the diff |
+
+### Deliberately not done
+
+| Item | Why |
+|---|---|
+| **The bench visit** | Not started. The desk block scheduled ahead of it is finished; the 30 rows are not |
+| **`P5-2` ret2libc** | Unchanged: the honest version of the question is about the device, not `qemu-user`'s mmap layout |
+| **Reporting anything** | Prior art says the class is published. That lowers the urgency and changes nothing about the rule |
+| **Reading V2.1.1** | It would close the "removed, not merely absent" half of #67 directly. Not downloaded |
+| **A guard case for `guest()`** | The containment is proved by one measurement and by `serve` failing correctly while it was wrong. Nothing fires if someone deletes `unshare` |
+
+### Open, carried forward
+
+63. ~~**Does the `formWsc` overflow reproduce on the published V2.1.2 image?**~~
+    **Answered: yes**, with `ra` at 513 rather than 509. Closed.
+64. ~~**Is the `localPin` overflow already published?**~~ **Answered: yes — and
+    the answer was already in `notes/prior-art.md` and `notes/cve-status.md`
+    when the question was written.** CVE-2025-4462. Closed; the process failure
+    it exposes is open as #70.
+65. ~~**Why do 42 of the 47 handlers carrying the idiom return before reaching
+    it?**~~ **Answered from the vendor's source**: they take `ERR_MSG`, which
+    never writes through `url`. Closed.
+66. **`formtable-scan.py` is validated on one build of six.** Unchanged.
+67. **`formSysCmd` was removed in V2.1.2 and reintroduced by 2016.** The
+    removal half was already argued in `notes/formSysCmd-analysis.md` in W04 and
+    now has a second, mechanical source. **The reintroduction half is the open
+    part** — no note carried it, and nothing says who or why. Falsifiable in one
+    command against V2.1.1-B20150708, which is fetchable and has not been fetched.
+70. **Nothing makes a finding consult `notes/prior-art.md` before it is written
+    up.** Two of today's three closures were re-derivations of W04 conclusions.
+    `docs/disclosure.md` step 2 said "search"; it did not say *where first*, and
+    a register nobody opens is a register that does not exist.
+68. **Is `formWsc` reachable unauthenticated on this unit?** Everything measured
+    today was emulated, and the v2.1.2 profile cannot pass `serve`'s gate control
+    at all — `blank.htm` returns 200 where the device returns 302. That is most
+    likely the synthesised, password-free configuration in that profile rather
+    than a difference in the firmware, and "most likely" is not a measurement.
+69. **Nothing fires if `unshare` is removed from `guest()`.** The containment is
+    correct and unguarded, which is exactly the state bug 45 was in yesterday.
+
+### Where W07 stands, and what the next session does first
+
+| Next | Needs the device? | Note |
+|---|---|---|
+| **1. The bench visit** | ✅ | 30 rows, station order per `runsheet.md` Part B `B-W07` and its supplements. `A3.2` early for the 601-second window, `P9-9` last. **`formWsc` is now `HAZARDOUS`**: a POST to it writes flash on this build |
+| **2. Open a PR so the remote actually runs** | ❌ | Pushed to `origin/w07-bughunt` on 2026-08-18. **No run started**: the workflow fires on `push: main` and on `pull_request`, and PR #15 was merged this morning. `gh pr create --base main --head w07-bughunt`, then `gh run list` — local green has never been the same claim as remote green, and this branch has not had a remote run since `067d0cc` |
+| **3. `P8-12`, `P8-23`'s sibling** | ❌ | `config-diff.py` now writes a field and proves where it landed. `P8-12` still needs an *encoder*, which is a different thing, but the differential is no longer the blocker |
+| **4. Open #68** | ✅ | The gate question is the one thing today could not answer under emulation at all |

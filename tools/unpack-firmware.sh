@@ -33,9 +33,20 @@ c_err()  { printf '\033[31m FAIL \033[0m %s\n' "$*" >&2; }
 [ -x "$PY" ] || { c_err "no python at $PY — run 'make venv' first"; exit 2; }
 
 # version-label  image-filename
+#
+# The last three are NOT this device's firmware and the labels say so. They are
+# here because register rows need them, not out of completeness: P8-21 asks
+# whether the six products CVE-2024-51228 names share one codebase and its
+# frozen refutation is "obtain another model's image and find a different
+# dispatch table", and the N200RE build is the closest publicly downloadable
+# point in time to the build this unit actually runs (2018-03 against
+# 2017-11). Provenance and hashes: firmware/SOURCES.json.
 IMAGES=(
   "v2.1.2 TOTOLINK-N150RT-V2.1.2-B20150825.1601.web"
   "v3.4.0 TOTOLINK-N150RT-V3.4.0-B20201030.1142.web"
+  "n300rt-2.1.6 TOTOLINK-N300RT-V2.1.6-B20160516.1249.web"
+  "n200re-3.2.0 TOTOLINK-N200RE-V3.2.0-B20180330.1757.web"
+  "n300rt-3.4.0 TOTOLINK-N300RT-V3.4.0-B20190315.1747.web"
 )
 
 unpack_one() {

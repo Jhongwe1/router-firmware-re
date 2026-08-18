@@ -129,6 +129,37 @@ Omitting it does not produce a cleaner request; it produces no response at all.
 static reading of segment flags plus a static reading of a return path. It is one
 `curl` from being settled and zero experiments from being wrong.
 
+## The vendor ships (A) as a macro, and that is a third source
+
+Added 2026-08-18. The rtl819x `boa` source is in several vendors' public GPL
+drops, and `rtl819x/users/boa/src/apform.h` contains the `(A)` half directly:
+
+```c
+#define OK_MSG(url) { \
+	needReboot = 1; \
+	if(strlen(url) == 0) \
+		strcpy(url,"/wizard.htm"); \
+```
+
+with `url` supplied by `submitUrl = req_get_cstream_var(wp, ("submit-url"), "");`
+in `fmwlan.c` and its siblings. This build substitutes `/status.htm`; twelve
+bytes either way.
+
+Three consequences this page could not have reached from the binary:
+
+* **It is a macro, so `(A)` is not a per-handler mistake** — it is expanded into
+  every handler that reports success, and the count of affected handlers is a
+  count of macro expansions reached, not of coding errors.
+* **`ERR_MSG(msg)` never touches `url`.** That is why handlers which fail
+  validation survive: they take the error path, not an early return.
+* **The `#else` arm of the surrounding `#ifdef REBOOT_CHECK` has no `strcpy` at
+  all**, so whether a build carries `(A)` is a build-time flag — falsifiable
+  against any SDK-derived image, and a sharper claim than "some builds do".
+
+The same header names the redirect parameter per handler — `submit-url`,
+`webpage`, `wlan-url`, `mesh-url` — which is why a guard keyed on one name let
+`formSchedule` through.
+
 ## Read across the two builds
 
 | | V2.1.2 | V3.4.0 |

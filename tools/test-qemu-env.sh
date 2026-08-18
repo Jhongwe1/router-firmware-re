@@ -88,6 +88,169 @@ must_refuse "absent flash image named, not crashed on" "no flash dump at" \
 must_refuse "reset before build refused" "run build first" \
   env FWRE_WORK="$TMP/fake" bash "$TOOL" reset
 
+# ---------------------------------------------------------------------------
+# 6-12. The two defects of 2026-08-18, both invisible in the output of a
+# successful run -- which is the property this whole suite exists for.
+#
+# A reset refused because another profile still had a live guest, and the fix it
+# printed was `--profile 2018 reap`: rejected by its own parser with exit 2,
+# because the profile is named `unit-2018` and only its DIRECTORY is
+# `qemu-env-2018`. Retyping it correctly then exited 1 having printed nothing
+# and killed nothing, because env_pids ended in a `&&` list that is false on the
+# final /proc entry and set -e took the script down at the assignment. Together
+# they are a closed loop: the reset stays blocked and neither half says why.
+#
+# Nothing below needs root, a chroot or the flash dump. That is deliberate --
+# CI was green while both defects were live.
+
+# 6-8. env_pids under the caller's own shell options, with /proc simulated.
+#
+# Two things had to be got right here and the first version got both wrong.
+#
+# (1) These run in a SEPARATE bash process and the status is read afterwards.
+#     They must NOT be written as `if ( set -e; ... ); then`, because POSIX
+#     disables set -e for everything in the condition of an if -- the same rule
+#     as the `|| true` in cmd_reset that hid the defect in the first place. A
+#     test written that way passes against the broken function.
+#
+# (2) `readlink` is stubbed rather than left to read the real /proc. As an
+#     ordinary user almost every /proc/PID/root is unreadable, so readlink fails
+#     and the iteration ends on `continue`, whose status is 0 -- and the loop's
+#     final status is 0, and the defect does not appear. It appears only when
+#     readlink SUCCEEDS on the last entry, i.e. only under root, which is the
+#     only way reap is ever run. So the defect was invisible to any test that
+#     did not simulate the privilege the tool requires, and CI is not root.
+#
+# exit 1 = set -e ended it at the assignment;  exit 3 = it ran and said the
+# wrong thing. Keeping those apart is the point.
+env_pids_probe() {   # $1 readlink stub body   $2 ENVDIR   $3 -z or -n
+  { echo 'set -euo pipefail'
+    sed -n '/^env_pids()/,/^}/p' "$TOOL"
+    echo "readlink() { $1 }"
+    echo "ENVDIR=$2"
+    echo 'pids="$(env_pids)"'
+    echo "[ $3 " '"$pids" ] || exit 3'
+  } > "$TMP/env_pids_probe.sh"
+  bash "$TMP/env_pids_probe.sh" >/dev/null 2>&1
+}
+
+# 6. Nothing in this environment: reap must be able to say so, not die saying
+#    nothing. Every entry readable, none of them ours -- i.e. root.
+env_pids_probe 'echo /elsewhere;' /the/env/dir -z; rc=$?
+case "$rc" in
+  0) ok "env_pids exits 0 when every entry is readable and none match" ;;
+  1) bad "env_pids returned non-zero having found nothing. Under set -e that
+        ends cmd_reap at its first assignment: exit 1, no output, nothing
+        killed, and the reset that sent you here stays blocked" ;;
+  *) bad "env_pids probe (empty case) exited $rc" ;;
+esac
+
+# 7. The case that actually happened: there IS something to reap, and it is not
+#    the last entry scanned. Under the defect reap exits 1 before the first kill.
+one_match='case "$1" in */1/root) echo "$ENVDIR" ;; *) echo /elsewhere ;; esac;'
+env_pids_probe "$one_match" /the/env/dir -n; rc=$?
+case "$rc" in
+  0) ok "env_pids exits 0 with a match that is not the last entry" ;;
+  1) bad "env_pids returned non-zero WITH processes to report -- this is the
+        live case: reap exits 1 before killing anything and prints nothing" ;;
+  3) bad "env_pids reported nothing although one entry matched" ;;
+  *) bad "env_pids probe (one match) exited $rc" ;;
+esac
+
+# 8. And when the last entry does match -- the accident under which the broken
+#    version returned 0. It must still pass, so the fix is not an inversion.
+env_pids_probe 'echo "$ENVDIR";' /the/env/dir -n; rc=$?
+case "$rc" in
+  0) ok "env_pids exits 0 when every entry matches" ;;
+  3) bad "env_pids reported nothing although every entry matched" ;;
+  *) bad "env_pids probe (all match) exited $rc" ;;
+esac
+
+# 9. Every profile the script advertises in its own refusal must be one the
+#    parser accepts. Read out of that message rather than restated here.
+advertised="$(bash "$TOOL" --profile ..nope.. reap 2>&1 |
+              awk -F'have: ' 'NF > 1 { print $2 }' | tr -d ' )' | tr ',' ' ')"
+if [ -z "$advertised" ]; then
+  bad "could not read the profile list out of the unknown-profile refusal"
+else
+  n_ok=0
+  for prof in $advertised; do
+    if bash "$TOOL" --profile "$prof" ..nope.. 2>&1 | grep -q "unknown profile"; then
+      bad "the script advertises profile '$prof' and its own parser rejects it"
+    else
+      n_ok=$((n_ok + 1))
+    fi
+  done
+  [ "$n_ok" -eq 0 ] || ok "all $n_ok advertised profile name(s) accepted by the parser"
+fi
+
+# 10. ALL_PROFILES and the profile block are the same set.
+#
+#    The refusal's `have:` list is now BUILT from $ALL_PROFILES, so comparing
+#    those two would be a test that cannot fail. The direction that can go wrong
+#    is the other one: a name advertised with no case arm behind it, or a case
+#    arm nobody advertises. Both are read out of the file rather than restated.
+eval "$(grep -m1 '^ALL_PROFILES=' "$TOOL")"
+sorted_words() { local w; for w in $1; do echo "$w"; done | sort | tr -d ' '; }
+arms="$(awk '
+  /^case .*PROFILE.* in/          { inb = 1; next }
+  inb && /^esac$/                 { inb = 0 }
+  inb && /^  [A-Za-z0-9._-]+[)]$/ { p = $1; sub(/[)]$/, "", p); print p }
+' "$TOOL")"
+if [ -z "$arms" ]; then
+  bad "could not read a single profile arm out of the case block"
+elif [ "$(sorted_words "$ALL_PROFILES")" = "$(sorted_words "$arms")" ]; then
+  ok "ALL_PROFILES and the profile block name the same set"
+else
+  bad "ALL_PROFILES='$ALL_PROFILES' but the case block has '$(echo $arms)'"
+fi
+
+# 11. The round trip the bug broke: every ENVDIR the profile block can select
+#     maps back, through profile_of_envdir, to the profile that selected it --
+#     and to a name the parser accepts. The old `${dir##*qemu-env-}` fails this
+#     for unit-2018 and passes for v2.1.2, which is why one profile worked.
+eval "$(sed -n '/^profile_of_envdir()/,/^}/p' "$TOOL")"
+pairs="$(awk '
+  /^case .*PROFILE.* in/            { inb = 1; next }
+  inb && /^esac$/                   { inb = 0 }
+  inb && /^  [A-Za-z0-9._-]+[)]$/   { p = $1; sub(/[)]$/, "", p); next }
+  inb && /^    ENVDIR=/ && p != ""  {
+      d = $0; sub(/^ *ENVDIR="/, "", d); sub(/"$/, "", d)
+      print p, d; p = "" }
+' "$TOOL")"
+n_pairs="$(printf '%s' "$pairs" | grep -c . || true)"
+if [ "$n_pairs" -eq 0 ]; then
+  bad "could not read a single profile -> ENVDIR pair out of the case block"
+else
+  rt=0
+  while read -r prof dir; do
+    [ -n "$prof" ] || continue
+    got="$(profile_of_envdir "$dir" 2>/dev/null)" || got="<no mapping>"
+    if [ "$got" != "$prof" ]; then
+      bad "round trip: profile '$prof' uses $dir, which maps back to '$got'"
+    elif ! sorted_words "$ALL_PROFILES" | grep -qx "$got"; then
+      bad "round trip: '$dir' maps to '$got', which is not in ALL_PROFILES"
+    else
+      rt=$((rt + 1))
+    fi
+  done <<EOF_PAIRS
+$pairs
+EOF_PAIRS
+  [ "$rt" -ne "$n_pairs" ] || ok "all $rt ENVDIR(s) map back to the profile that selected them"
+fi
+
+# 12. And the shape itself is banned. A refusal may name $PROFILE or a literal;
+#     it may not build a profile name out of a path, which is what produced a
+#     fix command its own parser rejects.
+if grep -n -- '--profile [$]{' "$TOOL" > "$TMP/derived"; then
+  bad "a refusal derives its --profile argument from a path expansion:"
+  sed 's/^/          /' "$TMP/derived"
+else
+  ok "no refusal builds a --profile argument out of a directory name"
+fi
+
+echo
+
 echo
 echo "tools/qemu-env.sh -- the positive control, which needs the dump and root"
 

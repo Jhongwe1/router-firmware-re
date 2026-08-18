@@ -1,0 +1,86 @@
+{
+  "producer": "crash-triage",
+  "schema_version": "1",
+  "profile": "v2.1.2",
+  "binary": "/home/key/fwre-work/qemu-env-v2.1.2/bin/boa",
+  "alignfix": true,
+  "program_headers": [
+    {
+      "vaddr": "0x00400000",
+      "memsz": "0x77744",
+      "flags": "R-X"
+    },
+    {
+      "vaddr": "0x00488000",
+      "memsz": "0x1ea18",
+      "flags": "RW-"
+    }
+  ],
+  "cases": [
+    {
+      "handler": "formWsc",
+      "body": "localPin=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+      "signal": "SIGSEGV",
+      "pc": "0x41414141",
+      "ra": "0x41414141",
+      "ra_in_boa": {
+        "segment_vaddr": null,
+        "segment_flags": null,
+        "writable": null,
+        "verdict": "outside every PT_LOAD of this binary (a shared library, the stack, or unmapped)"
+      },
+      "registers": {
+        "a0": "0x0046a460",
+        "a1": "0x2b2ab450",
+        "a2": "0x2b2ab438",
+        "a3": "0x00000000",
+        "at": "0xfffffff8",
+        "fp": "0x2b2ab708",
+        "gp": "0x00492fb0",
+        "k0": "0x00000000",
+        "k1": "0x00000000",
+        "pc": "0x41414141",
+        "ra": "0x41414141",
+        "s0": "0x41414141",
+        "s1": "0x41414141",
+        "s2": "0x41414141",
+        "s3": "0x41414141",
+        "s4": "0x41414141",
+        "s5": "0x41414141",
+        "s6": "0x41414141",
+        "s7": "0x00490ad4",
+        "sp": "0x2b2ab708",
+        "t0": "0x2b2c62ec",
+        "t1": "0x2b2c629c",
+        "t2": "0xf0000000",
+        "t3": "0x00000001",
+        "t4": "0x00000022",
+        "t5": "0x00000067",
+        "t6": "0x0000003e",
+        "t7": "0x0045022c",
+        "t8": "0x000000cf",
+        "t9": "0x2b317500",
+        "v0": "0x00000001",
+        "v1": "0x00000000",
+        "zero": "0x00000000"
+      }
+    },
+    {
+      "handler": "formWsc",
+      "body": "localPin=",
+      "signal": null,
+      "seconds_waited": null,
+      "verdict": "no signal, and gdb returned early: read the log, this is not the same answer as 'it survived'"
+    }
+  ],
+  "controls": [
+    {
+      "handler": "formSelLang",
+      "body": "",
+      "signal": null,
+      "seconds_waited": 25,
+      "verdict": "no signal in 25 s -- the handler did not fault"
+    }
+  ],
+  "control_problems": []
+}

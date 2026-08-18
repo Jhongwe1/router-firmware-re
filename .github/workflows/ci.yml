@@ -192,6 +192,16 @@ jobs:
           sudo apt-get install -y -qq gcc-mips-linux-gnu binutils-mips-linux-gnu
           bash tools/test-alignfix.sh
 
+      # Added 2026-08-18, and it is the fourth time these two lists have
+      # diverged. tools/config-diff.py answers P8-23 by comparing two things
+      # that are easy to make agree by accident, so its refusals are the whole
+      # instrument; the suite drives them directly and needs no root, no chroot
+      # and no fwrecon, which is exactly why there was no excuse for it to be
+      # missing here. Found by diffing the two files rather than by noticing,
+      # which is the only way this class of gap ever gets found.
+      - name: config-diff — the comparison, and both directions it refuses in
+        run: bash tools/test-config-diff.sh
+
   toolbox-image:
     name: toolchain image builds
     runs-on: ubuntu-24.04

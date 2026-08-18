@@ -63,6 +63,11 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
 
+# A newline, as a name. Every error message in this file is an f-string and
+# a literal backslash-n inside one is the single easiest thing to get wrong
+# when this file is edited by a script rather than by hand.
+NL = chr(10)
+
 # Part A is four stations; a step is `### A<station>.<n>`. The first digit is the
 # device state the step needs, which is why it is worth checking that a step sits
 # under the matching station heading: a step filed under the wrong station is a
@@ -101,6 +106,11 @@ OWN_TOOLS = {
     # the difference between programming 0x008000 and programming whatever the
     # argument parser fell back to.
     "tools/console-write.py",
+    # Added 2026-08-18 with the steps that cite them. All three are new enough
+    # that their flags are still moving, which is exactly when a runsheet goes
+    # stale without anything saying so.
+    "tools/paramfuzz.py", "tools/crash-triage.py", "tools/formtable-scan.py",
+    "tools/handler-sweep.py",
 }
 
 
@@ -537,6 +547,45 @@ def check(path: Path, runbook: Path) -> int:
                 f"reader has to take on trust. Add it to a step's {CLOSES_SHOWN}, or "
                 "name it in the `<!-- no-procedure: ... -->` block with a reason.")
         covered = len(owed & set(claimed))
+
+        # ---- the direction that fires BEFORE the session, not after -----
+        #
+        # Everything above keys on `executed`, and that is the defect it took
+        # until 2026-08-18 to notice. A row acquires a result, and only then
+        # does anything demand a procedure for it -- so the runsheet has never
+        # once been written before a session. W05 and W06 read as fully covered
+        # because they are finished. W07 read as fully covered because it had
+        # not started: 58 live rows, 2 claimed, 11 exempted, 47 with neither,
+        # and 32 of those scheduled for a bench visit the same evening.
+        #
+        # The half of this that hurt: P2-11, the 601-second window, went into
+        # the bench plan with the words "this has no procedure and it cannot be
+        # improvised on the night", and no tool could say so. Back-filling a
+        # runsheet is not the same document as following one, and only the
+        # second kind can be wrong in a way you find out about in time.
+        #
+        # So: the same rule, one step earlier. Every LIVE row scheduled for a
+        # week this runsheet claims to cover needs a step or a reason, whether
+        # or not it has run. Part B is append-only, so adding a `## B-W0N`
+        # block is the act that turns this on for that week, and it cannot be
+        # quietly turned off again.
+        scheduled = {cid for cid, c in cases.items()
+                     if str(c.get("week")) in covered_weeks
+                     and not str(c.get("cut_reason", "")).strip()}
+        unplanned = sorted(scheduled - executed - set(claimed) - exempt)
+        if unplanned:
+            errors.append(NL.join([
+                f"{path.name}: {len(unplanned)} scheduled test(s) with no "
+                f"procedure and no exemption: {', '.join(unplanned)}.",
+                "        These are rows a session is expected to close, and "
+                "nothing here says how.",
+                "        Write the step, or name it in the "
+                "`<!-- no-procedure: ... -->` block with a reason.",
+                "        A row that reaches the bench with no written step gets "
+                "improvised, and an",
+                "        improvised step is one whose ordering constraints are "
+                "discovered afterwards.",
+            ]))
     else:
         covered = 0
         warnings.append(f"{path.name}: no register or results file; coverage unchecked")

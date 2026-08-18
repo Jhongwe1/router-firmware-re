@@ -51,13 +51,13 @@ W05 週計畫原本要另外建一份 `notes/prediction-scorecard.md`（12 條�
 
 | | |
 |---|---|
-| 登記項目 | **134**（排入 125，砍掉 9） |
-| 已寫反證條件（凍結） | **117** / 125 |
-| 已執行 | **63** |
+| 登記項目 | **135**（排入 126，砍掉 9） |
+| 已寫反證條件（凍結） | **118** / 126 |
+| 已執行 | **81** |
 | 其中以真機動態證據收掉 | **43** |
-| 其中以模擬環境執行收掉（**不是矽上**） | **11** |
-| 判定成立 / 判定不成立 | **36** / **14** |
-| 凍結雜湊 | `a9bd2761074e0b349726ec0ee96f3280e30a81e13a034643c1c3581dfc7f10be` |
+| 其中以模擬環境執行收掉（**不是矽上**） | **24** |
+| 判定成立 / 判定不成立 | **44** / **15** |
+| 凍結雜湊 | `ef7ab66d86f1c3de35a654e7dd76711cbce7853241594462043a829fc9ff27b7` |
 
 ## 排程：哪一週要打掉哪些
 
@@ -70,7 +70,7 @@ W05 週計畫原本要另外建一份 `notes/prediction-scorecard.md`（12 條�
 | **W04-2** | Phase 0 | 2 / 2 | `▰▰▰▰▰▰▰▰▰▰` |
 | **W05** | Phase 0, 1, 2, 3, 6, 9 | 27 / 27 | `▰▰▰▰▰▰▰▰▰▰` |
 | **W06** | Phase 0, 2, 3, 4, 5, 10 | 20 / 20 | `▰▰▰▰▰▰▰▰▰▰` |
-| **W07** | Phase 1, 2, 3, 4, 5, 6, 8, 9, 10 | 11 / 57 | `▰▰▱▱▱▱▱▱▱▱` |
+| **W07** | Phase 1, 2, 3, 4, 5, 6, 8, 9, 10 | 29 / 58 | `▰▰▰▰▰▱▱▱▱▱` |
 | **W08** | Phase 7, 9 | 0 / 16 | `▱▱▱▱▱▱▱▱▱▱` |
 
 ## 圖例
@@ -171,9 +171,9 @@ W05 週計畫原本要另外建一份 `notes/prediction-scorecard.md`（12 條�
 | **P1-4** | 57 個端點存在性掃描（必帶 submit-url） | 4.4 | ★★★★★ | 🟥 | W05 | 🔶 兩次獨立的掃描,結果高度一致:送出 34 / 36 個 POST(全部帶 submit-url),有回應 31 / 32,**零個 404**;狀態碼 200×4、302×27–28;302 去向 msg.htm×13、status.htm×11–12、countDownPage.htm×2、login.htm×1(= formLogout,合理)。**formSysCmd → 302 → status.htm,10 ms,未認證** —— 這關掉 W05 DoD 第 5 項的 (b),而且可證明沒有執行任何東西:handler 是 `if (*cmd != 0) { … system(buf); }` 而 sysCmd 缺席。判 partial 有兩個原因。(1) 13 個端點依名字拒打,理由逐條在 RUNBOOK §8.12.12 —— 失去 LAN 位址會讓後面每一個端點變成偽陰性,失去管理密碼會毀掉 CVE-2019-19823 的端到端鏈。(2) **掃描跑不完**:不帶參數的未認證 POST 讓單一 process 的 boa 卡住 4.7–9.7 秒(formPortFw 9650ms、formPocketWizard 6359ms、formWlanSetup / formRoute / formSysLog 各 6008ms),約 45 個之後它徹底停止服務,兩次都是。反證條件寫「大量端點回 404 或連線中斷 → **先確認是不是自己把 boa 打掛了**」—— 確認了,是我們打掛的,證據是逐項 elapsed_ms、會重試的對照組(它能分辨 busy 與 dead)、以及 console 全程零訊息。ping 全程正常,boa 20 分鐘後仍未回來:rcS 是一次性啟動它的,不是 respawn。 | [BENCH-LOG.md](BENCH-LOG.md) |
 | **P1-5** | E-0：57 還是 60 —— 測的是工具，不是裝置 | 4.5 | ★★★★★ | 🟥 | W05 | 🔶 57 個已知端點的 GET 全部 302/131B，與不存在的名字無法區分（GET 走不到 handleForm）。但 formOpdRedirect 回 302/535B→/opmode1.htm、formWanRedirect 回 536B——**兩個與所有其他路徑都不同，而它們不在 root_form[] 的 57 筆裡**。第三個 formWlanRedirect2 無異。所以是「至少 58」，且要找第二條分派路徑 | [BENCH-LOG.md](BENCH-LOG.md) |
 | **P1-6** | E-0b：公開 CVE 的端點拼字是錯的 | 4.6 | ★★★★★ | 🟥 | W05 | 🔶 GET 無法測這一條：formWlwds/fromStaticDHCP 與正確拼字 formWlWds/formStaticDHCP 回應完全相同（全部 302/131B）。這本身是一個裝置事實——translate_uri 在 handleForm 之前就轉走了——但拼字的問題要 POST 才判得了 | [BENCH-LOG.md](BENCH-LOG.md) |
-| P1-7 | 隱藏原廠 / 工廠測試端點列舉 | 4.7 | ★★☆☆☆ | 🟦 | W07 | ⬜ | — |
+| P1-7 | 隱藏原廠 / 工廠測試端點列舉 | 4.7 | ★★☆☆☆ | 🟦 | W07 | 🔶 formDebug / formFactoryTest / formTest / formEngineer 四個 POST 全部 404，與負對照相同；/goform/* 亦然。反證條件（掃出 root_form[] 以外的可達路徑）沒有觸發。**實機半邊未做**，而 root_form[] 本身現在有第二個獨立來源（tools/formtable-scan.py，57/57 與 Ghidra 相符）。 | [paramfuzz-unit-2018.json](reports/paramfuzz-unit-2018.json) |
 | P1-8 | Web 伺服器真身與前綴指紋（/boafrm/ vs /goform/） | 4.8 | ★★★★★ | 🟥 | W05 | 🔶 /boafrm/ 與 /goform/ 的 GET 回應完全相同（302/131B→home.htm），所以 GET 分辨不出前綴。要 POST 才測得到 | [BENCH-LOG.md](BENCH-LOG.md) |
-| P1-9 | GoAhead LD_PRELOAD（僅當 /goform/ 有回應） | 4.8 | ★☆☆☆☆ | ❌ | W07 | ⬜ | — |
+| P1-9 | GoAhead LD_PRELOAD（僅當 /goform/ 有回應） | 4.8 | ★☆☆☆☆ | ❌ | W07 | ⬛ 不適用，而且前提也查過了：反證條件說「P1-8 顯示 /goform/ 有回應時要重新評估」。/goform/formLogin 與 /goform/setSysAdm 的回應與保證不存在的名字無法區分。 | [paramfuzz-unit-2018.json](reports/paramfuzz-unit-2018.json) |
 | **P1-10** | SSDP / UPnP 資訊外洩 | 4.9 | ★★★☆☆ | 🟥 | W05 | ✅ 1900 單播 M-SEARCH 有回應（多播無）。而預測特別要求分辨的那件事有答案了：rootfs 裡只有 /bin/miniigd，沒有 mini_upnpd binary，而 miniigd 自己的字串表裡就有 'Server: miniupnpd/1.4'——**banner 報的是另一個 codebase 的名字** | [BENCH-LOG.md](BENCH-LOG.md) |
 | P1-11 | 無線指紋（SSID / 通道 / WPS 狀態） | 4.10 | ★★★★★ | 🟨 | W07 | ⬜ | — |
 | P1-12 | 上電到 web 可服務的時間 < 40 秒 | 4.2 | ★★★★★ | 🟥 | W05 | ✅ 38.76 秒,從第一個 console 字元到第一個 HTTP 200(tools/coldboot-timing.sh,兩半用同一個時鐘)。分段:+0.61 RealTek banner、+5.84 Jump to image start=0x80500000、+6.91 Uncompressing Linux done、+14.02 init started BusyBox v1.13.4、+32.50 boa: starting server pid=350 port 80、+38.76 第一個 200。反證條件寫「**明顯**超過 40 秒」,38.76 不是。**但餘裕只有 1.24 秒,而 t=0 是第一個 console 字元不是通電瞬間,所以這是下界。** 而且 boa 自報啟動之後還有 6.3 秒不能服務 —— 這一項的用途是「掃太早會把沒起來的服務讀成關的」,所以實務結論是等 45 秒不是 40。 | [BENCH-LOG.md](BENCH-LOG.md) |
@@ -257,8 +257,9 @@ W05 週計畫原本要另外建一份 `notes/prediction-scorecard.md`（12 條�
 | P2-8 | 憑證直闖：admin/admin 與 Basic Auth | 5.8 | ★★★★★ | 🟥 | W05 | ✅ admin/admin —— 從這台自己 flash 的 COMPCS 解出來的明文，經 HTTP Basic 直接認證成功（/password.htm 302→200），並開啟其餘 68 個被擋頁面。CVE-2019-19823 端到端。反證條件（連續 50 次錯誤後被鎖）沒有觸發：50 次全部拒絕，第 51 次用正確密碼仍然 200，無鎖定、無失敗計數 | [BENCH-LOG.md](BENCH-LOG.md) |
 | P2-9 | 未初始化的第二對憑證緩衝區（sp+0x18 / sp+0x38） | 5.8 | ★☆☆☆☆ | 🟥 | W07 | 🟪 Fired. process_header_end compares supplied credentials against TWO pairs: strcmp(user, sp+0x18) at 0x0040bd48 and its partner sp+0x38 at 0x0040bd90 grant req->0xb0 = 2, while the real pair from apmib_get(0xb6)/apmib_get(0xb7) at sp+0x58/sp+0x78 grants 1. Across the whole 1964-byte function the only instructions touching sp+0x18 and sp+0x38 are three reads - no sw, sb, sh, no apmib_get, no strcpy. A Basic header with both fields empty returns 200/333 on a gated page, byte-identical to the real credentials, while empty-user-with-password, user-with-empty-password, wrong-user-wrong-password and admin-with-wrong-password all return 302 and no-Authorization returns 302. Stored credentials were admin/admin, BOTH NON-EMPTY, read back through the vendor flash binary in the same run, so this is not D-4 (the branch at 0x0040bd18 was not taken). /password.htm goes 302 unauthenticated to 200 with 5332 bytes. Reproduces on the PUBLISHED v2.1.2 profile too - different binary, synthesised flash, credentials set first because its defaults are empty and trip D-4 instead. NOT ESTABLISHED, and the note says so at length: prior art unsearched, what level 2 buys over level 1 unread, whether the buffers can hold CHOSEN bytes unknown, and everything so far is emulation on two profiles but one emulator. Device confirmation is three requests and no power cycle. | [uninit-credential-pair.md](notes/uninit-credential-pair.md) |
 | P2-10 | 登入計時預言（timing oracle） | 5.9 | ★☆☆☆☆ | 🟦 | W07 | ⬜ | — |
+| **P2-11** | 開機後 601 秒的 IP session 視窗（本專案獨家；只有實機能答） | 5.7 | ★★★☆☆ | 🟥 | W07 | ⬜ | — |
 
-<details><summary>Phase 2 的預測與反證條件（10/10 項已凍結）</summary>
+<details><summary>Phase 2 的預測與反證條件（11/11 項已凍結）</summary>
 
 **P2-1 — E-1：URI 的邊界在哪（門的實際涵蓋範圍）**
 
@@ -311,6 +312,20 @@ W05 週計畫原本要另外建一份 `notes/prediction-scorecard.md`（12 條�
 - 預測：密碼是明文 strcmp，理論上有長度相關的時間差，但網路抖動很可能大過訊號
 - **反證：1000 次取樣的分佈重疊 → 方法在這條鏈路上沒有解析度，記為方法限制而不是「沒有時間差」**
 
+**P2-11 — 開機後 601 秒的 IP session 視窗（本專案獨家；只有實機能答）**
+
+- ⚠️ **必須排在 A3.11.2（把管理密碼設成空字串）之前，而且必須在一台密碼非空、設定未被本場動過的機器上跑。密碼一旦為空，第 3 步的 200 量到的是 D-4 不是這一條。**
+- 預測：閘門在 `process_header_end` 有第三條臂（`0x0040bff8`–`0x0040c060`），以來源 IP 為鍵：`form_formLogin` 成功登入時把來源位址寫進 `authipaddr`，之後同一個位址的請求即使不帶任何憑證也拿得到被擋的頁面，過期條件是 `nowuptime - beforeuptime >= 601`。而 `beforeuptime` 在整個 binary 裡只有那一個讀、沒有任何寫（Ghidra 與 tools/mipsref.py 兩個獨立工具同意，同一輪的控制位址回報一讀一寫），所以那個差值就是系統 uptime。
+
+於是預測是一個會隨時間翻面的三段式：**上電後 601 秒內**，從最後一次成功登入的來源 IP 發出、**不帶任何憑證**的請求，取得被閘門擋住的頁面 → **200**；同一時刻同一頁面從第二個來源 IP、同樣不帶憑證 → **302**；等 uptime 超過 601 秒之後，第一個來源 IP 再取同一頁 → **302**。三段都要對，少一段不算。
+- **反證：兩個方向都能殺掉東西，而它們殺的不是同一個對象：
+
+（a）**第 3 步在 601 秒內就回 302** → `authipaddr` 那條臂在這台從來不成立，`bughunt.md` 第 20 列要從「一條沒人讀過的 session 臂」降級成「程式碼存在但不可達」，而 `notes/auth-session-ip.md` 的整個 §3 要重寫。
+
+（b）**第 5 步在 uptime 超過 601 秒之後仍然回 200** → `beforeuptime` 有一個寫入點，而 Ghidra 的引用模型與 `tools/mipsref.py` 的編碼掃描**同時漏掉同一個寫**。那是儀器問題不是韌體問題，先修儀器再談這一列 —— 而且它會同時把 `reports/mipsref-unit-2018-authsession.json` 那一份報告的可信度整份拉下來。
+
+模擬環境**不能**當作這兩個方向任何一個的證據：`qemu-user` 的 `sysinfo()` 回的是主機 uptime，任何一台開著的桌機都早就超過 601 秒，所以模擬下永遠只量得到「臂是死的」。**
+
 </details>
 
 ## Phase 3 — 命令注入
@@ -325,11 +340,11 @@ W05 週計畫原本要另外建一份 `notes/prediction-scorecard.md`（12 條�
 | P3-5 | A2b formWsc / localPin（寫 flash） | 6.1 | ★★★★★ | 🟥 | W06 | ✅ localPin=13572468 through formWsc set HW_WLAN0_WSC_PIN to that value, read back through the device own flash get. The request took 14.0 s, the longest well-formed request measured on this device so far. IMPORTANT correction to plan/W06 section 2: flash set HW_WLAN0_WSC_PIN writes H601 (0x6000-0x8000), NOT COMPCS — HW_* ids live in the hardware MIB. W05 emulation output already showed the offsets 0x648a/0x648b/0x6493 inside H601 and nobody connected the two. So an unauthenticated HTTP request writes the region holding this unit MAC addresses and radio calibration, which a factory reset does not restore. | [BENCH-LOG.md](BENCH-LOG.md) · [runsheet.md](runsheet.md) |
 | P3-6 | 分隔符輪替（10 種語法） | 6.1 / 6.2 | ★★★★☆ | 🟦 | W05 | 🟪 十種分隔符九種在這台自己的 /bin/sh 上有效；|| 短路是因為 flash set 回傳 0，不是被過濾。handler 尾巴的 2>&1 > /tmp/syscmd.log 確實會蓋掉 payload 的 >，必須用 ;# 截斷 | [oracle-design.md](notes/oracle-design.md) |
 | P3-7 | 改用 GET / 換 submit 按鈕名稱 | 6.1 | ★★★☆☆ | 🟦 | W06 | 🔶 Two halves, opposite outcomes. GET with the parameters in the query string does NOT execute: 302 and the target file is never created, because translate_uri redirects before handleForm. The submit button name is irrelevant: submit-url, Apply, save and no button field at all each executed, each with its own output file to prove which one did it, and the server survived every one. The first attempt used one shared filename and could not attribute the result. | [BENCH-LOG.md](BENCH-LOG.md) |
-| P3-8 | 診斷頁命令注入字典探測 | 6.3 | ★★☆☆☆ | ❌ | W07 | ⬜ | — |
-| P3-9 | formLogin topicurl JSON API 列舉 | 6.4 | ★★☆☆☆ | 🟨 | W07 | ⬜ | — |
-| P3-10 | cstecgi.cgi 探測 | 6.5 | ★☆☆☆☆ | 🟨 | W07 | ⬜ | — |
-| P3-11 | download.cgi QUERY_STRING 注入 | 6.6 | ★☆☆☆☆ | 🟨 | W07 | ⬜ | — |
-| P3-12 | Beastmode 家族 /cgi-bin/* 注入 | 6.6 | ★☆☆☆☆ | 🟨 | W07 | ⬜ | — |
+| P3-8 | 診斷頁命令注入字典探測 | 6.3 | ★★☆☆☆ | ❌ | W07 | 🔶 formPing / formTracert / formDiagnosis / formNslookup 四個 POST 全部 404，與負對照 formNotARealHandlerZZ 相同。反證條件（任一個有回應）沒有觸發。**實機半邊未做**，而且實機上要看 302 的目的地不是狀態碼（見 §8.12.26 的轉址陷阱）。 | [paramfuzz-unit-2018.json](reports/paramfuzz-unit-2018.json) |
+| P3-9 | formLogin topicurl JSON API 列舉 | 6.4 | ★★☆☆☆ | 🟨 | W07 | 🔶 /cgi-bin/cstecgi.cgi 與 /formLoginAuth.htm 的回應與保證不存在的 /cgi-bin/zzqq-not-real.cgi 無法區分。getSanvas 這台沒有。實機半邊未做。 | [paramfuzz-unit-2018.json](reports/paramfuzz-unit-2018.json) |
+| P3-10 | cstecgi.cgi 探測 | 6.5 | ★☆☆☆☆ | 🟨 | W07 | 🔶 /cstecgi.cgi 與不存在的名字無法區分。docroot 143 檔裡沒有它。實機半邊未做。 | [paramfuzz-unit-2018.json](reports/paramfuzz-unit-2018.json) |
+| P3-11 | download.cgi QUERY_STRING 注入 | 6.6 | ★☆☆☆☆ | 🟨 | W07 | 🔶 /cgi-bin/download.cgi 與不存在的名字無法區分。實機半邊未做。 | [paramfuzz-unit-2018.json](reports/paramfuzz-unit-2018.json) |
+| P3-12 | Beastmode 家族 /cgi-bin/* 注入 | 6.6 | ★☆☆☆☆ | 🟨 | W07 | 🔶 /cgi-bin/luci 與 /cgi-bin/adm.cgi 與不存在的名字無法區分。實機半邊未做。 | [paramfuzz-unit-2018.json](reports/paramfuzz-unit-2018.json) |
 | **P3-13** | 未認證的設定「寫入」端點盤點（不要只找讀的） | 6.7 | ★★★★☆ | 🟥 | W05 | ✅ bench-probe writes,**GET only,一個 handler 都沒有執行**(GET 在這個 build 上走不到 handleForm)。全部 57 個 /boafrm/formX → 302 → home.htm(門沒跑);全部 57 個 /boafrm/formX.htm → 302 → login.htm(門跑了,擋掉)。測試自己點名的三個(formUpload / formPasswordSetup / formSaveConfig)與其餘 54 個完全同一種行為,所以反證條件「寫入類被擋而讀取類沒被擋」不成立。唯一例外是 formLogin.htm 回 404 而非 302 —— 因為 `formLogin` 在閘門的豁免清單上(W04-2 在指令層級讀出的 11 個字串之一),路徑含有它就豁免,門不跑,落到檔案層找不到檔。**那是閘門模型預測的第 57 個資料點,而它沒有被擬合過。** | [BENCH-LOG.md](BENCH-LOG.md) |
 | P3-14 | L2：`localPin` 命令注入在公開映像 V2.1.2 上重現 | 6.1 | ★★★☆☆ | 🟥 | W06 | 🟪 未認證 POST /boafrm/formWsc（localPin），在只用公開映像建起來的環境裡命令執行成立。主要證據是 qemu 自己的 syscall trace：fork() 之後 execve("/bin/sh",{"sh","-c","flash set HW_WLAN0_WSC_PIN 1;cat /etc/version > /var/web/l2pin.txt;#"}) —— 內插後的字串逐字可見。第二通道是 docroot：檔案存在，內容是 TOTOLINK-N150RT-V2.1.2，也就是這個公開 build 自己報出自己的版本。判別對照兩發，同一 handler 同一 session 同一請求形狀：peerPin 沒有、targetAPSsid 沒有、只有 localPin 有 —— 與 W06 在 2018 build 實機上的三向判別完全一致（P3-1 refuted / P3-4 不是注入 / P3-5 confirmed），兩個相隔五年的 build 對「哪一個參數是缺陷」給出同一個答案。陷阱：boa 處理完這個 handler 就死（HTTP 000），一個 server instance 只能打一發；第一次量測先送了對照發、把 server 打死，於是把真正的 payload 記成沒有反應 —— 那是治具的空結果，不是韌體的。 | [05-l2-published-image.md](poc/05-l2-published-image.md) · [mkflash-2.1.2.json](reports/mkflash-2.1.2.json) |
 
@@ -422,11 +437,11 @@ W05 週計畫原本要另外建一份 `notes/prediction-scorecard.md`（12 條�
 | P4-2 | submit-url= 空值 → 1-byte heap 寫入 | 7.1 | ★★★★☆ | 🟧 | W06 | ❌ Empty and absent are indistinguishable on this build: submit-url= and a body without submit-url both return the same status on the same handler and both leave the server running. The prediction was that they are different paths with different damage; they are neither. | [BENCH-LOG.md](BENCH-LOG.md) |
 | P4-3 | submit-url 100-byte 階梯掃描 | 7.2 | ★★★★★ | 🟥 | W06 | ❌ Refuted with a positive witness rather than with an absence. formNtp echoes submit-url into its Location header, so the value is provably reaching the code that consumes it: 8 bytes echo 7 As, 800 bytes echo 799 As, with no truncation at 100 and no crash, no reboot and no observable change at any length. So on this build submit-url is not the lastUrl[100] idiom W04 measured on V2.1.2. formSelLang was the wrong witness — it redirects to a hardcoded countDownPage.htm whatever you send, which is why an earlier round measured nothing. | [BENCH-LOG.md](BENCH-LOG.md) |
 | **P4-4** | ifname / wlan_id 的 20-byte 階梯（偏移與 100 那組完全不同） | 7.2 | ★★★★★ | 🟥 | W06 | ❌ ifname and wlan_id at 16, 20, 24, 40, 80, 120 and 160 bytes on formWlanSetup: 200 every time, server alive every time. The 20-byte buffer class R3 separates from the 100-byte one produces no observable difference here either. | [BENCH-LOG.md](BENCH-LOG.md) |
-| P4-5 | stack 溢位群（12 個函式、20+ 參數） | 7.3 | ★★★★☆ | 🟥 | W07 | ⬜ | — |
+| P4-5 | stack 溢位群（12 個函式、20+ 參數） | 7.3 | ★★★★☆ | 🟥 | W07 | 🟪 登記時寫的是「12 個函式、20+ 參數」，這台的閘門報的是 11 個函式、17 個參數（134 個 finding 裡 22 個的目的地是堆疊）。長度階梯 8/100/260/800/4096 逐一送：只有 formWsc 的 localPin 會死，260 活、800 死。反證條件寫「崩潰但 epc 不可控 → 覆寫的不是返回位址」——不成立：epc 完全可控，見 P5-1。 | [paramfuzz-unit-2018.json](reports/paramfuzz-unit-2018.json) · [crash-triage-unit-2018-wsc.json](reports/crash-triage-unit-2018-wsc.json) · [paramfuzz.py](tools/paramfuzz.py) · [crash-triage.py](tools/crash-triage.py) |
 | P4-6 | 已知 CVE 溢位端點逐一驗（12 條） | 7.4 | ★★★☆☆ | 🟨 | W07 | ⬜ | — |
-| **P4-7** | submit-url 全 57 端點通殺 + 存活探針 | 7.5 | ★★★☆☆ | 🟥 | W07 | 🟪 全 58 個端點掃過（57 個分派表 handler + 一個不存在的負對照），每一發之前 reap + reset + serve，所以每一發都從同一份 flash 開始。結果：39 個在模擬下讓 boa 消失，19 個存活，39 次重啟 0 次失敗。對照成立：formLogin 200 且存活、formNotARealHandler 404。預測說「四個有 CVE 編號的是取樣不是集合」—— 39 不是四。反證條件（只有那四個有反應）沒有觸發。**這不是對實機的主張**：qemu-user 對未對齊存取丟 SIGBUS，而實機的 MIPS kernel 會在 trap handler 裡修掉，所以報告裡的欄位叫 died_under_emulation。它是一份要拿去實機驗的候選清單，而 W06 在實機上量到的一發請求斷線（docs/disclosure.md D-11）本來就說不出是哪一類 handler。存活的 19 個裡包含 formSysCmd（CVE 那一個）本身，所以「會死」跟「有缺陷」不是同一件事。這一輪之前有三次無效的量測：治具讓 32 個孤兒 boa 累積、port 被任意一個舊的持有，而 serve 的對照通過了，因為它驗的是 port 的性質而不是它自己啟動的那個 process。 | [handler-sweep-unit-2018.json](reports/handler-sweep-unit-2018.json) · [handler-sweep.py](tools/handler-sweep.py) |
-| P4-8 | 超長 HTTP 標頭 / 參數數量炸彈 / Range | 7.6 | ★★★☆☆ | 🟦 | W07 | ⬜ | — |
-| P4-9 | boofuzz 系統化 fuzz | 7.7 | ★★★★☆ | — | W07 | ⬜ | — |
+| **P4-7** | submit-url 全 57 端點通殺 + 存活探針 | 7.5 | ★★★☆☆ | 🟥 | W07 | 🟪 第 2 次 第二次結果，與 08-18 稍早那一次是不同的問題。帶 --alignfix 與每發還原、body 完全空白重掃 58 個端點：5 個死、53 個活、59 次重啟 0 次失敗，三個對照全成立。配合 --param 'submit-url=/wireless.htm' 那一輪只死 formSchedule，兩輪的差集直接指認出參數缺席這一類。R3 指認 36 個共用 submit-url 慣用語，而只有 5 個在無參數 POST 下真的走到那個 tail；另外 42 個更早就 return。 | [handler-sweep-unit-2018-noparam.json](reports/handler-sweep-unit-2018-noparam.json) · [handler-sweep.py](tools/handler-sweep.py) |
+| P4-8 | 超長 HTTP 標頭 / 參數數量炸彈 / Range | 7.6 | ★★★☆☆ | 🟦 | W07 | ❌ 反證條件成立。8192 bytes 的 request line、8192 bytes 的單一標頭、200 個標頭、1000 個參數、100000 個參數、400 位數的 Range —— 六發全部沒有讓 server 消失。預測寫的是「標頭緩衝區與 param 陣列都是固定大小」，而 10 萬個參數正常處理，所以那條收掉。**這是模擬環境的結果，實機的協定層另有 P2-6 已量。** | [paramfuzz-unit-2018.json](reports/paramfuzz-unit-2018.json) |
+| P4-9 | boofuzz 系統化 fuzz | 7.7 | ★★★★☆ | — | W07 | 🟪 端點用還原出來的 root_form[]、參數名用 BoaGate 逐一指認的，預測成立。208 個請求、8 個死亡、0 個 harness 異常。反證條件（跑滿一輪零崩潰而正對照也沒被抓到）沒有觸發：負對照 formSchedule 被正確標記為死亡，正對照 formNtp 活著。**這條反證條件是 2026-08-18 開火前改過的** —— 原文點名 P4-3 的已知崩潰，而 P4-3 在這台已判 refuted，那個對照不存在。理由在 PROGRESS § Corrections。 | [paramfuzz-unit-2018.json](reports/paramfuzz-unit-2018.json) · [paramfuzz.py](tools/paramfuzz.py) |
 
 <details><summary>Phase 4 的預測與反證條件（9/9 項已凍結）</summary>
 
@@ -474,7 +489,9 @@ W05 週計畫原本要另外建一份 `notes/prediction-scorecard.md`（12 條�
 **P4-9 — boofuzz 系統化 fuzz**
 
 - 預測：端點清單用 root_form[] 的 57 個，參數名用 R1/R2/R3 實際指認的，不是猜的
-- **反證：跑滿一輪零崩潰，而同一輪裡 P4-3 的已知崩潰也沒被抓到 → fuzz harness 的存活偵測壞了，先修 harness**
+- **反證：跑滿一輪零崩潰，而同一輪裡正對照 formSchedule 也沒有被標記為死亡 → fuzz harness 的存活偵測壞了，先修 harness 再讀這一輪的任何結果。正對照的定義固定在開火之前：帶 --alignfix、每一發之前完整還原 flash 時，`formSchedule` 是這台 58 個端點裡唯一一個會讓 boa 消失的（reports/handler-sweep-unit-2018-alignfix.json）。
+
+【2026-08-18 開火前更換，凍結雜湊同一個 commit 改，理由在 PROGRESS.md § Corrections】原文的正對照寫的是「P4-3 的已知崩潰」，而 P4-3 在這台已判 refuted —— formNtp 把 submit-url 回顯進 Location，8 bytes 回 7 個 A、800 bytes 回 799 個 A，沒有 100 截斷、沒有崩潰。**那個對照在這台不存在，所以原本的反證條件永遠無法構成**：一輪零崩潰時它要求的第二個條件恆為真，於是整條反證退化成「零崩潰就算 harness 壞了」，而那會把一個正確的否定結果讀成儀器故障。**
 
 </details>
 
@@ -482,13 +499,13 @@ W05 週計畫原本要另外建一份 `notes/prediction-scorecard.md`（12 條�
 
 | ID | 項目 | § | 可行性 | 出場證據 | 排程 | 結果 | 證據 |
 |---|---|---|---|---|---|---|---|
-| P5-1 | cyclic pattern 定偏移 + epc 可控 | 8.3 | ★★★★☆ | 🟥 | W07 | ⬜ | — |
+| P5-1 | cyclic pattern 定偏移 + epc 可控 | 8.3 | ★★★★☆ | 🟥 | W07 | 🟪 未認證的一個 POST，localPin=800 bytes：pc = ra = 0x41414141，s0–s6 也全部 0x41414141。de Bruijn 樣式定出偏移：s0=481 s1=485 s2=489 s3=493 s4=497 s5=501 s6=505 **ra=509**，逐 4 bytes 遞增，與 BoaGate 對 localPin 報的 sp-540 一致。預測寫「無 canary、無 RELRO、無 PIE、無 NX，所以偏移一量到就直接可控」——成立。反證條件（epc 落在不可預測的值）沒有觸發。**模擬環境上的結果，矽上未驗。** | [crash-triage-unit-2018-wsc.json](reports/crash-triage-unit-2018-wsc.json) · [crash-triage.py](tools/crash-triage.py) |
 | P5-2 | MIPS ret2libc | 8.3 | ★★★★☆ | 🟥 | W07 | ⬜ | — |
-| P5-3 | GOT 覆寫（No RELRO） | 8.3 | ★★★☆☆ | 🟥 | W07 | ⬜ | — |
-| P5-4 | MIPS-BE 交叉編譯 + msfvenom 產 payload | 8.4 | ★★★★☆ | — | W07 | ⬜ | — |
+| P5-3 | GOT 覆寫（No RELRO） | 8.3 | ★★★☆☆ | 🟥 | W07 | 🔶 靜態半邊成立且三個 build 一致：GOT 在可寫的 PT_LOAD 裡、沒有 PT_GNU_RELRO、GNU_STACK 是 RWX。反證條件（GOT 段實際唯讀 → checksec 判定錯）沒有觸發。動態半邊（覆寫之後下一次呼叫會執行）沒有做：它依賴 P5-1，而 P5-1 今天才通。 | [mipsref-unit-2018-authsession.json](reports/mipsref-unit-2018-authsession.json) · [mipsref.py](tools/mipsref.py) |
+| P5-4 | MIPS-BE 交叉編譯 + msfvenom 產 payload | 8.4 | ★★★★☆ | — | W07 | 🟪 工具鏈是 mips-linux-gnu 不是 mipsel，而這一點不是宣稱：tools/alignfix/build.sh 在說「built」之前會檢查物件是 big-endian、32-bit、MIPS、有 init entry、沒有未定義符號，而 test-alignfix.sh 拿一個 x86-64 物件去餵它證明那些檢查會拒絕。**而且產出的物件真的在目標環境裡執行過** —— alignfix.so 以 LD_PRELOAD 載入 boa，log 上有 24 次 fix-up。反證條件（產出的 binary 在機上跑不起來）在模擬層沒有觸發；**矽上未驗**，msfvenom 的 payload 沒有產（沒有東西可以投遞之前不做）。 | [build.sh](tools/alignfix/build.sh) · [test-alignfix.sh](tools/test-alignfix.sh) |
 | **P5-5** | cat /proc/cpuinfo —— Lexra 那塊最後的拼圖 | 8.2 | ★★★★★ | 🟥 | W06 | 🔶 Retrieved, and it does not answer the question. /proc/cpuinfo on this unit reads: system type RTL819xD, cpu model 52481, BogoMIPS 398.95, tlb_entries 32, mips16 implemented yes, hardware watchpoint no. "cpu model" is a decimal NUMBER, not a core name, so neither RLX4181 nor RLX5281 is confirmed or excluded and W02 open #6 stays open — but it is now open for a different reason: the device does not expose a core name at all, rather than nobody having looked. Two follow-ups were tried and both failed usefully: /proc/cpu does not exist on this kernel, so there is no unaligned-access fixup counter to read, and dmesg returns zero bytes. What the same access DID produce is the kernel banner: Linux 2.6.30.9, gcc 4.4.5-1.5.5p2, built Wed Jan 10 14:50:54 CST 2018 by admin@office.hopeiot — seven minutes before boa is stamped, so kernel and userland come from one build session, which corroborates the W02 timestamp argument from a source W02 never read. And MemTotal is 26052 kB, which refines W02 claim that fitted and usable agree at 32 MiB: 32 MiB is what the boot loader detects, 25.4 MiB is what Linux has. The decisive test for the Lexra question is now a string scan of the decompressed kernel, which needs no device. | [BENCH-LOG.md](BENCH-LOG.md) |
-| P5-6 | qemu + LD_PRELOAD 桌機 fuzz（省實體機） | 8.5 | ★★★★☆ | 🟧 | W07 | ⬜ | — |
-| P5-7 | BinDiff 差分：拿 3.4.0 的漏洞當這台的地圖 | 8.6 | ★★★★☆ | 🟧 | W07 | ⬜ | — |
+| P5-6 | qemu + LD_PRELOAD 桌機 fuzz（省實體機） | 8.5 | ★★★★☆ | 🟧 | W07 | 🔶 預測寫「HTTP 解析器的部分常可在模擬下跑起來，apmib 的部分需要 shim」——兩半都成立，而 shim 不是 apmib 的 stub，是 qemu-user 沒做的對齊補正（tools/alignfix/）。這一項作為篩選器已經產出兩份候選清單。**反證條件（模擬下的崩潰在實體機上重現不了）只有實機能答**，那是 A3.23。 | [paramfuzz-unit-2018.json](reports/paramfuzz-unit-2018.json) · [crash-triage-unit-2018.json](reports/crash-triage-unit-2018.json) · [emulation-2018.md](notes/emulation-2018.md) |
+| P5-7 | BinDiff 差分：拿 3.4.0 的漏洞當這台的地圖 | 8.6 | ★★★★☆ | 🟧 | W07 | 🟥 預測寫「先讀 repo 已有的三 build 對照，再決定要不要跑 BinDiff」——照做，而且結論是不需要 BinDiff：六個 build 的 root_form[] 用一支不讀指令的掃描器就差分完了。59 / 61 / 57 / 60 / 50 / 49 個 handler，42 個是六版共有。反證條件（對應函式找不到）沒有觸發。 | [formtable-scan-six-builds.json](reports/formtable-scan-six-builds.json) · [formtable-scan.py](tools/formtable-scan.py) |
 
 <details><summary>Phase 5 的預測與反證條件（7/7 項已凍結）</summary>
 
@@ -674,7 +691,7 @@ W05 週計畫原本要另外建一份 `notes/prediction-scorecard.md`（12 條�
 | **P8-8** | MIB 值被拼進開機腳本的 shell 命令（白盒定位） | 11.5 | ★★★☆☆ | 🟨 | W07 | ❌ Refuted at all three sites the prediction named, each for a different reason, and the complete inventory is nine flash get sites of which only two are eval. snmpd.sh:36-44 is the strongest sink - eval, not interpolation, and flash get quotes string values with double quotes where a backtick still executes - but none of its nine SNMP_ names exists in this build MIB table. Two instruments: the table recovered from libapmib.so has SNMP_RO_COMMUNITY and SNMP_RW_COMMUNITY only, and the vendor own /bin/flash answers flash get SNMP_NAME with a usage dump and rc=255. The script asks SNMP_ROCOMMUNITY - one underscore apart, scripts and MIB table from different SDK vintages, which is also why snmpd smbd smbpasswd nmbd are all absent from /bin while three scripts driving them ship. smb.sh and smbbak.sh capture MIB values with backticks but feed a config file and argv after word-splitting, no eval so no execution. The one live eval is startup.sh:25 over WLAN_BAND2G5G_SELECT and it DOES run at boot - see P8-24, where the transcript shows the shell reporting Invalid: not found from flash error text. So the class exists on this device and no attacker-controlled value currently reaches it. | [config-failopen.md](notes/config-failopen.md) · [mib-table-unit-2018.json](reports/mib-table-unit-2018.json) |
 | **P8-10** | batchRemoteUpgrade 的對外連線（白盒未讀） | 11.7 | ★★★☆☆ | 🟦 | W07 | 🟥 It makes outbound connections, they are plain HTTP, and the trigger is unauthenticated. /bin/batchRemoteUpgrade carries its flow in its string table: wget -q -c http://%s:%s/fw/totolink/%s/ -O /tmp/index.htm, then cat /tmp/index.htm | grep %s >/tmp/fwList, then wget -c http://%s:%s/fw/totolink/%s/%s -O /tmp/%s. It imports system, sprintf and strcpy, and sysconf starts it as batchRemoteUpgrade with six arguments. The same job exists inside boa: FUN_0044f7b4, reached from form_formSaveConfig, reads submit_rfw_check (0x0044f804), submit_rfw_download (0x0044f824) and submit_rfw_upgrade (0x0044f844) from the POST body and calls CheckRFW at 0x0044f88c with the literal host sl.totolink.software and model TWN150RTV2, then DownloadWithPercents and InitRFWUpgrade. auth-flow-2018.md and P2-1 both put POST /boafrm/* outside the gate. Combined with P9-13 (additive checksum, no signature) the class is a supply-chain path that needs DNS or MITM control and no memory-corruption exploit. STATIC ONLY - nothing has been executed; the device half is scheduled and the write half stays with P9-10 in W08. | [firmware-upgrade-path.md](notes/firmware-upgrade-path.md) · [ghidra-xref-unit-2018-rfw.json](reports/ghidra-xref-unit-2018-rfw.json) |
 | P8-11 | 假 NTP / 假 DDNS / 假 DNS 回應（SSRF 類） | 11.7 | ★★★☆☆ | 🟦 | W07 | ⬜ | — |
-| **P8-12** | 上傳 config 開 telnet（卡在 fwrecon 缺 encoder） | 11.8 | ★★☆☆☆ | 🟨 | W07 | ⬜ | — |
+| **P8-12** | 上傳 config 開 telnet（卡在 fwrecon 缺 encoder） | 11.8 | ★★☆☆☆ | 🟨 | W07 | 🟥 預測成立且是關於自家工具的：fwrecon compcs 只有 decode，沒有 encoder，所以這條鏈卡在這個 repo 而不是裝置。反證條件（不需要重算 checksum 也能被接受）**沒有被測**——它要對裝置上傳一份設定，而本場不做。 | [fwrecon](tools/fwrecon) |
 | P8-14 | 以 formSysCmd 掃內網（借合法功能做偵察） | 11.10 | ★★★★☆ | 🟨 | W07 | ⬜ | — |
 | P8-15 | 命令路由器把 flash / 記憶體交出來（論證影響） | 11.11 | ★★★★☆ | 🟨 | W07 | 🔶 命令盤點那半收掉，兩個來源：rootfs 裡沒有 nc/netcat/tftp/curl/telnet 的 ELF，且 busybox 自報的 48 個 applet 也沒有（對照組 uptime 有回應）。/bin/wget 確實存在，與預測相符。外洩本身未演示 | [emulation-2018.md](notes/emulation-2018.md) |
 | P8-16 | Slowloris（S-2） | 11.12 | ★★★★☆ | 🟨 | W07 | ⬜ | — |
@@ -682,9 +699,9 @@ W05 週計畫原本要另外建一份 `notes/prediction-scorecard.md`（12 條�
 | **P8-18** | 上傳 filename= 注入（S-11，白盒未讀） | 11.12 | ★★★★☆ | 🟦 | W07 | ❌ Refuted exactly as the refutation condition anticipated. FUN_0044f360 @0x0044f360 is 272 bytes and every path through it returns an integer OFFSET, not a string: it strstrs four Content-Type markers, and failing those it uses filename= at 0x0044f408 purely as a landmark - strchr for the closing quote at 0x0044f424, one more strstr at 0x0044f440, then return (p - body) + 4. The filename is never copied, never reaches sprintf, never becomes a path or a shell string. form_formUpload uses the return value as UpgradeByData third argument and touches no other multipart header. Note the scope: formUploadConfig is a DIFFERENT handler, is not covered here, and is still unread - that one belongs to P8-12. | [firmware-upgrade-path.md](notes/firmware-upgrade-path.md) |
 | P8-19 | WAN 側 DHCP / PPPoE 攻擊（S-7 / S-8） | 11.12 | ★★★☆☆ | 🟦 | W07 | ⬜ | — |
 | P8-20 | iwpriv 隱藏 ioctl + 暫存器 peek/poke（S-6） | 11.12 | ★★★☆☆ | 🟥 | W07 | ⬜ | — |
-| **P8-21** | 同型號橫向抄襲（S-15：A3002RU / N300RT / N302RE） | 11.12 | ★★★★★ | 🟨 | W07 | ⬜ | — |
+| **P8-21** | 同型號橫向抄襲（S-15：A3002RU / N300RT / N302RE） | 11.12 | ★★★★★ | 🟨 | W07 | 🟥 拿到了 CVE-2024-51228 點名的另一台：N300RT V2.1.6-B20160516（第三方鏡像，無廠商簽章，雜湊只證明連續性）。**這一台的 57 個 handler 是 N300RT 那 61 個的嚴格子集**，對 N200RE V3.2.0 的 60 個也是。反證條件寫「分派表不同 → 同一顆的假設不成立」——量到的不是「不同」，是同一份程式碼加一個功能差集，所以那條不觸發。**這是關於映像的主張，不是關於 N300RT 硬體的主張。** | [formtable-scan-six-builds.json](reports/formtable-scan-six-builds.json) · [SOURCES.json](firmware/SOURCES.json) |
 | **P8-24** | 設定區失效時開機腳本自己開 telnet（fail-open，本專案獨家） | 11.5 | ★★★★☆ | 🟥 | W07 | 🔶 The branch is reached, the write is not observable. With both region signatures zeroed startup.sh printed its own line 23 verbatim - Default configuration invalid, reset default! - which is the branch whose line 43 is flash set TELNET_ENABLED 1. What it then writes cannot be measured here: flash default-sw and flash reset1 both die on qemu-user SIGBUS, so the image is byte-identical before and after in all seven damage states. The control that makes that a statement about the recovery path rather than about the environment: a plain flash set WAN_DHCP 7 writes and reads back in the same environment. Two refinements the prediction did not have. (1) The two validity tests differ: test-dsconf checks the DECOMPRESSED header (sig=6G ver=3 len=31878) and tolerates a flipped payload byte, test-csconf additionally runs mib_tlv_init and does not - so reaching the fail-open branch requires damaging COMPDS header specifically, not just corrupting the settings area. (2) startup.sh line 25 eval flash get WLAN_BAND2G5G_SELECT executed and the shell reported Invalid: not found, i.e. flash error text became a command - the P8-8 sink is live on the boot path even though nothing attacker-controlled reaches it. | [failopen-unit-2018.json](reports/failopen-unit-2018.json) · [config-failopen.md](notes/config-failopen.md) · [failopen-probe.sh](tools/failopen-probe.sh) |
-| P8-23 | 從 config.dat 反推 MIB 結構（差分法） | 11.14 | ★★★☆☆ | 🟥 | W07 | ⬜ | — |
+| P8-23 | 從 config.dat 反推 MIB 結構（差分法） | 11.14 | ★★★☆☆ | 🟥 | W07 | 🟪 tools/config-diff.py: DHCP_LEASE_TIME 480 -> 4321 under --alignfix. The decoded table moves exactly one field, at offset 91, 000001e0 -> 000010e1. The flash image moves 3 bytes -- two inside the compressed COMPCS payload and one 11 bytes past its end -- and those are NOT the decoder's coordinate system, which is what the runsheet step as originally written invited a reader to compare. | [config-diff-unit-2018.json](reports/config-diff-unit-2018.json) |
 
 <details><summary>Phase 8 的預測與反證條件（21/21 項已凍結）</summary>
 
