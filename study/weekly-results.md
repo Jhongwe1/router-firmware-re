@@ -577,3 +577,98 @@ documents, and only the second can be wrong in time to matter.
   is not proof.
 - **Nothing explains why 42 of the 47 handlers return before reaching the tail.**
   The five that do not have nothing in common that has been written down.
+
+## W07, the bench half — 2026-08-18 into 2026-08-19
+
+**One line:** the device was driven for the first time since W06, 21 register
+rows closed on silicon and 4 more lifted off emulated evidence — and the single
+most serious result was a denial of service this project had inflicted on the
+unit itself a day earlier and had recorded as harmless.
+
+**1. An unauthenticated POST from W05 has kept this router off the internet ever
+since, and nothing in the project would have noticed.**
+W05's sweep of every non-hazardous endpoint with parameters absent changed
+`DHCP_MTU_SIZE` from 1500 to 0, in a table whose conclusion was that no field
+moved in a dangerous direction. `eth1` therefore comes up with `MTU:0` and
+cannot transmit: with the cable in the WAN port, a DHCP server running, across a
+full boot and 160 seconds, **zero packets crossed the wire** while `udhcpc -i
+eth1` was in `ps` and `WAN_DHCP` read 1. Setting the MTU back by hand and
+changing nothing else produced a complete DISCOVER / OFFER / REQUEST / ACK
+immediately. It composes: a WAN that is down starts `dnsspoof`, which answers
+every name — including one in an invalid TLD — with `10.1.1.1`, the same web
+server that carries unauthenticated command injection, the uninitialised
+credential pair, and unauthenticated password change.
+*Evidence:* `BENCH-LOG.md` `T-62`, `T-63`; `reports/test-results.json` `P8-19`,
+`P6-10`; `$FWRE_WORK/dumps/p8-19-wan{2,3}.pcap`.
+*What it demonstrates:* a durable, unauthenticated, remote denial of the
+device's primary function, found only because a test for something else needed
+the WAN to work. **Four bench sessions ran in between and none of them asked
+whether the router could still route.**
+
+**2. The IP-keyed session arm is real, and the static reading of its expiry was
+wrong in a way two independent instruments agreed on.**
+A POST to `/boafrm/formLogin` makes a gated page return 200 with 5,332 bytes to
+the logging-in address carrying no credentials, while a second address on the
+same wire gets 302 at every sample. The published reading says the window is
+system uptime and shuts permanently at 601 s. Measured against two anchors 706
+seconds apart, it shuts at **login + 601** both times — the second window closed
+between samples at 1538.1 and 1541.2 against a prediction of 1540.5, and a login
+at uptime 939.5 reopened a window the stated mechanism says can never reopen.
+So `beforeuptime` has a store that Ghidra's reference model and
+`tools/mipsref.py` both missed, with a working control in the same run.
+*Evidence:* `BENCH-LOG.md` `T-47`; `reports/test-results.json` `P2-11`;
+`tools/session-window.sh`; `$FWRE_WORK/dumps/p2-11-session-window.json`.
+*What it demonstrates:* the repository's own two-source rule catching its own
+report — and the lead is inside that report already, which renders a
+`strcpy`-written global as `writes:false` and was never read as a limitation.
+
+**3. Three results inverted between the first reading and the last, and each
+inversion came from a control rather than from more thought.**
+An over-long SSDP `ST` drew no reply and looked like a length check; the match
+turned out to be a prefix match, and once the ST matched, `wscd` died with
+`SIGSEGV ... invalid read from 4187c8bc` — one byte of a live pointer
+overwritten, not `41414141`. A SUBSCRIBE `CALLBACK` above 215 bytes returns
+`412` with the service alive and looks protected; at 180 it returns 200 and the
+service never answers again, so **the guard's threshold sits above the buffer**.
+And `boa` counted zero connections under 200 held sockets — because it listens
+on a dual-stack IPv6 socket, and the same file had already failed to list port
+80 while the server was answering. Counted from `/proc/net/tcp6` it holds 251
+and serves throughout, which refutes the Slowloris row through its own second
+branch.
+*Evidence:* `BENCH-LOG.md` `T-50`, `T-59`, `T-61`; `reports/test-results.json`
+`P6-2`, `P6-3`, `P8-16`; `$FWRE_WORK/dumps/w07-console-*.log`.
+*What it demonstrates:* every one of the three first readings was defensible and
+wrong, and what separated them was a control the register had asked for — a
+positive control for the SSDP match, a narrower ladder, and a second way to
+count. **Not one of them was resolved by reasoning harder about the first
+measurement.**
+
+### What this half did NOT prove
+
+- **`P9-9` was not run, so nothing here is known to survive a factory reset.**
+  Every result in this session sits on a configuration that reset is predicted
+  to overwrite, and that prediction is itself untested. It was left deliberately
+  — pressing it on the dirty machine answers more — but the consequence today is
+  that the durability of `DHCP_MTU_SIZE=0` is measured across reboots and **not**
+  across a reset.
+- **Five rows have no target on this unit, and this project removed four of
+  them.** `P6-1`, `P8-7` and `P6-5` are recorded `na` because `UPNP_ENABLED` and
+  `ALG_SIP_ENABLED` are 0. That is not evidence about the firmware. Until those
+  are written back from the boot loader, nothing is known about whether
+  CVE-2014-8361 or CVE-2022-27255 reproduce here.
+- **The `wscd` wedge is not shown to be CVE-2021-35393.** One unauthenticated
+  SUBSCRIBE removes the whole WPS/UPnP surface until a power cycle, with no
+  fault logged, the process still sleeping and both ports still held. A wedge is
+  not a memory corruption and calling it one from behaviour would be the exact
+  inference the register exists to prevent.
+- **The NTP length bug has a behaviour and no root cause.** A 44-byte reply puts
+  the clock at `0xFFFFFFFF`, a value not present in the datagram; a correct
+  48-byte reply sets the right time. `/bin/ntp_inet` has not been read.
+- **`P1-11` has four sources and all four are the device describing itself.**
+  The refutation asks for a scan and no over-the-air measurement was taken.
+- **Route injection was not delivered.** The device's own DISCOVER requests
+  options 33, 121 and 249, so it is inside what it accepts — but the crafted
+  lease never reached it, and "it asked for the option" is not "it installs the
+  route".
+- **`hopeiot.net` was never answered.** The device asks for it within four
+  seconds of a WAN lease. What it would have sent is unknown.

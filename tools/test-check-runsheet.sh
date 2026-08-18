@@ -142,6 +142,37 @@ write_good
 sed -i 's|--week W05|--nosuchflag W05|' "$RS"
 expect_fail "a flag the tool does not accept" "does not accept"
 
+# The same failure one layer down, and it got past the case above for two weeks.
+# `--disclosure reveal` sat in three of runsheet.md's commands with CI green:
+# the flag is real, the VALUE is not, and argparse kills the command before it
+# does anything. A checker that reads `--disclosure` and stops has read the flag
+# rather than the command.
+write_good
+sed -i 's|python3 tools/rtcase.py todo --week W05|python3 tools/rtcase.py record --evidence telepathy|' "$RS"
+expect_fail "a value outside the flag's own choices" "rejects \`--evidence telepathy\`"
+
+# ...and the positive control, because a check that rejects every value would
+# pass the case above while making the runsheet unwritable.
+write_good
+sed -i 's|python3 tools/rtcase.py todo --week W05|python3 tools/rtcase.py record --evidence dynamic|' "$RS"
+if "$PY" tools/check-runsheet.py "$RS" >/dev/null 2>&1; then
+  ok "a value that IS in the flag's choices"
+else
+  bad "a value that IS in the flag's choices — rejected, so the check is not usable"
+  "$PY" tools/check-runsheet.py "$RS" 2>&1 | sed 's/^/          /'
+fi
+
+# A shell variable is not a value this checker can resolve, and pretending
+# otherwise would turn a real check into a plausible one.
+write_good
+sed -i 's|python3 tools/rtcase.py todo --week W05|python3 tools/rtcase.py record --evidence "$KIND"|' "$RS"
+if "$PY" tools/check-runsheet.py "$RS" >/dev/null 2>&1; then
+  ok "a shell variable as the value is left alone"
+else
+  bad "a shell variable as the value is rejected — the checker is guessing"
+  "$PY" tools/check-runsheet.py "$RS" 2>&1 | sed 's/^/          /'
+fi
+
 write_good
 sed -i 's|§8.12.3|§8.99.9|' "$RS"
 expect_fail "a cross-reference that resolves to no RUNBOOK heading" "does not resolve"

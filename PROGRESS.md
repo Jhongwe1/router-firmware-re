@@ -4136,3 +4136,245 @@ live row with no procedure. Run today, it is wrong twice:
 | **2. Open a PR so the remote actually runs** | ❌ | Pushed to `origin/w07-bughunt` on 2026-08-18. **No run started**: the workflow fires on `push: main` and on `pull_request`, and PR #15 was merged this morning. `gh pr create --base main --head w07-bughunt`, then `gh run list` — local green has never been the same claim as remote green, and this branch has not had a remote run since `067d0cc` |
 | **3. `P8-12`, `P8-23`'s sibling** | ❌ | `config-diff.py` now writes a field and proves where it landed. `P8-12` still needs an *encoder*, which is a different thing, but the differential is no longer the blocker |
 | **4. Open #68** | ✅ | The gate question is the one thing today could not answer under emulation at all |
+
+## W07 Day 6 — the bench visit, and five targets this project had already destroyed — 2026-08-18
+
+The first session that touched the device since W06. Twenty-one register rows
+closed and four upgraded from emulated to dynamic, across five power cycles and
+two cable moves. Three of the results are heavy, and one of them was found while
+looking for something else.
+
+### The closure list was under-reporting by four, and the tool says so itself
+
+`make todo WEEK=W07` opened the session at 29 outstanding. Four of the rows it
+called **done** were closed on `emulated` evidence and had a silicon step
+scheduled for that same night — `P2-9` and `P8-5` under `A3.13`, `P1-7` and
+`P5-6` under `A3.23`. `week_summary()` decides `done` on `if c["id"] in latest`,
+which asks whether a result exists and never asks what kind, while the same file
+carries a constant named `EMULATED_CONFIRMED_MARK` whose comment reads **"it
+never becomes the tick"**. Two statements in one file, and the output follows
+the weaker one.
+
+`P5-6`'s own note had already said it out loud: *"反證條件（模擬下的崩潰在實體機上
+重現不了）只有實機能答，那是 `A3.23`"* — a row whose refutation condition states
+that only the device can answer it, sitting on the closed list.
+
+All four were re-recorded with `--evidence dynamic` during the visit. `rtcase
+record` appends and `latest_results` takes the last, so this is the path the tool
+was built for; the ledger shows the run count. **The outstanding number did not
+move on any of the four**, which is the defect demonstrated four times.
+
+### `formSchedule` at the same address, and the guard set above the buffer
+
+Two crash results, and they are different shapes.
+
+`A3.23`'s terminal shot reproduced the emulated crash **at the address the desk
+work predicted**: `do_page_fault() #2: sending SIGSEGV to boa for invalid write
+access to 004725d0 (epc == 2aafe218, ra == 00445974)`. That is the empty-string
+literal in the read-only segment, and the access is a write to it. So the
+qemu-user environment is admissible as a filter, and `P5-6`'s refutation did not
+fire. The other half mattered more and ran first: `formNtp`, `formDMZ` and
+`formWlanSetup` all survive an empty-body POST on silicon, so the alignment
+explanation stands and nothing measured with `tools/alignfix` rolls back.
+
+`CVE-2021-35392` reproduces against `wscd` from one unauthenticated UDP datagram.
+The first ladder measured nothing while looking like it had: an over-long `ST`
+that matches no served service draws no reply, and no reply is indistinguishable
+from a length check. The match turned out to be a **prefix** match, so a valid ST
+plus padding both matches and overflows; the echoed length tracks the input
+exactly, and at total length 271 the reply goes out and the process is dead
+immediately after. The fault address is `4187c8bc`, not `41414141` — one byte of
+a live pointer overwritten and three original, a partial pointer overwrite.
+
+`CVE-2021-35393`'s vector produced the more interesting reading, and the first
+conclusion was wrong. Lengths from 215 to 1047 come back `412 Precondition
+Failed` with `wscd` alive, which reads as a length check doing its job. Narrowing
+inverted it: 170 is fine, **180 answers 200 and then `wscd` never answers
+again**. The guard exists and its threshold sits above the buffer, so the fatal
+window is the range long enough to overflow and short enough to pass — and
+testing only past the threshold reports the service as protected.
+
+And what happens at 180 is not a crash. The console logged nothing, while it
+logged both of the night's real faults; `ps` still shows the process, sleeping;
+a restart attempt fails with `Failed to open socket for HTTP. EXITING` because
+the sockets are still held. `/proc/net/tcp6` has lost 52881 while
+`/proc/net/udp` still shows 1900 bound with 2,088 bytes unread in its receive
+queue. The process is out of its select loop and holding both ports. **No fault
+to log, no exit for anything to respawn, and nothing else can take the ports.**
+
+### The session arm is real, it expires from the login, and two tools missed the store
+
+`P2-11` is the row only the device could answer, and it half-refuted the reading
+it was written from. The IP-keyed third arm exists: a POST to `/boafrm/formLogin`
+from `10.1.1.100` makes `/password.htm` return 200 with 5,332 bytes to that
+address **carrying no credentials**, while `10.1.1.101` on the same wire gets 302
+at every one of sixty-odd samples.
+
+The expiry is not what `notes/auth-session-ip.md` says. Its table states that at
+601 s and after, `authipaddr` is overwritten before it is compared, so the IP
+session **can never succeed again until the device reboots**. Measured: the first
+login at uptime 232.9 left the window open through 809.3, and a second login at
+uptime 939.5 — 338 s past the predicted permanent close — reopened it, which the
+stated mechanism forbids outright. That second window shut between samples at
+1538.1 and 1541.2 against a prediction of login+601 = 1540.5. Two anchors 706
+seconds apart, both landing on login+601.
+
+So `beforeuptime` is assigned at login, and refutation branch (b) is what fired:
+Ghidra's reference model and `tools/mipsref.py` missed the same store while a
+control in the same run reported one read and one write. Per the register's own
+instruction the instrument is fixed before this row is argued further. A lead
+that costs nothing: that report already renders `authipaddr` at `0x00486270` as
+six reads and zero writes, while the note states `form_formLogin` writes it at
+`0x0044f13c` — through `strcpy`, so the address is an argument and never stored
+to. **A genuinely written global reading as `writes:false` has already happened
+once in that file, and it was not read as a limitation of the scanner.**
+
+The first version of the procedure used a Basic-auth GET as the login and
+measured 302 straight afterwards. That looks exactly like "the arm is dead on
+this unit". The arm is written by the login form handler; Basic auth goes
+through `process_header_end` and never reaches it. **A self-inflicted false
+negative, one wording away from being written up as the week's heaviest
+refutation.**
+
+### Five targets, destroyed by this project's own test, and the fifth is a persistent WAN DoS
+
+W05's unauthenticated POST round swept every non-hazardous endpoint with
+parameters absent. Its record lists what changed and concludes that **no field
+moved in a dangerous direction**. That sentence is true and it is not the whole
+consequence. Four of tonight's rows had no target because of it:
+
+| field | W05 wrote | tonight's row |
+|---|---|---|
+| `UPNP_ENABLED` | `1 -> 0` | `P6-1`, `P8-7` — `miniigd` not running, 52869 closed |
+| `ALG_SIP_ENABLED` | `1 -> 0` | `P6-5` — no SIP helper, no conntrack expectation |
+| `SSH_ENABLED`, `TELNET_ENABLED` | `1 -> 0` | background for the command-surface rows |
+| **`DHCP_MTU_SIZE`** | **`1500 -> 0`** | **`P8-19`** |
+
+The last one is not a disabled service. With the cable in the WAN port, a rogue
+DHCP server running, across a full boot and 160 seconds, **zero packets crossed
+the wire** — no DISCOVER, no ARP, nothing, while `udhcpc -i eth1` was in `ps` and
+`WAN_DHCP` read 1. `ifconfig` showed `eth1` with `MTU:0` against `eth0`'s 1500,
+and `flash get DHCP_MTU_SIZE` returns 0.
+
+The chain is measured rather than inferred. `ifconfig eth1 mtu 1500` took, so
+MTU 0 is configuration and not hardware; `udhcpc` was poked; the cable went back
+to the same port with the same host and the same server, and the exchange
+completed at once — DISCOVER, OFFER, REQUEST, ACK, then an ARP for the gateway.
+**One variable changed.**
+
+So an unauthenticated POST with parameters absent writes `DHCP_MTU_SIZE=0` to
+flash, the WAN interface comes up unable to transmit, and the router cannot
+obtain a WAN address at all — across every reboot since 2026-08-17. And it
+composes: a WAN that is down starts `dnsspoof`, which answers **every** name with
+`10.1.1.1`, including a name in an invalid TLD. Every LAN client's every lookup
+lands on the web server that carries unauthenticated command injection (`P3-3`),
+the uninitialised credential pair (`P2-9`) and unauthenticated password change
+(`P10-3`). **One request, and rebooting does not clear it.**
+
+`/var/info` records the vendor's own view of the middle of that chain: `dnrd cmd
+in start_wanphy_dnrd 3 = 192.168.77.1` — the rogue DNS address from the lease
+becoming the LAN relay's upstream.
+
+### Two instrument failures, and one of them would have inverted a result
+
+**`/proc/net/tcp` never shows `boa`.** Counting Slowloris connections from it
+returns zero while 200 sockets are held, because `boa` listens on a dual-stack
+IPv6 socket and IPv4 clients appear in `/proc/net/tcp6` as `::ffff:` mapped
+addresses. The same file had already failed to list port 80 as LISTENING earlier
+in the session while the server was demonstrably answering — **that impossibility
+is what made the second attempt happen**. Counted correctly, `boa` holds 251
+established connections and serves throughout, so `P8-16` is refuted through its
+second branch and boa's connection handling needs re-reading.
+
+**A short `curl` timeout is indistinguishable from a crash.** `formWlanSetup`
+recorded `000` at `-m 6` and returns 200 after 10.3 s. Second occurrence of the
+false-negative shape `bench-probe.py`'s own documentation warns about, in one
+session.
+
+### `--disclosure reveal` was in three commands, and the checker read the flag rather than the command
+
+`runsheet.md` passed `--disclosure reveal` to `fwrecon compcs` in three places;
+the tool accepts `open` and `protect` and argparse kills the command before it
+does anything. CI was green throughout, because `tools/check-runsheet.py`
+verifies that a flag appears in the tool's own `--help` and stops there —
+`--disclosure` is real and `reveal` is not a flag at all. **Same shape as the
+`AUTOBURN: 0` failure the checker was written for, arriving through the one gap
+the first fix left open.** The checker now recovers `choices=` sets from the help
+text and validates the value, with three guard cases in
+`tools/test-check-runsheet.sh` — one that must fail, one that must pass, and one
+that proves a shell variable is left alone rather than guessed at.
+
+### Instrument work
+
+- **`tools/session-window.sh`** — new. `P2-11` had no procedure anywhere:
+  `A3.2`'s heading claims it and the section's own body says the power-up
+  delivers *three* things and never mentions it, and `coldboot-timing.sh`'s
+  header lists the same three. The tool polls both source addresses across the
+  boundary rather than sampling two points, because "it expires at 601" is the
+  claim and a two-point test cannot miss by a second.
+- **`tools/check-runsheet.py`** — `declared_choices()` plus the value check
+  described above.
+- **`tools/test-check-runsheet.sh`** — 32 cases to 35.
+
+### Corrections to the plan
+
+| | |
+|---|---|
+| **The bench visit is 31 device rows, not 30.** | `make todo` says 29 outstanding, of which 2 are desk; the run order in `B-W07 增補` has a slot for 24 of the remaining 27, because **`A3.21` is missing from the 第 3 站 ⑤ list** (`P8-17`, `P8-20`) and **station 2 is not scheduled at all** (`P9-4`). Add the four rows the register calls done on emulated evidence and the night's real card count is 31. `BENCH-LOG.md`'s Day 4 entry says 30, which was correct when it was written and went stale when `P8-23` closed |
+| **`A3.2` claims `P2-11` and had no procedure for it.** | The heading says "一次上電餵四項（關 `P1-12` · `P2-11`）"; the body says three things and lists `P1-12`, `P9-1` and a log. `check-runsheet.py` verifies that a heading's claimed ids exist in the register and that executed rows are claimed by some step, and **neither direction can see a step whose body has no procedure for one of the ids it claims**. Written as `A3.2.4` on the night, before it was run |
+| **The IoC baseline in this session's own plan entry was wrong, and it would have aborted the visit.** | It said 4 / 343. The correct figure has been 0 / 343 since W05's afternoon POST round overwrote `COMPDS`, and W05 and W06 both recorded it. The same error appears in the 2026-08-18 morning plan entry. Both were copied from the **example value** inside `runsheet.md` `A2.3.4`'s note — whose text says, in bold, that the number is not a constant. Measured 0, matching. Corrected by appending, per the file's own rule |
+| **`A3.23`'s two shots are numbered in the order that cannot be run.** | Shot one is terminal for `boa`; shot two needs it alive. Fixed in Part A with the numbering left visible |
+| **`--disclosure reveal` appeared in three commands and one explanatory comment.** | All four corrected; the checker extended so it cannot recur silently |
+
+### Deliberately not done
+
+| Item | Why |
+|---|---|
+| **`P9-9`, the reset button** | The one device row left, and deliberately. It overwrites `COMPCS` with `COMPDS` and erases the ground every other result stands on — and the ground at the end of this session is worth something: `DHCP_MTU_SIZE=0`, `UPNP_ENABLED=0` and `ALG_SIP_ENABLED=0` are all still in place, so pressing reset answers `P9-9`'s own prediction **and** gives the third independent check on `P8-19`'s causal chain in one measurement |
+| **`P5-2`, ret2libc** | Unchanged. The honest version of the question is about the device, not `qemu-user`'s mmap layout |
+| **`P4-6`** | Desk row, not attempted; the device work took the session |
+| **Restoring `UPNP_ENABLED` / `ALG_SIP_ENABLED`** | The only route is a boot-loader write from station 2 — this build's web UI has no page for either, all 31 pages in `menu.htm` were enumerated on the running device |
+| **Route injection via DHCP options 33 / 121 / 249** | The device's own DISCOVER requests all three, so it is inside what it accepts, but the crafted lease was never delivered: the 3600 s lease was still live and forcing a renew needs LAN-side access that the WAN cable position denies |
+| **Reading `/bin/ntp_inet`** | A 44-byte NTP reply makes the clock land on `0xFFFFFFFF`, a value not in the datagram, while a correct 48-byte reply sets the right time. That is a behavioural observation and the root cause needs the binary |
+| **The over-the-air wireless scan** | `P1-11` stays partial. Four device-side sources agree on 2.4 GHz b/g/n with no WPA3, but they are the device describing itself; the refutation asks for a scan, and the host's Wi-Fi needs a Windows privacy setting changed |
+
+### Open, carried forward
+
+66. **`formtable-scan.py` is validated on one build of six.** Unchanged.
+67. **`formSysCmd` was reintroduced by 2016 and nothing says who or why.**
+    Unchanged — V2.1.1-B20150708 still not fetched.
+69. **Nothing fires if `unshare` is removed from `guest()`.** Unchanged.
+70. **Nothing makes a finding consult `notes/prior-art.md` first.** The rule is
+    in `docs/disclosure.md`; nothing enforces it.
+71. **A step may claim a test id and carry no procedure for it, and both
+    directions of `check-runsheet.py` are blind to it.** `A3.2` claimed `P2-11`
+    for a day with a body that says it delivers three things. The fix is not
+    obvious: the checker would have to know which prose belongs to which id.
+72. **`beforeuptime` has a write that two independent instruments missed.**
+    Measured from the device: the session window expires at login+601, not at
+    uptime 601. The lead is that the same report renders a `strcpy`-written
+    global as `writes:false`, so the scanner's model of "written" is
+    address-taken versus address-stored — and nothing in the repository says so.
+73. **W05's POST round wrote `DHCP_MTU_SIZE=0` and the WAN has been dead since.**
+    The finding is closed; what is open is that **no measurement in this project
+    would have noticed**. Four bench sessions ran between then and now. A
+    per-session check that the device can still do its primary job does not exist.
+74. **`hopeiot.net`.** The device asks for it within 4 s of getting a WAN lease.
+    No document in this repository mentions it, its purpose is unknown, and what
+    it sends was never seen because the name was never answered in time.
+75. **`wscd` wedges without exiting, and nothing watches it.** One unauthenticated
+    SUBSCRIBE removes the WPS/UPnP surface until a power cycle. Whether the
+    mechanism is CVE-2021-35393's overflow is not established.
+
+### Where W07 stands, and what the next session does first
+
+**Register: 55 / 58.** Outstanding: `P9-9` (device), `P4-6` (desk), `P5-2`
+(deliberately cut in all but name).
+
+| Next | Needs the device? | Note |
+|---|---|---|
+| **1. `P9-9`, and the H601 snapshots either side of it** | ✅ | `A3.24`. It answers its own prediction and gives `P8-19` a third source in one press. Do it on the dirty machine, not after a clean boot |
+| **2. `UPNP_ENABLED` and `ALG_SIP_ENABLED` back to 1 from station 2** | ✅ | The only route; unblocks `P6-1`, `P8-7`, `P6-5` |
+| **3. `P4-6`** | ❌ | The last desk row |
+| **4. Open #72 — the missing store** | ❌ | Extend `mipsref.py` to report address-taken separately from address-stored, then re-run against `beforeuptime` and `authipaddr` |
+| **5. Open #73 — a liveness check** | ❌ | `make doctor` or the runsheet's opening station should notice that the device cannot reach its own WAN |
