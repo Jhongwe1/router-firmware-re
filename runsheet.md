@@ -35,7 +35,8 @@
 | `A1.3` | 從 dump 讀出 bootloader 能不能傳 kernel cmdline | `P9-1` |
 | `A1.4` | 用 qemu-user 把這台自己的 binary 跑在 x86 上 | `P3-0` `P3-6` `P0-9` |
 | `A1.5` | 分派表的第二個來源，六個 build 逐一比 | `P8-21` `P5-7` |
-| `A1.6` | 參數缺席、長度階梯、協定炸彈，輸入由閘門算出來 | `P4-5` `P4-6` `P4-8` `P4-9` |
+| `A1.6` | 參數缺席、長度階梯、協定炸彈，輸入由閘門算出來 | `P4-5` `P4-8` `P4-9` |
+| `A1.10` | 公告的端點與參數名，逐一對這個 build 比 | `P4-6` |
 | `A1.7` | 崩潰定性：訊號、位址，以及那個位址在哪個段 | `P5-1` `P5-2` `P5-3` `P5-4` `P5-6` |
 | `A1.8` | 別的家族才有的路徑，在這一台上是什麼反應 | `P3-8` `P3-9` `P3-10` `P3-11` `P3-12` `P1-9` |
 | `A1.9` | 設定區差分：改一個已知值，再看哪幾個 byte 動了 | `P8-23` `P8-12` |
@@ -597,7 +598,7 @@ N300RT V3.4.0-B20190315 裡**還在** —— 廠商的移除是逐產品的，�
 
 ---
 
-### A1.6 參數缺席、長度階梯、協定炸彈：輸入清單由閘門自己算出來（關 `P4-5` · `P4-6` · `P4-8` · `P4-9`）
+### A1.6 參數缺席、長度階梯、協定炸彈：輸入清單由閘門自己算出來（關 `P4-5` · `P4-8` · `P4-9`）
 
 | 層 | 動到裝置 | 為什麼這一節存在 | 最後驗證 |
 |---|---|---|---|
@@ -820,6 +821,70 @@ the two paths name the same field, and only that field.
 
 ---
 
+### A1.10 公告的端點與參數名，逐一對這個 build 比（關 `P4-6`）
+
+| 層 | 動到裝置 | 為什麼這一節存在 | 最後驗證 |
+|---|---|---|---|
+| **T1**（只讀已提交的報告，連 dump 都不用） | 沒有 | [`RUNBOOK` §8.12.39](RUNBOOK.md) | 2026-08-19 |
+
+**先決條件**：沒有。這是整份作業單裡唯一一節，一份 clone 就跑得完。
+
+> 🔴 **`P4-6` 以前掛在 `A1.6` 的標題上，而 `A1.6` 的內容從頭到尾沒有它。**
+> `A1.6` 做的是參數缺席／長度階梯／協定炸彈，那是 `paramfuzz.py`；
+> `P4-6` 問的是「公告寫的端點與參數名，在這一台上對不對得上」，那是另一件事。
+> 標題宣稱關掉一列而內容沒有它的程序，是 `PROGRESS.md` 開放題 #71 的形狀 ——
+> 兩個方向的檢查器都看不見它。2026-08-19 拆成自己的一節。
+
+```bash
+python3 tools/cve-endpoints.py --json reports/cve-endpoints-unit-2018.json
+```
+
+**預期**（節錄；完整輸出是 16 列）：
+
+```text
+advisories parsed: 33   root_form entries: 57   builds compared: 6
+
+  CVE              endpoint                     param          here?   param?
+  CVE-2024-51228   /boafrm/formSysCmd           sysCmd         yes     yes
+  CVE-2025-3989    /boafrm/formStaticDHCP       Hostname       yes     case:hostname
+  CVE-2025-3988    /boafrm/formPortFw           service_type   yes     NO
+  CVE-2025-6299    /boa/formWSC                 targetAPSsid   NO      NO
+  CVE-2025-3992    /boafrm/formWlwds            submit-url     NO      NO
+  CVE-2025-3995    /boafrm/fromStaticDHCP       Hostname       NO      NO
+
+endpoints that are not a route on this build at all:
+  CVE-2025-3992 /boafrm/formWlwds
+      present in: none of the 6 scanned   nearest name here: formWlWds, formWsc
+  CVE-2025-3995 /boafrm/fromStaticDHCP
+      present in: none of the 6 scanned   nearest name here: formStaticDHCP
+
+controls ok: /boafrm/formSysCmd sysCmd found, /boafrm/formNoSuchThingZZ and
+             zzNoSuchParameterZZ absent
+```
+
+**要看的三欄，順序就是這個**：
+
+| 欄 | 意思 | 為什麼它比狀態碼重要 |
+|---|---|---|
+| `here?` | 這個端點在**這一台**的 `root_form[]` 裡嗎 | `NO` 代表照公告逐字重現會拿到 404，而 404 讀成「沒有這個漏洞」是錯的 |
+| `param?` | 公告寫的參數名，在那個 handler 參照的字串裡嗎 | `case:` 代表**只差大小寫**，而這台的表單欄位名是有大小寫的 —— 送錯的那個名字 handler 根本不讀 |
+| `nearest name here` | 這一台最接近的名字 | 那是把「公告寫錯了」變成「公告指的是這個」的那一半 |
+
+> ❌ **`CONTROL FAILED` → 停，而且不要看上面的表。** 三個控制組任何一個倒了，
+> 「這一台沒有這個端點」那一整欄就不能用：正對照（`formSysCmd`/`sysCmd` 必須找到）
+> 倒了代表比對器壞了；負對照（一個編出來的端點必須回報不存在）倒了代表它對什麼都說是；
+> 解析下限（`notes/cve-status.md` 至少要讀出 15 列）倒了代表它在讀一份殘片。
+
+> 🔴 **公告清單不在這支工具裡。** 它從 [`notes/cve-status.md`](notes/cve-status.md)
+> 解析出來——那份檔案是那張矩陣的擁有者。工具帶第二份就是同一份狀態的第二個擁有者，
+> 兩份會在一週內對不起來。代價是要對散文寫解析器，而那個代價由「解析不到就拒絕跑」付。
+
+> ⚠️ **這是靜態的。** 參數名出現在 handler 參照的字串裡，只代表那個 handler 提到它，
+> **不代表它從請求裡讀那個名字**，更不代表溢位重現得出來。這一節回答的是比較窄的問題：
+> **照公告逐字重現，打的東西在這一台上存不存在。**
+
+---
+
 ## 第 2 站 · 板子停在 `<RealTek>`
 
 **照順序** `A2.1` → `A2.2` → `A2.3` → `A2.4` → `A2.5` → `A2.6`
@@ -913,6 +978,25 @@ usbipd detach --busid 2-4
 - [ ] CP2102 的 `RX` → 板子 `TX`（pin 2）；CP2102 的 `TX` → 板子 `RX`（pin 3）；`GND` → `GND`（pin 4）
 - [ ] **不要按 reset 鍵** —— 它會用出廠預設蓋掉現行設定
 - [ ] **電源還沒插**
+
+> 🔴 **接了 UART 轉接器，這塊板子可能就不開機 —— 而它跟一塊磚頭長得一模一樣。**
+> 2026-08-19 進站踩到：三次完整斷電重開，序列埠 **0 bytes**、ARP `INCOMPLETE`、
+> HTTP `000`，前面三顆燈同時亮而且不閃 —— 一個跟正常開機與 bootloader 都不一樣的狀態。
+> **修法是把 CP2102 從排針上整個拔掉，只留電源上電。它立刻開機。**
+> 原因是 USB 轉序列埠的 TX 腳在板子沒電或剛上電時，會經由板子 RX 腳的 ESD 二極體倒灌。
+> 上面那條「pin 1 的 `VCC` 不要接」是同一個問題的一半，而另一半以前沒有人寫下來。
+>
+> **所以搬動過機殼（例如為了反覆拔插電源）之後，先把三根杜邦線重新插緊，特別是
+> GND（pin 4）**：GND 接觸不良正是讓倒灌變成「起不來」的那個條件。
+> 而如果已經進入這個狀態，**依序做這三個，第一個就會中**：
+>
+> 1. 把 CP2102 從排針上拔掉，只留電源，上電
+> 2. 換一顆電源變壓器，或把圓孔插頭重插到底（三顆燈同時亮也是電流不足的長相）
+> 3. 網路線也拔掉，只留電源
+>
+> 🔴 **不要先按 reset。** 這台的 reset 是使用者空間 daemon（`/bin/reload`）在輪詢
+> `/proc/load_default`，Linux 沒起來就沒有人讀那個按鈕 —— 按下去不會有作用，
+> 而它會讓之後任何 `P9-9` 的結果多一個解釋不掉的變數。
 
 **做什麼**（先跑這個，**然後**才插電）：
 
@@ -1741,7 +1825,55 @@ ip route get 10.1.1.1
 **`tools/bench-probe.py` 每一次執行都自己查這件事**並記進 transcript,
 而且對 `ssdp` 那一組**直接拒絕執行**。所以那支工具的結果可以信；手打的不一定。
 
-#### A3.1.4 收尾：記下起點
+#### A3.1.4 ★ 開工前問裝置：它還能不能做它的本業
+
+**這一步在 `A3.1.5` 之前，而它的位置就是它的論點：網段證明是直連之後、
+在任何一項量測之前，先問這台路由器還能不能路由。**
+
+```bash
+make liveness
+```
+
+**預期（一台健康的機器）**：
+
+```text
+device-liveness: http://10.1.1.1/config.dat -> 7490 bytes, 343 named fields
+  ok    DHCP_MTU_SIZE    expected 1500         got 1500
+  ok    WAN_DHCP         expected 1            got 1
+  ok    OP_MODE          expected 0            got 0
+  ok    IP_ADDR          expected 10.1.1.1     got 10.1.1.1
+  ok    USER_PASSWORD    expected <non-empty>  got <set>
+
+  verdict: OK
+```
+
+> 🔴 **這一節存在的理由是一次失敗，而那次失敗持續了兩天。**
+> W05 的未認證 POST 輪把 `DHCP_MTU_SIZE` 從 1500 寫成 0，`eth1` 從那天起以
+> `MTU:0` 開機、送不出任何封包、拿不到 WAN 位址 —— 而**四場進站沒有一場注意到**，
+> 因為這個專案每一個儀器問的都是「主機準備好了沒」，沒有一個問「裝置還能用嗎」。
+> `PROGRESS.md` 開放題 #73。
+
+**三種結果，三種意思，不要混：**
+
+| 輸出 | exit | 意思 |
+|---|---|---|
+| `verdict: OK` | 0 | 每一個本業欄位都成立。可以開工 |
+| `verdict: BROKEN` | 1 | **裝置回應了，而它不在做它的本業。** 失敗的那一格自己會說壞了會怎樣。**不要在這個狀態下開工** —— 之後每一個負面結果都會多一個沒人寫下來的解釋 |
+| `did not serve /config.dat` | 3 | 裝置沒上電、線沒接、或網段還沒起來。**什麼都沒有量到** —— 這不是通過也不是失敗 |
+| `verdict: UNUSABLE` | 1 | 解碼器指到錯的位移，或 MIB 表跟這個 build 不合。那是儀器問題不是裝置問題 |
+
+> ⚠️ **它讀的是持久設定，不是執行時狀態。** `/config.dat` 是 `boa` 啟動時從 flash
+> 的 `COMPCS` 區抓出來的，所以這一步看得見「跨重開機的破壞」——那正是沒人抓到的那一類——
+> 但看不見這一場手動 `ifconfig` 改過的東西、死掉的行程、或插錯埠的線。那些要靠線。
+
+> ⚠️ **第二半是漂移，而它不會讓 exit code 變紅。** 對 2026-08-16 凍結基準線每一個
+> 不同的欄位都會列出來。`BROKEN` 只看有名字的斷言，而**斷言只抓得到有人想過的破壞**；
+> `DHCP_MTU_SIZE` 在它壞掉兩天之後才有人想到它。漂移那一半是為了下一個。
+
+`make doctor` 的 tier 3 也跑同一支工具，所以一場正常的進站會問兩次：
+一次在桌面（裝置還沒上電，回 `--`），一次在這裡。
+
+#### A3.1.5 收尾：記下起點
 
 ```bash
 cat "/sys/class/net/$IF/statistics/rx_packets"
@@ -3540,6 +3672,169 @@ dig @10.1.1.1 +short example.com
 而且 `hostname` 與 `domain` **根本沒有被傳進去**。**這一節要問的是往 `sysconf`
 裡面移的那一跳。**
 
+#### A3.18.0 先決條件：`make liveness` 必須是 `OK`
+
+**這一節在 `DHCP_MTU_SIZE=0` 的機器上會量到零封包，而零封包跟「WAN 打不到」
+長得一模一樣。** 2026-08-18 就是這樣燒掉一輪：完整開機加 160 秒、假 server 在跑、
+`udhcpc -i eth1` 在 `ps` 裡、`WAN_DHCP` 讀 1，**線上一個封包都沒有**，
+而原因是 `eth1` 以 `MTU:0` 開機、送不出東西。所以先跑 `A3.1.4`。
+
+#### A3.18.1 🔌 網路卡從 LAN 埠改插 WAN 埠，主機換到 WAN 側網段
+
+**這一步之後 LAN 側就沒有了** —— telnet shell、`10.1.1.1` 的 HTTP、命令注入，
+全部斷。**所以 LAN 側要拿的東西先拿完。**
+
+```bash
+IF="$(ip -br link | awk '/^enx/{print $1; exit}')"
+sudo ip addr flush dev "$IF"
+sudo ip addr add 192.168.77.1/24 dev "$IF"
+ip -br addr show "$IF"
+ip route get 192.168.77.100
+```
+
+**預期**：
+
+```text
+enxfc19286184c9  UNKNOWN        192.168.77.1/24
+192.168.77.100 dev enxfc19286184c9 src 192.168.77.1 uid 1000
+```
+
+> 🔴 **`192.168.77.0/24` 不是隨便選的**，它是這台自己在 `A3.18` 兩次進站都用過的
+> 那個網段，而 `BENCH-LOG.md` 的 `T-62` / `T-71` 兩張卡都引它。換網段就要換那兩張卡
+> 的可比性。
+
+#### A3.18.2 🔌 起假 DHCP server，而它第一個拒絕條件比它的功能重要
+
+```bash
+IF="$(ip -br link | awk '/^enx/{print $1; exit}')"
+sudo timeout 150 tcpdump -i "$IF" -w "$HOME/fwre-work/dumps/wan-$(date +%H%M).pcap" -s0 &
+sleep 2
+sudo python3 tools/rogue-dhcp.py --iface "$IF"   --server 192.168.77.1 --offer 192.168.77.100 --netmask 255.255.255.0   --lease 600 --domain lab.invalid   --route 10.99.0.0/16=192.168.77.66   --seconds 140 --json "$HOME/fwre-work/dumps/wan-dhcp.json"
+```
+
+**預期**（`DHCP_MTU_SIZE` 正常的機器，插線之後 14 秒內自己來）：
+
+```text
+rogue-dhcp: serving on enxfc19286184c9 (192.168.77.1), offering 192.168.77.100,
+            routes [('10.99.0.0/16', '192.168.77.66')], for 140s
+  <<< DISCOVER xid=0x3db9717c requests options 1,33,121,249,3,6,12,15,28,44,46,47
+  >>> OFFER 192.168.77.100
+  <<< REQUEST xid=0x3db9717c requests options 1,33,121,249,3,6,12,15,28,44,46,47
+  >>> ACK 192.168.77.100
+rogue-dhcp: 2 client packet(s), lease completed
+```
+
+> 🔴 **`--iface` 不是方便，是那個拒絕條件的位置。** 一台 DHCP server 會回答任何
+> 問它的東西。起在錯的介面上，它會把位址、預設路由和 DNS 發給那條線上的其他東西 ——
+> 室友的筆電、手機、你正在讀這一行的那台機器。**那不是實驗，那是別人要 debug 的斷線。**
+> 工具會拒絕帶預設路由的介面，也會拒絕「介面自己的位址跟要發出去的網段不同網」。
+> 要越過那個拒絕，`--i-know-this-serves-addresses`，而在越過之前先讀那段訊息。
+
+> 🔴 **`--route` 一次送三個選項：121、249 和 33。** 那不是求保險，是因為
+> **這台自己的 DISCOVER 同時索取這三個**，而哪一個它真的照做是問題本身。
+> 代價是失去歸因（`PROGRESS.md` 開放題 #77）；要歸因就分三次各送一個。
+
+> ⚠️ **`requested options` 那一行要抄進紀錄卡。** `1,33,121,249,3,6,12,15,28,44,46,47`
+> 是裝置**自己宣告**它接受什麼，而那份清單比任何猜測都值錢：它同時是
+> 「路由注入在它接受的範圍內」的證據，和下一步要送什麼的清單。
+
+#### A3.18.3 🔌 從 WAN 側量它，趁 LAN 還沒接回來
+
+```bash
+ping -c 2 -W 2 192.168.77.100
+for p in 80 23 53 52869 52881; do
+  printf '  tcp/%-6s ' "$p"
+  timeout 3 bash -c "echo > /dev/tcp/192.168.77.100/$p" 2>/dev/null     && echo OPEN || echo 'closed/filtered'
+done
+```
+
+**預期**（ICMP 通，管理面全部關 —— 這是基線）：
+
+```text
+2 packets transmitted, 2 received, 0% packet loss
+  tcp/80     closed/filtered
+  tcp/23     closed/filtered
+  tcp/53     closed/filtered
+  tcp/52869  closed/filtered
+  tcp/52881  closed/filtered
+```
+
+> 🔴 **這一格是 `P8-7` 要推翻的那個基線。** 「管理介面 LAN-only」在協定層上是一句
+> 需要證據的話，而證據就是這五個埠從 WAN 側打不到。**先量基線，再談 UPnP 能不能
+> 把它推上 WAN** —— 反過來做的話，一個 `OPEN` 分不出「本來就開」和「被映射開的」。
+
+#### A3.18.4 🔌 線接回 LAN，讀它把那些東西寫到哪裡去了
+
+```bash
+IF="$(ip -br link | awk '/^enx/{print $1; exit}')"
+sudo ip addr flush dev "$IF"
+sudo ip addr add 10.1.1.100/24 dev "$IF"
+```
+
+然後用 `A3.23` 開的 telnet shell 讀四個檔（**`route -n` 是重點那一個**）：
+
+```text
+route -n
+ifconfig eth1
+cat /var/wan_phy
+cat /etc/resolv.conf
+cat /var/info
+```
+
+**預期**（注入的路由**兩種形式都在**）：
+
+```text
+Destination     Gateway         Genmask         Flags Iface
+10.99.0.0       192.168.77.66   255.255.255.255 UGH   eth1     <- option 33，無遮罩 → host route
+10.99.0.0       192.168.77.66   255.255.0.0     UG    eth1     <- classless（121/249）
+0.0.0.0         192.168.77.1    0.0.0.0         UG    eth1
+```
+
+```text
+/var/wan_phy      : interface eth1 / ip 192.168.77.100 / router 192.168.77.1
+                    / nameserver 192.168.77.1
+/etc/resolv.conf  : nameserver 192.168.77.1
+/var/info         : dnrd cmd in start_wanphy_dnrd 3 = 192.168.77.1
+```
+
+> ⚠️ **拔線之後路由會被 `deconfig` 清掉，`/etc/resolv.conf` 不會。** 所以
+> `route -n` 要在這一步立刻讀；而 `/etc/resolv.conf` 那一格 2026-08-18 在拔線之後
+> 仍然指著我方位址，那本身是一個結果。
+
+#### A3.18.5 對照組：ACK 之後那三發免費 ARP 宣告了什麼
+
+**這是整節最便宜、而且 2026-08-19 產出最重結果的一格 —— 而它是免費的，
+因為封包已經在 pcap 裡了。**
+
+```bash
+tshark -r "$HOME/fwre-work/dumps/wan-dhcp.pcap" -Y arp
+```
+
+**沒有送路由選項的那一輪**（2026-08-18）：
+
+```text
+24  14.128434  裝置 → Broadcast  ARP  ARP Announcement for 192.168.77.100
+25  15.047238  裝置 → Broadcast  ARP  ARP Announcement for 192.168.77.100
+26  15.968246  裝置 → Broadcast  ARP  ARP Announcement for 192.168.77.100
+```
+
+**送了 33 / 121 / 249 的那一輪**（2026-08-19）：
+
+```text
+10  27.427143  裝置 → Broadcast  ARP  ARP Announcement for 32.49.0.49
+11  28.436878  裝置 → Broadcast  ARP  ARP Announcement for 32.49.0.49
+12  29.448278  裝置 → Broadcast  ARP  ARP Announcement for 32.49.0.49
+```
+
+> 🔴 **同一段程式、同樣三發、距 ACK 同樣的偏移，宣告的位址從自己的租約變成垃圾。**
+> 而那個垃圾有位置：`32.49.0.49` 的四個 byte 是 `0x20 0x31 0x00 0x31` =
+> ASCII 空白、`1`、NUL、`1`，正是路由選項字串化之後 `…/16` 與 `192.168…` 中間
+> 那個「空白接 1」。**裝置拿了字串裡跨越分隔符的四個 byte 去當 IPv4 位址。**
+>
+> **這一格之所以能下結論，靠的是對照組而不是這一輪。** 上一輪在同一個網段、
+> 同一台裝置、同一支 `udhcpc`，只差沒送路由選項 —— 唯一的變數就是那三個選項。
+> **沒有那份對照，這三行只能寫成「看到一個怪位址」。**
+
 ---
 
 ### A3.19 🔌 儲存型注入：八個欄位裡這一週測得到的三個（關 `P8-2`）
@@ -3623,6 +3918,24 @@ sudo tcpdump -i eth1 -s0 -w dumps/w07-creds.pcap 'host 10.1.1.1 and tcp port 80'
 >
 > ⚠️ **那是一個沒有認證的 root shell**，收工前必須斷電。
 
+> 🔴 **在那個 shell 裡有一條命令不要打，而它 2026-08-19 讓整台停止回應。**
+> **不要對 `/dev/mtdblock*` 做 `bs=1` 的 `dd`。**
+> `dd if=/dev/mtdblock0 bs=1 skip=49152 count=7510` 是 57,000 次單 byte 讀，
+> 打在同時是 bootloader 與 kernel 來源的那顆 SPI flash 上。那一輪之後
+> 八個命令全部回空、網路與 console 同時沒了，而恢復要靠 `A2.2` 的三個實體測試。
+> **要讀整塊區域就回第 2 站用 `A2.3`**（`FLR` + `DB`，走 SoC 自己的路徑）；
+> 真的要在跑起來的系統上看幾個 byte，就用**區塊對齊的一次讀取**
+> （`bs=4096 skip=12 count=1`），不要用 `bs=1`。
+>
+> ⚠️ 哪一個命令造成的**沒有被指認** —— 八個都送在同一次連線裡。那條嫌疑是假設，
+> 不是量測（`PROGRESS.md` 開放題，`BENCH-LOG.md` `T-67`）。
+
+> ⚠️ **docroot 是 `/web`，不是 `/var/web`。** `/var/boa.conf` 寫著
+> `DocumentRoot /web`。把命令輸出寫到 `/var/web/x.txt` 再用
+> `http://10.1.1.1/x.txt` 取回，會拿到 **204 與 0 bytes** —— 而 204 跟
+> 「命令沒有執行」長得一模一樣。**telnet shell 比 docroot oracle 可靠**，
+> 而 oracle 一次只吃一條命令不吃腳本（`BENCH-LOG.md` `T-55`）。
+
 1. `formSchedule`，**缺 `webpage`**。預期：web server 消失且不會自己回來。
 2. 另外抽 2–3 個原本在那 39 個裡、現在活著的（`formNtp`、`formDMZ`）。
    **預期：它們在矽上會活著**，因為核心會補對齊。
@@ -3673,7 +3986,69 @@ cmp <(dd if="$HOME/fwre-work/dumps/BEFORE.bin" bs=1 skip=24576 count=4096 status
 **便宜的第二來源，而且不用多一次上電**：按鈕前後各從 `A3.23` 開的 telnet root
 shell 跑一次 `flash allhw`（`/bin/flash` 自己的 usage：`allhw -- dump all hw
 flash parameters`）。那是解碼後的視圖不是原始 bytes，所以它不取代上面的 `cmp`；
-它的價值是**同一次進站就答得出來**。
+它的價值是**同一次進站就答得出來** —— 而 2026-08-19 正好證明了那個價值：
+逐 byte 那一份沒有做成，序列埠接上去板子就不開機（`A2.2` 的 🔴）。
+
+**預期**（`flash allhw`，per-unit 值不抄進 committed 檔案，看的是結構有沒有值）：
+
+```text
+HW_BOARD_VER=2
+HW_NIC0_ADDR=…            HW_NIC1_ADDR=…
+HW_HW_WLAN0_WLAN_ADDR=…   HW_WLAN0_WLAN_ADDR1..7=…
+HW_WLAN0_TX_POWER_CCK_A=2b2b2b2b29292929292727272727
+HW_WLAN0_TX_POWER_HT40_1S_A=2f2f2f2f2d2d2d2d2d2c2c2c2c2c
+HW_WLAN0_TX_POWER_DIFF_HT40_2S / DIFF_HT20 / DIFF_OFDM=…
+HW_WLAN0_REG_DOMAIN=1 · HW_WLAN0_RF_TYPE=10 · HW_WLAN0_LED_TYPE=7
+```
+
+> 🔴 **`HW_NIC0_ADDR` 有一個免費的第三來源，而它在線上。** 它必須等於
+> `ip neigh show 10.1.1.1` 回的那個 MAC，也等於 flash `0x006000` 起第 8 個 byte
+> 開始那六個 byte。三者一致，`H601` 的位址判斷才站得住 —— 而三者一致是
+> 2026-08-19 實際量到的。
+
+#### A3.24.1 按下去之前與之後，各一發未認證 GET
+
+**這是這一節唯一不需要 shell、不需要憑證、不需要序列埠的量測，
+而它是 `P9-9` 主預測的判據。**
+
+```bash
+make liveness
+```
+
+**按之前**（一台被 W05 那一輪寫壞的機器）：
+
+```text
+device-liveness: http://10.1.1.1/config.dat -> 7510 bytes, 343 named fields
+  FAIL  DHCP_MTU_SIZE    expected 1500         got 0
+  20 field(s) differ from the frozen baseline
+  verdict: BROKEN
+```
+
+**按之後**：
+
+```text
+device-liveness: http://10.1.1.1/config.dat -> 7490 bytes, 343 named fields
+  ok    DHCP_MTU_SIZE    expected 1500         got 1500
+  verdict: OK
+```
+
+然後拿 sha256 去對 2026-08-16 那份 dump 的 `COMPCS` 區 —— **`49152` 是 `0xC000`，
+十進位**：
+
+```bash
+D="$HOME/fwre-work/dumps"
+curl -s -o "$D/postreset-config-dat.bin" http://10.1.1.1/config.dat
+LEN=$(stat -c %s "$D/postreset-config-dat.bin")
+cmp <(dd if="$D/flash-n150rt-console-1.bin" bs=1 skip=49152 count="$LEN" status=none)     "$D/postreset-config-dat.bin" && echo "IDENTICAL to the 2026-08-16 region"
+```
+
+**預期**：`IDENTICAL`，sha256 前 32 字元 `e09cbf8428aa15944ed75939e79820c5` ——
+**而那正好是 `A3.6.2` 寫的那個值**。按鈕把這台送回它第一次被讀到的狀態。
+
+> 🔴 **`7510 → 7490` 不是「差不多」。** 檔案是壓縮過的 `COMPCS` 映像，
+> header 12 bytes 加 `comp_len`；解壓後固定 45,226 bytes（MIB 筆數固定）。
+> 所以長度差異純粹是「這份內容壓得多好」：壞掉的設定 `comp_len` 7,498，
+> 原始設定 7,478。**判據是 sha256 不是長度**，長度只是它的一個側面。
 
 **預期**：`test-cases.toml` 的 `P9-9` 是擁有者，這一節不重述它。預測 2026-08-19
 改過 —— `COMPDS` 自己被 W05 那一輪 POST 寫壞了，所以「`COMPCS` 變回 `COMPDS`」
@@ -4111,3 +4486,27 @@ P2-9 的桌面半邊、P8-1 P8-5 P8-8 P8-10 P8-18 P8-24 P9-13 P10-7 ——
 同時還在原地，所以 reset 之後量它們**同時**回答 `P9-9` 自己的預測與
 `P8-19` 那條因果鏈的第三個獨立驗證。**在一台被弄髒的機器上按 reset，比在一台
 乾淨的機器上按，資訊量高得多。**
+
+## B-W07 收尾（2026-08-18 夜 — 2026-08-19 凌晨，**寫在跑完之後**）
+
+**這一場只有一個裝置目標（`P9-9`），而它跑成了。順序與實際跑的一致：**
+
+| # | 節 | 結果 |
+|---|---|---|
+| 1 | `A1.10` | **新增。** `P4-6` 從 `A1.6` 的標題搬出來變成自己的一節 —— 標題宣稱關掉它而內容沒有它的程序，是開放題 #71 的形狀 |
+| 2 | `A2.2` → `A2.3` | 抓到 bootloader，64 KiB 快照 `67fb5858…`。**IoC 預檢 0 / 343**（不是作業單範例裡那個 4）。`H601`（`0x006000`）與另外六份快照 byte 相同 |
+| 3 | `A3.1`（含新的 `A3.1.4`） | 網段直連 `ttl=64`；`make liveness` 回 **BROKEN**，指名 `DHCP_MTU_SIZE=0` |
+| 4 | `A3.23` 的 telnetd | 開了，`flash allhw` 與四個 `/proc` / `/var` 讀取都成功 |
+| — | — | **裝置在一輪 `dd if=/dev/mtdblock0 bs=1` 之後停止回應，三次斷電重開量到零。**恢復靠 `A2.2` 新增的那三個實體測試，第一個就中：把 CP2102 從排針上拔掉 |
+| 5 | `A3.24`（含新的 `A3.24.1`） | **`P9-9` ✅。** reset 後 `config.dat` 與 2026-08-16 的 `COMPCS` 區逐 byte 相同，`H601` 由 `flash allhw` 確認未動 |
+| 6 | `A3.18`（**整節重寫，六個子步驟**） | **`P8-19` 第 2 次 ✅。** 完整 DHCP 交握；option 33 與 121/249 的路由**兩種形式都進了核心轉送表**；`A3.18.5` 的對照組抓到 `32.49.0.49` |
+| 7 | `A4.1` | 登記、`make ledger`、`make ci` |
+
+**這一場沒有跑的，以及為什麼**：
+
+| 沒跑 | 為什麼 |
+|---|---|
+| `A2.3` 的第二份（reset 之後） | 需要第 2 站，而序列埠接上去板子就不開機。`H601` 的逐 byte 比對與 reset 後的 `COMPDS` 狀態都卡在這裡（開放題 76、80） |
+| `A2.5` / `A2.6`（寫 flash） | 進站前的計畫說那是 `P6-1`/`P8-7`/`P6-5` 的「唯一的路」。**兩件事都不成立**：那三列 2026-08-18 就已經以 `na` 結案，而 reset 把欄位還原了。全 repo 唯一不可逆的一節沒有被打開 |
+| 路由注入的歸因 | 33 / 121 / 249 一起送，為了在唯一拿得到的那份租約上確保送得到 |
+
