@@ -25,7 +25,7 @@ UNIT_DUMP  := $(FWRE_WORK)/dumps/flash-n150rt-console-1.bin
 .PHONY: help setup verify fetch unpack venv test lint recon recon-unit diff check-reports \
         rtcase rtcase-test todo ledger shellcheck ci clean-work qemu-env qemu-test probe-test \
         loader-test loader-report doctor check-runsheet runsheet-test \
-        dump-test flash-tools-test photo-test write-test check-benchlog benchlog-test
+        dump-test flash-tools-test photo-test write-test failopen-test check-benchlog benchlog-test
 
 help: ## Show this help
 	@grep -hE '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) \
@@ -183,6 +183,16 @@ photo-test: ## Prove the redaction and annotation guards fire (needs no photogra
 write-test: ## Prove the flash writer refuses every range it must not touch
 	bash tools/test-console-write.sh
 
+# The probe damages a flash image and asks the vendor's boot script what it does
+# about it, so every reading it produces is a difference from a control. Its
+# first working run reported seven states in which nothing happened, because the
+# boot script was being handed to qemu-user as if it were an ELF -- a complete,
+# plausible table of nothing. This suite covers the refusals that need no
+# emulation environment; the three in-run controls need root and a built profile
+# and are enforced a second time by check-reports.py on the committed artefact.
+failopen-test: ## Prove the fail-open probe's refusals fire (needs no device)
+	bash tools/test-failopen-probe.sh
+
 # Like recon-unit and qemu-env: needs the flash dump read off my own unit, so it
 # is not in `recon`. The report it writes is mostly a claim about what the boot
 # loader does *not* contain, which is why its committed form carries a positive
@@ -199,7 +209,7 @@ loader-report: ## Unpack the boot loader's LZMA stage 2 (needs the flash dump)
 # `rtcase-test` is in here and not optional. It is the only thing proving the
 # register gate can fail; without it `make rtcase` going green means nothing,
 # which is the exact shape of instrument bug 12.
-ci: lint test shellcheck check-reports check-runsheet check-benchlog benchlog-test rtcase rtcase-test qemu-test probe-test loader-test runsheet-test dump-test flash-tools-test photo-test write-test ## Everything CI checks, except the container build
+ci: lint test shellcheck check-reports check-runsheet check-benchlog benchlog-test rtcase rtcase-test qemu-test probe-test loader-test runsheet-test dump-test flash-tools-test photo-test write-test failopen-test ## Everything CI checks, except the container build
 	@echo "  ok   local CI equivalents passed (container build not included)"
 
 diff: venv ## Diff the two builds

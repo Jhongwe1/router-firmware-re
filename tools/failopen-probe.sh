@@ -76,16 +76,22 @@ while [ $# -gt 0 ]; do
   esac
 done
 
-[ "$(id -u)" -eq 0 ] || die "must run as root -- qemu-env.sh chroots"
-
 QENV="$REPO/tools/qemu-env.sh"
 [ -x "$QENV" ] || [ -f "$QENV" ] || die "no tools/qemu-env.sh"
 
+# Argument validation comes BEFORE the root check on purpose. It used to be the
+# other way round, and `--profile <typo>` as an ordinary user answered "must run
+# as root" -- so the operator would sudo, and only then learn the real problem.
+# That is instrument bug 24's lesson exactly: a failure that names the wrong fix
+# is worse than no message. Found 2026-08-18 by tools/test-failopen-probe.sh on
+# its first run, which is what a guard suite is for.
 case "$PROFILE" in
   unit-2018) ENVDIR="$FWRE_WORK/qemu-env-2018" ;;
   v2.1.2)    ENVDIR="$FWRE_WORK/qemu-env-v2.1.2" ;;
   *) die "unknown profile: $PROFILE" ;;
 esac
+
+[ "$(id -u)" -eq 0 ] || die "must run as root -- qemu-env.sh chroots"
 MTD="$ENVDIR/dev/mtdblock0"
 [ -f "$MTD" ] || die "no $MTD; run: sudo tools/qemu-env.sh --profile $PROFILE build"
 
@@ -162,11 +168,6 @@ telnet_flag() {
   echo "${v:-unreadable}"
 }
 
-# The control that would have caught the first run of this probe. `run` executes
-# its argument under qemu-mips-static, which wants an ELF; a #!/bin/sh script
-# handed to it produces no output and no effect, which is indistinguishable from
-# a boot script that decided to do nothing. Prove the shell runs before
-# believing anything the boot script did or did not say.
 # Every damaged state below ends with `flash default-sw` or `flash reset1` dying
 # on SIGBUS, and there are two readings of that: "this environment cannot write
 # flash at all" and "the RECOVERY write specifically dies". They lead to
@@ -182,6 +183,11 @@ write_control() {
   q reset >/dev/null 2>&1 || die "reset after write control failed"
 }
 
+# The control that would have caught the first working run of this probe. `run`
+# executes its argument under qemu-mips-static, which wants an ELF; a #!/bin/sh
+# script handed to it produces no output and no effect, which is
+# indistinguishable from a boot script that decided to do nothing. Prove the
+# shell runs before believing anything the boot script did or did not say.
 shell_control() {
   local got
   got=$(q run /bin/sh -c 'echo SHELL_RUNS' 2>&1 | tr -d '\r\0' | grep -c SHELL_RUNS)
