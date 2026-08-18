@@ -880,8 +880,8 @@ down before looking.
 **2. A hardening flag that claims a mitigation the kernel does not apply.**
 `/proc/sys/kernel/randomize_va_space` reads **2** — full ASLR — on a device whose
 library layout is fully determined by its ELF files across two processes and four
-boots. The sysctl is generic kernel code; Linux 2.6.30.9 on MIPS does not act on
-it.
+boots. The sysctl is generic kernel code; this device does not act on
+it, and the kernel source has not been read, so why is open item 86.
 *Evidence:* `BENCH-LOG.md` `T-83`; `notes/bughunt.md` row 24.
 *What it demonstrates:* **a source is not a measurement.** Reading the flag and
 stopping would have closed `P5-2` as refuted without a single address being

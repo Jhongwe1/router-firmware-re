@@ -4938,8 +4938,11 @@ same base, refutation did not fire. `system` is at `0x2ab08460`.
 
 **And the sysctl says the opposite.** `/proc/sys/kernel/randomize_va_space` reads
 **2** — full randomisation — while the layout is fully determined by the ELF
-files across two processes and four boots. Linux 2.6.30.9 on MIPS does not act on
-that flag. **Reading it and stopping would have closed this row as refuted
+files across two processes and four boots. **This device does not act on that
+flag, and *why* is unread** — the obvious explanation is that MIPS had no
+randomising `arch_pick_mmap_layout` at 2.6.30, and that is a hypothesis about a
+kernel source nobody here has opened. It is open item 86, with a test that needs
+no device. **Reading the flag and stopping would have closed this row as refuted
 without one address being looked at**, which is the general lesson: a hardening
 flag is a claim by a source, and a source is not a measurement. It is now
 `notes/bughunt.md` row 24.

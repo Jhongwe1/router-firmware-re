@@ -184,11 +184,16 @@ not describe this kernel, which is a separate question and still open.
 **Two is full randomisation** — mmap, stack, brk. And the layout above is fully
 determined by the ELF files, across two processes and at least four boots.
 
-The sysctl lives in generic kernel code and is writable on any Linux; whether an
-architecture *acts* on it is the architecture's business. Linux 2.6.30.9 on MIPS
-does not: `arch_pick_mmap_layout` with randomisation arrived on MIPS later, and
-this kernel allocates bottom-up from a fixed `TASK_UNMAPPED_BASE`. **So the flag
-advertises a mitigation the kernel does not apply.**
+**What is measured is that the two disagree, and that is where this stops.** The
+sysctl lives in generic kernel code and is writable on any Linux; whether an
+architecture *acts* on it is the architecture's business, and this kernel's
+allocations are bottom-up from a fixed base in every sample taken. The obvious
+explanation is that MIPS did not get a randomising `arch_pick_mmap_layout` until
+after 2.6.30 — **and that explanation is not evidence here, because this
+kernel's source has not been read.** It is written down as a hypothesis with a
+cheap test (a string scan of the decompressed kernel, no device required) and it
+is `PROGRESS.md` open item 86. **The flag advertises a mitigation this device
+does not apply; *why* is unread.**
 
 That is the practical lesson, and it is not about this router: **a hardening
 flag is a claim by a source, and a source is not a measurement.** Reading
