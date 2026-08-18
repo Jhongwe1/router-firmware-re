@@ -9,7 +9,7 @@ to be something other than what the project had assumed for four weeks.
 | binary | what it is | what is in it |
 |---|---|---|
 | `/bin/auth` 141,552 B | **not** the web credential checker — it is the **802.1X / WPA authenticator** | `RTLAuthenticator`, `lib1x_do_authenticator`, `lib1x_control_STA_SetGTK`, `lib1x_control_RSNIE`, `libnet_*`. W01 guessed "credential check", W04 filed it "off the critical path". Both were reasoning without reading. It is the daemon W08's `P7-5` (PMKID) and `P7-6` (4-way handshake) talk to |
-| `/bin/miniigd` 97,100 B | the UPnP IGD daemon, listening on **52869/tcp** (`P1-2` measured it open) | **SOAP-supplied values reach `system()` with no escaping**, and an unbounded `strcpy` sits on the same path. §2 |
+| `/bin/miniigd` 97,100 B | the UPnP IGD daemon, on **52869/tcp** — measured open 2026-08-16 (`P1-2`) and **closed** 2026-08-18 (`P6-1`); see §2 for why it moved | **SOAP-supplied values reach `system()` with no escaping**, and an unbounded `strcpy` sits on the same path. §2 |
 | `/bin/dnsspoof` 3,820 B | a captive-portal DNS responder started when the WAN drops | **a bounded out-of-bounds write past a 256-byte stack buffer**, landing on three pointer locals whose offset the attacker chooses. §3 |
 
 Everything below is **static**. Nothing has been executed. `P6-1` and `P6-10`
@@ -46,10 +46,23 @@ matters is forward-looking: this is the binary the W08 wireless block is
 attacking, and it was sitting in the "unread" column while `P7-1`…`P7-10` were
 scheduled against it.
 
-## 2. `/bin/miniigd` — SOAP values reach `system()`, and the port is open
+## 2. `/bin/miniigd` — SOAP values reach `system()`, and the port opened, closed, and was not looked at again
 
-`P1-2` found **52869/tcp open** on this unit and no prediction had mentioned it.
-`P1-10` confirmed the daemon answers SSDP. This is what is behind that port.
+`P1-2` found **52869/tcp open** on 2026-08-16 and no prediction had mentioned
+it. `P1-10` confirmed the daemon answers SSDP. This is what is behind that port.
+
+> **The port state has a date on it now, because it moved twice and the first
+> version of this section said "is open" in the present tense.** On 2026-08-18
+> `P6-1` and `P8-7` found 52869 **closed**, `miniigd` absent from `ps`, and no
+> `InternetGatewayDevice` reply to an `M-SEARCH` — because `UPNP_ENABLED` read
+> `0` in the live configuration, which **this project's own W05 unauthenticated
+> POST round wrote**, and this build's web UI has no UPnP page anywhere in its
+> 31 enumerated pages through which a user could set it back. The 2026-08-19
+> reset restored `COMPCS` byte-for-byte to its 2026-08-16 content, so the flag is
+> `1` again — **and the port has not been measured since**. That last state is
+> the dangerous one: a sentence that has become true again by accident reads
+> exactly like a sentence that was checked. Everything below about the *code* is
+> unaffected; the network state is `P6-1`'s to settle at the bench.
 
 The SOAP control endpoint is **`/upnp/control/WANIPConnection`**. (The working
 notes carried `/upnp/control/WANIPConn1`, which is `miniupnpd`'s path and not
@@ -208,4 +221,4 @@ says so does not exist yet.
 `/upnp/control/WANIPConn1` is `miniupnpd`'s. This binary answers on
 `/upnp/control/WANIPConnection`. A bench session that probed the documented path
 would have got a clean negative and recorded "no UPnP control surface" — with
-52869 open the whole time.
+52869 open the whole time, as it was on 2026-08-16.

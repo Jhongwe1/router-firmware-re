@@ -4717,3 +4717,182 @@ too: this build's `formLogin` references `username` and `userpass` only.
 | Open items opened | 76, 77, 78, 79, 80, 81 |
 | New instruments | `device-liveness.py`, `cve-endpoints.py`, `rogue-dhcp.py`; `mipsref.py` to schema 2 |
 | Guard cases | +19 (liveness), +3 (runsheet), and the schema-2 report checks |
+
+---
+
+## W07 close — the last register row, and six files that said "open" in the present tense — 2026-08-19
+
+**Desk only. The device was not powered on.** Two things closed and one was
+found; the found one is the serious one, and it was not on any list.
+
+**W07 is 58 / 58.**
+
+### `P5-2` was answerable from evidence this repository already had
+
+The row was "cut in all but name" in the previous session's own words, on the
+grounds that a `ret2libc` target needs an observation channel this device does
+not offer. It needed no channel. Two kernel fault messages were already in
+`BENCH-LOG.md`, recorded on 2026-08-18 for other rows:
+
+```text
+（card T-50）SIGSEGV to wscd ... (epc == 2aae1f38, ra == 2aae1e64)
+（card T-60）SIGSEGV to boa  ... (epc == 2aafe218, ra == 00445974)
+```
+
+Neither names a library. Turning one into a load base is
+[`tools/libbase.py`](tools/libbase.py); the reasoning and the addresses are
+[`notes/mips-ret2libc.md`](notes/mips-ret2libc.md); the report is
+[`reports/libbase-unit-2018.json`](reports/libbase-unit-2018.json).
+
+**`boa`'s `epc` is `strcpy+0x18`, which puts `libuClibc` at `0x2aae3000`, and
+`system` at `0x2ab08460`.** The four bytes between that and qemu-user's own `pc`
+for the same fault (`0x2b32721c`, `strcpy+0x1c`) are *predicted*, not tolerated:
+the store sits in the delay slot of the `bnez` above it, and a MIPS fault taken
+in a delay slot leaves `EPC` on the branch because restarting has to re-execute
+it. The two words were read back out of the ELF and decoded independently —
+`0x1460fffc` and `0xa0c30000`, source register `v1` shared — and the tool refuses
+to build the report when they do not match.
+
+**Choosing `strcpy` is a funnel and the funnel is published**, because "I picked
+the one I already knew" is what this looks like otherwise:
+
+| filter | survivors |
+|---|---|
+| dynamic symbols in `libuClibc` | 663 |
+| …admitting a **page-aligned** base for `0x2aafe218` | 22 |
+| …putting a **store** at the `epc` or in a branch delay slot there | 5 |
+| …matching qemu-user's instruction **pair** | 1 |
+
+**And the prediction that could have failed.** `boa` needs `libapmib.so`,
+`libc.so.0`, `libgcc_s.so.1`; `wscd` needs the last two. If nothing is
+randomised and the loader allocates bottom-up, the two `libc` bases differ by
+exactly `libapmib.so`'s mapped span — `0x25000`, out of its own program headers,
+with no reference to either fault. Predicted `0x2aabe000`; it puts `wscd`'s `epc`
+at `free+0x12c` and its `ra` at `free+0x58`, both inside one function, against a
+kernel line that called the fault an invalid **read** from `0x4187c8bc`.
+
+**The error bar is measured, not asserted.** Sweeping all 256 page-aligned bases
+in the surrounding megabyte, **7** put both `epc` and `ra` inside one and the
+same function. So the landing survived a filter it had about a **1-in-36** chance
+of surviving by luck, and the rest of the weight is the fault *kind*: of the
+seven, the predicted base names `free()`.
+
+**Recorded `partial`, and that is the point.** The register's refutation is "the
+base differs across two reboots"; both messages come from **one** boot. Scoring a
+refutation that could not have fired is precisely what `A3.24` was caught doing
+two days ago, comparing erased flash against erased flash. What is established is
+per-`execve` determinism — which is what ASLR actually is — and one
+`cat /proc/<pid>/maps` on the post-reset boot closes the rest. That is now
+`runsheet.md` `A3.23.0`.
+
+### Six committed files said `52869/tcp open` in the present tense, and one of them was the disclosure register
+
+`P1-2` found it open on 2026-08-16. `P6-1` and `P8-7` found it **closed** on
+2026-08-18 — `miniigd` absent from `ps`, no `InternetGatewayDevice` answering
+SSDP — because `UPNP_ENABLED` read `0`, which **this project's own W05
+unauthenticated POST round wrote**, and this build ships no UPnP page through
+which a user could put it back. Both measurements were right when taken.
+**Neither sentence carried a *when***, and the first one had been copied into:
+
+`docs/disclosure.md` `D-16` · `notes/bughunt.md` · `notes/cve-status.md` ·
+`notes/attack-surface.md` · `notes/three-unread-binaries.md` (×3) ·
+`PROGRESS.md` §W07 Day 5
+
+All six now carry the dates and the mechanism. `D-16` additionally says it is
+**not reportable on its network state** until a bench visit re-measures it —
+a reported open port has to be a port somebody looked at.
+
+**And the second layer is worse than the first.** The 2026-08-19 reset restored
+`COMPCS` byte-for-byte, so the flag is `1` again and the port is very probably
+open again. A claim that has come back true **by accident** is indistinguishable
+from one that was checked, and nothing in this repository could tell those apart.
+That is why the fix is a date on every sentence rather than flipping "open" to
+"closed".
+
+### The fifth divergence between `make ci` and CI, and this time it gets a checker
+
+`tools/test-device-liveness.sh` (19 cases) and `tools/test-rogue-dhcp.sh` (12
+cases) were in `make ci` from 2026-08-18 and 2026-08-19 and were **never** in
+`.github/workflows/ci.yml`. The workflow's own comment above the `config-diff`
+step reads "it is the fourth time these two lists have diverged."
+
+RUNBOOK 10.21 made it a rule. A rule broken five times is a reminder, and this
+repository's answer to a broken reminder is already on the record —
+`tools/check-benchlog.py` replaced one. So:
+[`tools/check-ci-parity.py`](tools/check-ci-parity.py) compares which `tools/`
+scripts each file runs, in **both** directions, with one-sided entries recorded
+as decisions in a `DELIBERATE` table rather than tolerated silently. It fired on
+its first run and named all three. 13 guard cases, and two of them exist because
+the workflow *names four suites in prose*: counting a comment as a step is how
+the fifth divergence stayed invisible.
+
+### Instrument work
+
+| | |
+|---|---|
+| `tools/libbase.py` | new. Its own ELF reader through `PT_DYNAMIC` — deliberately not an import of `mipsref.py`, so the symbol address that everything rests on has two readers, and `test-libbase.sh` asserts they agree |
+| `tools/test-libbase.sh` | 27 cases. Four failed on the first run and **all four were the fixture, not the tool** — including one that taught the filter's own selectivity: a 40-byte symbol covers 40 consecutive bases, so page alignment rejects about 99 % of addresses, not all but one |
+| `tools/check-ci-parity.py` + suite | new, 13 cases |
+| `tools/check-reports.py` | a `libbase` block: no `control_ok`, no file |
+| `Makefile` / workflow | `libbase-test`, `libbase-report`, `check-ci-parity`, `ci-parity-test`; the three missing suites added to CI |
+
+### Corrections to the plan
+
+- **`P5-2` was described as "cut in all but name" and it was not cut.** The
+  previous session's `BENCH-LOG.md` closing block and `study/weekly-results.md`
+  both say so; both were written before anyone tried the desk route. Corrected by
+  appending, in `BENCH-LOG.md` 2026-08-19 §1.
+- **`P5-2`'s refutation condition is aimed at the wrong axis** — reboots rather
+  than `execve`s. **It was not amended.** The evidence it would be amended
+  against already existed on 2026-08-18, and amending a condition after its
+  evidence exists is exactly what the freeze prevents, even when the amendment
+  would be an improvement. It is reported as inadequate in the result note and
+  scored against as written.
+
+### Deliberately not done
+
+- **The device was not powered on.** Every prediction for the next visit is in
+  `BENCH-LOG.md` 2026-08-19 §4, written before the cable.
+- **`A2.5` / `A2.6` stay shut.** The three rows the previous plan said needed a
+  flash write do not need one. Second session running.
+- **`TASK_UNMAPPED_BASE` is not claimed.** Working back through `ld-uClibc`'s span
+  gives `0x2aaa8000` from both processes; the MIPS formula
+  `(TASK_SIZE / 3) & ~(PAGE_SIZE − 1)` gives `0x2aaaa000`. Two pages unaccounted
+  for and no reading of this kernel to settle them, so only the *difference* is
+  claimed as predicted and the tidy number is out of the report.
+
+### Open, carried forward
+
+66, 67, 69, 70, 71, 74, 75, 77, 78, 79, 81 — unchanged.
+
+76. **Is `COMPDS` repaired?** Unchanged, and now it has a number attached. If
+    `flash default-sw` left the factory-default block alone, the next IoC
+    precheck reads **20 / 343**; if it repaired it, **4 / 343**. Two hypotheses,
+    two numbers already on the record.
+80. **Two reads of `COMPCS` disagreed.** Unchanged. The post-reset `/config.dat`
+    is 7,490 bytes, so a station-2 `comp_len` of 7,490 settles it one way.
+82. **A claim's tense outlived its measurement, and nothing checks tense.** Six
+    files, one of them the disclosure register. `check-reports.py` validates that
+    a report names its binary; nothing validates that a *sentence* names its
+    date. Whether that is checkable at all is the open question — the mechanical
+    version ("every present-tense claim about device state cites a test id and a
+    date") would be a large false-positive surface.
+83. **`P5-2` rests on one boot.** `A3.23.0` closes it in two `cat`s and the
+    prediction is written down. Until then the `system` address is a property of
+    the 2026-08-18 boot.
+84. **Nothing has been jumped to.** `system` is computed, not reached, and `a0`
+    would have to point at a command string — which `P5-1`'s `localPin` frame has
+    not been shown to allow. Not W07's row and not scheduled.
+
+### Where W07 stands
+
+**Register: 58 / 58. Closed.**
+
+| | |
+|---|---|
+| Closed this session | `P5-2` (desk, `partial`) |
+| Open items closed | none |
+| Open items opened | 82, 83, 84 |
+| New instruments | `libbase.py`, `check-ci-parity.py` |
+| Guard cases | +27 (libbase), +13 (parity) |
+| Found, not on any list | six files dating a port state; the fifth CI divergence |

@@ -202,6 +202,30 @@ jobs:
       - name: config-diff — the comparison, and both directions it refuses in
         run: bash tools/test-config-diff.sh
 
+      # Added 2026-08-19 — the fifth divergence, and the last one that had to be
+      # found by reading. The first two were in `make ci` from 2026-08-18 and
+      # 2026-08-19 and were never here; the third arrived with them. Below this
+      # block, `check-ci-parity` now compares the two files mechanically, so a
+      # sixth is a failing step rather than a discovery.
+      - name: liveness — the router-is-still-routing check can say no
+        run: bash tools/test-device-liveness.sh
+
+      - name: rogue DHCP — the option encoders, and the interface it refuses
+        run: bash tools/test-rogue-dhcp.sh
+
+      - name: libbase — the page-alignment filter, and every refusal under it
+        run: bash tools/test-libbase.sh
+
+      # This is the step that stops the block above from being needed again. It
+      # compares which tools/ scripts `make ci` runs against which ones this file
+      # runs, in both directions; a one-sided entry has to be recorded as a
+      # decision in the script or it fails here.
+      - name: `make ci` and this file run the same suites
+        run: python3 tools/check-ci-parity.py
+
+      - name: Control — the parity checker can fail
+        run: bash tools/test-check-ci-parity.sh
+
   toolbox-image:
     name: toolchain image builds
     runs-on: ubuntu-24.04

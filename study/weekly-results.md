@@ -770,3 +770,86 @@ the whole argument for having it.
   out to be a UART adapter back-feeding through the header.
 - **`P5-2` is still not done**, and calling W07 "57 of 58" rather than "nearly
   finished" is the honest form.
+
+## W07, the final desk session — 2026-08-19
+
+**One line:** the row this project had written off as unanswerable was answerable
+from evidence already in the repository, and the thing that needed fixing was not
+in the firmware — it was six sentences that had outlived their measurement.
+
+**1. Two console lines that name no library were turned into a load base, and
+the four bytes that did not match were predicted rather than tolerated.**
+`P5-2` had been called "cut in all but name" because a `ret2libc` target seemed
+to need an observation channel this device does not offer. `BENCH-LOG.md` already
+held two kernel fault messages from 2026-08-18, recorded for other rows.
+`boa`'s `epc == 2aafe218` resolves to `strcpy+0x18`, which puts `libuClibc` at
+**`0x2aae3000`** and `system` at **`0x2ab08460`**. qemu-user's own `pc` for the
+same fault is `0x2b32721c` — `strcpy+0x1c`, four bytes further on. That gap is
+the MIPS rule that a fault taken in a **branch delay slot** leaves `EPC` on the
+branch, and the two words were read back out of the ELF and decoded to confirm
+it: `0x1460fffc` (`bnez v1`) then `0xa0c30000` (`sb v1,0(a2)`), one source
+register shared.
+*Evidence:* [`notes/mips-ret2libc.md`](../notes/mips-ret2libc.md);
+[`reports/libbase-unit-2018.json`](../reports/libbase-unit-2018.json);
+`tools/libbase.py` with 27 guard cases.
+*What it demonstrates:* **a near-miss with an exact explanation is not a
+near-miss.** `0x2aae2ffc` was four bytes off a page boundary and the reflex was
+to call it close enough; `mmap` never returns that, and the four bytes had a rule
+behind them.
+
+**2. The narrowing that picks `strcpy` is published as a funnel, and so is the
+prediction's error bar.**
+663 dynamic symbols → 22 admit a page-aligned base → 5 put a *store* at the
+`epc` or in a delay slot there → 1 matches qemu-user's instruction pair. Then a
+second, independent test: `boa` and `wscd` link different libraries, so if
+nothing is randomised their `libc` bases must differ by exactly `libapmib.so`'s
+mapped span — `0x25000`, computed from its own program headers. Predicted
+`0x2aabe000`; it puts `wscd`'s `epc` at `free+0x12c` and its `ra` at `free+0x58`,
+both inside one function, against a fault the kernel called an invalid **read**.
+Sweeping all 256 page-aligned bases in the surrounding megabyte, **7** would have
+put both addresses in one function — so the landing survived a filter it had
+about a **1-in-36** chance of surviving by luck, and that number is in the report
+rather than left to the reader to worry about.
+*Evidence:* the `narrowing` and `how_easily_it_could_have_held_by_luck` blocks of
+the report; `check-reports.py` refuses the file if the funnel does not end at one.
+*What it demonstrates:* the difference between a prediction that landed and a
+prediction that could not have missed is a number, and publishing it is cheaper
+than being asked for it.
+
+**3. A claim's tense outlived its measurement in six committed files, and one of
+them was the disclosure register.**
+`P1-2` found `52869/tcp` open on 2026-08-16. `P6-1` and `P8-7` found it closed on
+2026-08-18, because this project's own W05 unauthenticated POST round had written
+`UPNP_ENABLED = 0` and this build ships no UPnP page to undo it. Both were right
+when taken. **Neither sentence carried a date**, and the first had been copied
+into `docs/disclosure.md` `D-16`, `notes/bughunt.md`, `notes/cve-status.md`,
+`notes/attack-surface.md` and `notes/three-unread-binaries.md` three times.
+*Evidence:* the six diffs, and `D-16`'s new status line saying it is not
+reportable on its network state until a bench visit re-measures it.
+*What it demonstrates:* **"one piece of state has exactly one owner" does not
+catch this**, because the failure is not duplication — it is tense. And the
+second layer is worse than the first: the 2026-08-19 reset probably made those
+sentences true again, and a claim that has come back true by accident is
+indistinguishable from one that was checked.
+
+### What this session did not prove
+
+- **`P5-2` rests on one boot.** Both fault messages come from station 3, boot 2,
+  cycle 3. What is established is per-`execve` determinism, which is what ASLR
+  is; what is not established is that a reboot leaves the base alone. Recorded
+  `partial` for exactly that reason, and `runsheet.md` `A3.23.0` closes it with
+  two `cat`s on the post-reset boot.
+- **Nothing has been jumped to.** `system` is computed, not reached. `a0` would
+  have to point at a command string, and `P5-1`'s `localPin` frame has not been
+  shown to allow that.
+- **`TASK_UNMAPPED_BASE` was derived and then withdrawn.** Both processes imply
+  `0x2aaa8000`; the MIPS formula gives `0x2aaaa000`. Two pages unaccounted for
+  and no reading of this kernel, so only the *difference* between the two bases
+  is claimed as predicted.
+- **The port state is still unmeasured.** The whole point of finding #3 is that
+  nobody has looked since the reset, and this session did not look either — it
+  was desk-only. Writing the prediction down is not the same as testing it.
+- **Whether "tense" is mechanically checkable is unanswered.** The parity
+  divergence got a checker because comparing two lists is mechanical. "Every
+  present-tense claim about device state cites a test id and a date" is not, at
+  least not without a false-positive surface larger than the problem.

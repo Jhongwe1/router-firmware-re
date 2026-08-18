@@ -121,7 +121,7 @@ Worth a look after Boa:
 | `/bin/skt` | 2.1.2 only | Pierre Kim's backdoor. Autostart commented out (`#skt&`), binary still shipped. Reads a socket, calls `system()`. |
 | `/bin/wscd` | both | WPS daemon — the runtime behind the `formWsc` CVEs |
 | `/bin/cwmpClient` | both | TR-069. Talks to a remote ACS and touches `config.dat`. |
-| `/bin/miniigd` | both | UPnP IGD. ~~Listed as commented out in `rcS` in both builds.~~ **`rcS` was never the starter — `sysconf` is** (`P1-10`), and on this unit **52869/tcp is open** (`P1-2`). Read 2026-08-18: `FUN_004083a8` puts five SOAP values into a `system()` string. [`three-unread-binaries.md`](three-unread-binaries.md) |
+| `/bin/miniigd` | both | UPnP IGD. ~~Listed as commented out in `rcS` in both builds.~~ **`rcS` was never the starter — `sysconf` is** (`P1-10`). Read 2026-08-18: `FUN_004083a8` puts five SOAP values into a `system()` string. **52869/tcp carries a date**: open 2026-08-16 (`P1-2`), **closed** 2026-08-18 (`P6-1`/`P8-7`, `UPNP_ENABLED=0` from this project's own W05 POST round), flag restored by the 2026-08-19 reset, unmeasured since. [`three-unread-binaries.md`](three-unread-binaries.md) |
 | `/bin/udhcpd`, `/bin/dnsmasq` | 2.1.2 | Parse hostnames from the LAN; hostname strings reaching `system()` is a well-worn bug class |
 | `/bin/auth` | 3.4.0 **and unit-2018** | ~~Likely holds the credential check.~~ **Refuted by reading it, 2026-08-18: it is the 802.1X / WPA authenticator** — `RTLAuthenticator`, `lib1x_do_authenticator`, `lib1x_control_STA_SetGTK`, `libnet_*`. Nothing to do with the web credentials. It is the daemon W08's `P7-5` / `P7-6` attack |
 | `/bin/batchUpgrade`, `/bin/UDPserver` | 3.4.0 only | New network-facing code |

@@ -1,0 +1,200 @@
+{
+  "producer": "libbase",
+  "schema": 1,
+  "question": "P5-2 -- is uClibc at a computable address on this unit",
+  "page_size": 4096,
+  "objects": {
+    "libc": {
+      "path": "/home/key/fwre-work/extracted/unit-2018/squashfs-root/lib/libuClibc-0.9.30.3.so",
+      "sha256": "9e2a2bf0b4f230140057b596dc90f430073ee864b9caf4213aed7c8ad4cbc3fb",
+      "dynsym_count": 663,
+      "mapped_span": "0x46000",
+      "needed": [
+        "ld-uClibc.so.0"
+      ]
+    },
+    "differing_object": {
+      "path": "/home/key/fwre-work/extracted/unit-2018/squashfs-root/lib/libapmib.so",
+      "sha256": "efbb7c3df065b5248b870134e263ded4cb6608a70dc9576b6a1c0445e3ac0c2e",
+      "mapped_span": "0x25000"
+    }
+  },
+  "source_sha256": "9e2a2bf0b4f230140057b596dc90f430073ee864b9caf4213aed7c8ad4cbc3fb",
+  "control": {
+    "site": "strcpy+0x18 / +0x1c",
+    "word_at_plus_0x18": "0x1460fffc",
+    "word_at_plus_0x1c": "0xa0c30000",
+    "kind_at_plus_0x18": "bnez",
+    "kind_at_plus_0x1c": "sb",
+    "qemu_disassembly": [
+      "bnez v1,0x2b32720c",
+      "sb v1,0(a2)"
+    ],
+    "branch_matches": true,
+    "store_matches": true,
+    "same_source_register": true,
+    "ok": true
+  },
+  "control_ok": true,
+  "measured": {
+    "boa": {
+      "kernel_line": "epc == 2aafe218, ra == 00445974",
+      "epc_readings": [
+        {
+          "addr": 716169752,
+          "reading": "the faulting instruction itself",
+          "bases": [
+            "0x2aae3000"
+          ],
+          "offset_into_symbol": 24
+        },
+        {
+          "addr": 716169756,
+          "reading": "the delay slot of a branch at epc (Cause.BD set)",
+          "bases": [
+            "0x2aae3000"
+          ],
+          "offset_into_symbol": 28
+        }
+      ],
+      "symbol": "strcpy",
+      "symbol_value": "0x1b200",
+      "symbol_size": 40,
+      "offset_into_symbol": "0x18",
+      "libc_base": "0x2aae3000",
+      "symbols_admitting_a_page_aligned_base": 23,
+      "symbols_total": 663,
+      "narrowing": {
+        "fault_kind_from_kernel": "invalid write access -- a store",
+        "function_candidates_after_page_alignment": 22,
+        "candidates_putting_a_store_at_epc_or_its_delay_slot": 5,
+        "candidates_matching_qemus_instruction_pair": 1,
+        "survivors": [
+          {
+            "symbol": "strcpy",
+            "symbol_value": "0x1b200",
+            "symbol_size": 40,
+            "implied_base": "0x2aae3000",
+            "offset_into_symbol": "0x18",
+            "word": "0x1460fffc",
+            "instruction": "bnez",
+            "next_instruction": "sb",
+            "fault_at_epc": false,
+            "fault_in_delay_slot": true,
+            "matches_qemu_instruction_pair": true,
+            "survives": true
+          },
+          {
+            "symbol": "if_indextoname",
+            "symbol_value": "0x1e170",
+            "symbol_size": 244,
+            "implied_base": "0x2aae0000",
+            "offset_into_symbol": "0xa8",
+            "word": "0xae510000",
+            "instruction": "sw",
+            "next_instruction": "beqz",
+            "fault_at_epc": true,
+            "fault_in_delay_slot": false,
+            "matches_qemu_instruction_pair": false,
+            "survives": true
+          },
+          {
+            "symbol": "putc",
+            "symbol_value": "0x19150",
+            "symbol_size": 280,
+            "implied_base": "0x2aae5000",
+            "offset_into_symbol": "0xc8",
+            "word": "0x10000007",
+            "instruction": "beqz",
+            "next_instruction": "sw",
+            "fault_at_epc": false,
+            "fault_in_delay_slot": true,
+            "matches_qemu_instruction_pair": false,
+            "survives": true
+          },
+          {
+            "symbol": "fputc",
+            "symbol_value": "0x19150",
+            "symbol_size": 280,
+            "implied_base": "0x2aae5000",
+            "offset_into_symbol": "0xc8",
+            "word": "0x10000007",
+            "instruction": "beqz",
+            "next_instruction": "sw",
+            "fault_at_epc": false,
+            "fault_in_delay_slot": true,
+            "matches_qemu_instruction_pair": false,
+            "survives": true
+          },
+          {
+            "symbol": "vfscanf",
+            "symbol_value": "0x2adb4",
+            "symbol_size": 2300,
+            "implied_base": "0x2aad3000",
+            "offset_into_symbol": "0x464",
+            "word": "0xafa3020c",
+            "instruction": "sw",
+            "next_instruction": "sw",
+            "fault_at_epc": true,
+            "fault_in_delay_slot": false,
+            "matches_qemu_instruction_pair": false,
+            "survives": true
+          }
+        ]
+      }
+    }
+  },
+  "predicted": {
+    "claim": "boa NEEDED libapmib.so, libc.so.0, libgcc_s.so.1; wscd NEEDED libc.so.0, libgcc_s.so.1. If the loader allocates bottom-up and nothing is randomised, the two libc bases differ by exactly the mapped span of the one object that differs.",
+    "differing_object_span": "0x25000",
+    "wscd_libc_base": "0x2aabe000",
+    "wscd_epc": "0x2aae1f38",
+    "wscd_epc_offset": "0x23f38",
+    "wscd_epc_symbol": "free",
+    "wscd_epc_into_symbol": "0x12c",
+    "wscd_ra_symbol": "free",
+    "wscd_ra_into_symbol": "0x58",
+    "held": true,
+    "how_easily_it_could_have_held_by_luck": {
+      "window": "0x2aa00000..0x2ab00000, 256 pages",
+      "bases_putting_epc_and_ra_in_one_function": 7,
+      "so_the_prediction_survived_a_filter_of_about": "1 in 36",
+      "rivals": [
+        {
+          "base": "0x2aab7000",
+          "symbol": "vfscanf"
+        },
+        {
+          "base": "0x2aabe000",
+          "symbol": "free"
+        },
+        {
+          "base": "0x2aabf000",
+          "symbol": "malloc"
+        },
+        {
+          "base": "0x2aac2000",
+          "symbol": "inet_pton"
+        },
+        {
+          "base": "0x2aacd000",
+          "symbol": "getpwuid_r"
+        },
+        {
+          "base": "0x2aad0000",
+          "symbol": "strftime"
+        },
+        {
+          "base": "0x2aad1000",
+          "symbol": "vsyslog"
+        }
+      ],
+      "what_carries_the_rest": "the fault kind. The kernel line is 'invalid READ access from 4187c8bc' -- a wild pointer dereference -- and of the bases above, the predicted one names free(), which with malloc() is where a corrupted heap chunk is read. The others would each need a different story and none was offered."
+    }
+  },
+  "answer": {
+    "system_symbol_value": "0x25460",
+    "system_in_boa": "0x2ab08460",
+    "system_in_wscd": "0x2aae3460"
+  }
+}

@@ -243,6 +243,31 @@ liveness-test: ## Prove the liveness check can say no (19 cases, needs no device
 dhcp-test: ## Prove the rogue DHCP server's encoders and refusals (needs no device)
 	bash tools/test-rogue-dhcp.sh
 
+# `P5-2` asks for an address a ret2libc chain would jump to, and the only inputs
+# are two console lines that name no library. Everything the answer rests on is a
+# filter that looks like it worked when it did not, so the refusals are the tool:
+# a base with low bits set, and a symbol long enough that more than one base fits.
+libbase-test: ## Prove the library-base solver can refuse (27 cases, needs no device)
+	bash tools/test-libbase.sh
+
+# Five times a suite has been added to one of `make ci` / the CI workflow and
+# not the other, and every one of them was found by diffing the files rather
+# than by noticing. RUNBOOK 10.21 made it a rule; a rule broken five times is a
+# reminder, so this is the reminder replaced by a checker.
+check-ci-parity: ## `make ci` and the GitHub workflow run the same tools/ scripts
+	python3 tools/check-ci-parity.py
+
+ci-parity-test: ## Prove the parity checker can fail (needs no device)
+	bash tools/test-check-ci-parity.sh
+
+libbase-report: ## Solve uClibc's load base from the two recorded faults (needs the rootfs)
+	@test -f "$(EX)/unit-2018/squashfs-root/lib/libuClibc-0.9.30.3.so" || \
+	  { echo "no extracted rootfs - run tools/unpack-firmware.sh"; exit 2; }
+	python3 tools/libbase.py \
+	  --in "$(EX)/unit-2018/squashfs-root/lib/libuClibc-0.9.30.3.so" \
+	  --report --differing-object "$(EX)/unit-2018/squashfs-root/lib/libapmib.so" \
+	  --json $(REPORTS)/libbase-unit-2018.json
+
 # Regenerating these by hand is how the first one came to name a GOT slot as
 # though it were the variable. The command is the evidence for what the report
 # measured, so it lives where it can be re-run rather than in a shell history.
@@ -270,7 +295,7 @@ loader-report: ## Unpack the boot loader's LZMA stage 2 (needs the flash dump)
 # `rtcase-test` is in here and not optional. It is the only thing proving the
 # register gate can fail; without it `make rtcase` going green means nothing,
 # which is the exact shape of instrument bug 12.
-ci: lint test shellcheck check-reports check-runsheet check-benchlog benchlog-test rtcase rtcase-test check-ledger qemu-test probe-test loader-test runsheet-test dump-test flash-tools-test photo-test write-test failopen-test alignfix-test config-diff-test liveness-test dhcp-test ## Everything CI checks, except the container build
+ci: lint test shellcheck check-reports check-runsheet check-benchlog benchlog-test rtcase rtcase-test check-ledger check-ci-parity ci-parity-test qemu-test probe-test loader-test runsheet-test dump-test flash-tools-test photo-test write-test failopen-test alignfix-test config-diff-test liveness-test dhcp-test libbase-test ## Everything CI checks, except the container build
 	@echo "  ok   local CI equivalents passed (container build not included)"
 
 diff: venv ## Diff the two builds
