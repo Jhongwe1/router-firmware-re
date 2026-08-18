@@ -23,7 +23,7 @@ UNIT_DUMP  := $(FWRE_WORK)/dumps/flash-n150rt-console-1.bin
 
 .DEFAULT_GOAL := help
 .PHONY: help setup verify fetch unpack venv test lint recon recon-unit diff check-reports \
-        rtcase rtcase-test todo ledger shellcheck ci clean-work qemu-env qemu-test probe-test \
+        rtcase rtcase-test todo ledger check-ledger shellcheck ci clean-work qemu-env qemu-test probe-test \
         loader-test loader-report doctor check-runsheet runsheet-test \
         dump-test flash-tools-test photo-test write-test failopen-test alignfix-test check-benchlog benchlog-test
 
@@ -152,6 +152,21 @@ ledger: ## Regenerate test-ledger.md from the register + results
 	python3 tools/rtcase.py render
 	python3 tools/rtcase.py check
 
+# The same check .github/workflows/ci.yml runs, and it was the ONE step `make ci`
+# did not have. test-ledger.md is generated from the register; a session that
+# records a result and does not re-render leaves the two disagreeing, and the
+# only thing that noticed was GitHub. That is the failure mode this target
+# exists to remove: `make ci` said "everything CI checks" while being a strict
+# subset of it, so local green and remote red were possible and nothing local
+# could tell you which. Found 2026-08-18, on a staleness the previous session
+# had already committed.
+check-ledger: ## The generated ledger matches the register it comes from
+	@python3 tools/rtcase.py render
+	@git diff --exit-code -- test-ledger.md \
+	  || { echo "test-ledger.md was out of date and has just been regenerated."; \
+	       echo "Commit it in the same commit as the result that changed it."; \
+	       exit 1; }
+
 shellcheck: ## Lint the shell scripts, exactly as CI does
 	shellcheck --severity=warning tools/*.sh tools/setup/*.sh
 
@@ -225,7 +240,7 @@ loader-report: ## Unpack the boot loader's LZMA stage 2 (needs the flash dump)
 # `rtcase-test` is in here and not optional. It is the only thing proving the
 # register gate can fail; without it `make rtcase` going green means nothing,
 # which is the exact shape of instrument bug 12.
-ci: lint test shellcheck check-reports check-runsheet check-benchlog benchlog-test rtcase rtcase-test qemu-test probe-test loader-test runsheet-test dump-test flash-tools-test photo-test write-test failopen-test alignfix-test ## Everything CI checks, except the container build
+ci: lint test shellcheck check-reports check-runsheet check-benchlog benchlog-test rtcase rtcase-test check-ledger qemu-test probe-test loader-test runsheet-test dump-test flash-tools-test photo-test write-test failopen-test alignfix-test ## Everything CI checks, except the container build
 	@echo "  ok   local CI equivalents passed (container build not included)"
 
 diff: venv ## Diff the two builds

@@ -3500,7 +3500,7 @@ resolved.
 - `handler-sweep.py` gained `--alignfix` and `--reset-each`, and a post-sweep
   control that re-runs the profile's own `check`.
 
-### Instrument bugs 40, 41 and 42 — and 41 and 42 were both created by fixing 40
+### Instrument bugs 40 through 43 — 41 and 42 were created by fixing 40, and 43 was found by asking GitHub
 
 **40. The emulation environment could not execute a single configuration write,
 and nothing said so.** Not a wrong answer — a missing capability that looked like
@@ -3528,12 +3528,39 @@ timed out **while the environment reported itself healthy** — `check` passed a
 three controls, because the flash really was fine. Two sweeps were lost to it
 before the log line `boa: starting server pid=…, port 0` was read closely enough.
 
-That is forty-two recorded. **Two of the last three were created by this project
-in this session**, which is the first time that has happened, and both were caught
-by controls that already existed: 41 by the profile's own value check, 42 by a
-server that would not answer. The lesson the three share is one sentence:
-*a restore is only as good as the list of things it restores, and that list is
-never revisited until something starts writing.*
+**43. `make ci` and the GitHub workflow were two lists both calling themselves
+"everything CI checks", and neither contained the other.** Found by the author
+asking `gh` whether the push had actually landed. It had; the branch was green
+locally and **red on GitHub**, twice.
+
+- **Missing locally:** the ledger check. `test-ledger.md` is generated from the
+  register, the workflow re-renders it and fails on a diff, and `make ci` did
+  not. The staleness it caught was **not from this session** — the previous one
+  recorded `P8-1`'s result and never re-rendered, so the committed ledger had
+  said `W07 10/57` and `已執行 62` since then. Nothing local could see it.
+- **Missing remotely:** `test-failopen-probe.sh` and `test-alignfix.sh` — one
+  added last session, one added today, both wired into `make ci` and neither into
+  the workflow. So the two newest guard suites had never run on a push.
+
+`make ci` now has `check-ledger`, doing exactly what the workflow does, and the
+workflow now runs both suites — with an `apt-get` for the MIPS cross-compiler,
+because a suite that skips cannot prove a little-endian object would be rejected.
+
+> **This is the third time this exact divergence has been recorded**, and the
+> bench-guards job's own header says so in as many words: *"local green has to
+> mean CI green, or running the local check stops being a check."* It was
+> written into the file that then diverged again. **A comment is not a checker**,
+> and the honest statement is that the two lists still have no machine keeping
+> them equal — the fix was to make them equal by hand, which is the same fix
+> that failed twice before.
+
+That is forty-three recorded. **Three of the last four were created by this
+project**, two of them in this session, and each was caught by something that
+already existed: 41 by the profile's own value check, 42 by a server that would
+not answer, 43 by `gh run list`. The lesson 40–42 share is one sentence — *a
+restore is only as good as the list of things it restores, and that list is never
+revisited until something starts writing* — and 43 adds a second: **a list that
+describes another list, in prose, drifts from it.**
 
 ### Corrections to the plan
 

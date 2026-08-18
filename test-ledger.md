@@ -53,10 +53,10 @@ W05 週計畫原本要另外建一份 `notes/prediction-scorecard.md`（12 條�
 |---|---|
 | 登記項目 | **134**（排入 125，砍掉 9） |
 | 已寫反證條件（凍結） | **117** / 125 |
-| 已執行 | **62** |
+| 已執行 | **63** |
 | 其中以真機動態證據收掉 | **43** |
 | 其中以模擬環境執行收掉（**不是矽上**） | **11** |
-| 判定成立 / 判定不成立 | **35** / **14** |
+| 判定成立 / 判定不成立 | **36** / **14** |
 | 凍結雜湊 | `a9bd2761074e0b349726ec0ee96f3280e30a81e13a034643c1c3581dfc7f10be` |
 
 ## 排程：哪一週要打掉哪些
@@ -70,7 +70,7 @@ W05 週計畫原本要另外建一份 `notes/prediction-scorecard.md`（12 條�
 | **W04-2** | Phase 0 | 2 / 2 | `▰▰▰▰▰▰▰▰▰▰` |
 | **W05** | Phase 0, 1, 2, 3, 6, 9 | 27 / 27 | `▰▰▰▰▰▰▰▰▰▰` |
 | **W06** | Phase 0, 2, 3, 4, 5, 10 | 20 / 20 | `▰▰▰▰▰▰▰▰▰▰` |
-| **W07** | Phase 1, 2, 3, 4, 5, 6, 8, 9, 10 | 10 / 57 | `▰▰▱▱▱▱▱▱▱▱` |
+| **W07** | Phase 1, 2, 3, 4, 5, 6, 8, 9, 10 | 11 / 57 | `▰▰▱▱▱▱▱▱▱▱` |
 | **W08** | Phase 7, 9 | 0 / 16 | `▱▱▱▱▱▱▱▱▱▱` |
 
 ## 圖例
@@ -664,7 +664,7 @@ W05 週計畫原本要另外建一份 `notes/prediction-scorecard.md`（12 條�
 
 | ID | 項目 | § | 可行性 | 出場證據 | 排程 | 結果 | 證據 |
 |---|---|---|---|---|---|---|---|
-| P8-1 | DHCP hostname → 儲存型 XSS（先白盒讀模板） | 11.1 | ★★★☆☆ | 🟦 | W07 | ⬜ | — |
+| P8-1 | DHCP hostname → 儲存型 XSS（先白盒讀模板） | 11.1 | ★★★☆☆ | 🟦 | W07 | 🟥 The white-box read the prediction asked for, and the refutation did not fire: there is no escaping. But the templates were the wrong place and the case as written would have looked in them - dhcptbl.htm contains no field at all, only <% dhcpClientList(); %>, so the value is written by a C function inside boa and grepping 146 template files would have found nothing. What boa does have is req_write_escape_html with an entity table for double-quote, apostrophe, backslash, less-than and greater-than. It has exactly SIX callers and every one is an upstream Boa status page - 403, 404, 301, 302, 411 - plus send_redirect_perm. Not one Realtek ASP list renderer calls it, and boa carries 105 table-markup format strings whose data-bearing ones are raw %s, two of them inside HTML attribute values where a single double-quote suffices. So the five 2025 XSS CVEs are five instances of one omission covering roughly thirty render functions - the same shape as W03 turning "dat files are not restricted" into "everything without htm in the path". NOT established: that a hostname carrying markup survives udhcpd and the lease table to reach dhcpClientList. Filtering on the WRITE side would close the point as effectively as escaping on the read side and nothing here looked at the write side; that is P8-2 and it stays open. | [xss-escaping.md](notes/xss-escaping.md) · [ghidra-xref-unit-2018-escape.json](reports/ghidra-xref-unit-2018-escape.json) |
 | P8-2 | 其他 7 個儲存型注入點 | 11.1 | ★★★☆☆ | 🟦 | W07 | ⬜ | — |
 | P8-3 | CSRF drive-by → RCE | 11.2 | ★★★★☆ | 🟨 | W07 | ⬜ | — |
 | P8-4 | CSRF 改密碼 → 正常登入 | 11.2 | ★★★★☆ | 🟨 | W07 | ⬜ | — |
