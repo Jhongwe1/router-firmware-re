@@ -24,13 +24,25 @@ import pytest
 from fwrecon import mibtable
 
 
-def _record(mib_id: int, name: str) -> bytes:
+def _record(mib_id: int, name: str, *, kind: int = 0, struct_offset: int = 0,
+            total: int = 0, declared: int | None = None, element: int = 0,
+            tail: bytes = b"") -> bytes:
     rec = bytearray(mibtable.RECORD_SIZE)
     struct.pack_into(">I", rec, 0, mib_id)
     encoded = name.encode("ascii")
     assert len(encoded) < mibtable.NAME_SIZE
     rec[mibtable.NAME_OFFSET:mibtable.NAME_OFFSET + len(encoded)] = encoded
+    struct.pack_into(mibtable.GEOM_STRUCT, rec, mibtable.GEOM_OFFSET, kind,
+                     struct_offset, total, total if declared is None else declared,
+                     element)
+    if tail:
+        rec[mibtable.TAIL_OFFSET:mibtable.TAIL_OFFSET + len(tail)] = tail
     return bytes(rec)
+
+
+def _scalar(mib_id: int, name: str, size: int) -> bytes:
+    """A record shaped the way every non-table record in the real library is."""
+    return _record(mib_id, name, kind=2, total=size, element=1)
 
 
 def _library(records: list[tuple[int, str]], *, pad: int = 256) -> bytes:
@@ -143,3 +155,114 @@ def test_nothing_recoverable_says_so(tmp_path, junk):
     t = mibtable.analyse(_write(tmp_path, junk))
     assert t.verdict == "SUSPECT"
     assert t.entries == []
+
+
+# ------------------------------------------------- the 24 bytes after the name
+
+def test_geometry_fields_and_derived_count(tmp_path):
+    """`count` comes from the binary's own two numbers, not from counting data.
+
+    This is what turns `WLAN_ROOT` from 22,044 bytes of something into six
+    blocks of 2,526, and it is the number `compcs.py` checks its walk against.
+    """
+    lib = (b"\x11" * 64) + \
+        _record(0xB6, "USER_NAME", kind=2, struct_offset=0xB1, total=31, element=1) + \
+        _record(0x8065, "WLAN_ROOT", kind=0x10, struct_offset=0x40BF,
+                total=15156, element=2526) + \
+        _record(0x1EC, "AUTHG_IP_ADDR", kind=2, total=4, element=1) + \
+        (b"\x22" * 64)
+    t = mibtable.analyse(_write(tmp_path, lib))
+    by = {e.name: e for e in t.entries}
+    assert by["USER_NAME"].total_size == 31
+    assert by["USER_NAME"].element_size == 1
+    assert by["USER_NAME"].count == 31          # char[31]
+    w = by["WLAN_ROOT"]
+    assert (w.type, w.total_size, w.element_size) == (0x10, 15156, 2526)
+    assert w.count == 6                          # 15156 / 2526, off the binary
+    assert w.table_valued
+    assert t.geometry_anomalies == []
+
+
+def test_size_that_is_not_a_whole_number_of_elements_gives_count_zero(tmp_path):
+    """Zero, not a guess of one: a caller must be able to tell "the binary says
+    one element" from "the binary did not say"."""
+    lib = (b"\x11" * 64) + \
+        b"".join(_scalar(i, n, 4) for i, n in FULL) + \
+        _record(0x8065, "WLAN_ROOT", kind=0x10, total=100, element=7) + \
+        (b"\x22" * 64)
+    t = mibtable.analyse(_write(tmp_path, lib))
+    assert {e.name: e.count for e in t.entries}["WLAN_ROOT"] == 0
+    assert any("whole number of element_size" in a for a in t.geometry_anomalies)
+    # and it is NOT an anomaly, so the id/name recovery stays admissible: a
+    # build that changes one field's geometry must not make the table this
+    # project names every apmib_get from inadmissible.
+    assert t.verdict == "consistent"
+    assert t.anomalies == []
+
+
+def test_two_copies_of_the_size_disagreeing_is_reported(tmp_path):
+    lib = (b"\x11" * 64) + \
+        _record(0xB6, "USER_NAME", kind=2, total=31, declared=99, element=1) + \
+        _record(0xB7, "USER_PASSWORD", kind=2, total=31, element=1) + \
+        (b"\x22" * 64)
+    t = mibtable.analyse(_write(tmp_path, lib))
+    assert any("total_size != declared_size" in a for a in t.geometry_anomalies)
+
+
+def test_nonzero_tail_is_reported(tmp_path):
+    """Those 8 bytes are zero in every record of all six builds. A non-zero one
+    means the record is longer than this walk believes, which would silently
+    shift every field after it."""
+    lib = (b"\x11" * 64) + \
+        _record(0xB6, "USER_NAME", kind=2, total=31, element=1, tail=b"\x01") + \
+        _record(0xB7, "USER_PASSWORD", kind=2, total=31, element=1) + \
+        (b"\x22" * 64)
+    t = mibtable.analyse(_write(tmp_path, lib))
+    assert any("non-zero tail" in a for a in t.geometry_anomalies)
+
+
+def test_id_bit_and_type_field_disagreeing_is_reported(tmp_path):
+    lib = (b"\x11" * 64) + \
+        _record(0xB6, "USER_NAME", kind=2, total=31, element=1) + \
+        _record(0x8065, "WLAN_ROOT", kind=2, total=12, element=6) + \
+        (b"\x22" * 64)
+    t = mibtable.analyse(_write(tmp_path, lib))
+    assert any("bit 15 of the id and the type field disagree" in a
+               for a in t.geometry_anomalies)
+
+
+# ------------------------------------------------------------- the runner-up
+
+def test_sub_tables_are_kept_not_counted(tmp_path):
+    """`runner_up` has read 133 in the committed report since W04, and the
+    133-record run *was* the name table for WLAN_ROOT's six blocks. Reporting a
+    run as a number and discarding its contents is how that stood for four
+    days."""
+    main = b"".join(_scalar(i, n, 4) for i, n in FULL)
+    sub = b"".join(_scalar(i, n, 4) for i, n in
+                   [(0x01, "SSID"), (0x02, "CHANNEL"), (0x03, "WEP")])
+    lib = (b"\x11" * 64) + main + (b"\x33" * 64) + sub + (b"\x22" * 64)
+    t = mibtable.analyse(_write(tmp_path, lib))
+    assert len(t.entries) == len(FULL)
+    assert t.runner_up == 3
+    assert len(t.sub_tables) == 1
+    assert t.sub_tables[0].record_count == 3
+    assert t.sub_tables[0].ids == {1, 2, 3}
+    assert t.sub_tables[0].element_bytes == 12          # 3 x 4
+    assert [e.name for e in t.sub_tables[0].entries] == ["SSID", "CHANNEL", "WEP"]
+    # runner_up is now simply the length of sub_tables[0] and must stay in step
+    assert t.runner_up == t.sub_tables[0].record_count
+
+
+def test_sub_table_ids_do_not_pollute_the_main_lookup(tmp_path):
+    """`SSID` is 0x0001 in the wlan table. The main table is what the outer TLV
+    stream is walked against, so a flat merge would name an outer id from an
+    inner table and be right often enough to look correct."""
+    main = b"".join(_scalar(i, n, 4) for i, n in FULL) + _scalar(0x01, "DFS_ENABLED", 1)
+    sub = b"".join(_scalar(i, n, 4) for i, n in
+                   [(0x01, "SSID"), (0x02, "CHANNEL"), (0x03, "WEP")])
+    lib = (b"\x11" * 64) + main + (b"\x33" * 64) + sub + (b"\x22" * 64)
+    t = mibtable.analyse(_write(tmp_path, lib))
+    assert t.by_id(0x01) == "DFS_ENABLED"
+    assert t.all_names()[0x01] == "DFS_ENABLED"        # the main table wins
+    assert t.sub_tables[0].entries[0].name == "SSID"   # and the sub-table keeps its own

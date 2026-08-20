@@ -84,6 +84,18 @@ Measure `U19` before forcing anything onto it. The `-104HIP` suffix decodes in t
 EN25QH32B datasheet's ordering-information table — that is the first-party source
 and it should be read rather than guessed at.
 
+> **2026-08-21: measured, 150 mil, and it is one source.** A ruler, against a
+> prediction frozen the day before, with the router unplugged and nothing
+> clipped (`BENCH-LOG.md` `T-85`). The two packages differ by 1.9 mm across the
+> leads — 6.0 against 7.9 — so this is not a marginal reading. **But a ruler
+> leaves no artefact**: there is no photograph and no file, so nobody can
+> re-check it. Two things follow. The second source is **pre-registered and
+> arrives at the next step** — `A5.2` sends RDID, and a clip of the wrong width
+> does not seat eight legs at once, which is already the third item in that
+> step's stop condition. And the `-104HIP` ordering code above is **still not
+> read**; it is a *document* rather than a measurement, which is exactly why
+> having both would settle this row instead of deferring it.
+
 ---
 
 ## 2. SoC — RTL8196**E**, and what that does to W01's "MIPS-I"

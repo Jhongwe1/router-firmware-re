@@ -48,6 +48,18 @@ stored value is 7 — the ratio, rounded up.
 Bit 15 of an id marks a table-valued entry, the same convention
 [`mib-and-config-dat.md`](mib-and-config-dat.md) records for the id/name table.
 
+> 🔴 **Thirteen of the 344 have bit 15 set, and until 2026-08-21 this note
+> counted them and stopped.** One of them, `WLAN_ROOT`, is **22,044 of the
+> 45,226 decompressed bytes** — so a page that reported "344 against 344" and
+> five passing checks was describing a region half of which had never been
+> walked. A table-valued value is the same TLV stream repeated per element, it
+> nests, and `libapmib` states the geometry that makes the decode checkable.
+> All thirteen decode now: [`wlan-root.md`](wlan-root.md). The counts here are
+> unchanged and were never wrong — **what was wrong is that they read as
+> coverage**, and the fix is in the tool as well as in the prose:
+> `check-reports.py` refuses a committed config report whose
+> `table_entries_decoded` is short of its `table_entries`.
+
 ## 2. Five checks, and only one of them is this tool's own opinion
 
 | check | result |
@@ -220,6 +232,11 @@ policy tightens, and **the next device may not be mine.**
 - **The `Encode` side is unread.** Only `Decode` was needed. `mib_compress_write`
   and `save_cs_to_file` are located but not analysed, and W06 will write to this
   region.
+- **The wireless settings are read but nothing has been observed on the air.**
+  [`wlan-root.md`](wlan-root.md) establishes what the factory image contains —
+  `ENCRYPT = 0`, no PSK, WPS enabled — from this unit's flash and from one line
+  of the unit's own `/bin/flash`. Nothing in this project has yet received an
+  802.11 frame, so what the radio is actually transmitting is unmeasured.
 
 ---
 
@@ -255,3 +272,18 @@ records, so the duplicate `0x182` made a correct decode look off by one. Both
 made a byte-perfect decode of the real firmware report `SUSPECT`. **False alarms
 are how real alarms get ignored**, and this repository already runs three tools
 whose verdict fields are meant to be read.
+
+
+**And a third, found five days later, which is the largest of them.** The five
+checks above all pass on a decode that had never entered thirteen of the 344
+entries — one of which was half the payload. Every check was about the *stream*:
+the checksum, the ring fill, the TLV count, the trailing byte. Not one of them
+asked whether an entry's value had been understood, because an opaque value is
+still a well-formed TLV. **A checklist that a half-read region passes is a
+checklist measuring the wrong thing**, and it was written by someone who knew
+`bit 15 means table-valued`, wrote that sentence down, and did not follow it.
+
+The count is now a committed number (`table_entries_decoded` against
+`table_entries`) and `check-reports.py` refuses the report if they differ, for
+the same reason the checksum is preferred to the walk consuming its buffer:
+a property the tool can satisfy by doing nothing is not a check.

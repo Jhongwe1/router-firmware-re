@@ -5448,3 +5448,219 @@ difference today is not a better number, it is **two points instead of one**.
     byte-identical to the 2026-08-16 `FLR` read across all 4,194,304 bytes, and a
     difference confined to the configuration regions would mean the boot writes
     them.
+
+## W08 Day 1 — half the configuration had never been decoded, and the instrument that found the name table for it printed its length and threw it away — 2026-08-21
+
+**Desk only. The device was not powered on and nothing was clipped.** The bench
+half of this day is `BENCH-LOG.md` 2026-08-21, including the plan changes, which
+is the part a desk-only entry exists to record.
+
+`A5.1` is complete: its third measurement passed, so the clip can go on and the
+next session starts at `A5.2`. One register row closed without touching the
+device, and it closed by contradicting its own premise.
+
+### `A5.1`'s third measurement passed, and it is weaker than the first two
+
+`U19` is SOP-8 **150 mil**, measured with a ruler against a prediction frozen on
+2026-08-20. The refutation condition — 208 mil, do not force the clip — did not
+fire. The lead span differs by 1.9 mm between the two packages (6.0 against
+7.9), so this is not a marginal call.
+
+**It is one source, and of a kind that leaves no artefact.** `T-84` was two
+points in the circuit; this is one observer reading a scale, with no photograph
+and no file, so nobody can re-check it later. Two things follow and both are
+written into the record rather than assumed:
+
+* **the second source is pre-registered and arrives at the next step.** `A5.2`
+  sends RDID. A clip of the wrong width does not seat eight legs at once, and
+  `A5.2`'s stop condition already names "is the clip the right width" as the
+  third thing to check when no id comes back;
+* **a second source of a different kind was available and was not taken.** The
+  `-104HIP` ordering code decodes in the EN25QH32B datasheet.
+  `notes/hardware-inspection.md` §1 has said "should be read rather than guessed
+  at" since W02 and it has not been read. It is a *document*, not a measurement,
+  which is why having it as well as the ruler would be worth something.
+
+### `WLAN_ROOT` was 22,044 of 45,226 bytes, and it was not the only one
+
+Open question 90 closes. A table-valued entry — bit 15 of the id — is the same
+`{u16 id; u16 len; u8 value[len]}` stream repeated once per element, and it
+nests. `WLAN_ROOT` is **six blocks of 3,674 bytes, remainder zero**: one radio,
+four virtual APs, one repeater, each block 133 TLVs, each holding four tables of
+its own.
+
+**Thirteen of the 344 entries have bit 15 set and none of them had been entered.**
+`WLAN_ROOT` is the large one; `PORTFW_TBL`, `QOS_RULE_TBL`, `IPFILTER_TBL`,
+`URLFILTER_TBL`, `MACFILTER_TBL`, `STATICROUTE_TBL`, `TRIGGERPORT_TBL`,
+`PORTFILTER_TBL`, `VLANCONFIG_TBL`, `DHCPRSVDIP_TBL` and two `PROFILE_TBL`s are
+the rest. All thirteen decode now, 37 of 37 counting the nested ones, 2,991
+nested entries, both regions `consistent`.
+
+Full note, including the six blocks, the cross-build read and how the first
+version was wrong twice: [`notes/wlan-root.md`](notes/wlan-root.md).
+`P7-7`'s row is in `test-cases.toml`; this section does not restate it.
+
+**What made the gap invisible is worth more than the gap.**
+`notes/compcs-decode.md` listed five checks and all five passed. Every one of
+them was about the *stream* — the vendor's checksum, the ring-fill cross-check,
+344 TLVs against 344 MIB records, zero unknown ids, one trailing byte. **Not one
+asked whether an entry's value had been understood, because an unread value is
+still a well-formed TLV.** A checklist a half-read region passes is measuring
+the wrong thing, and the person who wrote "bit 15 marks a table-valued entry"
+into that note is the person who did not follow the sentence.
+
+### The runner-up was the answer, and it has been in the committed report since W04
+
+`mibtable.py` locates the MIB table structurally: read every offset that parses
+as a 60-byte record, chain them into runs of that fixed stride, take the longest.
+It then reported the second-longest **as a bare number**:
+
+```json
+"table_offset": 54904, "segments": 63, "runner_up": 133,
+```
+
+Each `WLAN_ROOT` block is 133 TLVs. The 133-record run at `0x012754` is
+`SSID`, `CHANNEL`, `WLAN_MAC_ADDR`, `WPA_PSK`, `WSC_PSK` — the name table for
+exactly those elements. **The instrument found it, printed its length, and
+discarded its contents**, and that number has been sitting in
+`reports/mib-table-unit-2018.json` ever since.
+
+There are **twenty-one** runs of two records or more in this `libapmib.so` and
+the first version kept one. The tool even had an ambiguity guard,
+`runner_up * 2 >= count`, and it was correct not to fire: 133 x 2 < 344, the main
+table genuinely is unambiguous. **The defect was not a missing check.** It was
+that the question asked had been "which run is the table" rather than "what are
+the runs", and a check cannot catch a question that was never posed.
+
+This one goes in the ledger with the other instrument bugs, and it is a
+different species from most of them: nothing was wrong, nothing disagreed, no
+number was absurd. It was a correct answer to a question that was too narrow,
+and the only thing that exposed it was going back to look at a field that had
+never been read.
+
+### The 24 bytes after the name
+
+A record is 60 bytes; the id and the inline 32-byte name account for 36. The
+rest had never been parsed, and it carries the geometry — `type`,
+`struct_offset`, `total_size`, a repeat of `total_size`, and `element_size` —
+so **`count = total_size / element_size` is read off the binary rather than
+counted in the data**. `WLAN_ROOT`: 15156 / 2526 = 6.
+
+That is what makes the decode checkable rather than plausible. The encoding
+charges four header bytes per TLV at every depth, so one block is
+2526 struct + 532 own headers + 616 nested headers = 3,674, and 6 x 3,674 =
+22,044 with no remainder. Every number on one side of that comes from
+`libapmib.so`; every number on the other comes from the flash.
+
+`struct_offset` corroborates independently: `USER_NAME` at `0xb1`,
+`USER_PASSWORD` at `0xd0`, and `0xd0 - 0xb1 = 0x1f` = `USER_NAME`'s size.
+
+### Instrument work
+
+| | |
+|---|---|
+| `tools/fwrecon/.../mibtable.py` | parses the whole record; keeps **all twenty-one runs** as `sub_tables` instead of counting the runner-up. Three geometry invariants, reported separately from `anomalies` so a build that changes one field's tail cannot make the id/name recovery inadmissible — that recovery is what names every `apmib_get` in the project |
+| `tools/fwrecon/.../compcs.py` | recursive decode of table-valued entries. Binds a value to a sub-table **by test**: the observed id set must match a recovered run, that run's member sizes must sum to `element_size`, the TLV count must equal `fields x count`, and the value length must equal `total_size + 4 x (TLVs at every depth)` |
+| `tools/check-reports.py` | refuses a committed config report whose `table_entries_decoded` is short of its `table_entries`. "This region is decoded" was a sentence nothing checked, for five days, in a repository whose first rule is that a tool reporting a number is making a claim |
+| tests | 110 → **130**. The load-bearing ones reproduce both of this session's own bugs: a table holding a table, and two sub-tables that match |
+
+**Instrument bug 47, and it is the one that was hardest to see.** The first
+version of the header arithmetic charged four bytes per *top-level* TLV. Every
+table without nesting passed. `WLAN_ROOT` came out **3,696 bytes short — which
+is exactly 6 blocks x 154 nested TLVs x 4**, so the size of the miss named its
+own cause. Had the check been written as "the walk consumed its buffer", which
+it also was, nothing would have been reported and nothing would have been
+verified: a walk consuming its input is a property of the walk. The version that
+failed usefully compared against a number from somewhere else.
+
+**Instrument bug 48, and it is a refusal that was too strict.** The binding rule
+was "the observed ids must match exactly one run; zero and two are both
+refusals", and it refused `PROFILE_TBL1` and `PROFILE_TBL2` for matching two.
+There really are two `PROFILE_SSID..PROFILE_PSK_FORMAT` runs, at `0xb130` and
+`0xb43c`, with the same ids, names and sizes — one per profile table. The rule
+now refuses candidates that **disagree**. Loosening a refusal is the change most
+likely to be self-serving, so it cost a test that pins the disagreeing case, and
+the loosened rule is still strictly narrower than "pick the first match".
+
+### Corrections to the plan
+
+- **`plan/W08` §四 Day 4 assigns chapter 8 to `compcs-decode.md` and
+  `mib-and-config-dat.md` and describes the region as decoded.** It was decoded
+  to the TLV layer, and one TLV was half the payload. The chapter now has
+  `wlan-root.md` under it, and the plan is not edited.
+- **`runsheet.md` `B-W08` lists `P7-7` under "not done this session" because its
+  premise had been refuted.** The reverse-engineering that made it a desk row
+  was done on 2026-08-21 and the row closed. `B-W08` is append-only, so this is
+  recorded in `B-W08 增補` rather than by editing the table.
+- **The README's file index said the register holds 134 tests and it holds 135.**
+  Stale before this session, not caused by it — the count moved when W07 added a
+  row and the index line was not carried with it. Corrected. The **other** 134 in
+  that file, in G3.75's closure record, is left alone: it states what was frozen
+  before the first request was served, which is a historical figure and not a
+  description of the current file.
+- **A purchase was proposed here yesterday and is withdrawn.** An RP2040 on the
+  SPI bus, capturing opcodes passively during boot, would answer open questions
+  89 and 91 directly. It needs a clip on a **powered** board — the action this
+  project forbids for the CH341A — and there is one SOIC-8 clip, so the two
+  instruments cannot both be attached. `A5.5`'s new `seat-c` read answers 91 with
+  what is already on the desk. **The proposal was talked up beyond its place in
+  the week and the author declined it twice before it was withdrawn**, which is
+  the wrong way round for an assistant whose job is to name what could be lying.
+
+### Deliberately not done
+
+- **Nothing was clipped and the device was not powered on.** `A5.1`'s third
+  measurement is a measurement, not an operation.
+- **`P7-3` / `P7-4`'s transmitter firmware.** The ESP8266 on the desk is an
+  ESP-12F with USB and both buttons, so flashing is not the obstacle. The
+  radiation half of `P7-3`'s reason is, and it is a consent question rather than
+  an instrument one. "Relatively isolated" is not yet a number: a scan taken
+  before transmitting, recording how many BSSIDs are visible and at what RSSI,
+  is what would turn it into a precondition that can fail.
+- **`P9-10` / `P9-12`'s loader tooling.** One thing was established at the desk
+  and it changes the design: the loader's strings are **TFTP *Client*** —
+  `**TFTP Client Upload File Size = %X Bytes at %X` and
+  `*TFTP Client Download Success!` — so the work is a TFTP **server** on the WSL
+  side, not an upload client. No tool was written.
+- **The write-up draft.** Chapter 8 only acquired `WLAN_ROOT` today and chapter
+  14 is waiting on this week's measurements. Drafting now means redrafting
+  within the week, which `plan/W08` §六 forbids for its own reasons.
+
+### Open, carried forward
+
+66, 67, 69, 70, 71, 74, 75, 77, 78, 79, 81, 82, 84, 85, 86, 87, 88, 92, 93 —
+unchanged.
+
+**90 is closed** — `WLAN_ROOT` is decoded, [`notes/wlan-root.md`](notes/wlan-root.md).
+
+89. **Which flash descriptor does `FLW` use when the lookup fails?** Unchanged,
+    and now with a recorded decision attached: the cheapest instrument that
+    would answer it directly is a passive SPI capture during a write, and that
+    was considered and declined this session for the reasons above. Nothing else
+    proposed so far distinguishes a 4 KiB erase from a 64 KiB one after the fact.
+91. **Does this device write its own flash during boot?** Now has a measurement
+    scheduled rather than only a question. `A5.5` reads a full image at the third
+    clip seating and compares it against the image that was written before the
+    boot — **same instrument at both ends, so the "two instruments disagree"
+    confound that limits `A5.3` does not apply.** The prediction is zero
+    differing bytes and it is frozen in `BENCH-LOG.md` 2026-08-21 before the
+    session.
+94. **`H601` has never been decoded into named fields, and the tooling is now
+    one step away.** 8 KiB at flash `0x006000`, uncompressed, under an `H601`
+    magic that is not `COMPHS`, holding the per-unit MACs and the radio
+    calibration. `fwrecon compcs` refuses the offset by design and nothing else
+    reads it: `HW_WLAN0_WSC_PIN` has only ever been obtained by asking the device
+    or the emulator. `libapmib` has the tables for it — `HW_WLAN_ROOT` is id
+    `0x80c9`, its sub-table is the 18-record `WLAN_ADDR..LED_TYPE` run at
+    `0xccd8`, and `WSC_PIN` `0x0111` sits in the 6-record run at `0xd458`. This
+    is also the most disclosure-sensitive region in the image, so it needs
+    `docs/disclosure.md` consulted before a report is committed, not after.
+95. **Does anything validate a WPS PIN's check digit on this device?** The
+    factory value read out of `H601` was `99956042`, whose eighth digit **is** a
+    valid WPS checksum. W06's PoC wrote `13572468`, whose computed check digit is
+    **4** and not 8 — and the device stored it, recomputed the `H601` region
+    checksum around it, and returned 302. So `formWsc` does not check it on the
+    way in. Whether `wscd` rejects it later, or whether the AP goes on to
+    advertise a PIN that no enrollee can complete, is unmeasured. **One source:
+    this session computed the standard checksum in Python.** The second would be
+    the vendor's own validator, if there is one, in `wscd` or `boa`.

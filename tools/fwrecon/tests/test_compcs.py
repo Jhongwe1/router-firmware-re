@@ -29,7 +29,7 @@ import struct
 
 import pytest
 
-from fwrecon import compcs
+from fwrecon import compcs, mibtable
 
 # --------------------------------------------------------------- builders
 
@@ -64,15 +64,34 @@ def _region(body: bytes, magic: bytes = b"COMPCS", rate: int | None = None) -> b
     return magic + struct.pack(">HI", rate, len(comp)) + comp
 
 
-class _Mib:
-    def __init__(self, entries):
-        self.entries = entries
-        self.duplicate_ids = []
+# The real dataclasses, not stand-ins. A test double for the MIB table would
+# have to reimplement `count` from total_size/element_size, and a reimplemented
+# invariant is one that can quietly stop matching the code it is checking.
+
+def _Mib(entries, sub_tables=None):
+    return mibtable.MibTable(entries=list(entries),
+                             sub_tables=list(sub_tables or []))
 
 
-class _E:
-    def __init__(self, i, n):
-        self.id, self.name = i, n
+def _E(i, n, *, total=0, element=0, kind=0):
+    return mibtable.MibEntry(id=i, name=n, offset=0, type=kind,
+                             total_size=total, declared_size=total,
+                             element_size=element)
+
+
+def _Sub(entries, offset=0x1000):
+    ents = list(entries)
+    return mibtable.MibSubTable(offset=offset, record_count=len(ents), entries=ents)
+
+
+def _body_tlvs(entries: list[tuple[int, bytes]]) -> bytes:
+    return b"".join(struct.pack(">HH", i, len(v)) + v for i, v in entries)
+
+
+def _table_value(rows: list[list[tuple[int, bytes]]]) -> bytes:
+    """The on-flash form of a table-valued entry: each element's TLV stream,
+    concatenated. No count and no terminator - the geometry is in libapmib."""
+    return b"".join(_body_tlvs(r) for r in rows)
 
 
 # ---------------------------------------------------------------- happy path
@@ -250,3 +269,209 @@ def test_ring_fill_cross_check_is_reported():
     uninitialised window bytes is visible instead of merely plausible."""
     cfg = compcs.decode_region(_region(_body([(0xAA, b"\x01\x02\x03\x04")])), 0)
     assert cfg.ring_fill_agrees is True
+
+
+# ------------------------------------------------------- table-valued entries
+#
+# `WLAN_ROOT` was 22,044 of the 45,226 decompressed bytes and was reported as a
+# hex string until 2026-08-21, so `notes/compcs-decode.md` described a region as
+# decoded while half of it had never been walked. These tests are the shape of
+# that decode, and every one of them except the first two makes it refuse.
+
+_TWO_FIELDS = _Sub([_E(0x4BB, "WLAN_ACL_ADDR_MACADDR", total=6, element=1),
+                    _E(0x4BC, "WLAN_ACL_ADDR_COMMENT", total=4, element=1)])
+#: two elements of (6 + 4) struct bytes = 20, plus 4 x 4 header bytes = 36
+_TWO_ROWS = [[(0x4BB, b"\x00\x11\x22\x33\x44\x55"), (0x4BC, b"abc\x00")],
+             [(0x4BB, b"\x66\x77\x88\x99\xaa\xbb"), (0x4BC, b"xyz\x00")]]
+#: the same two elements with every field two bytes longer than libapmib
+#: declares. Geometry that agrees on the element size and disagrees on the byte
+#: total is the only way to reach the header arithmetic on its own.
+_FAT_ROWS = [[(0x4BB, b"\x00\x11\x22\x33\x44\x55\x66\x77"), (0x4BC, b"abcde\x00")],
+             [(0x4BB, b"\x66\x77\x88\x99\xaa\xbb\xcc\xdd"), (0x4BC, b"vwxyz\x00")]]
+
+
+def _tbl_mib(*, total=20, element=10, sub=None):
+    return _Mib([_E(0x8036, "MACAC_ADDR", total=total, element=element, kind=0x11)],
+                [sub if sub is not None else _TWO_FIELDS])
+
+
+def test_table_valued_entry_decodes_into_named_rows():
+    cfg = compcs.decode_region(
+        _region(_body([(0x8036, _table_value(_TWO_ROWS))])), 0, mib=_tbl_mib())
+    e = cfg.entries[0]
+    assert cfg.verdict == "consistent", cfg.anomalies
+    assert cfg.table_entries == 1 and cfg.table_entries_decoded == 1
+    assert len(e.rows) == 2
+    assert [c.name for c in e.rows[0]] == ["WLAN_ACL_ADDR_MACADDR",
+                                           "WLAN_ACL_ADDR_COMMENT"]
+    assert e.rows[0][0].value == "00:11:22:33:44:55"
+    assert e.rows[1][1].value == "xyz"
+    assert "run at 0x1000" in e.table_source
+    assert cfg.nested_entries == 4
+
+
+def test_no_mib_leaves_a_table_undescended_without_calling_it_an_anomaly():
+    """Without --mib nothing says how many elements there are. That is the
+    caller choosing not to supply a source, not a defect, and it must not read
+    as one."""
+    cfg = compcs.decode_region(
+        _region(_body([(0x8036, _table_value(_TWO_ROWS))])), 0)
+    assert cfg.entries[0].rows == []
+    assert "no --mib" in cfg.entries[0].table_note
+    assert not any("did not decode" in a for a in cfg.anomalies)
+
+
+def test_table_with_no_matching_sub_table_is_refused():
+    mib = _tbl_mib(sub=_Sub([_E(0x999, "SOMETHING_ELSE", total=10, element=1)]))
+    cfg = compcs.decode_region(
+        _region(_body([(0x8036, _table_value(_TWO_ROWS))])), 0, mib=mib)
+    assert cfg.entries[0].rows == []
+    assert "no sub-table" in cfg.entries[0].table_note
+    assert cfg.verdict == "SUSPECT"
+
+
+def test_two_disagreeing_sub_tables_are_refused():
+    """Same ids, different names. The decoder must not pick the nearest."""
+    other = _Sub([_E(0x4BB, "MECH_ACL_MACADDR", total=6, element=1),
+                  _E(0x4BC, "MECH_ACL_COMMENT", total=4, element=1)], offset=0x2000)
+    mib = _Mib([_E(0x8036, "MACAC_ADDR", total=20, element=10, kind=0x11)],
+               [_TWO_FIELDS, other])
+    cfg = compcs.decode_region(
+        _region(_body([(0x8036, _table_value(_TWO_ROWS))])), 0, mib=mib)
+    assert cfg.entries[0].rows == []
+    assert "disagree about the names" in cfg.entries[0].table_note
+    assert cfg.verdict == "SUSPECT"
+
+
+def test_two_identical_sub_tables_are_not_an_ambiguity():
+    """libapmib carries PROFILE_SSID..PROFILE_PSK_FORMAT twice, at 0xb130 and
+    0xb43c, byte-identical. Refusing that would be refusing to choose between
+    two spellings of one word - and it did refuse, on the real firmware, before
+    this case existed."""
+    twin = _Sub([_E(0x4BB, "WLAN_ACL_ADDR_MACADDR", total=6, element=1),
+                 _E(0x4BC, "WLAN_ACL_ADDR_COMMENT", total=4, element=1)],
+                offset=0x2000)
+    mib = _Mib([_E(0x8036, "MACAC_ADDR", total=20, element=10, kind=0x11)],
+               [_TWO_FIELDS, twin])
+    cfg = compcs.decode_region(
+        _region(_body([(0x8036, _table_value(_TWO_ROWS))])), 0, mib=mib)
+    assert cfg.verdict == "consistent", cfg.anomalies
+    assert len(cfg.entries[0].rows) == 2
+    assert "one of 2 identical runs" in cfg.entries[0].table_source
+
+
+def test_element_size_disagreeing_with_the_sub_table_is_refused():
+    """The binary says one element is 10 bytes and the sub-table members sum to
+    10. Change the declaration and the two sources no longer corroborate."""
+    cfg = compcs.decode_region(
+        _region(_body([(0x8036, _table_value(_TWO_ROWS))])), 0,
+        mib=_tbl_mib(total=22, element=11))
+    assert cfg.entries[0].rows == []
+    assert "declares element_size 11" in cfg.entries[0].table_note
+    assert cfg.verdict == "SUSPECT"
+
+
+def test_element_count_disagreeing_with_the_tlv_count_is_refused():
+    cfg = compcs.decode_region(
+        _region(_body([(0x8036, _table_value(_TWO_ROWS))])), 0,
+        mib=_tbl_mib(total=30, element=10))          # says 3 elements, data has 2
+    assert cfg.entries[0].rows == []
+    assert "4 TLVs against 2 fields x 3 elements" in cfg.entries[0].table_note
+    assert cfg.verdict == "SUSPECT"
+
+
+def test_header_arithmetic_that_does_not_close_is_refused():
+    """Element size agrees, element count agrees, and the bytes still do not.
+
+    Each field here carries two bytes more than libapmib declares, so the walk
+    produces exactly the four TLVs the geometry predicts while the value is 44
+    bytes where 20 struct + 4x4 headers = 36. Without this check the decode
+    would have looked right and been silently long.
+    """
+    cfg = compcs.decode_region(
+        _region(_body([(0x8036, _table_value(_FAT_ROWS))])), 0, mib=_tbl_mib())
+    assert cfg.entries[0].rows == []
+    assert "= 36, but the value is 44" in cfg.entries[0].table_note
+    assert cfg.verdict == "SUSPECT"
+
+
+def test_nested_headers_are_charged_to_the_arithmetic():
+    """The bug this check was written with, reproduced small.
+
+    The first version charged four header bytes per *top-level* TLV, so a table
+    holding a table came out short - on the real firmware, `WLAN_ROOT` by 3,696
+    bytes, which is exactly 6 blocks x 154 nested TLVs x 4. Here: an outer table
+    of one element whose one field is itself a two-element table.
+    """
+    inner = _table_value(_TWO_ROWS)                      # 36 bytes, 4 TLVs
+    outer_value = _body_tlvs([(0x8036, inner)])          # 4 + 36 = 40 bytes
+    inner_sub = _Sub([_E(0x8036, "MACAC_ADDR", total=20, element=10, kind=0x11)],
+                     offset=0x3000)
+    mib = _Mib([_E(0x8065, "WLAN_ROOT", total=20, element=20, kind=0x10)],
+               [inner_sub, _TWO_FIELDS])
+    cfg = compcs.decode_region(_region(_body([(0x8065, outer_value)])), 0, mib=mib)
+    # 20 struct bytes + 5 TLVs (1 outer + 4 inner) x 4 = 40 == len(outer_value)
+    assert cfg.verdict == "consistent", cfg.anomalies
+    assert "20 struct + 20 headers" in cfg.entries[0].table_note
+    assert len(cfg.entries[0].rows) == 1
+    assert len(cfg.entries[0].rows[0][0].rows) == 2       # and it descended again
+
+
+def test_nesting_deeper_than_the_limit_is_refused_not_recursed():
+    """A backstop, exercised directly.
+
+    Reaching it through the public path would need five nested levels whose
+    geometry all closes, because every check above fires first - so the guard
+    exists for a stream that lies *consistently*, and calling the private
+    function is the only way to present one without also having to assert that
+    such a stream is constructible.
+    """
+    entry = compcs.Entry(id=0x8036, name="MACAC_ADDR", length=0, offset=0,
+                         raw="", value="", kind="bytes", table_valued=True)
+    cfg = compcs.Config()
+    compcs._decode_table(entry, b"", cfg, None, _tbl_mib(), "open",
+                         compcs.MAX_TABLE_DEPTH)
+    assert entry.rows == []
+    assert "nesting deeper" in entry.table_note
+    assert any("nesting exceeded" in a for a in cfg.anomalies)
+
+
+def test_an_undecoded_table_is_counted_and_named_in_the_verdict():
+    """The coverage claim is the point. A region reported as decoded while one
+    of its entries is half the payload is the exact failure this replaces."""
+    mib = _tbl_mib(sub=_Sub([_E(0x999, "SOMETHING_ELSE", total=10, element=1)]))
+    cfg = compcs.decode_region(
+        _region(_body([(0x8036, _table_value(_TWO_ROWS))])), 0, mib=mib)
+    assert cfg.table_entries == 1
+    assert cfg.table_entries_decoded == 0
+    assert any("table-valued entries did not decode" in a for a in cfg.anomalies)
+
+
+def test_a_decoded_table_does_not_repeat_its_bytes():
+    """The parent value is exactly the concatenation of its rows, so carrying
+    both asserts the same bytes twice. Every byte stays present once, in the
+    leaf that owns it, and the elision is a flag rather than a surprise."""
+    value = _table_value(_TWO_ROWS)
+    cfg = compcs.decode_region(
+        _region(_body([(0x8036, value)])), 0, mib=_tbl_mib())
+    e = cfg.entries[0]
+    assert e.raw == "" and e.raw_elided_into_rows
+    assert e.value == "2 elements, decoded into rows"
+    assert e.length == len(value)          # the length is still stated
+    # and the bytes are all still there, once
+    rebuilt = b"".join(
+        struct.pack(">HH", c.id, c.length) + bytes.fromhex(c.raw)
+        for row in e.rows for c in row)
+    assert rebuilt == value
+
+
+def test_a_refused_table_keeps_its_bytes():
+    """A table that did not decode must keep its hex: that is the only form the
+    evidence has left, and eliding it would hide the undecoded half instead of
+    reporting it."""
+    mib = _tbl_mib(sub=_Sub([_E(0x999, "SOMETHING_ELSE", total=10, element=1)]))
+    cfg = compcs.decode_region(
+        _region(_body([(0x8036, _table_value(_TWO_ROWS))])), 0, mib=mib)
+    e = cfg.entries[0]
+    assert not e.raw_elided_into_rows
+    assert e.raw == _table_value(_TWO_ROWS).hex()
