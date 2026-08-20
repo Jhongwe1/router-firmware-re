@@ -188,5 +188,147 @@ show_plan "$TMP/base.bin" "$TMP/same.bin" "0x3FF000-0x400000" >/dev/null 2>&1
              || bad "a no-op write did not report itself as one"
 echo
 
+echo "=== tools/flash-read.sh: parsing what flashrom actually says ==="
+# Captured from flashrom 1.3.0-2.1ubuntu2, the build on this workstation. These
+# are here because two of the patterns they exercise were wrong for four days
+# and printed nothing rather than failing -- so nothing in the suite, and
+# nothing at the bench, would have said so. Instrument bug 50.
+cat > "$TMP/probe-good.log" <<'LOG'
+flashrom unknown on Linux 6.6.87.2-microsoft-standard-WSL2 (x86_64)
+flashrom is free software, get the source code at https://flashrom.org
+Probing for Eon EN25QH32, 4096 kB: RDID returned 0x1c 0x70 0x16. probe_spi_rdid_generic: id1 0x1c, id2 0x7016
+Probing for Eon EN25Q32(A/B), 4096 kB: RDID returned 0x1c 0x70 0x16. Chip status register is 0x00.
+Found Eon flash chip "EN25QH32" (4096 kB, SPI) on ch341a_spi.
+LOG
+
+cat > "$TMP/probe-forced.log" <<'LOG'
+flashrom unknown on Linux 6.6.87.2-microsoft-standard-WSL2 (x86_64)
+Assuming Eon flash chip "EN25QH32" (4096 kB, SPI) on ch341a_spi.
+LOG
+
+cat > "$TMP/probe-unstable.log" <<'LOG'
+Probing for Eon EN25QH32, 4096 kB: RDID returned 0x1c 0x70 0x16. Ok.
+Probing for Eon EN25Q32(A/B), 4096 kB: RDID returned 0x1c 0x70 0x14. Ok.
+LOG
+
+eq() {  # label want got
+  if [ "$2" = "$3" ]; then ok "$1"; else
+    bad "$1 -- wanted [$2], got [$3]"; fi
+}
+
+eq "the chip name survives a vendor string containing the letter n" \
+   "EN25QH32" "$(parse_chip_name "$TMP/probe-good.log")"
+eq "a matched identification reports the verb Found" \
+   "Found" "$(parse_chip_verb "$TMP/probe-good.log")"
+eq "a name supplied with -c is reported as Assuming, not as a source" \
+   "Assuming" "$(parse_chip_verb "$TMP/probe-forced.log")"
+eq "a version banner that says 'unknown' is still recorded, not dropped" \
+   "flashrom unknown on Linux 6.6.87.2-microsoft-standard-WSL2 (x86_64)" \
+   "$(parse_flashrom_version "$TMP/probe-good.log")"
+eq "dozens of identical RDID lines collapse to one id" \
+   "1c7016" "$(parse_rdids "$TMP/probe-good.log")"
+eq "two distinct RDID values are BOTH returned, so the caller can refuse" \
+   "1c7014
+1c7016" "$(parse_rdids "$TMP/probe-unstable.log")"
+eq "a log with no identification line yields an empty name, not a guess" \
+   "" "$(parse_chip_name "$TMP/probe-unstable.log")"
+echo
+
+# Instrument bug 51: these two logs are the difference between "re-seat the
+# clip" and "do not touch the clip", and until 2026-08-21 the tool printed the
+# first message for both. The fixture below is the real shape of a flashrom
+# 1.3.0 -VVV log, including the four-byte RDID4 line, which must NOT be counted
+# as a second, disagreeing id.
+cat > "$TMP/probe-noprint.log" <<'LOG'
+flashrom unknown on Linux 6.6.87.2-microsoft-standard-WSL2 (x86_64)
+Found Eon flash chip "EN25QH32" (4096 kB, SPI) on ch341a_spi.
+LOG
+
+cat > "$TMP/probe-dead.log" <<'LOG'
+flashrom unknown on Linux 6.6.87.2-microsoft-standard-WSL2 (x86_64)
+No EEPROM/flash device found.
+LOG
+
+cat > "$TMP/probe-rdid4.log" <<'LOG'
+RDID returned 0xef 0x40 0x18. Ignoring RES in favour of RDID.
+RDID returned 0xef 0x40 0x18 0xff. compare_id: id1 0xef, id2 0x4018
+RDID returned 0xef 0x40 0x18. compare_id: id1 0xef, id2 0x4018
+LOG
+
+eq "a log with an identification line but no RDID is NOT a contact problem" \
+   "not-printed" "$(rdid_failure_kind "$TMP/probe-noprint.log")"
+eq "a log with nothing identified at all IS a contact problem" \
+   "no-answer" "$(rdid_failure_kind "$TMP/probe-dead.log")"
+eq "a four-byte RDID4 line does not become a second, disagreeing id" \
+   "ef4018" "$(parse_rdids "$TMP/probe-rdid4.log")"
+echo
+echo "=== tools/flash-read.sh: probe(), end to end, against a real flashrom ==="
+# No clip, no router, no CH341A: flashrom's own dummy programmer answers RDID
+# out of its table, which is enough to drive every line of probe(). This case
+# exists because the four parsers above are only half the claim -- the other
+# half is that probe() asks flashrom for a verbosity at which the line it
+# parses is actually printed, and on 2026-08-21 it did not. Instrument bug 51.
+if command -v flashrom >/dev/null 2>&1; then
+  ( export FLASH_READ_PROGRAMMER="dummy:emulate=W25Q128FV"
+    PROGRAMMER="$FLASH_READ_PROGRAMMER"
+    DEST="$TMP/e2e"; mkdir -p "$DEST"
+
+    out="$(probe ef4018 2>&1)"; rc=$?
+    [ $rc -eq 0 ] \
+      && [[ "$out" == *"matches the prediction"* ]] \
+      && [[ "$out" == *"JEDEC id  0xef4018"* ]] \
+      && echo "  ok    probe reads an id out of a real flashrom log and matches it" \
+      || { echo "  FAIL  probe could not identify the dummy part (rc=$rc)"; echo "$out" | sed 's/^/          /'; exit 1; }
+
+    [[ "$out" == *"flashrom calls it: W25Q128.V"* ]] \
+      && echo "  ok    probe reports the name flashrom's own id-keyed table gives" \
+      || { echo "  FAIL  the chip name is missing from a real probe"; exit 1; }
+
+    out="$(probe 1c7016 2>&1)"; rc=$?
+    [ $rc -ne 0 ] && [[ "$out" == *"PREDICTION MISSED"* ]] \
+      && echo "  ok    a wrong prediction fails the probe, so the test can fail" \
+      || { echo "  FAIL  a wrong prediction did not fail the probe (rc=$rc)"; exit 1; }
+
+    out="$(cmd_read --label nope --expect-id ef4018 --yes 2>&1)"; rc=$?
+    [ $rc -ne 0 ] && [[ "$out" == *"probing only"* ]] \
+      && echo "  ok    a READ through the dummy is refused, not recorded" \
+      || { echo "  FAIL  a dummy read was not refused (rc=$rc)"; exit 1; }
+  )
+  if [ $? -eq 0 ]; then pass=$((pass + 4)); else fail=$((fail + 1)); fi
+else
+  echo "  --    flashrom absent, probe() end-to-end not exercised"
+fi
+echo
+
+echo "=== the two clip tools do not get their own opinion of flashrom ==="
+# Instrument bugs 50 and 51 were one wrong belief with two homes. Fixing both
+# copies fixes today; this case is about tomorrow. It fails if either tool grows
+# its own probe verbosity or its own copy of the parse.
+for f in tools/flash-read.sh tools/flash-write.sh; do
+  if grep -q 'lib/flashrom-parse.sh' "$f"; then
+    ok "$f sources the one owner of flashrom's output format"
+  else
+    bad "$f no longer sources tools/lib/flashrom-parse.sh"
+  fi
+  if grep -qE 'flashrom_(ro|rw) +-V+ ' "$f"; then
+    bad "$f hardcodes a probe verbosity again instead of \$FLASHROM_PROBE_V"
+  else
+    ok "$f asks the shared constant for the probe verbosity"
+  fi
+  if grep -qE "grep .*'RDID returned" "$f"; then
+    bad "$f grew its own copy of the RDID parse"
+  else
+    ok "$f has no private copy of the RDID parse"
+  fi
+done
+# And the constant has to be the value that was actually measured, not a value
+# that merely exists: -V and -VV both produce zero RDID lines on flashrom 1.3.0.
+if [ "$FLASHROM_PROBE_V" = "-VVV" ]; then
+  ok "the shared probe verbosity is the measured one (-VVV)"
+else
+  bad "FLASHROM_PROBE_V is $FLASHROM_PROBE_V; -V and -VV print no RDID line at all"
+fi
+echo
+
 echo "  $pass passed, $fail failed"
 [ "$fail" -eq 0 ] || exit 1

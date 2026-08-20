@@ -3920,3 +3920,181 @@ flash `0x060010` 的 `cr6c` 酬載，而檔名根本不存在。它是在**供�
 **一次進站就答得完**：`FLR` 一段有辨識度的範圍進 RAM，然後 `get`，看 byte 有沒有
 跟著 `FLR` 走。在那之前，`get` 是一條**來源用假設的**傳輸路徑，而工具的輸出自己
 就這樣寫。
+# 2026-08-21（五）W08 進站場次 —— 計畫，寫在夾子上去之前
+
+**預測不在這一則裡。** 這一場的十一條預測寫在 **2026-08-20 §2** 那張表，順序寫在
+`runsheet.md` 的 `B-W08` 與它的兩則增補。**這一則一個字都不重寫它們**：一份可以在
+量測前一小時被重寫的預測，預測不了任何事情。
+
+這一則記的是**今天傍晚在桌面上新發生、而且會改變這一場怎麼跑**的事。照這個檔案自己的
+規矩，這半件事必須在插電之前上紀錄 —— W07 Day 3 改了三條進站預測而這個檔案一個字都
+沒寫，是作者抓到的。**今天改了兩件工具、加了四條預測，所以這一則的重點在前半。**
+
+## 一、`A5.2` 照原樣跑會失敗，而它的失敗訊息會指著三個錯的地方
+
+`tools/flash-read.sh` 的 `probe` 向 flashrom 要一個 `-V`，然後去 log 裡撈
+`RDID returned 0x.. 0x.. 0x..`。**flashrom 1.3.0 這一行只在 `-VVV` 才印。**
+量在 flashrom 自己的 `dummy` 程式器上，沒有夾子、沒有裝置、沒有 CH341A：
+
+```text
+  flags none    RDID lines: 0    identification lines: 1    log bytes: 825
+  flags -V      RDID lines: 0    identification lines: 2    log bytes: 62274
+  flags -VV     RDID lines: 0    identification lines: 2    log bytes: 62321
+  flags -VVV    RDID lines: 6    identification lines: 2    log bytes: 328776
+  flags -VVVV   RDID lines: 6    identification lines: 2    log bytes: 328777
+```
+
+所以晶片會答、flashrom 會認出它，而工具會撈到零行，然後印：
+
+```text
+ FAIL  no JEDEC id came back. The chip is not answering.
+ FAIL    - router unplugged? the clip cannot power the whole board reliably
+ FAIL    - pin 1 of the clip on pin 1 of U19? (the dot on the package)
+ FAIL    - SOP-8 comes in 150 mil and 208 mil; the kit clip is often narrow
+```
+
+**三個候選全部是錯的**，而且第三個會把人送回去量封裝寬度 —— 那一格今天早上才剛以
+`T-85` 通過。照 2026-08-20 §3 的停止條件，第三次之後就是拆夾子重夾，**而重夾會把
+一顆完全正常的晶片再壓一次**，並且沒有任何一次會成功。儀器 bug 51。
+
+**改的不只是那個旗標。** 只把 `-V` 換成 `-VVV`，下一次 flashrom 動格式時同一個錯誤
+會用同一種形狀再來一次。真正改掉的是**讓工具分得出兩種失敗**：log 裡只要有一行
+flashrom 的辨識結果，匯流排就是好的 —— 缺的是那一行字，不是那顆晶片。現在它會說
+`DO NOT RE-SEAT THE CLIP`。理由寫在 `RUNBOOK` §8.12.41，指令與預期輸出在
+`runsheet.md` `A5.2`。
+
+## 二、少印四行，而那四行正好是 `P9-7` 要的第二個來源
+
+同一支工具解 flashrom 型號那一行的樣式是 `Found [^\n]*flash chip "[^"]+"`。
+**`[^\n]` 在 POSIX 方括號裡不是「非換行」，是「不是反斜線、也不是字母 n」** ——
+而 flashrom 印的是 `Found Eon flash chip "EN25QH32" (4096 kB, SPI)`，`Eon` 裡有一個
+`n`。拿真的那一行驗過：不匹配；換成 `.` 就匹配。**這一行從寫下來到今天，一次都沒有
+印出來過**，而預期輸出裡也沒有它 —— 所以沒有人會發現少了。儀器 bug 50。
+
+第二個解析同樣永遠是空的：版本樣式要 `flashrom [0-9]`，而 Ubuntu 打包沒填版本字串，
+這顆印的是 `flashrom unknown on Linux …`。**一份 4 MiB 的 dump 即將成為這個專案每一個
+byte 級主張的第二個來源，而它的 log 裡沒有記下讀取器是誰。**
+
+**而 `flashrom` 那一行為什麼算一個來源。** `flashrom` 比對的是 `manufacture_id` 與
+`model_id`，型號名是查表的**輸出**不是索引。分辨這兩件事不需要讀原始碼：叫它去模擬
+`W25Q128FV`，它回報 `W25Q128.V` —— **餵進去的字串跟吐出來的不一樣**，如果是用名字
+索引的，名字會原樣回來。所以它是「這三個 byte 是哪一顆」的第二個來源，**不是**「那三個
+byte 是什麼」的第二個來源。
+
+## 三、登記簿 `P9-7` 的 `predict` 欄有一句是錯的，而它不會被改
+
+那一欄寫著「flashrom 判斷也是 4096 KiB 並不獨立，因為它的資料庫就是用同一個型號名
+索引的」。**上一節那一量推翻了它。** `RUNBOOK` §8.12.41 裡同一句話已經改掉了（那個
+檔案的職責是論證），**但 `test-cases.toml` 的 `predict` 欄不動**：量測前一小時把預測
+往有利的方向改，跟量測後改沒有分別。這一條進 `PROGRESS.md § Corrections`，
+判定寫進 `P9-7` 的紀錄卡。
+
+## 四、今晚新增的四條預測，全部寫在夾子碰到晶片之前
+
+| # | 節 | 預測 | 反證條件（寫在前面） |
+|---|---|---|---|
+| 12 | `A5.2` | flashrom 自己把這顆叫成 **`EN25QH32`**，沒有 `B` | 叫成 `EN25Q32(A/B)` → id 是 `1c3016`，2026-08-20 §2 第 4 列的反證條件已經觸發，整段推理作廢。叫成別的名字 → 兩邊都不對，先別讀 |
+| 13 | `A5.2` | `reader:` 那一行是 **`flashrom unknown on Linux …`**，不是版本號 | 出現版本號 → 這台的 flashrom 換過了，log 要記下是哪一顆才算數 |
+| 14 | `A5.2` | `-VVV` 之下 RDID 那一行**會**出現在真的 CH341A 上 | 仍然沒有 → 不是 verbosity 是格式，**看 log，不要動夾子**。桌面那一量是 `dummy` 上做的，這一列就是它的第二個來源 |
+| 15 | `A5.2` | SFDP：**不預測**，兩種都是結果 | 有 → 多一個不欠型號名也不欠 flashrom 表的密度來源；沒有 → 這顆不實作它，記下來，不要再找第二次 |
+
+> 第 12 列不是繞過第 4 列，它是第 4 列的第三張表。封裝上的字是一張、loader 的 32 筆
+> 是一張（**`1c7016` 沒有一列**）、flashrom 的是第三張。**三張表對同樣三個 byte 給出
+> 各自的答案，而只有一張說不出話。**
+
+## 五、進站之前會撞到的第一面牆，不是 `make doctor`
+
+`usbipd list` 現在的 `Connected` 只有滑鼠、webcam、藍牙；**沒有 `1a86:5512`**。
+而且 CH341A **不在 `Persisted` 清單裡** —— 那份清單只有 Realtek 網卡與 CP210x，
+也就是說**這顆從來沒有被 `usbipd bind` 過**。所以今晚需要一次**系統管理員身分**的
+`bind`，之後 `attach` 才有東西可以接。
+
+CP2102 與 USB 網卡都不在 `Connected`，**這一項符合進站條件**（兩者都是第二個接地與
+第二個供電源）。
+
+## 六、桌面上已經跑完、帶對照組、而且這一場不重算的
+
+`A5.2` 的另一半（`runsheet.md` 說明它不用夾子）今天下午跑過了：
+
+```text
+1c7016: no row. The loader cannot name this part, which is what `chipName: UNKNOWN` looks like from the inside.
+1c3016: EN25Q32 (1 row(s))
+```
+
+**第二行是對照組，而它是第一行能算數的唯一理由**：這支查表工具說得出「有」，
+所以它說「沒有」才是一個結果，而不是一個壞掉的查詢。
+
+`tools/test-flash-tools.sh` 從 18 個案例變成 **32 個**。新增的十四個裡有兩個是
+把今天這兩個 bug 放回去、確認套件會紅 —— 兩個都驗過了，紅在該紅的那一行。
+
+## 七、禁令與停止條件
+
+**2026-08-20 §3 那四條全部照舊，一個字都不改。** 唯一變的是其中一條的**判讀**，
+而變的原因是工具現在分得出來：
+
+- `no JEDEC id came back, and flashrom did not identify anything either`
+  → 匯流排本身有問題，照原本那三個候選依序查，**不要重試第三次**。
+- `flashrom identified a part but this log has no RDID line in it`
+  → **匯流排是好的，不要重新就座。** 去看 log，不要動夾子。
+
+## 八、這一場刻意不做的事
+
+| 不做 | 為什麼 |
+|---|---|
+| 不把 `A5.1` 重跑一次 | 三項在 `T-84` / `T-85` 已經過了，而電表那兩項的前提（程式器插著 USB、閒置）今晚沒有變 |
+| 不改 `bench-doctor.sh` 的分站 | 開放題 92，理由沒有變：**不在夾子拿在手上的時候改一個會改變控制流的檢查**。第 5 站那兩個 `FAIL` 是預期的，`A5.1` 裡寫著是哪兩個 |
+| 不給 `LOG.md` 加 CI 守衛 | 作者今天決定的，理由記在 `PROGRESS.md § Deliberately not done`。落後十個 commit 這件事今天用手補 |
+| `A5.5` 的第二發（`zzzzz`） | 照 `B-W08` 原樣，第一發還原之後才排 |
+# 2026-08-21（五）補記 —— 同一個錯有兩個家，而第二個家是會寫入的那一支
+
+**這一段更正的是同一天稍早、同一場寫在上面的東西**，而它不去改上面那些字，因為這個
+檔案是逐字證據。2026-08-19、08-20、08-21 已經各用同樣的方式更正過一次，這是第四次。
+
+**上面那一則只講了 `flash-read.sh`。** 找完之後去看它的兄弟，而
+`tools/flash-write.sh` 的 `identify()` 有**一模一樣的兩行**：向 flashrom 要一個 `-V`，
+然後撈那個只在 `-VVV` 才印的 `RDID returned`。
+
+**它的下場跟讀取那一支不一樣，而且更貴。** `identify()` 撈不到 id 的時候會
+
+```text
+die "no JEDEC id came back. Not writing a chip that is silent."
+```
+
+**方向是對的** —— 拒絕寫，而不是盲寫。但這代表**今晚每一次寫入都會被拒絕**：
+`A5.4` 的演練、`A5.5` 的五個 byte、`A5.5` 的還原，三個都做不了，而工具給的理由是
+「這顆晶片不出聲」，指著一顆答得好好的晶片。**照 `B-W08` 的循環表，那一場會停在
+循環 1 的中間，夾子在座上，而三次拔插電源已經花掉。**
+
+**一個失敗安全的工具，仍然可以把一整場燒掉，只要它指錯地方。**
+
+## 修法：一個事實一個擁有者，而拒絕仍然是兩份
+
+`tools/lib/flashrom-parse.sh` 新增，兩支工具都 source 它。**而禁區沒有合併**，
+這是刻意的：兩條路徑各自拒絕同樣那兩段，才讓「這個專案不寫 boot loader」是專案的
+性質而不是某一支腳本的性質 —— **那是一條政策，而政策重複一次等於多驗證一次**。
+
+**另一支程式的輸出格式不是政策，是一個事實。** 它有兩份，就是今天這個 bug 有兩個家的
+原因。**一個事實一個擁有者。**
+
+## 今晚新增的第五條預測
+
+| # | 節 | 預測 | 反證條件（寫在前面） |
+|---|---|---|---|
+| 16 | `A5.4` | `flash-write.sh plan` 的 `identify` 印出的 id，與 `A5.2` 的 `probe` **逐字相同**（`1c7016`） | 兩支工具對**同一顆晶片、同一次就座**說法不同 → 那是儀器問題，不是發現。**停下來，不要寫**，先問哪一支在說謊 |
+
+> 這一條看起來是廢話，而它不是。兩支工具現在共用同一個解析器，所以它們**應該**一致 ——
+> 正因為應該，不一致才有鑑別力：那會直接指向共用的那一層，而不是指向晶片。
+
+## 儀器套件
+
+`tools/test-flash-tools.sh` **18 → 39 個案例**。三個新的守衛各自被反向驗過一次
+（把 bug 放回一份複本裡，看套件變紅）：
+
+| 放回去的 bug | 紅在哪一行 |
+|---|---|
+| `parse_chip_name` 的 `[^\n]` | `the chip name survives a vendor string containing the letter n` |
+| `probe` 的 `-V` | 端到端那一組，而且訊息變成 `DO NOT RE-SEAT THE CLIP` |
+| `flash-write.sh` 自己的 `-V` | `hardcodes a probe verbosity again instead of $FLASHROM_PROBE_V` |
+
+**第三個案例守的不是今天那個 bug，是明天那個**：它會在任何一支工具重新長出自己的
+flashrom 意見時開火。今天這個錯不是那個正規表示式，是**它有兩份**。

@@ -5790,3 +5790,156 @@ Unchanged, plus:
     reader of the part. **It is answerable in one visit**: `FLR` a range with a
     distinctive pattern into RAM, then `get`, and see whether the bytes follow
     the `FLR`. Until that is done, `get` is a transport whose source is assumed.
+## W08 Day 1, third desk session — the probe would have sent the operator to re-seat a clip that was working — 2026-08-21
+
+**Desk only, no device, nothing clipped.** This is the desk half of the clip
+session; `BENCH-LOG.md` 2026-08-21 進站場次 carries the plan and the four
+predictions added before anything was seated. The session was supposed to start
+at `A5.2`. It could not have: `A5.2` as written would have failed on a working
+chip and named three wrong causes.
+
+### Instrument bug 51 — the probe asked flashrom for a verbosity at which the line it parses is not printed
+
+`tools/flash-read.sh probe` runs `flashrom -V` and then greps the log for
+`RDID returned 0x.. 0x.. 0x..`. **flashrom 1.3.0 prints that line only at
+`-VVV`.** Measured against flashrom's own `dummy` programmer, with no clip, no
+router and no CH341A on the bus:
+
+```
+  flags none    RDID lines: 0    identification lines: 1    log bytes: 825
+  flags -V      RDID lines: 0    identification lines: 2    log bytes: 62274
+  flags -VV     RDID lines: 0    identification lines: 2    log bytes: 62321
+  flags -VVV    RDID lines: 6    identification lines: 2    log bytes: 328776
+  flags -VVVV   RDID lines: 6    identification lines: 2    log bytes: 328777
+```
+
+So the chip answers, flashrom matches it, and the tool finds nothing — and then
+reports **`no JEDEC id came back. The chip is not answering.`** followed by three
+candidate causes: the router still powered, pin 1 misaligned, the clip too
+narrow. **All three are wrong**, and the third sends the operator back to
+re-measure a body width that passed as `T-85` the same morning. The stop
+condition frozen in `BENCH-LOG.md` 2026-08-20 §3 says do not retry a third time —
+so the next step would have been to unclip and re-seat **a part that was working
+perfectly**, on the section the whole week's argument rests on.
+
+**And it had two homes.** `tools/flash-write.sh`'s `identify()` carried the
+same two lines. Its consequence is different and worse: it does not misreport,
+it **refuses** — `no JEDEC id came back. Not writing a chip that is silent.` —
+so **every write scheduled for tonight would have been blocked**: `A5.4`'s
+rehearsal, `A5.5`'s five bytes, and `A5.5`'s restore. The session would have
+halted mid-cycle with the clip seated and three power cycles already spent, and
+the stated reason would have named a part that was answering. **A tool that
+fails safe can still cost a whole session, if it points at the wrong thing.**
+
+**The fix is not the flag.** Changing `-V` to `-VVV` leaves the same failure
+waiting for the next time flashrom moves its output. What changed is that the
+tool now **distinguishes the two failures**: if the log contains any flashrom
+identification line, the bus carried a transaction, so what is missing is the
+line, not the answer — and re-seating cannot fix a line. It now prints
+**`DO NOT RE-SEAT THE CLIP`** in that case. `rdid_failure_kind` is that sentence,
+and it is a separate function so that two guard cases can feed it the two logs.
+
+### Instrument bug 50 — four lines that had never printed, and they are the second source `P9-7` exists to obtain
+
+The same file parsed flashrom's identification line with
+`Found [^\n]*flash chip "[^"]+"`. **`[^\n]` inside a POSIX bracket expression is
+not "any character except newline" — it is "neither a backslash nor the letter
+n".** flashrom prints `Found Eon flash chip "EN25QH32" (4096 kB, SPI)`, and
+`Eon` contains an `n`. Verified against the real string: no match; with `.` in
+place of the bracket: match.
+
+**That line has never been printed, and the runsheet's expected output did not
+contain it either**, so nothing would have reported it missing. A parse that
+returns nothing prints nothing.
+
+A second pattern was empty for a different reason: the version regex required
+`flashrom [0-9]`, and Debian and Ubuntu build the package with no version
+string, so this binary says `flashrom unknown on Linux …`. **The probe log is
+the provenance record for a 4 MiB dump that is about to become the second source
+for every byte-level claim in this project, and it recorded no reader.**
+
+### flashrom's table is keyed on the id, and two committed files said the opposite
+
+`RUNBOOK.md` §8.12.41 stated that flashrom's chip database is indexed by model
+name, and therefore is not a second source for the part. `test-cases.toml`
+`P9-7`'s `predict` says the same thing. **It is false**: flashrom matches
+`manufacture_id` and `model_id`, and the name is the *output* of that lookup.
+
+**Settled without reading the source, and without hardware.** Told to emulate
+`W25Q128FV`, flashrom reports `W25Q128.V` — **a different string comes out than
+went in**, which a name-keyed lookup cannot do.
+
+So flashrom's answer is a second source for *which part these three bytes are* —
+not for *what the three bytes say*, which is the same clip on the same bus. That
+is exactly the question `P9-7` asks, whose single source is the silkscreen. **The
+source existed, was already installed, and was being discarded by a typo.**
+
+### `LOG.md` was ten commits behind, and nothing in CI looks at it
+
+`LOG.md` had not been touched since `9a26f4b`. Four sessions were missing: the
+2026-08-19 instrument session (bugs 45 and the kernel-source claim), W08 Day 0,
+W08 Day 1, and W08 Day 1's second desk session. `grep -rn "LOG.md" Makefile
+tools/ .github/workflows/` returns nothing.
+
+**Every other narrative file in this repository has a guard.**
+`check-benchlog.py` pairs `BENCH-LOG.md` headings to `PROGRESS.md` session
+headings with 17 cases; `check-runsheet.py` holds the runsheet to its split;
+`check-reports.py` holds the reports to their inputs. The one file with no guard
+is the one that drifted, and it drifted silently while `make ci` stayed green.
+The four entries were written by hand this session.
+
+### Instrument work
+
+| | |
+|---|---|
+| `tools/flash-read.sh` | four parses of *another program's output* extracted into `parse_chip_name` / `parse_chip_verb` / `parse_flashrom_version` / `parse_rdids`, because that is the class of claim two of them were wrong about. `probe` now runs at `-VVV`; reads are deliberately still quiet, so a 4 MiB read does not drag a spew log behind it |
+| `tools/flash-read.sh` | `rdid_failure_kind` — "the bus is suspect" and "the line was not printed" are different failures with different fixes, and until today both printed the message that says re-seat the clip |
+| `tools/flash-read.sh` | `Found` vs `Assuming` is now reported. A name flashrom was **told** with `-c` is this project's own input read back to it, and calling that a second source is the same error one layer down |
+| `tools/flash-read.sh` | `FLASH_READ_PROGRAMMER`, for tests only: `probe` can be driven against flashrom's `dummy` on any desk. **`read` refuses outright when it is set** — a 4 MiB image of a chip that does not exist must never reach `dumps/MANIFEST.json` |
+| `tools/lib/flashrom-parse.sh` | **new, and it is the actual fix.** Every belief this repository holds about the *text* flashrom prints, in one place, sourced by both tools that drive the clip. **The forbidden regions are deliberately NOT shared** — two independent paths refusing the same two ranges is what makes "this project does not write the boot loader" a property of the project rather than of one script. That is a *policy*, and a duplicated policy is a confirmed one. Another program's output format is a *fact*, and duplicating it is how one wrong belief got two homes |
+| `tools/flash-write.sh` | same two lines, same fix, and the refusal now names which of the two failures it is |
+| `tools/test-flash-tools.sh` | **18 → 39 cases** (`bash tools/test-flash-tools.sh` recounts it). Ten drive the parsers against captured flashrom text; four drive `probe` end to end against a real flashrom via the dummy, including one asserting a **wrong** prediction still fails the probe; seven hold both tools to the shared owner |
+| all three guards | reinstated in a copy of the tree and each watched go red: bug 50 fails the chip-name case, bug 51 fails the end-to-end case, and a re-hardcoded `-V` in `flash-write.sh` fails the divergence case. A guard that has never been seen to fail is instrument bug 12's shape |
+| the divergence guard | **guards tomorrow rather than today.** The defect was not the regular expression; it was that there were two of it. That case fires the moment either tool grows its own probe verbosity or its own copy of the parse |
+
+### Corrections to the plan
+
+- **`RUNBOOK.md` §8.12.41's claim that flashrom's database is name-indexed is
+  wrong and is corrected in place**, with the measurement that settles it. That
+  file owns the argument, so the argument is where the correction goes.
+- **`test-cases.toml` `P9-7`'s `predict` carries the same wrong claim and is
+  *not* edited.** Rewriting a prediction an hour before the measurement, in the
+  direction that improves it, is not different in kind from rewriting it after.
+  The divergence is recorded here and will be recorded on the row's own result.
+- **`runsheet.md` `A5.2`'s expected output was incomplete in a way that hid a
+  defect**: it did not list the chip-name line, so the line's absence looked
+  like the intended output. The expected block now carries every line the tool
+  prints, and the stop conditions carry both failure kinds.
+- **`BENCH-LOG.md` 2026-08-20 §3's stop conditions are unchanged.** What changed
+  is that the tool can now tell the operator which of them applies. That file is
+  append-only and tonight's entry says so rather than editing it.
+
+### Deliberately not done
+
+- **`LOG.md` gets no CI guard.** Proposed and declined by the author this
+  session: `LOG.md` is prose and should not be paced by a checker. Recorded here
+  rather than dropped quietly, because the consequence is real — the next drift
+  will also be invisible to `make ci`, and only a human read will catch it.
+- **Open item 92 is untouched**, for the reason it was written with: the fix is
+  a station argument to `bench-doctor.sh`, that changes which checks run, and it
+  is not being made with a clip in hand. Tonight's two `FAIL`s at station 5 are
+  expected and `A5.1` says which two.
+- **Nothing was clipped and nothing was powered.** Every claim here about
+  flashrom was measured against its `dummy` programmer. **The threshold at which
+  `RDID returned` appears has been measured on one programmer**, and the line
+  comes from flashrom's programmer-independent SPI probe path — the confirmation
+  on the CH341A is prediction 14 in tonight's bench entry, not an assumption
+  being carried forward silently.
+- **The `EN25QH32B` datasheet ordering code is still unread**, as `T-85`
+  recorded. It remains the one available-and-untaken source of a different kind
+  — a document rather than a measurement.
+
+### Open, carried forward
+
+66, 67, 69, 70, 71, 74, 75, 77, 78, 79, 81, 82, 84, 85, 86, 87, 88, 89, 91, 92,
+93, 94, 95, 96 — unchanged.

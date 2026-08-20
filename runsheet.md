@@ -4510,9 +4510,32 @@ Bus 001 Device 007: ID 1a86:5512 QinHeng Electronics CH341 in EPP/MEM/I2C mode
   ok    CH341A present on the USB bus (1a86:5512)
  ==>   probing (no read, no write)
   ok    JEDEC id  0x1c7016   (manufacturer 0x1c, device 0x7016)
+  ok    flashrom calls it: EN25QH32
+  ok         its table is keyed on the JEDEC id, not on the name printed on
+  ok         the package - so this is a second source for WHICH part this is,
+  ok         and not a second source for what the three bytes say
+  ok    reader: flashrom unknown on Linux 6.6.87.2-microsoft-standard-WSL2 (x86_64)
   ok    third id byte 0x16 -> 2^22 = 4194304 bytes, if the log2 convention holds
   ok    matches the prediction (0x1c7016)
 ```
+
+> ⚠️ **中間那四行到 2026-08-21 為止一次都沒有印出來過**，而預期輸出裡也沒有它們 ——
+> 所以沒有人會發現少了。成因是儀器 bug 50：`[^\n]` 在 POSIX 方括號裡是「不是反斜線、
+> 也不是字母 n」，而 flashrom 印的是 `Found Eon flash chip ...`，`Eon` 裡有一個 `n`。
+> 理由與它為什麼算一個來源，寫在 [`RUNBOOK` §8.12.41](RUNBOOK.md)。
+
+> ⚠️ **`flashrom -L` 這一版只有 `EN25QH32` 這一列，沒有 `EN25QH32B`。**
+> 所以印出 `EN25QH32`（沒有 `B`）不是落空，那是 flashrom 自己那一列的名字；
+> 封裝上的 `QH32B` 與它並不衝突。真正的落空是印出 `EN25Q32(A/B)` ——
+> 那代表 id 是 `1c3016`，也就是上面那張表的第二列。
+
+> ⚠️ **`reader:` 那一行的 `unknown` 是對的，不是壞掉。** Debian/Ubuntu 打包時
+> 沒有填版本字串，`flashrom --version` 就會這樣講；套件版本要問 `dpkg -l flashrom`
+> （這台是 `1.3.0-2.1ubuntu2`）。這一行留著，是因為一份沒有記下讀取器是誰的 4 MiB
+> dump，跟一份沒有人讀過的 dump，在證據上是同一件事。
+
+> ⚠️ **SFDP 那兩行兩種都可能，而且兩種都是結果。** 有就是多一個密度來源；
+> 沒有就是這顆不實作它 —— 記下來，不要再找第二次。
 
 > ★ **這三個 byte 是這個專案裡最便宜的一個結論，而它同時關掉兩件事。**
 > 一、`U19` 的型號從 2026-08-14 到今天**只有一個來源**：封裝上的字，而那行字
@@ -4544,8 +4567,13 @@ python3 tools/loader-unpack.py --has-id 1c7016 \
 1c7016: no row. The loader cannot name this part, which is what `chipName: UNKNOWN` looks like from the inside.
 ```
 
-> ❌ **`no JEDEC id came back` 就不要重試第三次。** 依序檢查：
-> 路由器真的拔電了嗎、夾子 pin 1 對圓點了嗎、夾子寬度對嗎。
+> ❌ **失敗有兩種，而 2026-08-21 之前這支工具把兩種都印成同一種。** 現在它會分：
+>
+> | 工具說 | 意思 | 做什麼 |
+> |---|---|---|
+> | `no JEDEC id came back, and flashrom did not identify anything either` | 匯流排本身有問題 | 依序檢查：路由器真的拔電了嗎、夾子 pin 1 對圓點了嗎、夾子寬度對嗎。**不要重試第三次** |
+> | `flashrom identified a part but this log has no RDID line in it` | **匯流排是好的** | **不要重新就座。** 是 verbosity 或格式的問題，去看 `grep -i rdid` 那份 log |
+>
 > ❌ **`MORE THAN ONE id` 是接觸不良，不是發現。** 重新就座，**不要讀**。
 
 ---
