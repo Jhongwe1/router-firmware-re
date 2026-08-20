@@ -92,6 +92,25 @@ RESCUE_NEEDLES = ["TFTP", "tftp", "Upload", "Download", "AutoBurn", "AUTOBURN",
 ERASE_NEEDLES = ["erase", "Erase", "ERASE", "sector", "Sector", "block",
                  "Block", "chip", "Chip"]
 
+# --- the loader's own SPI flash table --------------------------------------
+#
+# `chipName: UNKNOWN` has been in this project's boot log since 2026-08-15 and
+# nothing explained it. It is explainable with no device at all: the loader
+# carries a table of fixed-size flash descriptors, each holding a three-byte
+# JEDEC id and a pointer to the part's name, and the part fitted to this board
+# has no row in it.
+#
+# What is measured and what is inferred, kept apart on purpose:
+#   measured  the record stride, the offset of the name pointer, the id bytes,
+#             the load base (recovered, and it has to explain EVERY pointer)
+#   inferred  what four of the eight fields mean. That reading comes from their
+#             values, not from any code, so it is reported as `inferred_*` and
+#             the raw words are reported beside it.
+CHIP_RECORD = 0x20          # measured: consecutive ids sit exactly 0x20 apart
+CHIP_NAME_PTR = 0x18        # measured: the one field that resolves into strings
+CHIP_MIN_ROWS = 16          # below this the walk has found something else
+KSEG0 = (0x80000000, 0x90000000)
+
 
 class LoaderError(Exception):
     """Raised for every refusal, so the guard suite can assert on the reason."""
@@ -176,6 +195,178 @@ def hits_for(table: list[tuple[int, str]], needles: list[str]) -> list[dict[str,
     return out
 
 
+def cstrings(blob: bytes, minlen: int = 4) -> dict[int, str]:
+    """offset -> the NUL-terminated string that *starts* there.
+
+    Deliberately not `strings()` above. A pointer has to land on the start of a
+    string, and a run scanner that reports the whole run cannot tell the start
+    of one from the middle of one -- which is the difference between a table of
+    26 part names and 26 coincidences.
+    """
+    out: dict[int, str] = {}
+    for m in re.finditer(rb"[\x20-\x7e]{%d,}\x00" % minlen, blob):
+        out[m.start()] = m.group()[:-1].decode("ascii")
+    return out
+
+
+def _run_at_stride(offsets: list[int], step: int) -> list[int]:
+    """The longest arithmetic progression of `step` inside `offsets`."""
+    seen, best = set(offsets), []
+    for o in offsets:
+        if o - step in seen:
+            continue                      # not the start of a run
+        run = [o]
+        while run[-1] + step in seen:
+            run.append(run[-1] + step)
+        if len(run) > len(best):
+            best = run
+    return best
+
+
+def _walk_cstring(blob: bytes, off: int, limit: int = 64) -> str:
+    """Read a C string by walking bytes, so the regex scanner is not the only
+    reader of the one field this whole table hangs on."""
+    end = blob.find(b"\x00", off, off + limit)
+    if end < 0:
+        raise LoaderError(f"no NUL within {limit} bytes of 0x{off:05x}")
+    return blob[off:end].decode("ascii", "replace")
+
+
+def chip_table(stage2: bytes) -> dict[str, Any]:
+    """Decode the loader's SPI flash descriptor table out of the unpacked stage.
+
+    The load base is *recovered*, not assumed, and the recovery is a funnel that
+    can end at zero or at more than one -- both of which are refusals. This is
+    the same shape as `tools/libbase.py`: page alignment, then a structural
+    filter, then exactly one survivor or nothing.
+    """
+    names = cstrings(stage2, 4)
+    words = {off: struct.unpack_from(">I", stage2, off)[0]
+             for off in range(0, len(stage2) - 3, 4)}
+    ptr_words = {o: v for o, v in words.items() if KSEG0[0] <= v < KSEG0[1]}
+
+    # Every (pointer, string) pair implies one load base. Keep the page-aligned
+    # ones: a load base is a mapping and a mapping is page-granular.
+    tally: dict[int, set[int]] = {}
+    for o, v in ptr_words.items():
+        for s in names:
+            b = v - s
+            if b <= 0 or b & 0xFFF:
+                continue
+            tally.setdefault(b, set()).add(o)
+
+    survivors = []
+    for b, offs in sorted(tally.items()):
+        run = _run_at_stride(sorted(offs), CHIP_RECORD)
+        if len(run) >= CHIP_MIN_ROWS:
+            survivors.append((b, run))
+
+    funnel = {
+        "kseg0_words": len(ptr_words),
+        "page_aligned_bases_proposed": len(tally),
+        f"...whose pointers run at a 0x{CHIP_RECORD:x} stride, "
+        f"{CHIP_MIN_ROWS}+ deep": len(survivors),
+    }
+    if not survivors:
+        raise LoaderError(
+            "no page-aligned load base puts a run of at least "
+            f"{CHIP_MIN_ROWS} pointers on a 0x{CHIP_RECORD:x} stride. Either "
+            "this loader has no chip table or its shape is not the one this "
+            "tool measured on unit-2018")
+    if len(survivors) > 1:
+        raise LoaderError(
+            f"{len(survivors)} load bases each explain a table: "
+            + ", ".join(f"0x{b:08x}" for b, _ in survivors)
+            + ". A recovery that cannot narrow to one has not recovered anything")
+
+    base, run = survivors[0]
+    rows, ids = [], []
+    for ptr_off in run:
+        rec = ptr_off - CHIP_NAME_PTR
+        if rec < 0 or rec + CHIP_RECORD > len(stage2):
+            raise LoaderError(f"record at 0x{rec:05x} falls outside the stage")
+        f = struct.unpack_from(">8I", stage2, rec)
+        name_at = f[6] - base
+        # Two readers of the same bytes: the regex scan above, and a byte walk.
+        walked = _walk_cstring(stage2, name_at)
+        if names.get(name_at) != walked:
+            raise LoaderError(
+                f"record 0x{rec:05x}: the string scanner says "
+                f"{names.get(name_at)!r} at 0x{name_at:05x} and a byte walk says "
+                f"{walked!r}. One of the two readers is wrong")
+        if f[0] >> 24:
+            raise LoaderError(
+                f"record 0x{rec:05x}: id word 0x{f[0]:08x} has a non-zero top "
+                "byte, so it is not a three-byte JEDEC id and the stride is "
+                "finding something else")
+        ids.append(f[0])
+        rows.append({
+            "at": f"0x{rec:05x}",
+            "jedec_id": f"{f[0]:06x}",
+            "name": walked,
+            "name_ptr": f"0x{f[6]:08x}",
+            "words": [f"0x{w:08x}" for w in f],
+            "inferred_capacity_code": f"0x{f[2]:02x}",
+            "inferred_block_bytes": f[3],
+            "inferred_smallest_erase_bytes": f[4],
+            "inferred_page_bytes": f[5],
+        })
+
+    # The headline result here is an ABSENCE -- "this part has no row" -- and a
+    # walk that stopped early would produce exactly that answer for a part that
+    # does have one. So: every word anywhere in the stage that points into the
+    # span of names this table uses must be one of the pointers already walked.
+    # One that is not is a row the walk missed, and it is a refusal rather than
+    # a footnote, because the query built on top of this reports absence.
+    name_lo = min(f[6] for f in [struct.unpack_from(">8I", stage2, p - CHIP_NAME_PTR)
+                                 for p in run])
+    name_hi = max(f[6] for f in [struct.unpack_from(">8I", stage2, p - CHIP_NAME_PTR)
+                                 for p in run])
+    name_hi += len(_walk_cstring(stage2, name_hi - base)) + 1
+    orphans = sorted(o for o, v in ptr_words.items()
+                     if name_lo <= v < name_hi and o not in set(run))
+    if orphans:
+        raise LoaderError(
+            f"{len(orphans)} word(s) point into this table's own name block but "
+            "are not on the walked stride: "
+            + ", ".join(f"0x{o:05x}" for o in orphans[:8])
+            + ". Each is a row the walk did not reach, so an absence reported "
+              "from this table would not be an absence")
+
+    dupes: dict[str, list[str]] = {}
+    for row in rows:
+        dupes.setdefault(row["jedec_id"], []).append(row["name"])
+    duplicate_ids = {k: v for k, v in dupes.items() if len(v) > 1}
+
+    return {
+        "load_base": f"0x{base:08x}",
+        "how_the_base_was_found": funnel,
+        "record_stride": f"0x{CHIP_RECORD:02x}",
+        "name_pointer_offset": f"0x{CHIP_NAME_PTR:02x}",
+        "record_count": len(rows),
+        "distinct_ids": len(set(ids)),
+        "name_block": f"0x{name_lo - base:05x}-0x{name_hi - base:05x}",
+        "pointers_into_the_name_block_outside_the_walk": 0,
+        "duplicate_ids": duplicate_ids,
+        "ids": sorted({f"{i:06x}" for i in ids}),
+        "smallest_erase_values_seen": sorted({r["inferred_smallest_erase_bytes"]
+                                              for r in rows}),
+        "reading": (
+            "The stride, the offsets and the ids are measured. The four "
+            "`inferred_*` fields are read off values that repeat across rows -- "
+            "no code was disassembled to get them, and the raw words are in "
+            "`words` so a later reader can disagree."),
+        "rows": rows,
+    }
+
+
+def chip_table_or_reason(stage2: bytes) -> dict[str, Any]:
+    try:
+        return chip_table(stage2)
+    except LoaderError as exc:
+        return {"refused": str(exc)}
+
+
 def build(dump: Path, region_end: int) -> tuple[dict[str, Any], bytes]:
     buf = dump.read_bytes()
     off = find_lzma(buf, region_end)
@@ -222,6 +413,12 @@ def build(dump: Path, region_end: int) -> tuple[dict[str, Any], bytes]:
             "string_count": len(table),
         },
         "self_check": "OK",
+        # Soft on purpose. A synthetic fixture carrying the seventeen command
+        # names has no chip table, and a real loader from another vendor may
+        # not either; neither is a reason to refuse the whole report. The
+        # refusal text is kept so an absent table reads as an absent table
+        # rather than as a field nobody filled in.
+        "chip_table": chip_table_or_reason(stage2),
         "controls": {
             "help_banner_present": True,
             "documented_commands_found": found_cmds,
@@ -261,6 +458,12 @@ def main(argv: list[str]) -> int:
     ap.add_argument("--extract", type=Path, help="also write the unpacked stage 2")
     ap.add_argument("--strings", action="store_true",
                     help="print the unpacked stage's strings instead of JSON")
+    ap.add_argument("--chip-table", action="store_true",
+                    help="print the loader's SPI flash descriptor table instead "
+                         "of JSON, and exit non-zero if it cannot be recovered")
+    ap.add_argument("--has-id", metavar="HEX",
+                    help="ask whether a three-byte JEDEC id, e.g. 1c7016, has a "
+                         "row in that table. Exit 0 if it does, 1 if it does not")
     ap.add_argument("--region-end", type=lambda s: int(s, 0), default=LOADER_REGION_END)
     args = ap.parse_args(argv[1:])
 
@@ -280,6 +483,33 @@ def main(argv: list[str]) -> int:
     if args.strings:
         for off, s in strings(stage2):
             print(f"0x{off:05x}  {s}")
+        return 0
+
+    if args.chip_table or args.has_id:
+        tbl = doc["chip_table"]
+        if "refused" in tbl:
+            print(f"refused: {tbl['refused']}", file=sys.stderr)
+            return 1
+        if args.has_id:
+            want = args.has_id.lower().removeprefix("0x")
+            hit = [r for r in tbl["rows"] if r["jedec_id"] == want]
+            if hit:
+                print(f"{want}: {', '.join(sorted({r['name'] for r in hit}))} "
+                      f"({len(hit)} row(s))")
+                return 0
+            print(f"{want}: no row. The loader cannot name this part, which is "
+                  f"what `chipName: UNKNOWN` looks like from the inside.")
+            return 1
+        print(f"load base   {tbl['load_base']}   "
+              f"(recovered: {tbl['how_the_base_was_found']})")
+        print(f"{tbl['record_count']} records, {tbl['distinct_ids']} distinct ids, "
+              f"stride {tbl['record_stride']}")
+        for r in tbl["rows"]:
+            print(f"  {r['at']}  {r['jedec_id']}  {r['name']:<12}"
+                  f"  erase {r['inferred_smallest_erase_bytes']:>6}"
+                  f"  page {r['inferred_page_bytes']}")
+        for jid, who in sorted(tbl["duplicate_ids"].items()):
+            print(f"  DUPLICATE id {jid}: {', '.join(who)}")
         return 0
 
     text = json.dumps(doc, indent=2, ensure_ascii=False) + "\n"

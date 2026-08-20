@@ -464,6 +464,29 @@ def main(argv: list[str]) -> int:
             if doc.get("self_check") != "OK":
                 errors.append(
                     f"{path.name}: self_check is {doc.get('self_check')!r}")
+            # The chip table added 2026-08-20 is a second absence claim in the
+            # same file -- "the part fitted to this board has no row" is what
+            # explains `chipName: UNKNOWN` -- and it gets the same treatment as
+            # the first. A table that was refused, or one walked past rows it
+            # could not reach, cannot support an absence, and a committed report
+            # is read as a result whatever its fields say.
+            tbl = doc.get("chip_table") or {}
+            if "refused" in tbl:
+                errors.append(
+                    f"{path.name}: chip_table was refused "
+                    f"({tbl['refused'][:60]}...) - this report is committed as "
+                    "the source for which flash parts the loader can name")
+            elif tbl:
+                if tbl.get("pointers_into_the_name_block_outside_the_walk") != 0:
+                    errors.append(
+                        f"{path.name}: the chip table walk left "
+                        f"{tbl.get('pointers_into_the_name_block_outside_the_walk')} "
+                        "name pointers unreached, so its absences are not absences")
+                if len(tbl.get("rows") or []) < 16:
+                    errors.append(
+                        f"{path.name}: chip_table has "
+                        f"{len(tbl.get('rows') or [])} rows - too few to be the "
+                        "loader's table, and an absence read off it means nothing")
 
         elif str(doc.get("producer", "")) == "cve-endpoints":
             counts["ghidra"] += 1

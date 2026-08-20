@@ -12,6 +12,24 @@ function in the binary.
 > G3 ✅ passed 2026-08-11 · G3.5 ✅ · G3.75 ✅ both passed 2026-08-17 ·
 > G4 ✅ passed 2026-08-18, clause 3 split into 3a met / 3b impossible.**
 >
+> **Latest (W08 Day 0, 2026-08-20): the boot loader has been printing
+> `chipName: UNKNOWN` since the first boot log this project captured, and the
+> answer was inside the loader.** It carries a table of 32 SPI flash
+> descriptors keyed on JEDEC id — recovered at a fixed `0x20` stride, with the
+> stage-2 load base *derived* from the name pointers rather than assumed, by a
+> funnel that refuses at zero survivors and at two. **This unit's part has no row
+> in it.** The same table turns out to carry a vendor defect: `ef3016` appears
+> twice, naming both `W25X32` and `W25X64`, and `W25X64`'s real id is `ef3017`.
+> [`notes/loader-chip-table.md`](notes/loader-chip-table.md).
+>
+> A second desk result, on a copy of the dump and with nothing clipped: the
+> string `admin` appears **once**, literally, inside the *compressed*
+> configuration region, and `USER_PASSWORD` is a back-reference to it. The proof
+> is arithmetic — perturbing those five bytes moves the payload checksum by
+> exactly **twice** the byte-sum delta. Replacing them with a permutation of the
+> same characters leaves the checksum valid and changes **two** fields. Whether
+> the running device reads it is the one thing left for the clip.
+>
 > **Latest (W06, 2026-08-17): an unauthenticated HTTP POST changed nine specific
 > bytes on this router's SPI flash, and all nine are named.** Eight are the ASCII
 > digits of a value chosen by the client; the ninth is the region's checksum,
@@ -349,10 +367,23 @@ that is not backed by a command someone else can re-run.
   >   parser rejects, and the correctly-spelled version exiting 1 in silence
   >   without killing anything.
   >
-  > ⚠️ **No second instrument has read this chip, and no JEDEC ID.** Both full reads
-  > and the 2026-08-15 windows all go through the boot loader's `FLR`, so a
-  > systematically wrong `FLR` would be invisible to every one of them. That column
-  > stays empty on purpose.
+  > ⚠️ **No second instrument has read this chip, and no JEDEC ID** — true as of
+  > **2026-08-20**. Both full reads and the 2026-08-15 windows all go through the
+  > boot loader's `FLR`, so a systematically wrong `FLR` would be invisible to
+  > every one of them. That column stays empty on purpose.
+  >
+  > 📌 **The instrument now exists and has still not been used** (2026-08-20). The
+  > CH341A that W02 measured as an un-modded 5 V board has been re-worked — 5 V
+  > feed cut, 3.3 V jumpered in — and `A5.1`–`A5.5` are written, with every
+  > prediction in `BENCH-LOG.md` 2026-08-20 §2 and a stop condition that ends the
+  > session if the meter disagrees. **Having the instrument is not having the
+  > measurement**, and the distinction is exactly what this line has been holding
+  > open since 2026-08-16.
+  >
+  > 🔎 What the desk *did* settle, with no clip: the boot loader carries a table of
+  > 32 flash descriptors keyed on JEDEC id, and **this unit's part has no row in
+  > it** — which is why `chipName: UNKNOWN` has been on line 3 of every boot log
+  > since 2026-08-15. [`notes/loader-chip-table.md`](notes/loader-chip-table.md).
 
 - [x] **G3 — point at the line in the binary** (W03–W04) ✅ **passed 2026-08-11** ← [PROGRESS.md](PROGRESS.md#w04--2026-08-11)
   - [x] the `/boafrm/` dispatch table found, with ≥ 10 handlers listed — **59 in 2015, 49 in 2020**, both `root_form[]` arrays recovered with the function that reads each

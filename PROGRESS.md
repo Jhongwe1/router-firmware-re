@@ -5148,3 +5148,220 @@ never built, and `notes/bughunt.md` has said so with its reason since 2026-08-18
 | New instruments | `upnp-soap.py` + 14 guard cases |
 | `notes/bughunt.md` | 22 → **24** rows |
 | Disclosure register | `D-19` added, **unsearched and unreported** |
+
+## W08 Day 0 — the second instrument arrived, and the desk answered three things before it was used — 2026-08-20
+
+**Desk only. The device was not powered on and nothing was clipped.** The
+CH341A that W02 Day 4 measured as an un-modded 5 V board has been re-worked —
+the 5 V feed cut on the back of the PCB, 3.3 V jumpered into the pin it used to
+supply — and every socket pin reads 3.3 V on the author's meter. That unblocks
+`P9-5`, `P9-6` and `P9-7`, the three rows that have been waiting on an
+instrument rather than on time since 2026-08-18.
+
+**The plan for the clip is in `BENCH-LOG.md` 2026-08-20, written before it.**
+This section is what the desk settled first, because three of the four things
+below make the bench session able to fail, and the fourth is a prediction that
+had to be withdrawn.
+
+**W08's register went from 16 rows to 6**, and eight of the ten removed are the
+wireless block. That is a decision, not a closure, and it is argued below.
+
+### `chipName: UNKNOWN` had an answer in the repository since 2026-08-15
+
+The first boot log this project ever captured contains `chipName: UNKNOWN` on
+line 3, immediately before `ramSize: 32M`. Nothing explained it and nothing
+tried.
+
+**The boot loader carries a table of 32 SPI flash descriptors and this unit's
+part is not in it.** 32 records, fixed stride `0x20`, a three-byte JEDEC id at
+`+0x00` and a pointer to the part's name at `+0x18`. The Eon family it knows is
+`1c3115`, `1c3116`, `1c3015` and `1c3016` — F16, F32, Q16 and **Q32**. The part
+on the board is an EN25Q**H**32B, JEDEC `1c7016`, and it has no row.
+
+**The stage 2 load base is recovered rather than assumed**, `0x80400000`, by a
+funnel that has to end at exactly one: 1,402 kseg0 words, 34 page-aligned bases
+that explain some pointer, and **one** whose pointers form a run at the record
+stride. Zero survivors and two survivors are both refusals.
+
+**The absence is checked.** A walk that stops early reports "no row" for a part
+that has one, so the tool also asks whether any word anywhere in the stage
+points into this table's own name block without being on the walked stride.
+Zero. `check-reports.py` now refuses the committed report if that number is not
+zero — the same treatment the seventeen-command control already had, for the
+same reason.
+
+Full note, including the funnel and what else the table gave up:
+[`notes/loader-chip-table.md`](notes/loader-chip-table.md).
+
+**What this does for the bench is the point.** `P9-7`'s prediction was frozen on
+2026-08-18 as "the packaging text is one source, the JEDEC id is the second".
+It is unchanged. What changed is that it now carries a mechanism, so it can miss
+in a way that means something: if the chip answers `1c3016` then the part is an
+EN25Q32, the marking was misread, the loader could have named it all along, and
+the paragraph above is wrong in every clause.
+
+**Two more things fell out of the same table, and one is a vendor bug.** Three
+JEDEC ids are duplicated, and `ef3016` appears twice pointing at **two different
+names** — `W25X32` and `W25X64`. W25X64's real id is `ef3017`. One of those rows
+is unreachable and a W25X64 gets named as a W25X32. Separately, the `20ba17` row
+is named `MCba17`, which reads like a model name typed out of the id and
+mangled.
+
+### `P9-6` had a prediction that described an experiment nobody could perform
+
+The row was armed on the morning of 2026-08-20 with: patch a `COMPCS` field,
+leave the checksum stale, see whether the device rejects it.
+
+**`COMPCS` is compressed. There is no field offset to patch.** The prediction
+would have sent an operator to the bench with an experiment that cannot be run,
+which is worse than a wrong prediction, because a wrong prediction at least
+produces a result.
+
+What replaced it came from a desk experiment on a copy of the dump, and every
+step of it can fail:
+
+- the string `admin` appears **once**, literally, inside the compressed blob, at
+  flash `0x00C0D1` — immediately after `b6`, which W04 identified out of
+  `libapmib` as `USER_NAME`;
+- patching it to `zzzzz` makes `fwrecon compcs` refuse with the 8-bit payload
+  checksum reading **178** instead of 0. The byte-sum delta of the two strings
+  is **89**, and **178 = 2 x 89**. **The factor of two is the arithmetic proof
+  that one literal is consumed twice**, which is `USER_NAME` and
+  `USER_PASSWORD`, rather than a guess about a compression format;
+- patching it to `nimda` instead — the same five characters reordered — leaves
+  the checksum untouched. `fwrecon` decodes the patched image with
+  `checksum_ok`, `ring_fill_agrees`, 344 entries, and **exactly two** changed
+  values: `USER_NAME` and `USER_PASSWORD`, both `admin` → `nimda`.
+
+So the bench question is reduced to one variable: **does a write through a clip
+reach the running system.** Five bytes, no code executed, both credentials.
+
+The freeze hash moved twice in one day and the second move is documented in
+`test-cases.toml` `[freeze].note` with the reason. Editing a frozen prediction is
+allowed and is never allowed to be quiet.
+
+**And the refutation has a second target, which is this repository's own tool.**
+When `fwrecon compcs` refuses a bad checksum it prints *"The device itself would
+reject this blob"*. That is a claim about device behaviour, derived from the
+format, with no measurement behind it. The second shot — `zzzzz`, checksum left
+broken — is what makes that sentence accountable.
+
+### The wireless block is cut, and the reason was checked rather than assumed
+
+`P7-1`, `P7-2`, `P7-3`, `P7-4`, `P7-5`, `P7-6`, `P7-9`, `P7-10`. Eight rows, one
+reason with two independent halves: the only radio on this workstation is an
+Intel Wi-Fi 6 AX201, it is a **PCIe** device so `usbipd-win` cannot hand it to
+WSL under any configuration, and `iwlwifi` implements **no frame injection** even
+on bare metal. All eight need injection. `P7-3`, `P7-6` and `P7-9` carry a second
+reason that does not go away with money — deauthentication and beacon injection
+reach every device in range — and the register has already cut three rows on
+exactly that ground.
+
+**The reason is falsifiable and says so**: buy the AR9271 `docs/lab-inventory.md`
+recommends, get `aireplay-ng --test` to pass, and the eight come back.
+
+**This is the part a hostile reader should push on, so it is stated plainly:
+cutting eight rows makes the week close. It also makes the record honest.** An
+open row reads as "not got to yet"; a cut row with a reason reads as "not
+measured, here is why, here is what would change it" — and nobody was coming
+back to these. Every wireless claim in this repository stays `static`, the
+lab-inventory gap is unchanged, and W08's write-up opens its *What this does not
+prove* with it.
+
+**Two hardware rows are cut for the opposite reason: they were superseded.**
+`P9-8` (EJTAG) and `P9-11` (shorting the SPI bus to force the boot loader). A
+programmer that can rewrite the whole part is strictly stronger than a technique
+for reaching a prompt that streamed ESC already reaches on every visit, and it
+needs nothing from the SoC. Both name the observation that brings them back.
+
+### `P7-7`'s premise is false, and half the configuration has never been decoded
+
+The row's frozen prediction says the factory PSK "is already decoded out of
+`COMPDS`". There is **no `*_PSK` entry** in either configuration region. The
+wireless settings are inside `WLAN_ROOT`, a single **22,044-byte table-valued
+entry** that `fwrecon` reports as raw bytes.
+
+**That is roughly half of the 45,226-byte decompressed configuration, and
+nothing in this project has ever looked inside it.** `notes/compcs-decode.md`
+reads as though the region is decoded; it is decoded down to the TLV layer, and
+one TLV is half the payload. `P7-7` is a desk row that needs no device and it is
+a real piece of reverse engineering rather than a lookup, so it is exempted in
+the runsheet with that reason rather than improvised at the bench.
+
+### Part A is five stations
+
+`A5.x` — board unpowered, SOIC-8 clip on `U19`, power supplied by the programmer
+— is a device state none of the existing four describe, and filing it under
+station 1 would make that station's "not one byte was touched" false. Its cost
+unit is a clip seating rather than a power cycle, which is why its steps are
+ordered by whether the clip can stay on rather than by risk.
+
+**It is also the one place in the file where document order is not a run order**,
+because an unpowered station cannot follow the wrap-up station. The real order
+lives in Part B `B-W08`, which owns it anyway. `CLAUDE.md` updated in the same
+commit; the argument is `RUNBOOK` §8.12.40.
+
+### Instrument work
+
+| | |
+|---|---|
+| `tools/loader-unpack.py` | `--chip-table` and `--has-id`. The base is recovered with a funnel that refuses at zero and at two, two readers check the name field, and the name-block completeness count must be zero |
+| `tools/test-loader-unpack.sh` | 7 → **16** cases. The one that matters plants a pointer off the stride: a walk that cannot reach a row would report its part as absent |
+| **`tools/flash-write.sh`** | new. The clip-side write path. Refuses the same two ranges `console-write.py` refuses, so "this project does not write the boot loader or `H601`" is a property of the project rather than of one tool. Its safety argument is a **whole-image diff**, not an offset check: an offset check only proves the offset you typed was allowed |
+| `tools/test-flash-tools.sh` | 4 → **18** cases. The load-bearing one: an operator who allows the entire part is **still** refused for the loader and `H601`. Verified by emptying `FORBIDDEN` and watching three cases go red |
+| `tools/check-runsheet.py` | flag checking used to cover Python tools only. The two tools in this repository that can destroy the part are both shell, and their usage blocks are now read as their `--help` |
+| `tools/bench-doctor.sh` | tier 3 gains `lsusb` and the CH341A's presence on the bus. **`lsusb` missing is a `FAIL`, not a `--`** — instrument bug 45's rule |
+| `tools/check-reports.py` | a `chip_table` block. Both refusals were fired by hand before being trusted |
+| `tools/flash-read.sh` | a comment pointed at `tools/check-flash-dump.py`, which has never existed — the checker landed inside `fwrecon`. Nothing reads a comment, which is why it stood for four days in the tool whose whole job is not trusting one source |
+
+**Instrument bug 46, and it is mine.** The first version of `flash-write.sh`
+contained a pair of backticks inside a double-quoted bash string, which is
+command substitution. This repository lost a test, a heredoc, a `sed` expression
+and a remote build to backticks inside one session on 2026-08-19, and the rule
+written after that — *a backtick is never inert; some layer between the keyboard
+and the destination will run it* — is what caught this one before it ran. **A
+rule's evidence of working is that it catches the person who wrote it.**
+
+### Corrections to the plan
+
+- **`plan/W08` describes this week as the write-up draft and says nothing about
+  a register.** `make todo WEEK=W08` owed 16 rows. Both are real; the plan owns
+  the chapter structure and the register owns closure. Recorded here rather than
+  by editing either.
+- **`P9-6`'s first prediction was withdrawn the same day it was written**, for
+  describing an experiment that cannot be performed on a compressed region.
+- **`P7-7`'s frozen prediction is factually wrong about where the PSK lives.** It
+  is **not** amended: no result has been recorded against it, and the row will be
+  scored against the condition as written, with the inadequacy reported in the
+  result note. That is the same treatment `P5-2` got on 2026-08-19.
+
+### Deliberately not done
+
+- **Nothing was clipped and the device was not powered on.** Every prediction for
+  the clip session is in `BENCH-LOG.md` 2026-08-20 §2, written first.
+- **`P9-10` and `P9-12` have no procedure yet.** Both are station-2 rows — the
+  loader's `IPCONFIG` + `AUTOBURN` + TFTP + `LOADADDR` + `J` path — and no tool
+  in this repository can send an upload or a `J`. `console-dump.py rescue` stops
+  at `AUTOBURN 0` + `IPCONFIG`. Exempted in the runsheet with that reason, and
+  the exemption is written to disappear with the tool rather than with the week.
+- **The second `P9-6` shot** (`zzzzz`, checksum deliberately broken) is not in
+  this session's order. Two changes at once answers neither.
+
+### Open, carried forward
+
+66, 67, 69, 70, 71, 74, 75, 77, 78, 79, 81, 82, 84, 85, 86, 87, 88 — unchanged.
+
+89. **Which flash descriptor does `FLW` use when the lookup fails?** G3.5
+    measured a whole-4-KiB read-modify-erase-program cycle on this hardware. The
+    loader's table declares 4 KiB for every part it knows — and this part matches
+    no row, so the descriptor was a default or a failure path. Every flash write
+    this project has made through the boot loader went down that path, on a part
+    the loader could not identify.
+90. **`WLAN_ROOT` is 22,044 bytes and has never been decoded.** Half the
+    decompressed configuration. It blocks `P7-7` and it is the reason
+    `notes/compcs-decode.md` reads as more complete than it is.
+91. **Does this device write its own flash during boot?** Nobody knows, and
+    `A5.3` answers it either way: the prediction is that the clip read is
+    byte-identical to the 2026-08-16 `FLR` read across all 4,194,304 bytes, and a
+    difference confined to the configuration regions would mean the boot writes
+    them.

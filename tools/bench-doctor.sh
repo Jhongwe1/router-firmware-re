@@ -189,6 +189,23 @@ have picocom "typing boot loader commands by hand when a tool will not do it" "s
 have nmap    "the port round"                                                 "sudo apt install nmap"
 have tshark  "the isolation capture, and counting MAC addresses in it"        "sudo apt install tshark"
 
+# --- station 5: the clip, added 2026-08-20 --------------------------------
+# lsusb is a hard fail rather than a skip, and that is the whole point of the
+# entry. flash-read.sh degrades to a warning without it and flash-write.sh
+# refuses outright, because the check it performs -- "is the programmer really
+# on the bus" -- is the one standing between a clip and a 4 MiB part that holds
+# a build published nowhere. Instrument bug 45: a check that degrades to a skip
+# has not run, and it degrades in the environments with the fewest tools.
+have lsusb "confirming the CH341A is really on the bus before anything is clipped" \
+           "sudo apt install usbutils"
+if command -v lsusb >/dev/null 2>&1; then
+  if lsusb 2>/dev/null | grep -qi '1a86:5512'; then
+    ok "CH341A (1a86:5512) is attached to this WSL instance"
+  else
+    skip "no CH341A on the bus — only station 5 needs it"
+  fi
+fi
+
 # shellcheck disable=SC2012  # a count is all that is wanted, not the names
 if ls /dev/ttyUSB* >/dev/null 2>&1; then
   for d in /dev/ttyUSB*; do ok "$d present"; done

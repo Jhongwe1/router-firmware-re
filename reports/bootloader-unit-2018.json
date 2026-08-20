@@ -55,6 +55,712 @@
     "string_count": 328
   },
   "self_check": "OK",
+  "chip_table": {
+    "load_base": "0x80400000",
+    "how_the_base_was_found": {
+      "kseg0_words": 1402,
+      "page_aligned_bases_proposed": 34,
+      "...whose pointers run at a 0x20 stride, 16+ deep": 1
+    },
+    "record_stride": "0x20",
+    "name_pointer_offset": "0x18",
+    "record_count": 32,
+    "distinct_ids": 28,
+    "name_block": "0x0acb0-0x0adca",
+    "pointers_into_the_name_block_outside_the_walk": 0,
+    "duplicate_ids": {
+      "c84018": [
+        "GD25Q128",
+        "GD25Q128",
+        "GD25Q128"
+      ],
+      "ef4016": [
+        "W25Q32",
+        "W25Q32"
+      ],
+      "ef3016": [
+        "W25X32",
+        "W25X64"
+      ]
+    },
+    "ids": [
+      "010214",
+      "010215",
+      "010216",
+      "012018",
+      "1c3015",
+      "1c3016",
+      "1c3115",
+      "1c3116",
+      "1f4602",
+      "20ba17",
+      "c22015",
+      "c22016",
+      "c22017",
+      "c22018",
+      "c22019",
+      "c22415",
+      "c25e16",
+      "c84014",
+      "c84015",
+      "c84016",
+      "c84017",
+      "c84018",
+      "ef3015",
+      "ef3016",
+      "ef4015",
+      "ef4016",
+      "ef4017",
+      "ef4018"
+    ],
+    "smallest_erase_values_seen": [
+      4096,
+      65536
+    ],
+    "reading": "The stride, the offsets and the ids are measured. The four `inferred_*` fields are read off values that repeat across rows -- no code was disassembled to get them, and the raw words are in `words` so a later reader can disagree.",
+    "rows": [
+      {
+        "at": "0x0d764",
+        "jedec_id": "c22015",
+        "name": "MX25L1605D",
+        "name_ptr": "0x8040acb0",
+        "words": [
+          "0x00c22015",
+          "0x00000000",
+          "0x00000015",
+          "0x00010000",
+          "0x00001000",
+          "0x00000100",
+          "0x8040acb0",
+          "0x00000032"
+        ],
+        "inferred_capacity_code": "0x15",
+        "inferred_block_bytes": 65536,
+        "inferred_smallest_erase_bytes": 4096,
+        "inferred_page_bytes": 256
+      },
+      {
+        "at": "0x0d784",
+        "jedec_id": "c22016",
+        "name": "MX25L3205D",
+        "name_ptr": "0x8040acbc",
+        "words": [
+          "0x00c22016",
+          "0x00000000",
+          "0x00000016",
+          "0x00010000",
+          "0x00001000",
+          "0x00000100",
+          "0x8040acbc",
+          "0x00000032"
+        ],
+        "inferred_capacity_code": "0x16",
+        "inferred_block_bytes": 65536,
+        "inferred_smallest_erase_bytes": 4096,
+        "inferred_page_bytes": 256
+      },
+      {
+        "at": "0x0d7a4",
+        "jedec_id": "c22017",
+        "name": "MX25L6405D",
+        "name_ptr": "0x8040acc8",
+        "words": [
+          "0x00c22017",
+          "0x00000000",
+          "0x00000017",
+          "0x00010000",
+          "0x00001000",
+          "0x00000100",
+          "0x8040acc8",
+          "0x00000032"
+        ],
+        "inferred_capacity_code": "0x17",
+        "inferred_block_bytes": 65536,
+        "inferred_smallest_erase_bytes": 4096,
+        "inferred_page_bytes": 256
+      },
+      {
+        "at": "0x0d7c4",
+        "jedec_id": "c22018",
+        "name": "MX25L12805D",
+        "name_ptr": "0x8040acd4",
+        "words": [
+          "0x00c22018",
+          "0x00000000",
+          "0x00000018",
+          "0x00010000",
+          "0x00001000",
+          "0x00000100",
+          "0x8040acd4",
+          "0x00000032"
+        ],
+        "inferred_capacity_code": "0x18",
+        "inferred_block_bytes": 65536,
+        "inferred_smallest_erase_bytes": 4096,
+        "inferred_page_bytes": 256
+      },
+      {
+        "at": "0x0d7e4",
+        "jedec_id": "c22019",
+        "name": "MX25L256",
+        "name_ptr": "0x8040ace0",
+        "words": [
+          "0x00c22019",
+          "0x00000000",
+          "0x00000018",
+          "0x00010000",
+          "0x00001000",
+          "0x00000100",
+          "0x8040ace0",
+          "0x0000004b"
+        ],
+        "inferred_capacity_code": "0x18",
+        "inferred_block_bytes": 65536,
+        "inferred_smallest_erase_bytes": 4096,
+        "inferred_page_bytes": 256
+      },
+      {
+        "at": "0x0d804",
+        "jedec_id": "c22415",
+        "name": "MX25L1635D",
+        "name_ptr": "0x8040acec",
+        "words": [
+          "0x00c22415",
+          "0x00000000",
+          "0x00000015",
+          "0x00010000",
+          "0x00001000",
+          "0x00000100",
+          "0x8040acec",
+          "0x0000004b"
+        ],
+        "inferred_capacity_code": "0x15",
+        "inferred_block_bytes": 65536,
+        "inferred_smallest_erase_bytes": 4096,
+        "inferred_page_bytes": 256
+      },
+      {
+        "at": "0x0d824",
+        "jedec_id": "c25e16",
+        "name": "MX25L3235D",
+        "name_ptr": "0x8040acf8",
+        "words": [
+          "0x00c25e16",
+          "0x00000000",
+          "0x00000016",
+          "0x00010000",
+          "0x00001000",
+          "0x00000100",
+          "0x8040acf8",
+          "0x0000004b"
+        ],
+        "inferred_capacity_code": "0x16",
+        "inferred_block_bytes": 65536,
+        "inferred_smallest_erase_bytes": 4096,
+        "inferred_page_bytes": 256
+      },
+      {
+        "at": "0x0d844",
+        "jedec_id": "20ba17",
+        "name": "MCba17",
+        "name_ptr": "0x8040ad04",
+        "words": [
+          "0x0020ba17",
+          "0x00000000",
+          "0x00000017",
+          "0x00010000",
+          "0x00001000",
+          "0x00000100",
+          "0x8040ad04",
+          "0x00000032"
+        ],
+        "inferred_capacity_code": "0x17",
+        "inferred_block_bytes": 65536,
+        "inferred_smallest_erase_bytes": 4096,
+        "inferred_page_bytes": 256
+      },
+      {
+        "at": "0x0d864",
+        "jedec_id": "010214",
+        "name": "S25FL016A",
+        "name_ptr": "0x8040ad0c",
+        "words": [
+          "0x00010214",
+          "0x00000000",
+          "0x00000015",
+          "0x00010000",
+          "0x00010000",
+          "0x00000100",
+          "0x8040ad0c",
+          "0x00000032"
+        ],
+        "inferred_capacity_code": "0x15",
+        "inferred_block_bytes": 65536,
+        "inferred_smallest_erase_bytes": 65536,
+        "inferred_page_bytes": 256
+      },
+      {
+        "at": "0x0d884",
+        "jedec_id": "010215",
+        "name": "S25FL032A",
+        "name_ptr": "0x8040ad18",
+        "words": [
+          "0x00010215",
+          "0x00000000",
+          "0x00000016",
+          "0x00010000",
+          "0x00010000",
+          "0x00000100",
+          "0x8040ad18",
+          "0x00000032"
+        ],
+        "inferred_capacity_code": "0x16",
+        "inferred_block_bytes": 65536,
+        "inferred_smallest_erase_bytes": 65536,
+        "inferred_page_bytes": 256
+      },
+      {
+        "at": "0x0d8a4",
+        "jedec_id": "010216",
+        "name": "S25FL064P",
+        "name_ptr": "0x8040ad24",
+        "words": [
+          "0x00010216",
+          "0x00000000",
+          "0x00000017",
+          "0x00010000",
+          "0x00010000",
+          "0x00000100",
+          "0x8040ad24",
+          "0x00000050"
+        ],
+        "inferred_capacity_code": "0x17",
+        "inferred_block_bytes": 65536,
+        "inferred_smallest_erase_bytes": 65536,
+        "inferred_page_bytes": 256
+      },
+      {
+        "at": "0x0d8c4",
+        "jedec_id": "012018",
+        "name": "S25FL128P",
+        "name_ptr": "0x8040ad30",
+        "words": [
+          "0x00012018",
+          "0x00000000",
+          "0x00000018",
+          "0x00010000",
+          "0x00010000",
+          "0x00000100",
+          "0x8040ad30",
+          "0x00000050"
+        ],
+        "inferred_capacity_code": "0x18",
+        "inferred_block_bytes": 65536,
+        "inferred_smallest_erase_bytes": 65536,
+        "inferred_page_bytes": 256
+      },
+      {
+        "at": "0x0d8e4",
+        "jedec_id": "1c3115",
+        "name": "EN25F16",
+        "name_ptr": "0x8040ad3c",
+        "words": [
+          "0x001c3115",
+          "0x00000000",
+          "0x00000015",
+          "0x00010000",
+          "0x00001000",
+          "0x00000100",
+          "0x8040ad3c",
+          "0x00000032"
+        ],
+        "inferred_capacity_code": "0x15",
+        "inferred_block_bytes": 65536,
+        "inferred_smallest_erase_bytes": 4096,
+        "inferred_page_bytes": 256
+      },
+      {
+        "at": "0x0d904",
+        "jedec_id": "1c3116",
+        "name": "EN25F32",
+        "name_ptr": "0x8040ad44",
+        "words": [
+          "0x001c3116",
+          "0x00000000",
+          "0x00000016",
+          "0x00010000",
+          "0x00001000",
+          "0x00000100",
+          "0x8040ad44",
+          "0x00000068"
+        ],
+        "inferred_capacity_code": "0x16",
+        "inferred_block_bytes": 65536,
+        "inferred_smallest_erase_bytes": 4096,
+        "inferred_page_bytes": 256
+      },
+      {
+        "at": "0x0d924",
+        "jedec_id": "1c3015",
+        "name": "EN25Q16",
+        "name_ptr": "0x8040ad4c",
+        "words": [
+          "0x001c3015",
+          "0x00000000",
+          "0x00000015",
+          "0x00010000",
+          "0x00001000",
+          "0x00000100",
+          "0x8040ad4c",
+          "0x00000050"
+        ],
+        "inferred_capacity_code": "0x15",
+        "inferred_block_bytes": 65536,
+        "inferred_smallest_erase_bytes": 4096,
+        "inferred_page_bytes": 256
+      },
+      {
+        "at": "0x0d944",
+        "jedec_id": "1c3016",
+        "name": "EN25Q32",
+        "name_ptr": "0x8040ad54",
+        "words": [
+          "0x001c3016",
+          "0x00000000",
+          "0x00000016",
+          "0x00010000",
+          "0x00001000",
+          "0x00000100",
+          "0x8040ad54",
+          "0x00000050"
+        ],
+        "inferred_capacity_code": "0x16",
+        "inferred_block_bytes": 65536,
+        "inferred_smallest_erase_bytes": 4096,
+        "inferred_page_bytes": 256
+      },
+      {
+        "at": "0x0d964",
+        "jedec_id": "c84014",
+        "name": "GD25Q8",
+        "name_ptr": "0x8040ad5c",
+        "words": [
+          "0x00c84014",
+          "0x00000000",
+          "0x00000014",
+          "0x00010000",
+          "0x00001000",
+          "0x00000100",
+          "0x8040ad5c",
+          "0x00000050"
+        ],
+        "inferred_capacity_code": "0x14",
+        "inferred_block_bytes": 65536,
+        "inferred_smallest_erase_bytes": 4096,
+        "inferred_page_bytes": 256
+      },
+      {
+        "at": "0x0d984",
+        "jedec_id": "c84015",
+        "name": "GD25Q16",
+        "name_ptr": "0x8040ad64",
+        "words": [
+          "0x00c84015",
+          "0x00000000",
+          "0x00000015",
+          "0x00010000",
+          "0x00001000",
+          "0x00000100",
+          "0x8040ad64",
+          "0x00000050"
+        ],
+        "inferred_capacity_code": "0x15",
+        "inferred_block_bytes": 65536,
+        "inferred_smallest_erase_bytes": 4096,
+        "inferred_page_bytes": 256
+      },
+      {
+        "at": "0x0d9a4",
+        "jedec_id": "c84016",
+        "name": "GD25Q32",
+        "name_ptr": "0x8040ad6c",
+        "words": [
+          "0x00c84016",
+          "0x00000000",
+          "0x00000016",
+          "0x00010000",
+          "0x00001000",
+          "0x00000100",
+          "0x8040ad6c",
+          "0x00000050"
+        ],
+        "inferred_capacity_code": "0x16",
+        "inferred_block_bytes": 65536,
+        "inferred_smallest_erase_bytes": 4096,
+        "inferred_page_bytes": 256
+      },
+      {
+        "at": "0x0d9c4",
+        "jedec_id": "c84017",
+        "name": "GD25Q64",
+        "name_ptr": "0x8040ad74",
+        "words": [
+          "0x00c84017",
+          "0x00000000",
+          "0x00000017",
+          "0x00010000",
+          "0x00001000",
+          "0x00000100",
+          "0x8040ad74",
+          "0x00000050"
+        ],
+        "inferred_capacity_code": "0x17",
+        "inferred_block_bytes": 65536,
+        "inferred_smallest_erase_bytes": 4096,
+        "inferred_page_bytes": 256
+      },
+      {
+        "at": "0x0d9e4",
+        "jedec_id": "c84018",
+        "name": "GD25Q128",
+        "name_ptr": "0x8040ad7c",
+        "words": [
+          "0x00c84018",
+          "0x00000000",
+          "0x00000018",
+          "0x00010000",
+          "0x00001000",
+          "0x00000100",
+          "0x8040ad7c",
+          "0x00000054"
+        ],
+        "inferred_capacity_code": "0x18",
+        "inferred_block_bytes": 65536,
+        "inferred_smallest_erase_bytes": 4096,
+        "inferred_page_bytes": 256
+      },
+      {
+        "at": "0x0da04",
+        "jedec_id": "ef4015",
+        "name": "W25Q16",
+        "name_ptr": "0x8040ad88",
+        "words": [
+          "0x00ef4015",
+          "0x00000000",
+          "0x00000015",
+          "0x00010000",
+          "0x00001000",
+          "0x00000100",
+          "0x8040ad88",
+          "0x00000050"
+        ],
+        "inferred_capacity_code": "0x15",
+        "inferred_block_bytes": 65536,
+        "inferred_smallest_erase_bytes": 4096,
+        "inferred_page_bytes": 256
+      },
+      {
+        "at": "0x0da24",
+        "jedec_id": "ef4016",
+        "name": "W25Q32",
+        "name_ptr": "0x8040ad90",
+        "words": [
+          "0x00ef4016",
+          "0x00000000",
+          "0x00000016",
+          "0x00010000",
+          "0x00001000",
+          "0x00000100",
+          "0x8040ad90",
+          "0x00000050"
+        ],
+        "inferred_capacity_code": "0x16",
+        "inferred_block_bytes": 65536,
+        "inferred_smallest_erase_bytes": 4096,
+        "inferred_page_bytes": 256
+      },
+      {
+        "at": "0x0da44",
+        "jedec_id": "ef4017",
+        "name": "W25Q64",
+        "name_ptr": "0x8040ad98",
+        "words": [
+          "0x00ef4017",
+          "0x00000000",
+          "0x00000017",
+          "0x00010000",
+          "0x00001000",
+          "0x00000100",
+          "0x8040ad98",
+          "0x00000050"
+        ],
+        "inferred_capacity_code": "0x17",
+        "inferred_block_bytes": 65536,
+        "inferred_smallest_erase_bytes": 4096,
+        "inferred_page_bytes": 256
+      },
+      {
+        "at": "0x0da64",
+        "jedec_id": "ef4018",
+        "name": "W25Q128",
+        "name_ptr": "0x8040ada0",
+        "words": [
+          "0x00ef4018",
+          "0x00000000",
+          "0x00000018",
+          "0x00010000",
+          "0x00001000",
+          "0x00000100",
+          "0x8040ada0",
+          "0x00000050"
+        ],
+        "inferred_capacity_code": "0x18",
+        "inferred_block_bytes": 65536,
+        "inferred_smallest_erase_bytes": 4096,
+        "inferred_page_bytes": 256
+      },
+      {
+        "at": "0x0da84",
+        "jedec_id": "c84018",
+        "name": "GD25Q128",
+        "name_ptr": "0x8040ad7c",
+        "words": [
+          "0x00c84018",
+          "0x00000000",
+          "0x00000018",
+          "0x00010000",
+          "0x00001000",
+          "0x00000100",
+          "0x8040ad7c",
+          "0x00000054"
+        ],
+        "inferred_capacity_code": "0x18",
+        "inferred_block_bytes": 65536,
+        "inferred_smallest_erase_bytes": 4096,
+        "inferred_page_bytes": 256
+      },
+      {
+        "at": "0x0daa4",
+        "jedec_id": "c84018",
+        "name": "GD25Q128",
+        "name_ptr": "0x8040ad7c",
+        "words": [
+          "0x00c84018",
+          "0x00000000",
+          "0x00000018",
+          "0x00010000",
+          "0x00001000",
+          "0x00000100",
+          "0x8040ad7c",
+          "0x00000054"
+        ],
+        "inferred_capacity_code": "0x18",
+        "inferred_block_bytes": 65536,
+        "inferred_smallest_erase_bytes": 4096,
+        "inferred_page_bytes": 256
+      },
+      {
+        "at": "0x0dac4",
+        "jedec_id": "ef4016",
+        "name": "W25Q32",
+        "name_ptr": "0x8040ad90",
+        "words": [
+          "0x00ef4016",
+          "0x00000000",
+          "0x00000016",
+          "0x00010000",
+          "0x00001000",
+          "0x00000100",
+          "0x8040ad90",
+          "0x00000050"
+        ],
+        "inferred_capacity_code": "0x16",
+        "inferred_block_bytes": 65536,
+        "inferred_smallest_erase_bytes": 4096,
+        "inferred_page_bytes": 256
+      },
+      {
+        "at": "0x0dae4",
+        "jedec_id": "ef3015",
+        "name": "W25X16",
+        "name_ptr": "0x8040ada8",
+        "words": [
+          "0x00ef3015",
+          "0x00000000",
+          "0x00000015",
+          "0x00010000",
+          "0x00001000",
+          "0x00000100",
+          "0x8040ada8",
+          "0x0000004b"
+        ],
+        "inferred_capacity_code": "0x15",
+        "inferred_block_bytes": 65536,
+        "inferred_smallest_erase_bytes": 4096,
+        "inferred_page_bytes": 256
+      },
+      {
+        "at": "0x0db04",
+        "jedec_id": "ef3016",
+        "name": "W25X32",
+        "name_ptr": "0x8040adb0",
+        "words": [
+          "0x00ef3016",
+          "0x00000000",
+          "0x00000016",
+          "0x00010000",
+          "0x00001000",
+          "0x00000100",
+          "0x8040adb0",
+          "0x0000004b"
+        ],
+        "inferred_capacity_code": "0x16",
+        "inferred_block_bytes": 65536,
+        "inferred_smallest_erase_bytes": 4096,
+        "inferred_page_bytes": 256
+      },
+      {
+        "at": "0x0db24",
+        "jedec_id": "ef3016",
+        "name": "W25X64",
+        "name_ptr": "0x8040adb8",
+        "words": [
+          "0x00ef3016",
+          "0x00000000",
+          "0x00000017",
+          "0x00010000",
+          "0x00001000",
+          "0x00000100",
+          "0x8040adb8",
+          "0x0000004b"
+        ],
+        "inferred_capacity_code": "0x17",
+        "inferred_block_bytes": 65536,
+        "inferred_smallest_erase_bytes": 4096,
+        "inferred_page_bytes": 256
+      },
+      {
+        "at": "0x0db44",
+        "jedec_id": "1f4602",
+        "name": "AT25DF161",
+        "name_ptr": "0x8040adc0",
+        "words": [
+          "0x001f4602",
+          "0x00000000",
+          "0x00000015",
+          "0x00010000",
+          "0x00001000",
+          "0x00000100",
+          "0x8040adc0",
+          "0x00000055"
+        ],
+        "inferred_capacity_code": "0x15",
+        "inferred_block_bytes": 65536,
+        "inferred_smallest_erase_bytes": 4096,
+        "inferred_page_bytes": 256
+      }
+    ]
+  },
   "controls": {
     "help_banner_present": true,
     "documented_commands_found": [
