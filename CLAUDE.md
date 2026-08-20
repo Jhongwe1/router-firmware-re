@@ -126,14 +126,18 @@ reader undefended.
   desk-only entry carries no record cards — it carries what changed in the plan
   and why.
 
-- **Part A is four stations, and the station number IS the device state**:
+- **Part A is five stations, and the station number IS the device state**:
   `A1.x` desktop, `A2.x` stopped at `<RealTek>`, `A3.x` booted and serving,
-  `A4.x` wrapping up. So reading `A1.1` → `A4.2` front to back *is* a correct
-  order to run it in, and each station's entry costs one power cycle — which is
-  why its steps are done in one visit. Renumbered 2026-08-17 from a flat
-  `A0`–`A14` that had `A1.6` / `A8.5` / `A11.5` bolted in and whose document
-  order contradicted Part B's run order; the old→new table is `runsheet.md`
-  Part B `B-0`.
+  `A4.x` wrapping up, **`A5.x` unpowered with the SOIC-8 clip on `U19`**.
+  Each station's entry costs one power cycle — except `A5`, whose unit is one
+  clip seating, which is why its steps are ordered by "can the clip stay on"
+  rather than by risk. Renumbered 2026-08-17 from a flat `A0`–`A14` that had
+  `A1.6` / `A8.5` / `A11.5` bolted in and whose document order contradicted
+  Part B's run order; the old→new table is `runsheet.md` Part B `B-0`.
+  **`A5` is the one place document order is not a run order** — an unpowered
+  station cannot follow the wrap-up station — so the real order lives in Part B,
+  which owns it anyway. Added 2026-08-20 with the second instrument; `RUNBOOK`
+  §8.12.40 carries the argument.
 - **A step heading ends with `（關 P0-2 · …）` or `（不關登記簿項目）`, and that
   is the only place those ids live.** The front-page index repeats them and CI
   checks the two agree, so the index is a pointer rather than a second owner.

@@ -130,6 +130,12 @@ OWN_TOOLS = {
     # shell and destroyed a test, so a runsheet that still shows the old form
     # would cost another power cycle rather than a puzzled minute.
     "tools/upnp-soap.py",
+    # The two shell tools, added 2026-08-20. They are here for the same reason
+    # console-write.py is: on these two, a flag that has been renamed is the
+    # difference between writing 0x3FF000 and writing whatever the argument
+    # parser fell back to -- except that a shell script has no argument parser
+    # to fall back in, which makes it worse rather than better.
+    "tools/flash-read.sh", "tools/flash-write.sh",
 }
 
 
@@ -153,13 +159,26 @@ def tool_help(tool: str) -> str:
     not list `--at-prompt` and this check would pass over the flags most likely
     to be wrong.
     """
+    # A shell tool has no argparse, so its `--help` is the Usage block it prints
+    # when called with no arguments. Both of the shell tools in OWN_TOOLS are
+    # written to do exactly that and to exit 2 without touching hardware -- which
+    # is checked here by asking for it, not assumed. Added 2026-08-20 with
+    # flash-write.sh: the two tools that can destroy the part were the two whose
+    # flags nothing validated, because the check was written for Python.
+    argv = ([sys.executable, str(REPO / tool), "--help"] if tool.endswith(".py")
+            else ["bash", str(REPO / tool)])
     parts = []
     try:
-        r = subprocess.run([sys.executable, str(REPO / tool), "--help"],
-                           capture_output=True, text=True, timeout=60, check=False)
+        r = subprocess.run(argv, capture_output=True, text=True,
+                           timeout=60, check=False)
         parts.append(r.stdout + r.stderr)
     except (OSError, subprocess.SubprocessError) as exc:
         return f"<<unavailable: {exc}>>"
+    if not tool.endswith(".py"):
+        if "Usage:" not in parts[0]:
+            return (f"<<unavailable: {tool} printed no Usage block when called "
+                    "with no arguments, so its flags cannot be checked>>")
+        return parts[0]
     for sub in re.findall(r"\{([a-z0-9,\-_]+)\}", parts[0]):
         for name in sub.split(","):
             try:

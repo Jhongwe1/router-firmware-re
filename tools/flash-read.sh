@@ -26,7 +26,13 @@
 #                                    reaches the same die through the SoC
 #                                    instead of through the clip
 #                                 4. the structure inside the image
-#                                    (tools/check-flash-dump.py)
+#                                    (python -m fwrecon flashdump). This line
+#                                    said tools/check-flash-dump.py until
+#                                    2026-08-20 and that file has never existed:
+#                                    the checker landed inside fwrecon instead.
+#                                    Nothing reads a comment, which is why it
+#                                    stood for four days in the tool whose whole
+#                                    job is not trusting one source.
 #
 # This script does 1 and 2 and stops. It never writes to the chip: there is no
 # code path here that passes -w, -E or -v to flashrom, on purpose.
@@ -369,7 +375,11 @@ main() {
     probe)   preflight; probe "${1:-}" ;;
     read)    cmd_read "$@" ;;
     compare) cmd_compare "$@" ;;
-    *) sed -n '/^# Usage:/,/^#$/p' "${BASH_SOURCE[0]}" | sed 's/^#\s\?//'
+    # To the first line that is not a comment, then drop it. The old form
+    # stopped at the first bare `#`, which is the line between Usage and
+    # Options -- so half the flags never printed, and check-runsheet.py
+    # reads this block as the tool's own --help. Found 2026-08-20.
+    *) sed -n '/^# Usage:/,/^[^#]/p' "${BASH_SOURCE[0]}" | sed '$d' | sed 's/^#\s\?//'
        exit 2 ;;
   esac
 }

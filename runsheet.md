@@ -75,6 +75,12 @@
 | **第 4 站** | **收工 —— 不碰裝置** | |
 | `A4.1` | 把結果登記進去，重生成登記簿 | — |
 | `A4.2` | 症狀 → 原因 → 回到哪一節 | — |
+| **第 5 站** | **板子斷電、夾子在 `U19` 上** | |
+| `A5.1` | 夾上去之前：三個量測，把改機變成會失敗的測試 | — |
+| `A5.2` | ★ 讓晶片自己說它是誰 | `P9-7` |
+| `A5.3` | ★ 兩次就座、四次讀，跟 `FLR` 逐 byte 比 | `P9-5` |
+| `A5.4` | 寫入演練：在映像後面 690 KiB 的地方練還原 | — |
+| `A5.5` | ★ **五個 byte，換掉這台的管理帳號與密碼** | `P9-6` |
 
 ## `P0-2`、`P1-12` 這種編號是什麼
 
@@ -4321,6 +4327,336 @@ register OK - 130 cases, 102 frozen, 34 executed, freeze 69c342dc...
 
 ---
 
+## 第 5 站 · 板子斷電、夾子夾在 `U19` 上 —— 電由程式器供
+
+**照順序** `A5.1` → `A5.2` → `A5.3` → `A5.4` → `A5.5`
+
+**進站**：路由器電源**拔掉**（不是關開關），CP2102 也拔掉。
+**出站**：拔夾子 → 插電 → 確認開機到 `<RealTek>`，而且 web 有回應。
+
+> 🔴 **文件順序在這裡不等於執行順序，而這是全檔唯一的例外。**
+> 這一站的裝置狀態是**斷電**，所以它接不在第 4 站後面。它排在哪裡由 Part B 當週那一節
+> 決定 —— `B-W08` 把它排在第 1 站之後、第 2 站之前，因為第 2 站要通電。
+> 理由寫在 [`RUNBOOK` §8.12.40](RUNBOOK.md)。
+
+> 🔴 **進這一站的代價是「一次夾子就座」，不是一次電源循環。** 這是它跟第 2、3 站
+> 最大的不同：那兩站的成本單位是拔插電源，這一站是夾子上下。所以 `A5.1`–`A5.5` 的
+> 順序是照「夾上去之後能不能不拆下來」排的，不是照風險排的。
+
+> 🔴 **這是全檔第二個能造成不可逆損壞的地方，而且它比 `A2.5` 離晶片更近。**
+> `A2.5` 的 `FLW` 至少還經過 SoC 與 boot loader 的參數檢查；夾子什麼都不經過。
+> `tools/flash-write.sh` 拒寫的兩段（`0x000000-0x006000` 的 boot loader、
+> `0x006000-0x008000` 的 `H601`）跟 `tools/console-write.py` 拒寫的是同兩段 ——
+> **兩條路徑、同一組禁區**，這樣「不寫」才是專案的性質而不是某一支工具的性質。
+
+### A5.1 🔌🔴 夾上去之前：把「改機成功了」變成一個會失敗的測試（不關登記簿項目）
+
+| 層 | 動到裝置 | 為什麼這一節存在 | 最後驗證 |
+|---|---|---|---|
+| T3＋程式器 | **完全不碰板子**；這一節結束前夾子不上晶片 | [`RUNBOOK` §8.12.40](RUNBOOK.md) | 2026-08-20 |
+
+**先決條件**：路由器與 CP2102 都拔掉；`make doctor` 的 tier 3 沒有 `FAIL`
+
+> 🔴 **W02 量到的那張表是這一節要推翻的東西，而它只能被量測推翻。**
+> 2026-08-16：`VCC`(8) 與 `WP#`(3)、`HOLD#`(7) 都是 3.3 V，而 **`CS#`(1)、`DI`(5)、
+> `CLK`(6)、`DO`(2) 全是 5 V** —— 也就是「晶片自己會被驅動的每一支腳」都超壓。
+> **`VCC` 讀 3.3 V 正是那個陷阱**：它讓板子看起來是安全的。
+
+**量三件事，而且預測先寫進 `BENCH-LOG.md` 再拿電表。**
+
+| # | 量哪裡 | 預測 | 它排除掉什麼 |
+|---|---|---|---|
+| 1 | **CH341A 自己的 pin 28** | ≤ 3.4 V | **這就是 2026-08-16 沒有量、因此「原因未隔離」的那一項。** pin 28 是 CH341A 的 I/O 電源；它是 3.3 V，座上每一支被驅動的腳才可能是 3.3 V |
+| 2 | 座上 8 支腳，程式器插著 USB、閒置 | 每一支 ≤ 3.4 V，**`DO`(2) 特別要量** | `DO` 是 2026-08-16 最糟的那一支，而且它的上拉電阻**跟晶片電源無關** —— 只改 pin 28 不保證它跟著下來 |
+| 3 | `U19` 本體寬度 | 150 mil 或 208 mil，**量了才夾** | CH341A 套件附的夾子常常是窄的那種。硬夾會掀腳，而掀腳的板子開不了機 |
+
+```powershell
+usbipd list
+usbipd bind   --busid 1-5
+usbipd attach --wsl --busid 1-5
+```
+
+> ⚠️ **`1-5` 是範例，不是你的 busid。** 從 `usbipd list` 裡找 `1a86:5512` 那一列。
+> `bind` 要系統管理員身分，而且一顆裝置只需要做一次；`attach` 每次重插都要做。
+
+```bash
+lsusb | grep -i '1a86:5512'
+make doctor TIER=3
+```
+
+**預期**：
+
+```text
+Bus 001 Device 007: ID 1a86:5512 QinHeng Electronics CH341 in EPP/MEM/I2C mode
+  ok    lsusb — confirming the CH341A is really on the bus before anything is clipped
+  ok    CH341A (1a86:5512) is attached to this WSL instance
+```
+
+> 🔴 **這一站有兩個 `FAIL` 是預期的，而 `A1.1` 的「有 FAIL 就不要往下」在這裡要讀細一點。**
+> `make doctor` 的 tier 3 會對 `/dev/ttyUSB*` 與 `enx*` 各報一個 `FAIL` —— 那是
+> CP2102 與 USB 網卡沒有接進 WSL，而**這一站本來就不該接它們**：兩者都是第二個接地
+> 與第二個供電源，插在同一塊板子上。第 5 站要看的只有 CH341A 那兩列。
+> **這是 `bench-doctor.sh` 的分層還沒跟上第 5 站**，記在 `PROGRESS.md` 開放題 92 ——
+> 一個把預期中的失敗印成 `FAIL` 的檢查，會訓練操作者忽略 `FAIL`，那比沒有檢查更糟。
+
+> ⚠️ **`lsusb` 缺席在這一節是 `FAIL` 而不是 `--`，那是刻意的。**
+> 沒有 `lsusb`，`flash-read.sh` 只會印一行 warning 就繼續，而 `flash-write.sh` 直接拒跑。
+> 這是儀器 bug 45 的規則：**降級成 skip 的檢查等於沒有跑**，而它降級的環境
+> 通常正是工具最少、也最需要它的那一個。
+
+> ❌ **任何一支腳超過 3.4 V 就停。** 不要「先夾一下看看」——
+> `DO` 是晶片的**輸出**，被拉到自己電源以上 1.7 V 落在 datasheet 的
+> Absolute Maximum Ratings 裡，那張表的標題寫的是永久損壞。
+
+> ❌ **pin 28 超過 3.4 V 就停**，即使座上讀起來是對的。那代表你量到的 3.3 V 有別的來源，
+> 而「為什麼會這樣」在夾子上去之前必須有答案。
+
+---
+
+### A5.2 🔌🔴 ★ `probe`：讓晶片自己說它是誰（關 `P9-7`）
+
+| 層 | 動到裝置 | 為什麼這一節存在 | 最後驗證 |
+|---|---|---|---|
+| T3＋程式器 | **純讀**，而且連讀都還沒開始 —— 只送 RDID | [`RUNBOOK` §8.12.41](RUNBOOK.md) | 2026-08-20 |
+
+**先決條件**：`A5.1` 三個量測都過；路由器電源拔掉；夾子 pin 1 對 `U19` 的圓點
+
+```bash
+./tools/flash-read.sh probe 1c7016
+```
+
+**預期**：
+
+```text
+  ok    CH341A present on the USB bus (1a86:5512)
+ ==>   probing (no read, no write)
+  ok    JEDEC id  0x1c7016   (manufacturer 0x1c, device 0x7016)
+  ok    third id byte 0x16 -> 2^22 = 4194304 bytes, if the log2 convention holds
+  ok    matches the prediction (0x1c7016)
+```
+
+> ★ **這三個 byte 是這個專案裡最便宜的一個結論，而它同時關掉兩件事。**
+> 一、`U19` 的型號從 2026-08-14 到今天**只有一個來源**：封裝上的字，而那行字
+> 在放大鏡下 `Q` 跟 `O` 幾乎一樣（`notes/hardware-inspection.md` §1 有記）。
+> 二、它解釋 boot log 從 2026-08-15 就印著、一直沒人解釋的 **`chipName: UNKNOWN`**。
+
+> 🔴 **`chipName: UNKNOWN` 的成因在夾子上去之前就已經算出來了，而它讓這一節可以失敗。**
+> boot loader 自己帶著一張 SPI 晶片描述表，32 筆、stride `0x20`，
+> `tools/loader-unpack.py --chip-table` 把它解出來（`reports/bootloader-unit-2018.json`）。
+> Eon 家族它只認得四顆：`1c3115` `1c3116` `1c3015` **`1c3016`（EN25Q32）**。
+> **`1c7016`（EN25QH32）沒有一列。**
+>
+> 所以這一節有兩個都能發生的結果，而它們指向相反的方向：
+>
+> | 晶片回答 | 意思 |
+> |---|---|
+> | **`1c7016`** | 封裝上的字讀對了，而 loader 認不出它是因為表裡真的沒有這一列 |
+> | **`1c3016`** | **封裝被誤讀**，這顆是 EN25Q32，loader 一直都認得它，`UNKNOWN` 另有原因，而上面那段推理整段作廢 |
+> | 其他 | 兩邊都不對，先別讀，先想 |
+
+```bash
+python3 tools/loader-unpack.py --has-id 1c7016 \
+        "$HOME/fwre-work/dumps/flash-n150rt-console-1.bin"
+```
+
+**預期**（這是**桌面**就跑得出來的，不用夾子）：
+
+```text
+1c7016: no row. The loader cannot name this part, which is what `chipName: UNKNOWN` looks like from the inside.
+```
+
+> ❌ **`no JEDEC id came back` 就不要重試第三次。** 依序檢查：
+> 路由器真的拔電了嗎、夾子 pin 1 對圓點了嗎、夾子寬度對嗎。
+> ❌ **`MORE THAN ONE id` 是接觸不良，不是發現。** 重新就座，**不要讀**。
+
+---
+
+### A5.3 🔌🔴 ★ 兩次就座、四次讀，然後跟 `FLR` 逐 byte 比（關 `P9-5`）
+
+| 層 | 動到裝置 | 為什麼這一節存在 | 最後驗證 |
+|---|---|---|---|
+| T3＋程式器 | **純讀**。這支工具沒有任何一條路徑會送 `-w` / `-E` / `-v` | [`RUNBOOK` §8.12.42](RUNBOOK.md) | 2026-08-20 |
+
+**先決條件**：`A5.2` 的 id 對上了
+
+```bash
+./tools/flash-read.sh read --label seat-a --expect-id 1c7016 --reads 2
+```
+
+**然後把夾子拆下來、重新夾一次**，再跑一次：
+
+```bash
+./tools/flash-read.sh read --label seat-b --expect-id 1c7016 --reads 2
+./tools/flash-read.sh compare \
+    "$HOME/fwre-work/dumps/flash-n150rt-seat-a-1.bin" \
+    "$HOME/fwre-work/dumps/flash-n150rt-seat-b-1.bin"
+```
+
+> 🔴 **同一次就座讀兩遍，證明的是傳輸穩定，不是讀得對。**
+> 一次就座裡的兩次讀共用它所有的失敗模式：掀起來的腳、被 SoC 拉住的線、超壓的驅動。
+> 那些全都產生**穩定、可重現、格式完整、而且錯的**答案。
+> **換一次就座才換掉那組失敗模式**，這就是 `--label seat-b` 存在的唯一理由。
+
+**再跟 `FLR` 那條路比 —— 這一步才是 `P9-5`：**
+
+```bash
+sha256sum "$HOME/fwre-work/dumps/flash-n150rt-seat-a-1.bin" \
+          "$HOME/fwre-work/dumps/flash-n150rt-console-1.bin"
+cmp -l "$HOME/fwre-work/dumps/flash-n150rt-seat-a-1.bin" \
+       "$HOME/fwre-work/dumps/flash-n150rt-console-1.bin" | wc -l
+"$HOME/fwre-work/venv/bin/python" -m fwrecon flashdump \
+    "$HOME/fwre-work/dumps/flash-n150rt-seat-a-1.bin"
+```
+
+**預期 —— 而預測是「一個 byte 都不差」：**
+
+```text
+a800059a9b8c414df026a22b8423a5939d0f9bb793109d0f7ce086f6810f37ea  …seat-a-1.bin
+a800059a9b8c414df026a22b8423a5939d0f9bb793109d0f7ce086f6810f37ea  …console-1.bin
+0
+```
+
+> 🔴 **為什麼敢預測整份 4 MiB 完全相同，而它又真的可能失敗。**
+> `FLR` 那兩份是 2026-08-16 讀的。中間這台被寫過：W06 的 PoC 改了 `H601` 九個 byte
+> 又改回去，W05/W07 的未認證 POST 改過 `COMPCS` 三個旗標，2026-08-19 按了 reset。
+> 而 W07 收尾那一場量到 **`flash default-sw` 把 `COMPCS` 和 `COMPDS` 兩區都從硬編碼
+> 重寫，逐 byte 等於 2026-08-16 那份**，`H601` 也逐 byte 相同。
+> 所以「完全相同」是有理由的預測，不是樂觀 —— 而只要開機途中有任何一條路寫過 flash，
+> 它就會不一樣，那本身是一個結論。
+>
+> **不一樣的時候不要平均、不要挑一份。** 先問差在哪一段：
+> 落在 `0x00C000`/`0x008000`/`0x006000` 三個設定區 → 是裝置寫的，去指出是誰寫的；
+> 落在 `0x020000`–`0x350000` 的 kernel/rootfs → **兩支儀器對同一顆晶片說法不同**，
+> 那才是 `P9-5` 存在的理由，而且要當成儀器問題查，不是當成發現。
+
+---
+
+### A5.4 🔌🔴 寫入演練：在映像結束之後 690 KiB 的地方，練一次能還原的寫（不關登記簿項目）
+
+| 層 | 動到裝置 | 為什麼這一節存在 | 最後驗證 |
+|---|---|---|---|
+| T3＋程式器 | **不可逆**（但爆炸半徑為零，理由見下） | [`RUNBOOK` §8.12.43](RUNBOOK.md) | 2026-08-20 |
+
+**先決條件**：`A5.3` 的 `seat-a` 讀出來了，而且跟 `FLR` 比過
+
+> 🔴 **`0x3FF000` 這個位址不是「尾巴看起來是空的」挑的，是算出來的。**
+> 常駐映像結束在 `0x180000 + 0x1CA041 = 0x34A041`（`notes/flash-layout.md`）。
+> `0x3FF000` 在它後面 **690 KiB**，而且現在整段是 `FF`。
+
+```bash
+cp "$HOME/fwre-work/dumps/flash-n150rt-seat-a-1.bin" "$HOME/fwre-work/w08-rehearse.bin"
+python3 - <<'PY'
+p = "/home/key/fwre-work/w08-rehearse.bin"
+with open(p, "r+b") as f:
+    f.seek(0x3FF000)
+    f.write(b"W08-REHEARSAL-20260820" + bytes(0x1000 - 22))
+PY
+./tools/flash-write.sh plan --image "$HOME/fwre-work/w08-rehearse.bin" \
+        --allow 0x3FF000-0x400000
+```
+
+**預期**：
+
+```text
+ ==>   what would change
+  ok   0x3ff000-0x400000  4096 bytes  (allowed)
+ ==>   1 range(s), 4096 bytes, in a 4194304 byte part
+  ok   every changed range is inside an --allow range. commit would proceed.
+```
+
+**然後才寫：**
+
+```bash
+./tools/flash-write.sh commit --image "$HOME/fwre-work/w08-rehearse.bin" \
+        --allow 0x3FF000-0x400000 --expect-id 1c7016 --yes
+```
+
+**再把它還原成 `FF`，而這一步才是演練的重點：**
+
+```bash
+./tools/flash-write.sh commit --image "$HOME/fwre-work/dumps/flash-n150rt-seat-a-1.bin" \
+        --allow 0x3FF000-0x400000 --expect-id 1c7016 --yes
+```
+
+> 🔴 **這一節證明的不是「寫得進去」，是「寫得回來」。**
+> 下一節要改的是這台的管理憑證。在那之前，**抹除 → 寫入 → 讀回 → 再抹回原狀**
+> 這條路必須在一段沒有人在乎的 4 KiB 上整條走過一次。
+> 一個沒有被走過的復原路徑，跟沒有復原路徑的差別只有心理上的。
+
+> ⚠️ **`plan` 會把讀回來的 pre-image 刪掉，除非給 `--keep-preimage`。**
+> `commit` 一定會留著它，並且在最後印出路徑 —— **那個檔案就是撤銷鍵。**
+
+---
+
+### A5.5 🔌🔴 ★ 五個 byte，換掉這台的管理帳號與密碼（關 `P9-6`）
+
+| 層 | 動到裝置 | 為什麼這一節存在 | 最後驗證 |
+|---|---|---|---|
+| T3＋程式器 | **不可逆**，兩條各自獨立的復原路徑 | [`RUNBOOK` §8.12.44](RUNBOOK.md) | 2026-08-20 |
+
+**先決條件**：`A5.4` 整條走過，包含還原那一步
+
+> ★ **這一節的整個算術在夾子上去之前就做完了，而且是在一份副本上做的。**
+> 壓縮過的 `COMPCS` 區裡，`admin` 這五個字面 byte 只出現**一次**，在 flash `0x00C0D1`。
+> `USER_PASSWORD`(`0xb7`) 那一筆是往回指的參照，不是第二份字面值 ——
+> **證明是算出來的**：把它改成 `zzzzz`，8-bit payload 校驗和差 **178 = 2 × 89**，
+> 89 是兩個字串的位元組和之差，而那個 **2** 就是「同一份字面值被用了兩次」。
+
+```bash
+cp "$HOME/fwre-work/dumps/flash-n150rt-seat-a-1.bin" "$HOME/fwre-work/w08-p96.bin"
+printf 'nimda' | dd of="$HOME/fwre-work/w08-p96.bin" bs=1 seek=49361 conv=notrunc
+"$HOME/fwre-work/venv/bin/python" -m fwrecon compcs "$HOME/fwre-work/w08-p96.bin" \
+        --offset 0x00C000 --disclosure open -f json \
+        --mib "$HOME/fwre-work/qemu-env-2018/lib/libapmib.so" | head -20
+```
+
+> ⚠️ **`seek=49361` 是十進位的 `0x00C0D1`，而 `dd` 的 `seek` 只吃十進位。**
+> 這跟 boot loader 的 `FLR` 收十六進位、`DB` 收十進位是同一種坑，同一台機器上第二次。
+
+**預期 —— `nimda` 是 `admin` 的重排，所以校驗和一個數都不動：**
+
+```text
+"checksum_ok": true,
+"ring_fill_agrees": true,
+"entry_count": 344,
+```
+
+**然後才是夾子：**
+
+```bash
+./tools/flash-write.sh plan --image "$HOME/fwre-work/w08-p96.bin" \
+        --allow 0x00C000-0x00E000
+./tools/flash-write.sh commit --image "$HOME/fwre-work/w08-p96.bin" \
+        --allow 0x00C000-0x00E000 --expect-id 1c7016 --yes
+```
+
+**驗證要拔夾子、插電，回到 第 3 站 的 `A3.6` 那條路：**
+
+```bash
+curl -s -o /tmp/cd.bin -w '%{http_code}\n' http://10.1.1.1/config.dat
+curl -s -o /dev/null -w 'admin:%{http_code}\n' -u admin:admin http://10.1.1.1/
+curl -s -o /dev/null -w 'nimda:%{http_code}\n' -u nimda:nimda http://10.1.1.1/
+```
+
+**預期**：`/config.dat` 回 200 且解出來兩筆都是 `nimda`；`admin:admin` 不再通、`nimda:nimda` 通。
+
+> 🔴 **還原有兩條互不相干的路，而這就是選 `COMPCS` 不選 `H601` 的全部理由。**
+> 一、把 `seat-a` 那份原圖用同一個 `--allow` 寫回去；
+> 二、按 reset 鈕 —— 2026-08-19 已經在這台上量過，`flash default-sw` 會把
+> `COMPCS` 逐 byte 還原成硬編碼那一份。
+> **`H601` 兩條都沒有**，所以 `flash-write.sh` 根本不讓你寫它。
+
+```bash
+./tools/flash-write.sh commit --image "$HOME/fwre-work/dumps/flash-n150rt-seat-a-1.bin" \
+        --allow 0x00C000-0x00E000 --expect-id 1c7016 --yes
+```
+
+> ⚠️ **第二發（`zzzzz`，校驗和故意留壞）跟第一發要分開做，而且中間要還原。**
+> 兩件事一起改，兩件事就都答不了 —— 這是 `P6-1` 那個對照組的同一課，
+> 隔兩天、換一支儀器，又出現一次。
+
+---
+
 # Part B — 每一週跑哪幾節
 
 > **只追加。** 一週做完就定版。**Part A 是可編輯的；這裡不是。**
@@ -4504,6 +4840,40 @@ P2-9 的桌面半邊、P8-1 P8-5 P8-8 P8-10 P8-18 P8-24 P9-13 P10-7 ——
 
 **這一批把上面那個結構縫從「兩項」擴大成「十一項」**：桌機程序仍然沒有
 任何被機器檢查的家。開放題 #46 的份量隨之上升。
+
+2026-08-20，W08，三項，而這三項的豁免跟上面每一項都不同：**上面那些是
+「不會有實機程序」，這三項是「程序還沒寫」。** 兩者混在同一個區塊裡是這個
+機制目前的弱點，記在這裡而不是假裝沒有。三項都在 `B-W08` 的「這一場不做」
+表裡有一列，理由一致：
+
+P9-10 P9-12 —— **兩列都在第 2 站（板子停在 `<RealTek>`），而 W08 這一場是
+夾子的場，不是 loader 的場。** 兩者共用同一條管道：`IPCONFIG` + `AUTOBURN`
++ TFTP + `LOADADDR` + `J`，四個指令都在 loader 的字串表裡
+（`reports/bootloader-unit-2018.json`）。差別是 `AUTOBURN 0` 全程不寫
+flash（`P9-12`），`AUTOBURN 1` 寫（`P9-10`）。**兩列都還沒有工具**：
+`tools/console-dump.py rescue` 只做到 `AUTOBURN 0` + `IPCONFIG` 為止，
+上傳與 `J` 沒有任何一支工具送得出去。所以這個豁免要跟著工具一起消失，
+**而不是跟著這一週一起留下**。
+
+P7-3 P7-4 —— **這兩列在 2026-08-20 當天先被砍掉、又被撤銷刪除**，因為砍它們的理由
+（「儀器不存在」）是看一張網卡就推廣到整個實驗室得出的，而桌上有一片 ESP8266，
+它送得出管理框，而 beacon 就是管理框。程序沒有寫，理由有三個，每一個都要有答案
+才寫得出誠實的一節：
+（一）**發射端還沒有東西**：需要一份會送出「宣告長度異常的 SSID／WPS IE」的
+韌體，而且它必須能送出**正常的 beacon 當對照組** —— 沒有那個對照組的話，
+「掃描表裡沒出現」跟「ESP8266 根本沒送出去」從外面看一模一樣；
+（二）**輻射那一半沒有被這片板子解除**：beacon 是廣播，打得到範圍內每一台裝置，
+衰減或屏蔽必須先有答案，而那是同意問題不是儀器問題；
+（三）這兩列的裝置狀態是**第 3 站**（開機、web 服務中，因為 Site Survey 要從
+未認證的頁面觸發），不是第 5 站，所以它們接不進這一場。
+**這個豁免要跟著那份韌體一起消失，不是跟著這一週一起留下。**
+
+P7-7 —— 這一列的**前提**在 2026-08-20 的桌面上被推翻了。登記簿說出廠 PSK
+已經在 `COMPDS` 裡解出來，而 `reports/compds-unit-2018.json` 裡沒有任何
+一筆 `*_PSK`：無線設定整包在 `WLAN_ROOT` 這一筆 **22,044 byte 的
+table-valued blob** 裡，`fwrecon` 只把它當 bytes 報出來。45 KiB 解壓後的
+設定有**一半沒有被解過**。它是桌面題，不需要裝置，但它是一件真正的逆向
+工作而不是一次查表 —— 而在 `WLAN_ROOT` 被解開之前，寫不出一節誠實的程序。
 -->
 
 
@@ -4667,3 +5037,53 @@ P2-9 的桌面半邊、P8-1 P8-5 P8-8 P8-10 P8-18 P8-24 P9-13 P10-7 ——
 | `A2.5` / `A2.6`（寫 flash） | 那三列不需要它了。**全 repo 唯一不可逆的一節連續第二場沒有被打開** |
 | `A3.23` 的第一發（`formSchedule`） | 終局的，而 WAN 那一段還要用 `boa`。`P5-6` 已結案 |
 | `A3.24`（reset） | 今晚要量的是 reset **之後**的狀態。再按一次就把它洗掉了 |
+
+## B-W08 第二支儀器（2026-08-20，**寫在夾子上去之前**）
+
+**這一場的整個理由是一句話：這顆快閃記憶體上的每一個 byte 級主張，到今天為止都只有
+一個來源。** 兩份完整 dump 逐 byte 相同、2026-08-15 的視窗也對得上 —— 而三者全部走
+boot loader 自己的 `FLR`，所以一個系統性的讀取錯誤對它們三個都是隱形的。W02 Day 4
+量到手上那塊 CH341A 是未改的 5 V 板，這一列就被推到「等儀器」。**儀器今天到位了**：
+5 V 供電走線在板子背面被切斷，3.3 V 用跳線帽灌進原本那支 5 V 腳，而每一支腳都用電表
+量過。所以 `A5.1` 的第一件事不是夾上去，是**把「改成功了」量成一個會失敗的測試**。
+
+**這一場新增一整站。** `第 5 站`（斷電、夾在 `U19` 上）與 `A5.1`–`A5.5`，理由寫在
+`RUNBOOK` §8.12.40–§8.12.44。**Part A 從此不是四站而是五站**，而第五站的裝置狀態
+（斷電）讓它接不在收工站後面 —— 文件順序在那裡不等於執行順序，真正的順序是這一張表。
+
+| 循環 | 站 | 節 | 為什麼是這個順序 |
+|---|---|---|---|
+| 0 | 第 1 站（不碰裝置） | `A1.1` `A1.2` | `make doctor` 的 tier 3 現在多了兩列：`lsusb` 與 CH341A 在不在匯流排上 |
+| 1 | **第 5 站**（**拔電**，夾子第一次就座） | `A5.1` → `A5.2` → `A5.3`(seat-a) | 電表三量 → 三個 byte → 第一次完整讀。**`A5.1` 沒過就結束，這不是可以「先夾一下看看」的一站** |
+| 1 | 第 5 站（**拆夾、重夾**） | `A5.3`(seat-b) → `compare` | 換一次就座才換掉那一組失敗模式。同一次就座讀四遍證明的是傳輸穩定 |
+| 1 | 第 5 站（夾子留著） | `A5.4` | 演練寫入與還原，在映像後面 690 KiB 的 4 KiB 上，爆炸半徑為零 |
+| 1 | 第 5 站（夾子留著） | `A5.5` 的寫入半 | 五個 byte，`0x00C0D1`，`admin` → `nimda` |
+| — | — | **拔夾子、插電** | 出站條件：能開機到 `<RealTek>` 而且 web 有回應。**那是夾子沒有掀腳的唯一證明** |
+| 2 | 第 3 站（線在 LAN） | `A3.1` → `A5.5` 的驗證半 | `/config.dat` 拉下來看兩筆是不是 `nimda`；`admin:admin` 與 `nimda:nimda` 各打一次 |
+| 3 | **第 5 站**（再拔電、再夾） | `A5.5` 的還原半 | 把 `seat-a` 原圖用同一個 `--allow` 寫回去 |
+| 4 | 收尾 | `A4.1` | 登記、`make ledger`、`make ci`、`gh run list` |
+
+**桌面上先算完的四件事，這一場一件都不重算 —— 它們是這一場能不能失敗的來源：**
+
+| 桌面已算 | 它讓哪一節可以失敗 |
+|---|---|
+| loader 的晶片表 32 筆，Eon 只有 `1c31xx`/`1c30xx`，**`1c7016` 沒有一列** | `A5.2`：若回 `1c3016`，封裝被誤讀、整段推理作廢 |
+| 常駐映像結束於 `0x34A041` | `A5.4`：`0x3FF000` 在它後面 690 KiB，這是算出來的位址不是挑的 |
+| `admin` 字面值只有一份，在 `0x00C0D1`；`zzzzz` 讓校驗和差 **178 = 2 × 89** | `A5.5`：那個 **2** 是「參照被用兩次」的算術證明 |
+| 2026-08-19 `flash default-sw` 把 `COMPCS` 逐 byte 還原 | `A5.5`：第二條復原路徑，而且已經在這台上量過 |
+
+**這一場不做，而且理由不是時間**：
+
+| 不做 | 為什麼 |
+|---|---|
+| **`A5.5` 的第二發（`zzzzz`，校驗和留壞）** | 跟第一發問的不是同一件事，而且兩件一起改就兩件都答不了。第一發還原之後才排 |
+| `A2.5` / `A2.6`（`FLW` 寫 flash） | **連續第三場沒有被打開。** 這一場要寫的東西走夾子，而夾子不經過 boot loader |
+| `P9-10` / `P9-12`（回刷、TFTP 到 RAM） | 兩列都在**第 2 站**（板子停在 `<RealTek>`），而且兩列都還沒有工具。這一場是夾子的場，不是 loader 的場 |
+| `P7-7`（出廠 PSK 推導） | 桌面題，但它的前提今天被自己推翻了 —— 見下 |
+| `A3.24`（reset） | 還原走 `A5.5` 的第一條路。按 reset 會把 `A5.3` 剛量到的基準一起洗掉 |
+
+**`P7-7` 的前提在桌面上被推翻了，而這一場不修它。** 登記簿寫「出廠 PSK 已經在
+`COMPDS` 裡解出來了」。`reports/compds-unit-2018.json` 裡**沒有任何一筆 `*_PSK`**：
+無線設定整包在 `WLAN_ROOT` 這一筆 **22,044 byte 的 table-valued blob** 裡，而
+`fwrecon` 只把它當 bytes 報出來 —— **45 KiB 的設定有一半沒有被解過**。那不是一個
+查表動作，是一件真正的逆向工作，排在夾子之後。

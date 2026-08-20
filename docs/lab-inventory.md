@@ -50,6 +50,51 @@ nothing here, and `ath9k_htc` avoids an out-of-tree driver.
 > genuinely isolated location before they are run at all — the register already
 > cut three tests on exactly this ground.
 
+### 2026-08-20: this section was written as if a Wi-Fi adapter were the only kind of radio
+
+**It says "nine tests" and the number was two too high, because the gap was
+described in terms of a product category instead of a capability.** On
+2026-08-20 the eight remaining `P7` rows were cut on the strength of this
+section, with the reasoning "the only radio on the workstation is an Intel
+AX201, it is PCIe so `usbipd` cannot reach it, and `iwlwifi` has no injection".
+Every clause of that is true and the conclusion did not follow. **There is an
+ESP8266 on the same desk**, and two of the eight were runnable on it all along.
+
+**The line that actually matters is management frames versus data frames**, and
+writing it that way makes the inventory answerable by capability rather than by
+shopping:
+
+| capability | AR9271 | **ESP8266** | **ESP32** | AX201 (fitted) |
+|---|---|---|---|---|
+| transmit arbitrary **management** frames | ✅ | ✅ `wifi_send_pkt_freedom` | ✅ | ❌ no injection |
+| receive **management** frames in full | ✅ | ✅ | ✅ | ✅ monitor mode |
+| receive **data** frames in full (EAPOL) | ✅ | ❌ **802.11 header only** | ✅ | ✅ |
+| act as a channel-MITM rogue AP | ✅ | ❌ | ~ | ❌ |
+| reachable from WSL | ✅ USB | ✅ serial | ✅ serial | ❌ **PCIe** |
+
+So, against the nine rows: `P7-3` and `P7-4` ride in beacons and are **ESP8266
+work**. `P7-5` (PMKID) and `P7-6`'s capture half sit in EAPOL, which is a data
+frame — **an ESP32 reaches them and an ESP8266 does not**, and an ESP32 is about
+US$5. `P7-1`, `P7-2`, `P7-9`, `P7-10` still need the AR9271. `P7-7` needs no
+radio at all and never did.
+
+> **What the mistake costs, since that is this file's own column.** Two rows sat
+> cut for part of one day on a reason that named a product rather than a
+> requirement. The register's `cut_reason` mechanism is what made it cheap to
+> reverse — the rows were still there, with a reason attached that could be
+> argued with, rather than deleted. **A cut with a reason is reversible; a
+> quietly dropped row is not.**
+>
+> And the buying advice changes: the first purchase is no longer the AR9271. It
+> is an **ESP32** at about US$5, which unblocks two rows and makes a third
+> half-possible, and the AR9271 becomes the second purchase rather than the
+> first.
+
+> ⚠️ **None of this touches the radiation half.** A beacon is a broadcast and an
+> ESP8266 broadcasts exactly as far as an AR9271 does at the same power.
+> `P7-3`'s second reason — that injection reaches every device in range —
+> survives intact and has to be answered on its own.
+
 ### 2. An SPI flash programmer and a SOIC-8 clip — blocks 4 tests
 
 `P9-5` (direct SPI dump), `P9-6` (direct SPI write), `P9-7` (JEDEC id),
@@ -63,6 +108,19 @@ nothing here, and `ath9k_htc` avoids an out-of-tree driver.
 
 **Recommended: Pico + `serprog`**, purely because the voltage problem cannot be
 got wrong by accident, and this project has exactly one unit.
+
+> ✅ **Closed 2026-08-20, and not the recommended way.** The CH341A already on the
+> desk was re-worked instead: the 5 V feed cut on the back of the board, 3.3 V
+> jumpered into the pin it used to supply. It is verified at **two** points —
+> all eight socket pins at 3.3 V, and pin 28, the CH341A's own I/O supply, at
+> 3.3 V. `BENCH-LOG.md` `T-84`.
+>
+> **The recommendation above is left standing rather than rewritten**, because it
+> was right about the risk and this outcome does not make it wrong. A Pico still
+> cannot get the voltage wrong by accident; a CH341A still can, and this one took
+> two attempts and four days to stop getting it wrong. What settled it was a
+> measurement at two points, not the second attempt being more careful than the
+> first.
 
 > **What the absence costs, and it is the interesting one.** The flash was read
 > **through the boot loader's own `FLR` command** — the device's code, over the
