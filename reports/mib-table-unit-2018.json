@@ -6,1728 +6,6853 @@
     {
       "id": 495,
       "name": "AUTHG_PHONE",
-      "offset": 54904
+      "offset": 54904,
+      "type": 0,
+      "struct_offset": 0,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 496,
       "name": "AUTHG_LOGIN",
-      "offset": 54964
+      "offset": 54964,
+      "type": 0,
+      "struct_offset": 1,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 318,
       "name": "DFS_ENABLED",
-      "offset": 55024
+      "offset": 55024,
+      "type": 0,
+      "struct_offset": 2,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 319,
       "name": "ASIA_ENABLED",
-      "offset": 55084
+      "offset": 55084,
+      "type": 0,
+      "struct_offset": 3,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 170,
       "name": "IP_ADDR",
-      "offset": 55144
+      "offset": 55144,
+      "type": 6,
+      "struct_offset": 4,
+      "total_size": 4,
+      "declared_size": 4,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 171,
       "name": "SUBNET_MASK",
-      "offset": 55204
+      "offset": 55204,
+      "type": 6,
+      "struct_offset": 8,
+      "total_size": 4,
+      "declared_size": 4,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 256,
       "name": "IP_ADDRS",
-      "offset": 55264
+      "offset": 55264,
+      "type": 6,
+      "struct_offset": 12,
+      "total_size": 4,
+      "declared_size": 4,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 257,
       "name": "SUBNET_MASKS",
-      "offset": 55324
+      "offset": 55324,
+      "type": 6,
+      "struct_offset": 16,
+      "total_size": 4,
+      "declared_size": 4,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 172,
       "name": "DEFAULT_GATEWAY",
-      "offset": 55384
+      "offset": 55384,
+      "type": 6,
+      "struct_offset": 20,
+      "total_size": 4,
+      "declared_size": 4,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 173,
       "name": "DHCP",
-      "offset": 55444
+      "offset": 55444,
+      "type": 0,
+      "struct_offset": 24,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 469,
       "name": "LAN_DNS_MODE",
-      "offset": 55504
+      "offset": 55504,
+      "type": 0,
+      "struct_offset": 25,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 169,
       "name": "DHCPS",
-      "offset": 55564
+      "offset": 55564,
+      "type": 0,
+      "struct_offset": 26,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 174,
       "name": "DHCP_CLIENT_START",
-      "offset": 55624
+      "offset": 55624,
+      "type": 6,
+      "struct_offset": 27,
+      "total_size": 4,
+      "declared_size": 4,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 175,
       "name": "DHCP_CLIENT_END",
-      "offset": 55684
+      "offset": 55684,
+      "type": 6,
+      "struct_offset": 31,
+      "total_size": 4,
+      "declared_size": 4,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 945,
       "name": "DHCP_LEASE_TIME",
-      "offset": 55744
+      "offset": 55744,
+      "type": 7,
+      "struct_offset": 35,
+      "total_size": 4,
+      "declared_size": 4,
+      "element_size": 4,
+      "tail_nonzero": false
     },
     {
       "id": 23,
       "name": "ELAN_MAC_ADDR",
-      "offset": 55804
+      "offset": 55804,
+      "type": 4,
+      "struct_offset": 39,
+      "total_size": 6,
+      "declared_size": 6,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 241,
       "name": "WPS_FIRST",
-      "offset": 55864
+      "offset": 55864,
+      "type": 7,
+      "struct_offset": 45,
+      "total_size": 4,
+      "declared_size": 4,
+      "element_size": 4,
+      "tail_nonzero": false
     },
     {
       "id": 176,
       "name": "DNS1",
-      "offset": 55924
+      "offset": 55924,
+      "type": 6,
+      "struct_offset": 49,
+      "total_size": 4,
+      "declared_size": 4,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 177,
       "name": "DNS2",
-      "offset": 55984
+      "offset": 55984,
+      "type": 6,
+      "struct_offset": 53,
+      "total_size": 4,
+      "declared_size": 4,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 178,
       "name": "DNS3",
-      "offset": 56044
+      "offset": 56044,
+      "type": 6,
+      "struct_offset": 57,
+      "total_size": 4,
+      "declared_size": 4,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 1004,
       "name": "DNS4",
-      "offset": 56104
+      "offset": 56104,
+      "type": 6,
+      "struct_offset": 61,
+      "total_size": 4,
+      "declared_size": 4,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 1005,
       "name": "DNS5",
-      "offset": 56164
+      "offset": 56164,
+      "type": 6,
+      "struct_offset": 65,
+      "total_size": 4,
+      "declared_size": 4,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 1006,
       "name": "DNS6",
-      "offset": 56224
+      "offset": 56224,
+      "type": 6,
+      "struct_offset": 69,
+      "total_size": 4,
+      "declared_size": 4,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 1008,
       "name": "LAN_DNS1",
-      "offset": 56284
+      "offset": 56284,
+      "type": 6,
+      "struct_offset": 73,
+      "total_size": 4,
+      "declared_size": 4,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 1009,
       "name": "LAN_DNS2",
-      "offset": 56344
+      "offset": 56344,
+      "type": 6,
+      "struct_offset": 77,
+      "total_size": 4,
+      "declared_size": 4,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 179,
       "name": "STP_ENABLED",
-      "offset": 56404
+      "offset": 56404,
+      "type": 0,
+      "struct_offset": 81,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 186,
       "name": "DEVICE_NAME",
-      "offset": 56464
+      "offset": 56464,
+      "type": 2,
+      "struct_offset": 82,
+      "total_size": 31,
+      "declared_size": 31,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 184,
       "name": "SCRLOG_ENABLED",
-      "offset": 56524
+      "offset": 56524,
+      "type": 0,
+      "struct_offset": 113,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 185,
       "name": "AUTO_DISCOVERY_ENABLED",
-      "offset": 56584
+      "offset": 56584,
+      "type": 0,
+      "struct_offset": 114,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 198,
       "name": "DOMAIN_NAME",
-      "offset": 56644
+      "offset": 56644,
+      "type": 2,
+      "struct_offset": 115,
+      "total_size": 31,
+      "declared_size": 31,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 1096,
       "name": "DOMAINS_NAME",
-      "offset": 56704
+      "offset": 56704,
+      "type": 2,
+      "struct_offset": 146,
+      "total_size": 31,
+      "declared_size": 31,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 182,
       "name": "USER_NAME",
-      "offset": 56764
+      "offset": 56764,
+      "type": 2,
+      "struct_offset": 177,
+      "total_size": 31,
+      "declared_size": 31,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 183,
       "name": "USER_PASSWORD",
-      "offset": 56824
+      "offset": 56824,
+      "type": 2,
+      "struct_offset": 208,
+      "total_size": 31,
+      "declared_size": 31,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 1098,
       "name": "REBOOT_SCHEDULE_HOUR",
-      "offset": 56884
+      "offset": 56884,
+      "type": 7,
+      "struct_offset": 239,
+      "total_size": 4,
+      "declared_size": 4,
+      "element_size": 4,
+      "tail_nonzero": false
     },
     {
       "id": 1099,
       "name": "REBOOT_SCHEDULE_MIN",
-      "offset": 56944
+      "offset": 56944,
+      "type": 7,
+      "struct_offset": 243,
+      "total_size": 4,
+      "declared_size": 4,
+      "element_size": 4,
+      "tail_nonzero": false
     },
     {
       "id": 629,
       "name": "WLAN_SSIDS",
-      "offset": 57004
+      "offset": 57004,
+      "type": 2,
+      "struct_offset": 247,
+      "total_size": 33,
+      "declared_size": 33,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 100,
       "name": "WAN_MAC_ADDR",
-      "offset": 57064
+      "offset": 57064,
+      "type": 4,
+      "struct_offset": 280,
+      "total_size": 6,
+      "declared_size": 6,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 104,
       "name": "WAN_DHCP",
-      "offset": 57124
+      "offset": 57124,
+      "type": 0,
+      "struct_offset": 286,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 101,
       "name": "WAN_IP_ADDR",
-      "offset": 57184
+      "offset": 57184,
+      "type": 6,
+      "struct_offset": 287,
+      "total_size": 4,
+      "declared_size": 4,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 102,
       "name": "WAN_SUBNET_MASK",
-      "offset": 57244
+      "offset": 57244,
+      "type": 6,
+      "struct_offset": 291,
+      "total_size": 4,
+      "declared_size": 4,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 103,
       "name": "WAN_DEFAULT_GATEWAY",
-      "offset": 57304
+      "offset": 57304,
+      "type": 6,
+      "struct_offset": 295,
+      "total_size": 4,
+      "declared_size": 4,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 106,
       "name": "PPP_USER_NAME",
-      "offset": 57364
+      "offset": 57364,
+      "type": 2,
+      "struct_offset": 299,
+      "total_size": 129,
+      "declared_size": 129,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 107,
       "name": "PPP_PASSWORD",
-      "offset": 57424
+      "offset": 57424,
+      "type": 2,
+      "struct_offset": 428,
+      "total_size": 129,
+      "declared_size": 129,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 348,
       "name": "PPPOE_WAN_IP_DYNAMIC",
-      "offset": 57484
+      "offset": 57484,
+      "type": 0,
+      "struct_offset": 557,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 347,
       "name": "PPPOE_DEFAULT_GW",
-      "offset": 57544
+      "offset": 57544,
+      "type": 6,
+      "struct_offset": 558,
+      "total_size": 4,
+      "declared_size": 4,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 345,
       "name": "PPPOE_IP_ADDR",
-      "offset": 57604
+      "offset": 57604,
+      "type": 6,
+      "struct_offset": 562,
+      "total_size": 4,
+      "declared_size": 4,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 346,
       "name": "PPPOE_SUBNET_MASK",
-      "offset": 57664
+      "offset": 57664,
+      "type": 6,
+      "struct_offset": 566,
+      "total_size": 4,
+      "declared_size": 4,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 1499,
       "name": "PPP_CONNECT_COUNT",
-      "offset": 57724
+      "offset": 57724,
+      "type": 0,
+      "struct_offset": 570,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 1500,
       "name": "PPP_USER_NAME2",
-      "offset": 57784
+      "offset": 57784,
+      "type": 2,
+      "struct_offset": 571,
+      "total_size": 129,
+      "declared_size": 129,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 1501,
       "name": "PPP_PASSWORD2",
-      "offset": 57844
+      "offset": 57844,
+      "type": 2,
+      "struct_offset": 700,
+      "total_size": 129,
+      "declared_size": 129,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 1502,
       "name": "PPP_USER_NAME3",
-      "offset": 57904
+      "offset": 57904,
+      "type": 2,
+      "struct_offset": 829,
+      "total_size": 129,
+      "declared_size": 129,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 1503,
       "name": "PPP_PASSWORD3",
-      "offset": 57964
+      "offset": 57964,
+      "type": 2,
+      "struct_offset": 958,
+      "total_size": 129,
+      "declared_size": 129,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 1504,
       "name": "PPP_USER_NAME4",
-      "offset": 58024
+      "offset": 58024,
+      "type": 2,
+      "struct_offset": 1087,
+      "total_size": 129,
+      "declared_size": 129,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 1505,
       "name": "PPP_PASSWORD4",
-      "offset": 58084
+      "offset": 58084,
+      "type": 2,
+      "struct_offset": 1216,
+      "total_size": 129,
+      "declared_size": 129,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 1528,
       "name": "SUBNET1_COUNT",
-      "offset": 58144
+      "offset": 58144,
+      "type": 1,
+      "struct_offset": 1345,
+      "total_size": 2,
+      "declared_size": 2,
+      "element_size": 2,
+      "tail_nonzero": false
     },
     {
       "id": 1529,
       "name": "SUBNET1_F1_START",
-      "offset": 58204
+      "offset": 58204,
+      "type": 6,
+      "struct_offset": 1347,
+      "total_size": 4,
+      "declared_size": 4,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 1530,
       "name": "SUBNET1_F1_END",
-      "offset": 58264
+      "offset": 58264,
+      "type": 6,
+      "struct_offset": 1351,
+      "total_size": 4,
+      "declared_size": 4,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 1531,
       "name": "SUBNET1_F2_START",
-      "offset": 58324
+      "offset": 58324,
+      "type": 6,
+      "struct_offset": 1355,
+      "total_size": 4,
+      "declared_size": 4,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 1532,
       "name": "SUBNET1_F2_END",
-      "offset": 58384
+      "offset": 58384,
+      "type": 6,
+      "struct_offset": 1359,
+      "total_size": 4,
+      "declared_size": 4,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 1533,
       "name": "SUBNET1_F3_START",
-      "offset": 58444
+      "offset": 58444,
+      "type": 6,
+      "struct_offset": 1363,
+      "total_size": 4,
+      "declared_size": 4,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 1534,
       "name": "SUBNET1_F3_END",
-      "offset": 58504
+      "offset": 58504,
+      "type": 6,
+      "struct_offset": 1367,
+      "total_size": 4,
+      "declared_size": 4,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 1535,
       "name": "SUBNET2_COUNT",
-      "offset": 58564
+      "offset": 58564,
+      "type": 1,
+      "struct_offset": 1371,
+      "total_size": 2,
+      "declared_size": 2,
+      "element_size": 2,
+      "tail_nonzero": false
     },
     {
       "id": 1536,
       "name": "SUBNET2_F1_START",
-      "offset": 58624
+      "offset": 58624,
+      "type": 6,
+      "struct_offset": 1373,
+      "total_size": 4,
+      "declared_size": 4,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 1537,
       "name": "SUBNET2_F1_END",
-      "offset": 58684
+      "offset": 58684,
+      "type": 6,
+      "struct_offset": 1377,
+      "total_size": 4,
+      "declared_size": 4,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 1538,
       "name": "SUBNET2_F2_START",
-      "offset": 58744
+      "offset": 58744,
+      "type": 6,
+      "struct_offset": 1381,
+      "total_size": 4,
+      "declared_size": 4,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 1539,
       "name": "SUBNET2_F2_END",
-      "offset": 58804
+      "offset": 58804,
+      "type": 6,
+      "struct_offset": 1385,
+      "total_size": 4,
+      "declared_size": 4,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 1540,
       "name": "SUBNET2_F3_START",
-      "offset": 58864
+      "offset": 58864,
+      "type": 6,
+      "struct_offset": 1389,
+      "total_size": 4,
+      "declared_size": 4,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 1541,
       "name": "SUBNET2_F3_END",
-      "offset": 58924
+      "offset": 58924,
+      "type": 6,
+      "struct_offset": 1393,
+      "total_size": 4,
+      "declared_size": 4,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 1542,
       "name": "SUBNET3_COUNT",
-      "offset": 58984
+      "offset": 58984,
+      "type": 1,
+      "struct_offset": 1397,
+      "total_size": 2,
+      "declared_size": 2,
+      "element_size": 2,
+      "tail_nonzero": false
     },
     {
       "id": 1543,
       "name": "SUBNET3_F1_START",
-      "offset": 59044
+      "offset": 59044,
+      "type": 6,
+      "struct_offset": 1399,
+      "total_size": 4,
+      "declared_size": 4,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 1544,
       "name": "SUBNET3_F1_END",
-      "offset": 59104
+      "offset": 59104,
+      "type": 6,
+      "struct_offset": 1403,
+      "total_size": 4,
+      "declared_size": 4,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 1545,
       "name": "SUBNET3_F2_START",
-      "offset": 59164
+      "offset": 59164,
+      "type": 6,
+      "struct_offset": 1407,
+      "total_size": 4,
+      "declared_size": 4,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 1546,
       "name": "SUBNET3_F2_END",
-      "offset": 59224
+      "offset": 59224,
+      "type": 6,
+      "struct_offset": 1411,
+      "total_size": 4,
+      "declared_size": 4,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 1547,
       "name": "SUBNET3_F3_START",
-      "offset": 59284
+      "offset": 59284,
+      "type": 6,
+      "struct_offset": 1415,
+      "total_size": 4,
+      "declared_size": 4,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 1548,
       "name": "SUBNET3_F3_END",
-      "offset": 59344
+      "offset": 59344,
+      "type": 6,
+      "struct_offset": 1419,
+      "total_size": 4,
+      "declared_size": 4,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 1549,
       "name": "SUBNET4_COUNT",
-      "offset": 59404
+      "offset": 59404,
+      "type": 1,
+      "struct_offset": 1423,
+      "total_size": 2,
+      "declared_size": 2,
+      "element_size": 2,
+      "tail_nonzero": false
     },
     {
       "id": 1550,
       "name": "SUBNET4_F1_START",
-      "offset": 59464
+      "offset": 59464,
+      "type": 6,
+      "struct_offset": 1425,
+      "total_size": 4,
+      "declared_size": 4,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 1551,
       "name": "SUBNET4_F1_END",
-      "offset": 59524
+      "offset": 59524,
+      "type": 6,
+      "struct_offset": 1429,
+      "total_size": 4,
+      "declared_size": 4,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 1552,
       "name": "SUBNET4_F2_START",
-      "offset": 59584
+      "offset": 59584,
+      "type": 6,
+      "struct_offset": 1433,
+      "total_size": 4,
+      "declared_size": 4,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 1553,
       "name": "SUBNET4_F2_END",
-      "offset": 59644
+      "offset": 59644,
+      "type": 6,
+      "struct_offset": 1437,
+      "total_size": 4,
+      "declared_size": 4,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 1554,
       "name": "SUBNET4_F3_START",
-      "offset": 59704
+      "offset": 59704,
+      "type": 6,
+      "struct_offset": 1441,
+      "total_size": 4,
+      "declared_size": 4,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 1555,
       "name": "SUBNET4_F3_END",
-      "offset": 59764
+      "offset": 59764,
+      "type": 6,
+      "struct_offset": 1445,
+      "total_size": 4,
+      "declared_size": 4,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 1509,
       "name": "PPP_IDLE_TIME2",
-      "offset": 59824
+      "offset": 59824,
+      "type": 1,
+      "struct_offset": 1449,
+      "total_size": 2,
+      "declared_size": 2,
+      "element_size": 2,
+      "tail_nonzero": false
     },
     {
       "id": 1510,
       "name": "PPP_CONNECT_TYPE2",
-      "offset": 59884
+      "offset": 59884,
+      "type": 0,
+      "struct_offset": 1451,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 1511,
       "name": "PPP_IDLE_TIME3",
-      "offset": 59944
+      "offset": 59944,
+      "type": 1,
+      "struct_offset": 1452,
+      "total_size": 2,
+      "declared_size": 2,
+      "element_size": 2,
+      "tail_nonzero": false
     },
     {
       "id": 1512,
       "name": "PPP_CONNECT_TYPE3",
-      "offset": 60004
+      "offset": 60004,
+      "type": 0,
+      "struct_offset": 1454,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 1513,
       "name": "PPP_IDLE_TIME4",
-      "offset": 60064
+      "offset": 60064,
+      "type": 1,
+      "struct_offset": 1455,
+      "total_size": 2,
+      "declared_size": 2,
+      "element_size": 2,
+      "tail_nonzero": false
     },
     {
       "id": 1514,
       "name": "PPP_CONNECT_TYPE4",
-      "offset": 60124
+      "offset": 60124,
+      "type": 0,
+      "struct_offset": 1457,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 1515,
       "name": "PPP_MTU_SIZE2",
-      "offset": 60184
+      "offset": 60184,
+      "type": 1,
+      "struct_offset": 1458,
+      "total_size": 2,
+      "declared_size": 2,
+      "element_size": 2,
+      "tail_nonzero": false
     },
     {
       "id": 1516,
       "name": "PPP_MTU_SIZE3",
-      "offset": 60244
+      "offset": 60244,
+      "type": 1,
+      "struct_offset": 1460,
+      "total_size": 2,
+      "declared_size": 2,
+      "element_size": 2,
+      "tail_nonzero": false
     },
     {
       "id": 1517,
       "name": "PPP_MTU_SIZE4",
-      "offset": 60304
+      "offset": 60304,
+      "type": 1,
+      "struct_offset": 1462,
+      "total_size": 2,
+      "declared_size": 2,
+      "element_size": 2,
+      "tail_nonzero": false
     },
     {
       "id": 1506,
       "name": "PPP_SERVICE_NAME2",
-      "offset": 60364
+      "offset": 60364,
+      "type": 2,
+      "struct_offset": 1464,
+      "total_size": 41,
+      "declared_size": 41,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 1507,
       "name": "PPP_SERVICE_NAME3",
-      "offset": 60424
+      "offset": 60424,
+      "type": 2,
+      "struct_offset": 1505,
+      "total_size": 41,
+      "declared_size": 41,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 1508,
       "name": "PPP_SERVICE_NAME4",
-      "offset": 60484
+      "offset": 60484,
+      "type": 2,
+      "struct_offset": 1546,
+      "total_size": 41,
+      "declared_size": 41,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 1556,
       "name": "PPP_SUBNET1",
-      "offset": 60544
+      "offset": 60544,
+      "type": 2,
+      "struct_offset": 1587,
+      "total_size": 30,
+      "declared_size": 30,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 1557,
       "name": "PPP_SUBNET2",
-      "offset": 60604
+      "offset": 60604,
+      "type": 2,
+      "struct_offset": 1617,
+      "total_size": 30,
+      "declared_size": 30,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 1558,
       "name": "PPP_SUBNET3",
-      "offset": 60664
+      "offset": 60664,
+      "type": 2,
+      "struct_offset": 1647,
+      "total_size": 30,
+      "declared_size": 30,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 1559,
       "name": "PPP_SUBNET4",
-      "offset": 60724
+      "offset": 60724,
+      "type": 2,
+      "struct_offset": 1677,
+      "total_size": 30,
+      "declared_size": 30,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 1522,
       "name": "PPP_SESSION_NUM2",
-      "offset": 60784
+      "offset": 60784,
+      "type": 1,
+      "struct_offset": 1707,
+      "total_size": 2,
+      "declared_size": 2,
+      "element_size": 2,
+      "tail_nonzero": false
     },
     {
       "id": 1523,
       "name": "PPP_SERVER_MAC2",
-      "offset": 60844
+      "offset": 60844,
+      "type": 4,
+      "struct_offset": 1709,
+      "total_size": 6,
+      "declared_size": 6,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 1524,
       "name": "PPP_SESSION_NUM3",
-      "offset": 60904
+      "offset": 60904,
+      "type": 1,
+      "struct_offset": 1715,
+      "total_size": 2,
+      "declared_size": 2,
+      "element_size": 2,
+      "tail_nonzero": false
     },
     {
       "id": 1525,
       "name": "PPP_SERVER_MAC3",
-      "offset": 60964
+      "offset": 60964,
+      "type": 4,
+      "struct_offset": 1717,
+      "total_size": 6,
+      "declared_size": 6,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 1526,
       "name": "PPP_SESSION_NUM4",
-      "offset": 61024
+      "offset": 61024,
+      "type": 1,
+      "struct_offset": 1723,
+      "total_size": 2,
+      "declared_size": 2,
+      "element_size": 2,
+      "tail_nonzero": false
     },
     {
       "id": 1527,
       "name": "PPP_SERVER_MAC4",
-      "offset": 61084
+      "offset": 61084,
+      "type": 4,
+      "struct_offset": 1725,
+      "total_size": 6,
+      "declared_size": 6,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 105,
       "name": "DNS_MODE",
-      "offset": 61144
+      "offset": 61144,
+      "type": 0,
+      "struct_offset": 1731,
+      "total_size": 4,
+      "declared_size": 4,
+      "element_size": 4,
+      "tail_nonzero": false
     },
     {
       "id": 108,
       "name": "PPP_IDLE_TIME",
-      "offset": 61204
+      "offset": 61204,
+      "type": 1,
+      "struct_offset": 1735,
+      "total_size": 2,
+      "declared_size": 2,
+      "element_size": 2,
+      "tail_nonzero": false
     },
     {
       "id": 109,
       "name": "PPP_CONNECT_TYPE",
-      "offset": 61264
+      "offset": 61264,
+      "type": 0,
+      "struct_offset": 1737,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 140,
       "name": "DMZ_ENABLED",
-      "offset": 61324
+      "offset": 61324,
+      "type": 0,
+      "struct_offset": 1738,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 141,
       "name": "DMZ_HOST",
-      "offset": 61384
+      "offset": 61384,
+      "type": 6,
+      "struct_offset": 1739,
+      "total_size": 4,
+      "declared_size": 4,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 142,
       "name": "UPNP_ENABLED",
-      "offset": 61444
+      "offset": 61444,
+      "type": 0,
+      "struct_offset": 1743,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 1185,
       "name": "INC_TTL",
-      "offset": 61504
+      "offset": 61504,
+      "type": 0,
+      "struct_offset": 1744,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 144,
       "name": "PPP_MTU_SIZE",
-      "offset": 61564
+      "offset": 61564,
+      "type": 1,
+      "struct_offset": 1745,
+      "total_size": 2,
+      "declared_size": 2,
+      "element_size": 2,
+      "tail_nonzero": false
     },
     {
       "id": 145,
       "name": "PPTP_IP_ADDR",
-      "offset": 61624
+      "offset": 61624,
+      "type": 6,
+      "struct_offset": 1747,
+      "total_size": 4,
+      "declared_size": 4,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 146,
       "name": "PPTP_SUBNET_MASK",
-      "offset": 61684
+      "offset": 61684,
+      "type": 6,
+      "struct_offset": 1751,
+      "total_size": 4,
+      "declared_size": 4,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 147,
       "name": "PPTP_SERVER_IP_ADDR",
-      "offset": 61744
+      "offset": 61744,
+      "type": 6,
+      "struct_offset": 1755,
+      "total_size": 4,
+      "declared_size": 4,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 148,
       "name": "PPTP_USER_NAME",
-      "offset": 61804
+      "offset": 61804,
+      "type": 2,
+      "struct_offset": 1759,
+      "total_size": 129,
+      "declared_size": 129,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 149,
       "name": "PPTP_PASSWORD",
-      "offset": 61864
+      "offset": 61864,
+      "type": 2,
+      "struct_offset": 1888,
+      "total_size": 129,
+      "declared_size": 129,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 150,
       "name": "PPTP_MTU_SIZE",
-      "offset": 61924
+      "offset": 61924,
+      "type": 1,
+      "struct_offset": 2017,
+      "total_size": 2,
+      "declared_size": 2,
+      "element_size": 2,
+      "tail_nonzero": false
     },
     {
       "id": 331,
       "name": "L2TP_IP_ADDR",
-      "offset": 61984
+      "offset": 61984,
+      "type": 6,
+      "struct_offset": 2019,
+      "total_size": 4,
+      "declared_size": 4,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 332,
       "name": "L2TP_SUBNET_MASK",
-      "offset": 62044
+      "offset": 62044,
+      "type": 6,
+      "struct_offset": 2023,
+      "total_size": 4,
+      "declared_size": 4,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 333,
       "name": "L2TP_SERVER_IP_ADDR",
-      "offset": 62104
+      "offset": 62104,
+      "type": 6,
+      "struct_offset": 2027,
+      "total_size": 64,
+      "declared_size": 64,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 502,
       "name": "L2TP_GATEWAY",
-      "offset": 62164
+      "offset": 62164,
+      "type": 6,
+      "struct_offset": 2091,
+      "total_size": 4,
+      "declared_size": 4,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 334,
       "name": "L2TP_USER_NAME",
-      "offset": 62224
+      "offset": 62224,
+      "type": 2,
+      "struct_offset": 2095,
+      "total_size": 129,
+      "declared_size": 129,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 335,
       "name": "L2TP_PASSWORD",
-      "offset": 62284
+      "offset": 62284,
+      "type": 2,
+      "struct_offset": 2224,
+      "total_size": 129,
+      "declared_size": 129,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 336,
       "name": "L2TP_MTU_SIZE",
-      "offset": 62344
+      "offset": 62344,
+      "type": 1,
+      "struct_offset": 2353,
+      "total_size": 2,
+      "declared_size": 2,
+      "element_size": 2,
+      "tail_nonzero": false
     },
     {
       "id": 338,
       "name": "L2TP_IDLE_TIME",
-      "offset": 62404
+      "offset": 62404,
+      "type": 1,
+      "struct_offset": 2355,
+      "total_size": 2,
+      "declared_size": 2,
+      "element_size": 2,
+      "tail_nonzero": false
     },
     {
       "id": 337,
       "name": "L2TP_CONNECTION_TYPE",
-      "offset": 62464
+      "offset": 62464,
+      "type": 0,
+      "struct_offset": 2357,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 501,
       "name": "L2TP_WAN_IP_DYNAMIC",
-      "offset": 62524
+      "offset": 62524,
+      "type": 0,
+      "struct_offset": 2358,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 339,
       "name": "L2TP_DEFAULT_GW",
-      "offset": 62584
+      "offset": 62584,
+      "type": 6,
+      "struct_offset": 2359,
+      "total_size": 4,
+      "declared_size": 4,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 340,
       "name": "PPTP_DEFAULT_GW",
-      "offset": 62644
+      "offset": 62644,
+      "type": 6,
+      "struct_offset": 2363,
+      "total_size": 4,
+      "declared_size": 4,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 341,
       "name": "PPTP_WAN_IP_DYNAMIC",
-      "offset": 62704
+      "offset": 62704,
+      "type": 0,
+      "struct_offset": 2367,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 343,
       "name": "PPTP_GET_SERV_BY_DOMAIN",
-      "offset": 62764
+      "offset": 62764,
+      "type": 0,
+      "struct_offset": 2368,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 342,
       "name": "PPTP_SERVER_DOMAIN",
-      "offset": 62824
+      "offset": 62824,
+      "type": 2,
+      "struct_offset": 2369,
+      "total_size": 32,
+      "declared_size": 32,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 499,
       "name": "L2TP_GET_SERV_BY_DOMAIN",
-      "offset": 62884
+      "offset": 62884,
+      "type": 0,
+      "struct_offset": 2401,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 500,
       "name": "L2TP_SERVER_DOMAIN",
-      "offset": 62944
+      "offset": 62944,
+      "type": 2,
+      "struct_offset": 2402,
+      "total_size": 32,
+      "declared_size": 32,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 1400,
       "name": "USB3G_USER",
-      "offset": 63004
+      "offset": 63004,
+      "type": 2,
+      "struct_offset": 2434,
+      "total_size": 32,
+      "declared_size": 32,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 1401,
       "name": "USB3G_PASS",
-      "offset": 63064
+      "offset": 63064,
+      "type": 2,
+      "struct_offset": 2466,
+      "total_size": 32,
+      "declared_size": 32,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 1402,
       "name": "USB3G_PIN",
-      "offset": 63124
+      "offset": 63124,
+      "type": 2,
+      "struct_offset": 2498,
+      "total_size": 5,
+      "declared_size": 5,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 1403,
       "name": "USB3G_APN",
-      "offset": 63184
+      "offset": 63184,
+      "type": 2,
+      "struct_offset": 2503,
+      "total_size": 20,
+      "declared_size": 20,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 1404,
       "name": "USB3G_DIALNUM",
-      "offset": 63244
+      "offset": 63244,
+      "type": 2,
+      "struct_offset": 2523,
+      "total_size": 12,
+      "declared_size": 12,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 1405,
       "name": "USB3G_CONN_TYPE",
-      "offset": 63304
+      "offset": 63304,
+      "type": 2,
+      "struct_offset": 2535,
+      "total_size": 5,
+      "declared_size": 5,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 1406,
       "name": "USB3G_IDLE_TIME",
-      "offset": 63364
+      "offset": 63364,
+      "type": 2,
+      "struct_offset": 2540,
+      "total_size": 5,
+      "declared_size": 5,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 1407,
       "name": "USB3G_MTU_SIZE",
-      "offset": 63424
+      "offset": 63424,
+      "type": 2,
+      "struct_offset": 2545,
+      "total_size": 5,
+      "declared_size": 5,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 1073,
       "name": "REBOOT_SCHEDULE_ENABLED",
-      "offset": 63484
+      "offset": 63484,
+      "type": 0,
+      "struct_offset": 2550,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 3106,
       "name": "EVE_SCHEDULE_ENABLED",
-      "offset": 63544
+      "offset": 63544,
+      "type": 0,
+      "struct_offset": 2551,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 1074,
       "name": "SUN_SCHEDULE_ENABLED",
-      "offset": 63604
+      "offset": 63604,
+      "type": 0,
+      "struct_offset": 2552,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 1075,
       "name": "MON_SCHEDULE_ENABLED",
-      "offset": 63664
+      "offset": 63664,
+      "type": 0,
+      "struct_offset": 2553,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 1076,
       "name": "TUE_SCHEDULE_ENABLED",
-      "offset": 63724
+      "offset": 63724,
+      "type": 0,
+      "struct_offset": 2554,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 1077,
       "name": "WED_SCHEDULE_ENABLED",
-      "offset": 63784
+      "offset": 63784,
+      "type": 0,
+      "struct_offset": 2555,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 1078,
       "name": "THU_SCHEDULE_ENABLED",
-      "offset": 63844
+      "offset": 63844,
+      "type": 0,
+      "struct_offset": 2556,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 1079,
       "name": "FRI_SCHEDULE_ENABLED",
-      "offset": 63904
+      "offset": 63904,
+      "type": 0,
+      "struct_offset": 2557,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 1080,
       "name": "SAT_SCHEDULE_ENABLED",
-      "offset": 63964
+      "offset": 63964,
+      "type": 0,
+      "struct_offset": 2558,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 3006,
       "name": "SPI_ENABLED",
-      "offset": 64024
+      "offset": 64024,
+      "type": 0,
+      "struct_offset": 2559,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 3107,
       "name": "ALG_SIP_ENABLED",
-      "offset": 64084
+      "offset": 64084,
+      "type": 0,
+      "struct_offset": 2560,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 151,
       "name": "NTP_ENABLED",
-      "offset": 64144
+      "offset": 64144,
+      "type": 0,
+      "struct_offset": 2561,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 282,
       "name": "DAYLIGHT_SAVE",
-      "offset": 64204
+      "offset": 64204,
+      "type": 0,
+      "struct_offset": 2562,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 152,
       "name": "NTP_SERVER_ID",
-      "offset": 64264
+      "offset": 64264,
+      "type": 0,
+      "struct_offset": 2563,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 153,
       "name": "NTP_TIMEZONE",
-      "offset": 64324
+      "offset": 64324,
+      "type": 2,
+      "struct_offset": 2564,
+      "total_size": 8,
+      "declared_size": 8,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 154,
       "name": "NTP_SERVER_IP1",
-      "offset": 64384
+      "offset": 64384,
+      "type": 2,
+      "struct_offset": 2572,
+      "total_size": 45,
+      "declared_size": 45,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 155,
       "name": "NTP_SERVER_IP2",
-      "offset": 64444
+      "offset": 64444,
+      "type": 2,
+      "struct_offset": 2617,
+      "total_size": 45,
+      "declared_size": 45,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 658,
       "name": "NTP_SERVER_IP3",
-      "offset": 64504
+      "offset": 64504,
+      "type": 2,
+      "struct_offset": 2662,
+      "total_size": 45,
+      "declared_size": 45,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 187,
       "name": "DDNS_ENABLED",
-      "offset": 64564
+      "offset": 64564,
+      "type": 0,
+      "struct_offset": 2707,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 188,
       "name": "DDNS_TYPE",
-      "offset": 64624
+      "offset": 64624,
+      "type": 0,
+      "struct_offset": 2708,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 189,
       "name": "DDNS_DOMAIN_NAME",
-      "offset": 64684
+      "offset": 64684,
+      "type": 2,
+      "struct_offset": 2709,
+      "total_size": 51,
+      "declared_size": 51,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 190,
       "name": "DDNS_USER",
-      "offset": 64744
+      "offset": 64744,
+      "type": 2,
+      "struct_offset": 2760,
+      "total_size": 51,
+      "declared_size": 51,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 191,
       "name": "DDNS_PASSWORD",
-      "offset": 64804
+      "offset": 64804,
+      "type": 2,
+      "struct_offset": 2811,
+      "total_size": 65,
+      "declared_size": 65,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 157,
       "name": "FIXED_IP_MTU_SIZE",
-      "offset": 64864
+      "offset": 64864,
+      "type": 1,
+      "struct_offset": 2876,
+      "total_size": 2,
+      "declared_size": 2,
+      "element_size": 2,
+      "tail_nonzero": false
     },
     {
       "id": 158,
       "name": "DHCP_MTU_SIZE",
-      "offset": 64924
+      "offset": 64924,
+      "type": 1,
+      "struct_offset": 2878,
+      "total_size": 2,
+      "declared_size": 2,
+      "element_size": 2,
+      "tail_nonzero": false
     },
     {
       "id": 344,
       "name": "NOTICE_ENABLED",
-      "offset": 64984
+      "offset": 64984,
+      "type": 0,
+      "struct_offset": 2880,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 357,
       "name": "NOTICE_LASTURL",
-      "offset": 65044
+      "offset": 65044,
+      "type": 2,
+      "struct_offset": 2881,
+      "total_size": 64,
+      "declared_size": 64,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 358,
       "name": "NOTICE_REDIRECT_URL",
-      "offset": 65104
+      "offset": 65104,
+      "type": 2,
+      "struct_offset": 2945,
+      "total_size": 64,
+      "declared_size": 64,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 364,
       "name": "NOTICE_BTN_VAL",
-      "offset": 65164
+      "offset": 65164,
+      "type": 2,
+      "struct_offset": 3009,
+      "total_size": 64,
+      "declared_size": 64,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 359,
       "name": "NOTICE_WHITELIST_URL_ENABLED",
-      "offset": 65224
+      "offset": 65224,
+      "type": 0,
+      "struct_offset": 3073,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 360,
       "name": "NOTICE_WHITELIST_URL",
-      "offset": 65284
+      "offset": 65284,
+      "type": 2,
+      "struct_offset": 3074,
+      "total_size": 64,
+      "declared_size": 64,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 361,
       "name": "NOTICE_WHITELIST_SIP_ENABLED",
-      "offset": 65344
+      "offset": 65344,
+      "type": 0,
+      "struct_offset": 3138,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 362,
       "name": "NOTICE_WHITELIST_SIP_START",
-      "offset": 65404
+      "offset": 65404,
+      "type": 0,
+      "struct_offset": 3139,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 363,
       "name": "NOTICE_WHITELIST_SIP_END",
-      "offset": 65464
+      "offset": 65464,
+      "type": 0,
+      "struct_offset": 3140,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 365,
       "name": "NOTICE_IP",
-      "offset": 65524
+      "offset": 65524,
+      "type": 8,
+      "struct_offset": 3141,
+      "total_size": 64,
+      "declared_size": 64,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 366,
       "name": "NOTICE_TIMEOUT",
-      "offset": 65584
+      "offset": 65584,
+      "type": 7,
+      "struct_offset": 3205,
+      "total_size": 4,
+      "declared_size": 4,
+      "element_size": 4,
+      "tail_nonzero": false
     },
     {
       "id": 465,
       "name": "DDNS_UPDATE_TIME",
-      "offset": 65644
+      "offset": 65644,
+      "type": 2,
+      "struct_offset": 3209,
+      "total_size": 51,
+      "declared_size": 51,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 3005,
       "name": "SYSCMD_SELECT",
-      "offset": 65704
+      "offset": 65704,
+      "type": 0,
+      "struct_offset": 3260,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 490,
       "name": "BUFFERMEMORY_ENABLED",
-      "offset": 65764
+      "offset": 65764,
+      "type": 0,
+      "struct_offset": 3261,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 491,
       "name": "BUFFERMEMORY_UPDATE_TIME",
-      "offset": 65824
+      "offset": 65824,
+      "type": 2,
+      "struct_offset": 3262,
+      "total_size": 51,
+      "declared_size": 51,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 486,
       "name": "IEEE21X_AUTH_MODE",
-      "offset": 65884
+      "offset": 65884,
+      "type": 0,
+      "struct_offset": 3313,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 487,
       "name": "IEEE21X_AUTH_USER",
-      "offset": 65944
+      "offset": 65944,
+      "type": 2,
+      "struct_offset": 3314,
+      "total_size": 129,
+      "declared_size": 129,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 489,
       "name": "IEEE21X_AUTH_PASS",
-      "offset": 66004
+      "offset": 66004,
+      "type": 2,
+      "struct_offset": 3443,
+      "total_size": 129,
+      "declared_size": 129,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 192,
       "name": "OP_MODE",
-      "offset": 66064
+      "offset": 66064,
+      "type": 0,
+      "struct_offset": 3572,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 564,
       "name": "OP_MODES",
-      "offset": 66124
+      "offset": 66124,
+      "type": 0,
+      "struct_offset": 3573,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 193,
       "name": "WISP_WAN_ID",
-      "offset": 66184
+      "offset": 66184,
+      "type": 0,
+      "struct_offset": 3574,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 194,
       "name": "WEB_WAN_ACCESS_ENABLED",
-      "offset": 66244
+      "offset": 66244,
+      "type": 0,
+      "struct_offset": 3575,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 195,
       "name": "PING_WAN_ACCESS_ENABLED",
-      "offset": 66304
+      "offset": 66304,
+      "type": 0,
+      "struct_offset": 3576,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 197,
       "name": "HOST_NAME",
-      "offset": 66364
+      "offset": 66364,
+      "type": 2,
+      "struct_offset": 3577,
+      "total_size": 31,
+      "declared_size": 31,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 227,
       "name": "REMOTELOG_ENABLED",
-      "offset": 66424
+      "offset": 66424,
+      "type": 0,
+      "struct_offset": 3608,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 228,
       "name": "REMOTELOG_SERVER",
-      "offset": 66484
+      "offset": 66484,
+      "type": 6,
+      "struct_offset": 3609,
+      "total_size": 4,
+      "declared_size": 4,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 250,
       "name": "REPEATER_ENABLED1",
-      "offset": 66544
+      "offset": 66544,
+      "type": 0,
+      "struct_offset": 3613,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 251,
       "name": "REPEATER_SSID1",
-      "offset": 66604
+      "offset": 66604,
+      "type": 2,
+      "struct_offset": 3614,
+      "total_size": 33,
+      "declared_size": 33,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 252,
       "name": "REPEATER_ENABLED2",
-      "offset": 66664
+      "offset": 66664,
+      "type": 0,
+      "struct_offset": 3647,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 253,
       "name": "REPEATER_SSID2",
-      "offset": 66724
+      "offset": 66724,
+      "type": 2,
+      "struct_offset": 3648,
+      "total_size": 33,
+      "declared_size": 33,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 260,
       "name": "WIFI_SPECIFIC",
-      "offset": 66784
+      "offset": 66784,
+      "type": 0,
+      "struct_offset": 3681,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 261,
       "name": "PPP_SERVICE_NAME",
-      "offset": 66844
+      "offset": 66844,
+      "type": 2,
+      "struct_offset": 3682,
+      "total_size": 41,
+      "declared_size": 41,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 258,
       "name": "PPP_AC_NAME",
-      "offset": 66904
+      "offset": 66904,
+      "type": 2,
+      "struct_offset": 3723,
+      "total_size": 41,
+      "declared_size": 41,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 229,
       "name": "DOS_ENABLED",
-      "offset": 66964
+      "offset": 66964,
+      "type": 7,
+      "struct_offset": 3764,
+      "total_size": 4,
+      "declared_size": 4,
+      "element_size": 4,
+      "tail_nonzero": false
     },
     {
       "id": 230,
       "name": "DOS_SYSSYN_FLOOD",
-      "offset": 67024
+      "offset": 67024,
+      "type": 1,
+      "struct_offset": 3768,
+      "total_size": 2,
+      "declared_size": 2,
+      "element_size": 2,
+      "tail_nonzero": false
     },
     {
       "id": 231,
       "name": "DOS_SYSFIN_FLOOD",
-      "offset": 67084
+      "offset": 67084,
+      "type": 1,
+      "struct_offset": 3770,
+      "total_size": 2,
+      "declared_size": 2,
+      "element_size": 2,
+      "tail_nonzero": false
     },
     {
       "id": 232,
       "name": "DOS_SYSUDP_FLOOD",
-      "offset": 67144
+      "offset": 67144,
+      "type": 1,
+      "struct_offset": 3772,
+      "total_size": 2,
+      "declared_size": 2,
+      "element_size": 2,
+      "tail_nonzero": false
     },
     {
       "id": 233,
       "name": "DOS_SYSICMP_FLOOD",
-      "offset": 67204
+      "offset": 67204,
+      "type": 1,
+      "struct_offset": 3774,
+      "total_size": 2,
+      "declared_size": 2,
+      "element_size": 2,
+      "tail_nonzero": false
     },
     {
       "id": 234,
       "name": "DOS_PIPSYN_FLOOD",
-      "offset": 67264
+      "offset": 67264,
+      "type": 1,
+      "struct_offset": 3776,
+      "total_size": 2,
+      "declared_size": 2,
+      "element_size": 2,
+      "tail_nonzero": false
     },
     {
       "id": 235,
       "name": "DOS_PIPFIN_FLOOD",
-      "offset": 67324
+      "offset": 67324,
+      "type": 1,
+      "struct_offset": 3778,
+      "total_size": 2,
+      "declared_size": 2,
+      "element_size": 2,
+      "tail_nonzero": false
     },
     {
       "id": 236,
       "name": "DOS_PIPUDP_FLOOD",
-      "offset": 67384
+      "offset": 67384,
+      "type": 1,
+      "struct_offset": 3780,
+      "total_size": 2,
+      "declared_size": 2,
+      "element_size": 2,
+      "tail_nonzero": false
     },
     {
       "id": 237,
       "name": "DOS_PIPICMP_FLOOD",
-      "offset": 67444
+      "offset": 67444,
+      "type": 1,
+      "struct_offset": 3782,
+      "total_size": 2,
+      "declared_size": 2,
+      "element_size": 2,
+      "tail_nonzero": false
     },
     {
       "id": 238,
       "name": "DOS_BLOCK_TIME",
-      "offset": 67504
+      "offset": 67504,
+      "type": 1,
+      "struct_offset": 3784,
+      "total_size": 2,
+      "declared_size": 2,
+      "element_size": 2,
+      "tail_nonzero": false
     },
     {
       "id": 245,
       "name": "VPN_PASSTHRU_IPSEC_ENABLED",
-      "offset": 67564
+      "offset": 67564,
+      "type": 0,
+      "struct_offset": 3786,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 246,
       "name": "VPN_PASSTHRU_PPTP_ENABLED",
-      "offset": 67624
+      "offset": 67624,
+      "type": 0,
+      "struct_offset": 3787,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 247,
       "name": "VPN_PASSTHRU_L2TP_ENABLED",
-      "offset": 67684
+      "offset": 67684,
+      "type": 0,
+      "struct_offset": 3788,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 386,
       "name": "CUSTOM_PASSTHRU_ENABLED",
-      "offset": 67744
+      "offset": 67744,
+      "type": 0,
+      "struct_offset": 3789,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 156,
       "name": "PPTP_SECURITY_ENABLED",
-      "offset": 67804
+      "offset": 67804,
+      "type": 0,
+      "struct_offset": 3790,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 283,
       "name": "IGMP_PROXY_DISABLED",
-      "offset": 67864
+      "offset": 67864,
+      "type": 0,
+      "struct_offset": 3791,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 1097,
       "name": "IGMP_SNOOPING_DISABLED",
-      "offset": 67924
+      "offset": 67924,
+      "type": 0,
+      "struct_offset": 3792,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 466,
       "name": "DHCP_ROUTE1",
-      "offset": 67984
+      "offset": 67984,
+      "type": 0,
+      "struct_offset": 3793,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 467,
       "name": "DHCP_ROUTE2",
-      "offset": 68044
+      "offset": 68044,
+      "type": 0,
+      "struct_offset": 3794,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 468,
       "name": "DHCP_ROUTE3",
-      "offset": 68104
+      "offset": 68104,
+      "type": 0,
+      "struct_offset": 3795,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 159,
       "name": "PPTP_MPPC_ENABLED",
-      "offset": 68164
+      "offset": 68164,
+      "type": 0,
+      "struct_offset": 3796,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 510,
       "name": "PPTP_IDLE_TIME",
-      "offset": 68224
+      "offset": 68224,
+      "type": 1,
+      "struct_offset": 3797,
+      "total_size": 2,
+      "declared_size": 2,
+      "element_size": 2,
+      "tail_nonzero": false
     },
     {
       "id": 509,
       "name": "PPTP_CONNECTION_TYPE",
-      "offset": 68284
+      "offset": 68284,
+      "type": 0,
+      "struct_offset": 3799,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 655,
       "name": "MIB_VER",
-      "offset": 68344
+      "offset": 68344,
+      "type": 0,
+      "struct_offset": 3800,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 317,
       "name": "START_MP",
-      "offset": 68404
+      "offset": 68404,
+      "type": 0,
+      "struct_offset": 3801,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 370,
       "name": "IPV6_RADVD_PARAM",
-      "offset": 68464
+      "offset": 68464,
+      "type": 9,
+      "struct_offset": 3802,
+      "total_size": 220,
+      "declared_size": 220,
+      "element_size": 220,
+      "tail_nonzero": false
     },
     {
       "id": 371,
       "name": "IPV6_DNSV6_PARAM",
-      "offset": 68524
+      "offset": 68524,
+      "type": 10,
+      "struct_offset": 4022,
+      "total_size": 321,
+      "declared_size": 321,
+      "element_size": 321,
+      "tail_nonzero": false
     },
     {
       "id": 372,
       "name": "IPV6_DHCPV6S_PARAM",
-      "offset": 68584
+      "offset": 68584,
+      "type": 11,
+      "struct_offset": 4343,
+      "total_size": 178,
+      "declared_size": 178,
+      "element_size": 178,
+      "tail_nonzero": false
     },
     {
       "id": 375,
       "name": "IPV6_DHCPV6C_PARAM",
-      "offset": 68644
+      "offset": 68644,
+      "type": 12,
+      "struct_offset": 4521,
+      "total_size": 73,
+      "declared_size": 73,
+      "element_size": 73,
+      "tail_nonzero": false
     },
     {
       "id": 373,
       "name": "IPV6_ADDR_PARAM",
-      "offset": 68704
+      "offset": 68704,
+      "type": 13,
+      "struct_offset": 4594,
+      "total_size": 44,
+      "declared_size": 44,
+      "element_size": 44,
+      "tail_nonzero": false
     },
     {
       "id": 376,
       "name": "IPV6_ADDR6_PARAM",
-      "offset": 68764
+      "offset": 68764,
+      "type": 14,
+      "struct_offset": 4638,
+      "total_size": 20,
+      "declared_size": 20,
+      "element_size": 20,
+      "tail_nonzero": false
     },
     {
       "id": 377,
       "name": "IPV6_ADDR_LAN_PARAM",
-      "offset": 68824
+      "offset": 68824,
+      "type": 14,
+      "struct_offset": 4658,
+      "total_size": 20,
+      "declared_size": 20,
+      "element_size": 20,
+      "tail_nonzero": false
     },
     {
       "id": 378,
       "name": "IPV6_ADDR_WAN_PARAM",
-      "offset": 68884
+      "offset": 68884,
+      "type": 14,
+      "struct_offset": 4678,
+      "total_size": 20,
+      "declared_size": 20,
+      "element_size": 20,
+      "tail_nonzero": false
     },
     {
       "id": 379,
       "name": "IPV6_ADDR_GW_PARAM",
-      "offset": 68944
+      "offset": 68944,
+      "type": 14,
+      "struct_offset": 4698,
+      "total_size": 20,
+      "declared_size": 20,
+      "element_size": 20,
+      "tail_nonzero": false
     },
     {
       "id": 380,
       "name": "IPV6_ADDR_PFEFIX_PARAM",
-      "offset": 69004
+      "offset": 69004,
+      "type": 14,
+      "struct_offset": 4718,
+      "total_size": 20,
+      "declared_size": 20,
+      "element_size": 20,
+      "tail_nonzero": false
     },
     {
       "id": 381,
       "name": "IPV6_ADDR_DNS_PARAM",
-      "offset": 69064
+      "offset": 69064,
+      "type": 14,
+      "struct_offset": 4738,
+      "total_size": 20,
+      "declared_size": 20,
+      "element_size": 20,
+      "tail_nonzero": false
     },
     {
       "id": 369,
       "name": "IPV6_ADDR_DNS_SECONDARY",
-      "offset": 69124
+      "offset": 69124,
+      "type": 14,
+      "struct_offset": 4758,
+      "total_size": 20,
+      "declared_size": 20,
+      "element_size": 20,
+      "tail_nonzero": false
     },
     {
       "id": 374,
       "name": "IPV6_TUNNEL_PARAM",
-      "offset": 69184
+      "offset": 69184,
+      "type": 15,
+      "struct_offset": 4778,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 383,
       "name": "IPV6_LINK_TYPE",
-      "offset": 69244
+      "offset": 69244,
+      "type": 0,
+      "struct_offset": 4779,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 382,
       "name": "IPV6_ORIGIN_TYPE",
-      "offset": 69304
+      "offset": 69304,
+      "type": 0,
+      "struct_offset": 4780,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 3104,
       "name": "DHCPC_SINGLE",
-      "offset": 69364
+      "offset": 69364,
+      "type": 0,
+      "struct_offset": 4781,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 384,
       "name": "IPV6_WAN_ENABLE",
-      "offset": 69424
+      "offset": 69424,
+      "type": 0,
+      "struct_offset": 4782,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 385,
       "name": "IPV6_DNS_AUTO",
-      "offset": 69484
+      "offset": 69484,
+      "type": 0,
+      "struct_offset": 4783,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 386,
       "name": "MLD_PROXY_DISABLED",
-      "offset": 69544
+      "offset": 69544,
+      "type": 0,
+      "struct_offset": 4784,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 387,
       "name": "IPV6_DHCP_MODE",
-      "offset": 69604
+      "offset": 69604,
+      "type": 0,
+      "struct_offset": 4785,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 388,
       "name": "IPV6_DHCP_PD_ENABLE",
-      "offset": 69664
+      "offset": 69664,
+      "type": 0,
+      "struct_offset": 4786,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 389,
       "name": "IPV6_DHCP_RAPID_COMMIT_ENABLE",
-      "offset": 69724
+      "offset": 69724,
+      "type": 0,
+      "struct_offset": 4787,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 350,
       "name": "IPV6_ULA_ENABLE",
-      "offset": 69784
+      "offset": 69784,
+      "type": 0,
+      "struct_offset": 4788,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 351,
       "name": "IPV6_ULA_MODE",
-      "offset": 69844
+      "offset": 69844,
+      "type": 0,
+      "struct_offset": 4789,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 352,
       "name": "IPV6_ADDR_ULA_PARAM",
-      "offset": 69904
+      "offset": 69904,
+      "type": 14,
+      "struct_offset": 4790,
+      "total_size": 20,
+      "declared_size": 20,
+      "element_size": 20,
+      "tail_nonzero": false
     },
     {
       "id": 321,
       "name": "SYSTIME_YEAR",
-      "offset": 69964
+      "offset": 69964,
+      "type": 1,
+      "struct_offset": 4810,
+      "total_size": 2,
+      "declared_size": 2,
+      "element_size": 2,
+      "tail_nonzero": false
     },
     {
       "id": 322,
       "name": "SYSTIME_MON",
-      "offset": 70024
+      "offset": 70024,
+      "type": 0,
+      "struct_offset": 4812,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 323,
       "name": "SYSTIME_DAY",
-      "offset": 70084
+      "offset": 70084,
+      "type": 0,
+      "struct_offset": 4813,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 324,
       "name": "SYSTIME_HOUR",
-      "offset": 70144
+      "offset": 70144,
+      "type": 0,
+      "struct_offset": 4814,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 325,
       "name": "SYSTIME_MIN",
-      "offset": 70204
+      "offset": 70204,
+      "type": 0,
+      "struct_offset": 4815,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 326,
       "name": "SYSTIME_SEC",
-      "offset": 70264
+      "offset": 70264,
+      "type": 0,
+      "struct_offset": 4816,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 660,
       "name": "WLAN_11N_ONOFF_TKIP",
-      "offset": 70324
+      "offset": 70324,
+      "type": 0,
+      "struct_offset": 4817,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 1069,
       "name": "CHECK_SSID_OK",
-      "offset": 70384
+      "offset": 70384,
+      "type": 0,
+      "struct_offset": 4818,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 1070,
       "name": "CHECK_MAC_OK",
-      "offset": 70444
+      "offset": 70444,
+      "type": 0,
+      "struct_offset": 4819,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 292,
       "name": "DHCPRSVDIP_ENABLED",
-      "offset": 70504
+      "offset": 70504,
+      "type": 0,
+      "struct_offset": 4820,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 293,
       "name": "DHCPRSVDIP_TBL_NUM",
-      "offset": 70564
+      "offset": 70564,
+      "type": 0,
+      "struct_offset": 4821,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 33062,
       "name": "DHCPRSVDIP_TBL",
-      "offset": 70624
+      "offset": 70624,
+      "type": 18,
+      "struct_offset": 4822,
+      "total_size": 840,
+      "declared_size": 840,
+      "element_size": 42,
+      "tail_nonzero": false
     },
     {
       "id": 2100,
       "name": "PROFILE_ENABLED1",
-      "offset": 70684
+      "offset": 70684,
+      "type": 0,
+      "struct_offset": 5662,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 2101,
       "name": "PROFILE_NUM1",
-      "offset": 70744
+      "offset": 70744,
+      "type": 0,
+      "struct_offset": 5663,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 34870,
       "name": "PROFILE_TBL1",
-      "offset": 70804
+      "offset": 70804,
+      "type": 31,
+      "struct_offset": 5664,
+      "total_size": 1060,
+      "declared_size": 1060,
+      "element_size": 212,
+      "tail_nonzero": false
     },
     {
       "id": 2116,
       "name": "PROFILE_ENABLED2",
-      "offset": 70864
+      "offset": 70864,
+      "type": 0,
+      "struct_offset": 6724,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 2119,
       "name": "PROFILE_NUM2",
-      "offset": 70924
+      "offset": 70924,
+      "type": 0,
+      "struct_offset": 6725,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 34888,
       "name": "PROFILE_TBL2",
-      "offset": 70984
+      "offset": 70984,
+      "type": 31,
+      "struct_offset": 6726,
+      "total_size": 1060,
+      "declared_size": 1060,
+      "element_size": 212,
+      "tail_nonzero": false
     },
     {
       "id": 616,
       "name": "VLANCONFIG_ENABLED",
-      "offset": 71044
+      "offset": 71044,
+      "type": 0,
+      "struct_offset": 7786,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 617,
       "name": "VLANCONFIG_TBL_NUM",
-      "offset": 71104
+      "offset": 71104,
+      "type": 0,
+      "struct_offset": 7787,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 33386,
       "name": "VLANCONFIG_TBL",
-      "offset": 71164
+      "offset": 71164,
+      "type": 30,
+      "struct_offset": 7788,
+      "total_size": 391,
+      "declared_size": 391,
+      "element_size": 23,
+      "tail_nonzero": false
     },
     {
       "id": 1090,
       "name": "VLAN_TRIP_TBL_STR",
-      "offset": 71224
+      "offset": 71224,
+      "type": 2,
+      "struct_offset": 8179,
+      "total_size": 512,
+      "declared_size": 512,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 480,
       "name": "STA_NUMS0",
-      "offset": 71284
+      "offset": 71284,
+      "type": 0,
+      "struct_offset": 8691,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 481,
       "name": "STA_NUMS1",
-      "offset": 71344
+      "offset": 71344,
+      "type": 0,
+      "struct_offset": 8692,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 482,
       "name": "STA_NUMS2",
-      "offset": 71404
+      "offset": 71404,
+      "type": 0,
+      "struct_offset": 8693,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 483,
       "name": "STA_NUMS3",
-      "offset": 71464
+      "offset": 71464,
+      "type": 0,
+      "struct_offset": 8694,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 484,
       "name": "STA_NUMS4",
-      "offset": 71524
+      "offset": 71524,
+      "type": 0,
+      "struct_offset": 8695,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 3007,
       "name": "STA_NUMS5",
-      "offset": 71584
+      "offset": 71584,
+      "type": 0,
+      "struct_offset": 8696,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 3008,
       "name": "STA_NUMS6",
-      "offset": 71644
+      "offset": 71644,
+      "type": 0,
+      "struct_offset": 8697,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 3009,
       "name": "STA_NUMS7",
-      "offset": 71704
+      "offset": 71704,
+      "type": 0,
+      "struct_offset": 8698,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 3010,
       "name": "STA_NUMS8",
-      "offset": 71764
+      "offset": 71764,
+      "type": 0,
+      "struct_offset": 8699,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 3011,
       "name": "STA_NUMS9",
-      "offset": 71824
+      "offset": 71824,
+      "type": 0,
+      "struct_offset": 8700,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 110,
       "name": "PORTFW_ENABLED",
-      "offset": 71884
+      "offset": 71884,
+      "type": 0,
+      "struct_offset": 8701,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 111,
       "name": "PORTFW_TBL_NUM",
-      "offset": 71944
+      "offset": 71944,
+      "type": 0,
+      "struct_offset": 8702,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 32880,
       "name": "PORTFW_TBL",
-      "offset": 72004
+      "offset": 72004,
+      "type": 19,
+      "struct_offset": 8703,
+      "total_size": 1380,
+      "declared_size": 1380,
+      "element_size": 69,
+      "tail_nonzero": false
     },
     {
       "id": 116,
       "name": "IPFILTER_ENABLED",
-      "offset": 72064
+      "offset": 72064,
+      "type": 0,
+      "struct_offset": 10083,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 117,
       "name": "IPFILTER_TBL_NUM",
-      "offset": 72124
+      "offset": 72124,
+      "type": 0,
+      "struct_offset": 10084,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 32886,
       "name": "IPFILTER_TBL",
-      "offset": 72184
+      "offset": 72184,
+      "type": 20,
+      "struct_offset": 10085,
+      "total_size": 1580,
+      "declared_size": 1580,
+      "element_size": 79,
+      "tail_nonzero": false
     },
     {
       "id": 128,
       "name": "PORTFILTER_ENABLED",
-      "offset": 72244
+      "offset": 72244,
+      "type": 0,
+      "struct_offset": 11665,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 129,
       "name": "PORTFILTER_TBL_NUM",
-      "offset": 72304
+      "offset": 72304,
+      "type": 0,
+      "struct_offset": 11666,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 32898,
       "name": "PORTFILTER_TBL",
-      "offset": 72364
+      "offset": 72364,
+      "type": 21,
+      "struct_offset": 11667,
+      "total_size": 540,
+      "declared_size": 540,
+      "element_size": 27,
+      "tail_nonzero": false
     },
     {
       "id": 122,
       "name": "MACFILTER_ENABLED",
-      "offset": 72424
+      "offset": 72424,
+      "type": 0,
+      "struct_offset": 12207,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 123,
       "name": "MACFILTER_TBL_NUM",
-      "offset": 72484
+      "offset": 72484,
+      "type": 0,
+      "struct_offset": 12208,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 32892,
       "name": "MACFILTER_TBL",
-      "offset": 72544
+      "offset": 72544,
+      "type": 22,
+      "struct_offset": 12209,
+      "total_size": 540,
+      "declared_size": 540,
+      "element_size": 27,
+      "tail_nonzero": false
     },
     {
       "id": 134,
       "name": "TRIGGERPORT_ENABLED",
-      "offset": 72604
+      "offset": 72604,
+      "type": 0,
+      "struct_offset": 12749,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 135,
       "name": "TRIGGERPORT_TBL_NUM",
-      "offset": 72664
+      "offset": 72664,
+      "type": 0,
+      "struct_offset": 12750,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 32904,
       "name": "TRIGGERPORT_TBL",
-      "offset": 72724
+      "offset": 72724,
+      "type": 24,
+      "struct_offset": 12751,
+      "total_size": 620,
+      "declared_size": 620,
+      "element_size": 31,
+      "tail_nonzero": false
     },
     {
       "id": 239,
       "name": "URLFILTER_ENABLED",
-      "offset": 72784
+      "offset": 72784,
+      "type": 0,
+      "struct_offset": 13371,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 255,
       "name": "URLFILTER_MODE",
-      "offset": 72844
+      "offset": 72844,
+      "type": 0,
+      "struct_offset": 13372,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 240,
       "name": "URLFILTER_TBL_NUM",
-      "offset": 72904
+      "offset": 72904,
+      "type": 0,
+      "struct_offset": 13373,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 33009,
       "name": "URLFILTER_TBL",
-      "offset": 72964
+      "offset": 72964,
+      "type": 23,
+      "struct_offset": 13374,
+      "total_size": 960,
+      "declared_size": 960,
+      "element_size": 32,
+      "tail_nonzero": false
     },
     {
       "id": 216,
       "name": "STATICROUTE_ENABLED",
-      "offset": 73024
+      "offset": 73024,
+      "type": 0,
+      "struct_offset": 14334,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 217,
       "name": "STATICROUTE_TBL_NUM",
-      "offset": 73084
+      "offset": 73084,
+      "type": 0,
+      "struct_offset": 14335,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 32986,
       "name": "STATICROUTE_TBL",
-      "offset": 73144
+      "offset": 73144,
+      "type": 25,
+      "struct_offset": 14336,
+      "total_size": 360,
+      "declared_size": 360,
+      "element_size": 36,
+      "tail_nonzero": false
     },
     {
       "id": 222,
       "name": "RIP_ENABLED",
-      "offset": 73204
+      "offset": 73204,
+      "type": 0,
+      "struct_offset": 14696,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 223,
       "name": "RIP_LAN_TX",
-      "offset": 73264
+      "offset": 73264,
+      "type": 0,
+      "struct_offset": 14697,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 224,
       "name": "RIP_LAN_RX",
-      "offset": 73324
+      "offset": 73324,
+      "type": 0,
+      "struct_offset": 14698,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 225,
       "name": "RIP_WAN_TX",
-      "offset": 73384
+      "offset": 73384,
+      "type": 0,
+      "struct_offset": 14699,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 226,
       "name": "RIP_WAN_RX",
-      "offset": 73444
+      "offset": 73444,
+      "type": 0,
+      "struct_offset": 14700,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 645,
       "name": "NAT_ENABLED",
-      "offset": 73504
+      "offset": 73504,
+      "type": 0,
+      "struct_offset": 14701,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 650,
       "name": "SAMBA_ENABLED",
-      "offset": 73564
+      "offset": 73564,
+      "type": 0,
+      "struct_offset": 14702,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 940,
       "name": "PPP_SESSION_NUM",
-      "offset": 73624
+      "offset": 73624,
+      "type": 1,
+      "struct_offset": 14703,
+      "total_size": 2,
+      "declared_size": 2,
+      "element_size": 2,
+      "tail_nonzero": false
     },
     {
       "id": 941,
       "name": "PPP_SERVER_MAC",
-      "offset": 73684
+      "offset": 73684,
+      "type": 4,
+      "struct_offset": 14705,
+      "total_size": 6,
+      "declared_size": 6,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 942,
       "name": "L2TP_PAYLOAD",
-      "offset": 73744
+      "offset": 73744,
+      "type": 8,
+      "struct_offset": 14711,
+      "total_size": 50,
+      "declared_size": 50,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 943,
       "name": "L2TP_PAYLOAD_LENGTH",
-      "offset": 73804
+      "offset": 73804,
+      "type": 1,
+      "struct_offset": 14761,
+      "total_size": 2,
+      "declared_size": 2,
+      "element_size": 2,
+      "tail_nonzero": false
     },
     {
       "id": 944,
       "name": "L2TP_NS",
-      "offset": 73864
+      "offset": 73864,
+      "type": 1,
+      "struct_offset": 14763,
+      "total_size": 2,
+      "declared_size": 2,
+      "element_size": 2,
+      "tail_nonzero": false
     },
     {
       "id": 307,
       "name": "QOS_ENABLED",
-      "offset": 73924
+      "offset": 73924,
+      "type": 0,
+      "struct_offset": 14765,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 308,
       "name": "QOS_AUTO_UPLINK_SPEED",
-      "offset": 73984
+      "offset": 73984,
+      "type": 0,
+      "struct_offset": 14766,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 309,
       "name": "QOS_MANUAL_UPLINK_SPEED",
-      "offset": 74044
+      "offset": 74044,
+      "type": 7,
+      "struct_offset": 14767,
+      "total_size": 4,
+      "declared_size": 4,
+      "element_size": 4,
+      "tail_nonzero": false
     },
     {
       "id": 651,
       "name": "QOS_AUTO_DOWNLINK_SPEED",
-      "offset": 74104
+      "offset": 74104,
+      "type": 0,
+      "struct_offset": 14771,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 652,
       "name": "QOS_MANUAL_DOWNLINK_SPEED",
-      "offset": 74164
+      "offset": 74164,
+      "type": 7,
+      "struct_offset": 14772,
+      "total_size": 4,
+      "declared_size": 4,
+      "element_size": 4,
+      "tail_nonzero": false
     },
     {
       "id": 310,
       "name": "QOS_RULE_TBL_NUM",
-      "offset": 74224
+      "offset": 74224,
+      "type": 0,
+      "struct_offset": 14776,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 33079,
       "name": "QOS_RULE_TBL",
-      "offset": 74284
+      "offset": 74284,
+      "type": 27,
+      "struct_offset": 14777,
+      "total_size": 1670,
+      "declared_size": 1670,
+      "element_size": 167,
+      "tail_nonzero": false
     },
     {
       "id": 248,
       "name": "SNMP_RO_COMMUNITY",
-      "offset": 74344
+      "offset": 74344,
+      "type": 2,
+      "struct_offset": 16447,
+      "total_size": 64,
+      "declared_size": 64,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 249,
       "name": "SNMP_RW_COMMUNITY",
-      "offset": 74404
+      "offset": 74404,
+      "type": 2,
+      "struct_offset": 16511,
+      "total_size": 64,
+      "declared_size": 64,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 32869,
       "name": "WLAN_ROOT",
-      "offset": 74464
+      "offset": 74464,
+      "type": 16,
+      "struct_offset": 16575,
+      "total_size": 15156,
+      "declared_size": 15156,
+      "element_size": 2526,
+      "tail_nonzero": false
     },
     {
       "id": 1300,
       "name": "DUALBANK_ENABLED",
-      "offset": 74524
+      "offset": 74524,
+      "type": 0,
+      "struct_offset": 31731,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 1303,
       "name": "WLAN_BAND2G5G_SELECT",
-      "offset": 74584
+      "offset": 74584,
+      "type": 0,
+      "struct_offset": 31732,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 3003,
       "name": "TELNET_ENABLED",
-      "offset": 74644
+      "offset": 74644,
+      "type": 0,
+      "struct_offset": 31733,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 3001,
       "name": "SSH_ENABLED",
-      "offset": 74704
+      "offset": 74704,
+      "type": 0,
+      "struct_offset": 31734,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 3000,
       "name": "SSH_PORT",
-      "offset": 74764
+      "offset": 74764,
+      "type": 1,
+      "struct_offset": 31735,
+      "total_size": 2,
+      "declared_size": 2,
+      "element_size": 2,
+      "tail_nonzero": false
     },
     {
       "id": 2999,
       "name": "WEBS_PORT",
-      "offset": 74824
+      "offset": 74824,
+      "type": 1,
+      "struct_offset": 31737,
+      "total_size": 2,
+      "declared_size": 2,
+      "element_size": 2,
+      "tail_nonzero": false
     },
     {
       "id": 3002,
       "name": "SSH_PASSWORD",
-      "offset": 74884
+      "offset": 74884,
+      "type": 2,
+      "struct_offset": 31739,
+      "total_size": 31,
+      "declared_size": 31,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 3100,
       "name": "WEB_LANG",
-      "offset": 74944
+      "offset": 74944,
+      "type": 0,
+      "struct_offset": 31770,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 3101,
       "name": "REBOOT_SCHEDULE_ENABLEDS",
-      "offset": 75004
+      "offset": 75004,
+      "type": 0,
+      "struct_offset": 31771,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 3102,
       "name": "REBOOT_SCHEDULE_HOURS",
-      "offset": 75064
+      "offset": 75064,
+      "type": 7,
+      "struct_offset": 31772,
+      "total_size": 4,
+      "declared_size": 4,
+      "element_size": 4,
+      "tail_nonzero": false
     },
     {
       "id": 3103,
       "name": "REBOOT_SCHEDULE_MINS",
-      "offset": 75124
+      "offset": 75124,
+      "type": 7,
+      "struct_offset": 31776,
+      "total_size": 4,
+      "declared_size": 4,
+      "element_size": 4,
+      "tail_nonzero": false
     },
     {
       "id": 3200,
       "name": "EMAIL_ENABLED",
-      "offset": 75184
+      "offset": 75184,
+      "type": 0,
+      "struct_offset": 31780,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 3201,
       "name": "EMAIL_ADDRESS",
-      "offset": 75244
+      "offset": 75244,
+      "type": 2,
+      "struct_offset": 31781,
+      "total_size": 31,
+      "declared_size": 31,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 3202,
       "name": "EMAIL_RETURN_ADDRESS",
-      "offset": 75304
+      "offset": 75304,
+      "type": 2,
+      "struct_offset": 31812,
+      "total_size": 31,
+      "declared_size": 31,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 3203,
       "name": "EMAIL_PASSWORD",
-      "offset": 75364
+      "offset": 75364,
+      "type": 2,
+      "struct_offset": 31843,
+      "total_size": 31,
+      "declared_size": 31,
+      "element_size": 1,
+      "tail_nonzero": false
     },
     {
       "id": 3204,
       "name": "EMAIL_TIME",
-      "offset": 75424
+      "offset": 75424,
+      "type": 1,
+      "struct_offset": 31874,
+      "total_size": 2,
+      "declared_size": 2,
+      "element_size": 2,
+      "tail_nonzero": false
     },
     {
       "id": 1749,
       "name": "LAN_DHCP_CONFIGURABLE",
-      "offset": 75484
+      "offset": 75484,
+      "type": 0,
+      "struct_offset": 31876,
+      "total_size": 1,
+      "declared_size": 1,
+      "element_size": 1,
+      "tail_nonzero": false
     }
   ],
   "table_offset": 54904,
   "record_size": 60,
   "segments": 63,
   "runner_up": 133,
+  "sub_tables": [
+    {
+      "offset": 75604,
+      "record_count": 133,
+      "entries": [
+        {
+          "id": 1,
+          "name": "SSID",
+          "offset": 75604,
+          "type": 2,
+          "struct_offset": 0,
+          "total_size": 33,
+          "declared_size": 33,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 2,
+          "name": "CHANNEL",
+          "offset": 75664,
+          "type": 0,
+          "struct_offset": 33,
+          "total_size": 1,
+          "declared_size": 1,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 24,
+          "name": "WLAN_MAC_ADDR",
+          "offset": 75724,
+          "type": 4,
+          "struct_offset": 34,
+          "total_size": 6,
+          "declared_size": 6,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 3,
+          "name": "WEP",
+          "offset": 75784,
+          "type": 0,
+          "struct_offset": 40,
+          "total_size": 1,
+          "declared_size": 1,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 4,
+          "name": "WEP64_KEY1",
+          "offset": 75844,
+          "type": 3,
+          "struct_offset": 41,
+          "total_size": 5,
+          "declared_size": 5,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 5,
+          "name": "WEP64_KEY2",
+          "offset": 75904,
+          "type": 3,
+          "struct_offset": 46,
+          "total_size": 5,
+          "declared_size": 5,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 6,
+          "name": "WEP64_KEY3",
+          "offset": 75964,
+          "type": 3,
+          "struct_offset": 51,
+          "total_size": 5,
+          "declared_size": 5,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 7,
+          "name": "WEP64_KEY4",
+          "offset": 76024,
+          "type": 3,
+          "struct_offset": 56,
+          "total_size": 5,
+          "declared_size": 5,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 8,
+          "name": "WEP128_KEY1",
+          "offset": 76084,
+          "type": 5,
+          "struct_offset": 61,
+          "total_size": 13,
+          "declared_size": 13,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 9,
+          "name": "WEP128_KEY2",
+          "offset": 76144,
+          "type": 5,
+          "struct_offset": 74,
+          "total_size": 13,
+          "declared_size": 13,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 10,
+          "name": "WEP128_KEY3",
+          "offset": 76204,
+          "type": 5,
+          "struct_offset": 87,
+          "total_size": 13,
+          "declared_size": 13,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 11,
+          "name": "WEP128_KEY4",
+          "offset": 76264,
+          "type": 5,
+          "struct_offset": 100,
+          "total_size": 13,
+          "declared_size": 13,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 13,
+          "name": "WEP_DEFAULT_KEY",
+          "offset": 76324,
+          "type": 0,
+          "struct_offset": 113,
+          "total_size": 1,
+          "declared_size": 1,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 12,
+          "name": "WEP_KEY_TYPE",
+          "offset": 76384,
+          "type": 0,
+          "struct_offset": 114,
+          "total_size": 1,
+          "declared_size": 1,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 14,
+          "name": "FRAG_THRESHOLD",
+          "offset": 76444,
+          "type": 1,
+          "struct_offset": 115,
+          "total_size": 2,
+          "declared_size": 2,
+          "element_size": 2,
+          "tail_nonzero": false
+        },
+        {
+          "id": 19,
+          "name": "RTS_THRESHOLD",
+          "offset": 76504,
+          "type": 1,
+          "struct_offset": 117,
+          "total_size": 2,
+          "declared_size": 2,
+          "element_size": 2,
+          "tail_nonzero": false
+        },
+        {
+          "id": 15,
+          "name": "SUPPORTED_RATES",
+          "offset": 76564,
+          "type": 1,
+          "struct_offset": 119,
+          "total_size": 2,
+          "declared_size": 2,
+          "element_size": 2,
+          "tail_nonzero": false
+        },
+        {
+          "id": 18,
+          "name": "BASIC_RATES",
+          "offset": 76624,
+          "type": 1,
+          "struct_offset": 121,
+          "total_size": 2,
+          "declared_size": 2,
+          "element_size": 2,
+          "tail_nonzero": false
+        },
+        {
+          "id": 16,
+          "name": "BEACON_INTERVAL",
+          "offset": 76684,
+          "type": 1,
+          "struct_offset": 123,
+          "total_size": 2,
+          "declared_size": 2,
+          "element_size": 2,
+          "tail_nonzero": false
+        },
+        {
+          "id": 17,
+          "name": "PREAMBLE_TYPE",
+          "offset": 76744,
+          "type": 0,
+          "struct_offset": 125,
+          "total_size": 1,
+          "declared_size": 1,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 20,
+          "name": "AUTH_TYPE",
+          "offset": 76804,
+          "type": 0,
+          "struct_offset": 126,
+          "total_size": 1,
+          "declared_size": 1,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 686,
+          "name": "ACK_TIMEOUT",
+          "offset": 76864,
+          "type": 0,
+          "struct_offset": 127,
+          "total_size": 1,
+          "declared_size": 1,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 52,
+          "name": "MACAC_ENABLED",
+          "offset": 76924,
+          "type": 0,
+          "struct_offset": 128,
+          "total_size": 1,
+          "declared_size": 1,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 53,
+          "name": "MACAC_NUM",
+          "offset": 76984,
+          "type": 0,
+          "struct_offset": 129,
+          "total_size": 1,
+          "declared_size": 1,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 32822,
+          "name": "MACAC_ADDR",
+          "offset": 77044,
+          "type": 17,
+          "struct_offset": 130,
+          "total_size": 540,
+          "declared_size": 540,
+          "element_size": 27,
+          "tail_nonzero": false
+        },
+        {
+          "id": 503,
+          "name": "SCHEDULE_ENABLED",
+          "offset": 77104,
+          "type": 0,
+          "struct_offset": 670,
+          "total_size": 1,
+          "declared_size": 1,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 504,
+          "name": "SCHEDULE_TBL_NUM",
+          "offset": 77164,
+          "type": 0,
+          "struct_offset": 671,
+          "total_size": 1,
+          "declared_size": 1,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 33273,
+          "name": "SCHEDULE_TBL",
+          "offset": 77224,
+          "type": 29,
+          "struct_offset": 672,
+          "total_size": 280,
+          "declared_size": 280,
+          "element_size": 28,
+          "tail_nonzero": false
+        },
+        {
+          "id": 21,
+          "name": "HIDDEN_SSID",
+          "offset": 77284,
+          "type": 0,
+          "struct_offset": 952,
+          "total_size": 1,
+          "declared_size": 1,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 22,
+          "name": "WLAN_DISABLED",
+          "offset": 77344,
+          "type": 0,
+          "struct_offset": 953,
+          "total_size": 1,
+          "declared_size": 1,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 50,
+          "name": "INACTIVITY_TIME",
+          "offset": 77404,
+          "type": 7,
+          "struct_offset": 954,
+          "total_size": 4,
+          "declared_size": 4,
+          "element_size": 4,
+          "tail_nonzero": false
+        },
+        {
+          "id": 51,
+          "name": "RATE_ADAPTIVE_ENABLED",
+          "offset": 77464,
+          "type": 0,
+          "struct_offset": 958,
+          "total_size": 1,
+          "declared_size": 1,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 58,
+          "name": "DTIM_PERIOD",
+          "offset": 77524,
+          "type": 0,
+          "struct_offset": 959,
+          "total_size": 1,
+          "declared_size": 1,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 59,
+          "name": "MODE",
+          "offset": 77584,
+          "type": 0,
+          "struct_offset": 960,
+          "total_size": 1,
+          "declared_size": 1,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 60,
+          "name": "NETWORK_TYPE",
+          "offset": 77644,
+          "type": 0,
+          "struct_offset": 961,
+          "total_size": 1,
+          "declared_size": 1,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 62,
+          "name": "IAPP_DISABLED",
+          "offset": 77704,
+          "type": 0,
+          "struct_offset": 962,
+          "total_size": 1,
+          "declared_size": 1,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 78,
+          "name": "PROTECTION_DISABLED",
+          "offset": 77764,
+          "type": 0,
+          "struct_offset": 963,
+          "total_size": 1,
+          "declared_size": 1,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 61,
+          "name": "DEFAULT_SSID",
+          "offset": 77824,
+          "type": 2,
+          "struct_offset": 964,
+          "total_size": 33,
+          "declared_size": 33,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 76,
+          "name": "BLOCK_RELAY",
+          "offset": 77884,
+          "type": 0,
+          "struct_offset": 997,
+          "total_size": 1,
+          "declared_size": 1,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 77,
+          "name": "MACCLONE_ENABLED",
+          "offset": 77944,
+          "type": 0,
+          "struct_offset": 998,
+          "total_size": 1,
+          "declared_size": 1,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 74,
+          "name": "BAND",
+          "offset": 78004,
+          "type": 0,
+          "struct_offset": 999,
+          "total_size": 1,
+          "declared_size": 1,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 75,
+          "name": "FIX_RATE",
+          "offset": 78064,
+          "type": 7,
+          "struct_offset": 1000,
+          "total_size": 4,
+          "declared_size": 4,
+          "element_size": 4,
+          "tail_nonzero": false
+        },
+        {
+          "id": 262,
+          "name": "TURBO_MODE",
+          "offset": 78124,
+          "type": 0,
+          "struct_offset": 1004,
+          "total_size": 1,
+          "declared_size": 1,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 263,
+          "name": "RFPOWER_SCALE",
+          "offset": 78184,
+          "type": 0,
+          "struct_offset": 1005,
+          "total_size": 1,
+          "declared_size": 1,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 663,
+          "name": "LOWEST_MLCST_RATE",
+          "offset": 78244,
+          "type": 7,
+          "struct_offset": 1006,
+          "total_size": 4,
+          "declared_size": 4,
+          "element_size": 4,
+          "tail_nonzero": false
+        },
+        {
+          "id": 664,
+          "name": "MC2U_DISABLED",
+          "offset": 78304,
+          "type": 0,
+          "struct_offset": 1010,
+          "total_size": 1,
+          "declared_size": 1,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 2252,
+          "name": "RETRY_LIMIT",
+          "offset": 78364,
+          "type": 0,
+          "struct_offset": 1011,
+          "total_size": 1,
+          "declared_size": 1,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 2254,
+          "name": "REGULATORY_DOMAIN",
+          "offset": 78424,
+          "type": 2,
+          "struct_offset": 1012,
+          "total_size": 4,
+          "declared_size": 4,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 25,
+          "name": "ENCRYPT",
+          "offset": 78484,
+          "type": 0,
+          "struct_offset": 1016,
+          "total_size": 1,
+          "declared_size": 1,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 26,
+          "name": "ENABLE_SUPP_NONWPA",
+          "offset": 78544,
+          "type": 0,
+          "struct_offset": 1017,
+          "total_size": 1,
+          "declared_size": 1,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 27,
+          "name": "SUPP_NONWPA",
+          "offset": 78604,
+          "type": 0,
+          "struct_offset": 1018,
+          "total_size": 1,
+          "declared_size": 1,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 28,
+          "name": "WPA_AUTH",
+          "offset": 78664,
+          "type": 0,
+          "struct_offset": 1019,
+          "total_size": 1,
+          "declared_size": 1,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 29,
+          "name": "WPA_CIPHER_SUITE",
+          "offset": 78724,
+          "type": 0,
+          "struct_offset": 1020,
+          "total_size": 1,
+          "declared_size": 1,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 30,
+          "name": "WPA_PSK",
+          "offset": 78784,
+          "type": 2,
+          "struct_offset": 1021,
+          "total_size": 65,
+          "declared_size": 65,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 1462,
+          "name": "RS_REAUTH_TO",
+          "offset": 78844,
+          "type": 7,
+          "struct_offset": 1086,
+          "total_size": 4,
+          "declared_size": 4,
+          "element_size": 4,
+          "tail_nonzero": false
+        },
+        {
+          "id": 1463,
+          "name": "FUNC_OFF",
+          "offset": 78904,
+          "type": 0,
+          "struct_offset": 1090,
+          "total_size": 1,
+          "declared_size": 1,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 31,
+          "name": "WPA_GROUP_REKEY_TIME",
+          "offset": 78964,
+          "type": 7,
+          "struct_offset": 1091,
+          "total_size": 4,
+          "declared_size": 4,
+          "element_size": 4,
+          "tail_nonzero": false
+        },
+        {
+          "id": 32,
+          "name": "RS_IP",
+          "offset": 79024,
+          "type": 6,
+          "struct_offset": 1095,
+          "total_size": 4,
+          "declared_size": 4,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 33,
+          "name": "RS_PORT",
+          "offset": 79084,
+          "type": 1,
+          "struct_offset": 1099,
+          "total_size": 2,
+          "declared_size": 2,
+          "element_size": 2,
+          "tail_nonzero": false
+        },
+        {
+          "id": 34,
+          "name": "RS_PASSWORD",
+          "offset": 79144,
+          "type": 2,
+          "struct_offset": 1101,
+          "total_size": 65,
+          "declared_size": 65,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 1454,
+          "name": "RS2_IP",
+          "offset": 79204,
+          "type": 6,
+          "struct_offset": 1166,
+          "total_size": 4,
+          "declared_size": 4,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 1455,
+          "name": "RS2_PORT",
+          "offset": 79264,
+          "type": 1,
+          "struct_offset": 1170,
+          "total_size": 2,
+          "declared_size": 2,
+          "element_size": 2,
+          "tail_nonzero": false
+        },
+        {
+          "id": 1456,
+          "name": "RS2_PASSWORD",
+          "offset": 79324,
+          "type": 2,
+          "struct_offset": 1172,
+          "total_size": 65,
+          "declared_size": 65,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 35,
+          "name": "ENABLE_1X",
+          "offset": 79384,
+          "type": 0,
+          "struct_offset": 1237,
+          "total_size": 1,
+          "declared_size": 1,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 36,
+          "name": "PSK_FORMAT",
+          "offset": 79444,
+          "type": 0,
+          "struct_offset": 1238,
+          "total_size": 1,
+          "declared_size": 1,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 39,
+          "name": "ACCOUNT_RS_ENABLED",
+          "offset": 79504,
+          "type": 0,
+          "struct_offset": 1239,
+          "total_size": 1,
+          "declared_size": 1,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 40,
+          "name": "ACCOUNT_RS_IP",
+          "offset": 79564,
+          "type": 6,
+          "struct_offset": 1240,
+          "total_size": 4,
+          "declared_size": 4,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 41,
+          "name": "ACCOUNT_RS_PORT",
+          "offset": 79624,
+          "type": 1,
+          "struct_offset": 1244,
+          "total_size": 2,
+          "declared_size": 2,
+          "element_size": 2,
+          "tail_nonzero": false
+        },
+        {
+          "id": 42,
+          "name": "ACCOUNT_RS_PASSWORD",
+          "offset": 79684,
+          "type": 2,
+          "struct_offset": 1246,
+          "total_size": 65,
+          "declared_size": 65,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 1459,
+          "name": "ACCOUNT_RS2_IP",
+          "offset": 79744,
+          "type": 6,
+          "struct_offset": 1311,
+          "total_size": 4,
+          "declared_size": 4,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 1460,
+          "name": "ACCOUNT_RS2_PORT",
+          "offset": 79804,
+          "type": 1,
+          "struct_offset": 1315,
+          "total_size": 2,
+          "declared_size": 2,
+          "element_size": 2,
+          "tail_nonzero": false
+        },
+        {
+          "id": 1461,
+          "name": "ACCOUNT_RS2_PASSWORD",
+          "offset": 79864,
+          "type": 2,
+          "struct_offset": 1317,
+          "total_size": 65,
+          "declared_size": 65,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 43,
+          "name": "ACCOUNT_RS_UPDATE_ENABLED",
+          "offset": 79924,
+          "type": 0,
+          "struct_offset": 1382,
+          "total_size": 1,
+          "declared_size": 1,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 44,
+          "name": "ACCOUNT_RS_UPDATE_DELAY",
+          "offset": 79984,
+          "type": 1,
+          "struct_offset": 1383,
+          "total_size": 2,
+          "declared_size": 2,
+          "element_size": 2,
+          "tail_nonzero": false
+        },
+        {
+          "id": 45,
+          "name": "MAC_AUTH_ENABLED",
+          "offset": 80044,
+          "type": 0,
+          "struct_offset": 1385,
+          "total_size": 1,
+          "declared_size": 1,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 46,
+          "name": "RS_MAXRETRY",
+          "offset": 80104,
+          "type": 0,
+          "struct_offset": 1386,
+          "total_size": 1,
+          "declared_size": 1,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 47,
+          "name": "RS_INTERVAL_TIME",
+          "offset": 80164,
+          "type": 1,
+          "struct_offset": 1387,
+          "total_size": 2,
+          "declared_size": 2,
+          "element_size": 2,
+          "tail_nonzero": false
+        },
+        {
+          "id": 48,
+          "name": "ACCOUNT_RS_MAXRETRY",
+          "offset": 80224,
+          "type": 0,
+          "struct_offset": 1389,
+          "total_size": 1,
+          "declared_size": 1,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 49,
+          "name": "ACCOUNT_RS_INTERVAL_TIME",
+          "offset": 80284,
+          "type": 1,
+          "struct_offset": 1390,
+          "total_size": 2,
+          "declared_size": 2,
+          "element_size": 2,
+          "tail_nonzero": false
+        },
+        {
+          "id": 37,
+          "name": "WPA2_PRE_AUTH",
+          "offset": 80344,
+          "type": 0,
+          "struct_offset": 1392,
+          "total_size": 1,
+          "declared_size": 1,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 38,
+          "name": "WPA2_CIPHER_SUITE",
+          "offset": 80404,
+          "type": 0,
+          "struct_offset": 1393,
+          "total_size": 1,
+          "declared_size": 1,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 63,
+          "name": "WDS_ENABLED",
+          "offset": 80464,
+          "type": 0,
+          "struct_offset": 1394,
+          "total_size": 1,
+          "declared_size": 1,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 64,
+          "name": "WDS_NUM",
+          "offset": 80524,
+          "type": 0,
+          "struct_offset": 1395,
+          "total_size": 1,
+          "declared_size": 1,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 32833,
+          "name": "WDS",
+          "offset": 80584,
+          "type": 26,
+          "struct_offset": 1396,
+          "total_size": 248,
+          "declared_size": 248,
+          "element_size": 31,
+          "tail_nonzero": false
+        },
+        {
+          "id": 69,
+          "name": "WDS_ENCRYPT",
+          "offset": 80644,
+          "type": 0,
+          "struct_offset": 1644,
+          "total_size": 1,
+          "declared_size": 1,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 70,
+          "name": "WDS_WEP_FORMAT",
+          "offset": 80704,
+          "type": 0,
+          "struct_offset": 1645,
+          "total_size": 1,
+          "declared_size": 1,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 71,
+          "name": "WDS_WEP_KEY",
+          "offset": 80764,
+          "type": 2,
+          "struct_offset": 1646,
+          "total_size": 27,
+          "declared_size": 27,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 72,
+          "name": "WDS_PSK_FORMAT",
+          "offset": 80824,
+          "type": 0,
+          "struct_offset": 1673,
+          "total_size": 1,
+          "declared_size": 1,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 73,
+          "name": "WDS_PSK",
+          "offset": 80884,
+          "type": 2,
+          "struct_offset": 1674,
+          "total_size": 65,
+          "declared_size": 65,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 644,
+          "name": "MESH_ENABLE",
+          "offset": 80944,
+          "type": 0,
+          "struct_offset": 1739,
+          "total_size": 1,
+          "declared_size": 1,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 551,
+          "name": "MESH_ROOT_ENABLE",
+          "offset": 81004,
+          "type": 0,
+          "struct_offset": 1740,
+          "total_size": 1,
+          "declared_size": 1,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 554,
+          "name": "MESH_ID",
+          "offset": 81064,
+          "type": 2,
+          "struct_offset": 1741,
+          "total_size": 33,
+          "declared_size": 33,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 559,
+          "name": "MESH_ENCRYPT",
+          "offset": 81124,
+          "type": 0,
+          "struct_offset": 1774,
+          "total_size": 1,
+          "declared_size": 1,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 560,
+          "name": "MESH_PSK_FORMAT",
+          "offset": 81184,
+          "type": 0,
+          "struct_offset": 1775,
+          "total_size": 1,
+          "declared_size": 1,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 561,
+          "name": "MESH_WPA_PSK",
+          "offset": 81244,
+          "type": 2,
+          "struct_offset": 1776,
+          "total_size": 65,
+          "declared_size": 65,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 562,
+          "name": "MESH_WPA_AUTH",
+          "offset": 81304,
+          "type": 0,
+          "struct_offset": 1841,
+          "total_size": 1,
+          "declared_size": 1,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 563,
+          "name": "MESH_WPA2_CIPHER_SUITE",
+          "offset": 81364,
+          "type": 0,
+          "struct_offset": 1842,
+          "total_size": 1,
+          "declared_size": 1,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 580,
+          "name": "MESH_ACL_ENABLED",
+          "offset": 81424,
+          "type": 0,
+          "struct_offset": 1843,
+          "total_size": 1,
+          "declared_size": 1,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 581,
+          "name": "MESH_ACL_NUM",
+          "offset": 81484,
+          "type": 0,
+          "struct_offset": 1844,
+          "total_size": 1,
+          "declared_size": 1,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 33350,
+          "name": "MESH_ACL_ADDR",
+          "offset": 81544,
+          "type": 28,
+          "struct_offset": 1845,
+          "total_size": 540,
+          "declared_size": 540,
+          "element_size": 27,
+          "tail_nonzero": false
+        },
+        {
+          "id": 89,
+          "name": "WMM_ENABLED",
+          "offset": 81604,
+          "type": 0,
+          "struct_offset": 2385,
+          "total_size": 1,
+          "declared_size": 1,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 2253,
+          "name": "UAPSD_ENABLED",
+          "offset": 81664,
+          "type": 0,
+          "struct_offset": 2386,
+          "total_size": 1,
+          "declared_size": 1,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 1450,
+          "name": "P2P_TYPE",
+          "offset": 81724,
+          "type": 7,
+          "struct_offset": 2387,
+          "total_size": 4,
+          "declared_size": 4,
+          "element_size": 4,
+          "tail_nonzero": false
+        },
+        {
+          "id": 1451,
+          "name": "P2P_INTENT",
+          "offset": 81784,
+          "type": 0,
+          "struct_offset": 2391,
+          "total_size": 1,
+          "declared_size": 1,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 1452,
+          "name": "P2P_LISTEN_CHANNEL",
+          "offset": 81844,
+          "type": 0,
+          "struct_offset": 2392,
+          "total_size": 1,
+          "declared_size": 1,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 1453,
+          "name": "P2P_OPERATION_CHANNEL",
+          "offset": 81904,
+          "type": 0,
+          "struct_offset": 2393,
+          "total_size": 1,
+          "declared_size": 1,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 269,
+          "name": "WSC_DISABLES",
+          "offset": 81964,
+          "type": 0,
+          "struct_offset": 2394,
+          "total_size": 1,
+          "declared_size": 1,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 270,
+          "name": "WSC_DISABLE",
+          "offset": 82024,
+          "type": 0,
+          "struct_offset": 2395,
+          "total_size": 1,
+          "declared_size": 1,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 271,
+          "name": "WSC_METHOD",
+          "offset": 82084,
+          "type": 0,
+          "struct_offset": 2396,
+          "total_size": 1,
+          "declared_size": 1,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 272,
+          "name": "WSC_CONFIGURED",
+          "offset": 82144,
+          "type": 0,
+          "struct_offset": 2397,
+          "total_size": 1,
+          "declared_size": 1,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 274,
+          "name": "WSC_AUTH",
+          "offset": 82204,
+          "type": 0,
+          "struct_offset": 2398,
+          "total_size": 1,
+          "declared_size": 1,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 275,
+          "name": "WSC_ENC",
+          "offset": 82264,
+          "type": 0,
+          "struct_offset": 2399,
+          "total_size": 1,
+          "declared_size": 1,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 276,
+          "name": "WSC_MANUAL_ENABLED",
+          "offset": 82324,
+          "type": 0,
+          "struct_offset": 2400,
+          "total_size": 1,
+          "declared_size": 1,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 279,
+          "name": "WSC_UPNP_ENABLED",
+          "offset": 82384,
+          "type": 0,
+          "struct_offset": 2401,
+          "total_size": 1,
+          "declared_size": 1,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 280,
+          "name": "WSC_REGISTRAR_ENABLED",
+          "offset": 82444,
+          "type": 0,
+          "struct_offset": 2402,
+          "total_size": 1,
+          "declared_size": 1,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 278,
+          "name": "WSC_SSID",
+          "offset": 82504,
+          "type": 2,
+          "struct_offset": 2403,
+          "total_size": 33,
+          "declared_size": 33,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 277,
+          "name": "WSC_PSK",
+          "offset": 82564,
+          "type": 2,
+          "struct_offset": 2436,
+          "total_size": 65,
+          "declared_size": 65,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 281,
+          "name": "WSC_CONFIGBYEXTREG",
+          "offset": 82624,
+          "type": 0,
+          "struct_offset": 2501,
+          "total_size": 1,
+          "declared_size": 1,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 284,
+          "name": "CHANNEL_BONDING",
+          "offset": 82684,
+          "type": 0,
+          "struct_offset": 2502,
+          "total_size": 1,
+          "declared_size": 1,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 285,
+          "name": "CONTROL_SIDEBAND",
+          "offset": 82744,
+          "type": 0,
+          "struct_offset": 2503,
+          "total_size": 1,
+          "declared_size": 1,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 286,
+          "name": "AGGREGATION",
+          "offset": 82804,
+          "type": 0,
+          "struct_offset": 2504,
+          "total_size": 1,
+          "declared_size": 1,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 287,
+          "name": "SHORT_GI",
+          "offset": 82864,
+          "type": 0,
+          "struct_offset": 2505,
+          "total_size": 1,
+          "declared_size": 1,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 315,
+          "name": "ACCESS",
+          "offset": 82924,
+          "type": 0,
+          "struct_offset": 2506,
+          "total_size": 1,
+          "declared_size": 1,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 316,
+          "name": "PRIORITY",
+          "offset": 82984,
+          "type": 0,
+          "struct_offset": 2507,
+          "total_size": 1,
+          "declared_size": 1,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 646,
+          "name": "STBC_ENABLED",
+          "offset": 83044,
+          "type": 0,
+          "struct_offset": 2508,
+          "total_size": 1,
+          "declared_size": 1,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 648,
+          "name": "LDPC_ENABLED",
+          "offset": 83104,
+          "type": 0,
+          "struct_offset": 2509,
+          "total_size": 1,
+          "declared_size": 1,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 647,
+          "name": "COEXIST_ENABLED",
+          "offset": 83164,
+          "type": 0,
+          "struct_offset": 2510,
+          "total_size": 1,
+          "declared_size": 1,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 1301,
+          "name": "PHY_BAND_SELECT",
+          "offset": 83224,
+          "type": 0,
+          "struct_offset": 2511,
+          "total_size": 1,
+          "declared_size": 1,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 1302,
+          "name": "MAC_PHY_MODE",
+          "offset": 83284,
+          "type": 0,
+          "struct_offset": 2512,
+          "total_size": 1,
+          "declared_size": 1,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 450,
+          "name": "TX_BEAMFORMING",
+          "offset": 83344,
+          "type": 0,
+          "struct_offset": 2513,
+          "total_size": 1,
+          "declared_size": 1,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 451,
+          "name": "COUNTRY_STRING",
+          "offset": 83404,
+          "type": 2,
+          "struct_offset": 2514,
+          "total_size": 4,
+          "declared_size": 4,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 452,
+          "name": "TX_RESTRICT",
+          "offset": 83464,
+          "type": 7,
+          "struct_offset": 2518,
+          "total_size": 4,
+          "declared_size": 4,
+          "element_size": 4,
+          "tail_nonzero": false
+        },
+        {
+          "id": 453,
+          "name": "RX_RESTRICT",
+          "offset": 83524,
+          "type": 7,
+          "struct_offset": 2522,
+          "total_size": 4,
+          "declared_size": 4,
+          "element_size": 4,
+          "tail_nonzero": false
+        }
+      ]
+    },
+    {
+      "offset": 52440,
+      "record_count": 18,
+      "entries": [
+        {
+          "id": 203,
+          "name": "WLAN_ADDR",
+          "offset": 52440,
+          "type": 4,
+          "struct_offset": 0,
+          "total_size": 6,
+          "declared_size": 6,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 303,
+          "name": "WLAN_ADDR1",
+          "offset": 52500,
+          "type": 4,
+          "struct_offset": 6,
+          "total_size": 6,
+          "declared_size": 6,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 304,
+          "name": "WLAN_ADDR2",
+          "offset": 52560,
+          "type": 4,
+          "struct_offset": 12,
+          "total_size": 6,
+          "declared_size": 6,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 305,
+          "name": "WLAN_ADDR3",
+          "offset": 52620,
+          "type": 4,
+          "struct_offset": 18,
+          "total_size": 6,
+          "declared_size": 6,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 306,
+          "name": "WLAN_ADDR4",
+          "offset": 52680,
+          "type": 4,
+          "struct_offset": 24,
+          "total_size": 6,
+          "declared_size": 6,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 511,
+          "name": "WLAN_ADDR5",
+          "offset": 52740,
+          "type": 4,
+          "struct_offset": 30,
+          "total_size": 6,
+          "declared_size": 6,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 512,
+          "name": "WLAN_ADDR6",
+          "offset": 52800,
+          "type": 4,
+          "struct_offset": 36,
+          "total_size": 6,
+          "declared_size": 6,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 513,
+          "name": "WLAN_ADDR7",
+          "offset": 52860,
+          "type": 4,
+          "struct_offset": 42,
+          "total_size": 6,
+          "declared_size": 6,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 901,
+          "name": "TX_POWER_CCK_A",
+          "offset": 52920,
+          "type": 8,
+          "struct_offset": 48,
+          "total_size": 14,
+          "declared_size": 14,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 902,
+          "name": "TX_POWER_CCK_B",
+          "offset": 52980,
+          "type": 8,
+          "struct_offset": 62,
+          "total_size": 14,
+          "declared_size": 14,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 903,
+          "name": "TX_POWER_HT40_1S_A",
+          "offset": 53040,
+          "type": 8,
+          "struct_offset": 76,
+          "total_size": 14,
+          "declared_size": 14,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 904,
+          "name": "TX_POWER_HT40_1S_B",
+          "offset": 53100,
+          "type": 8,
+          "struct_offset": 90,
+          "total_size": 14,
+          "declared_size": 14,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 905,
+          "name": "TX_POWER_DIFF_HT40_2S",
+          "offset": 53160,
+          "type": 8,
+          "struct_offset": 104,
+          "total_size": 14,
+          "declared_size": 14,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 906,
+          "name": "TX_POWER_DIFF_HT20",
+          "offset": 53220,
+          "type": 8,
+          "struct_offset": 118,
+          "total_size": 14,
+          "declared_size": 14,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 907,
+          "name": "TX_POWER_DIFF_OFDM",
+          "offset": 53280,
+          "type": 8,
+          "struct_offset": 132,
+          "total_size": 14,
+          "declared_size": 14,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 204,
+          "name": "REG_DOMAIN",
+          "offset": 53340,
+          "type": 0,
+          "struct_offset": 146,
+          "total_size": 1,
+          "declared_size": 1,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 205,
+          "name": "RF_TYPE",
+          "offset": 53400,
+          "type": 0,
+          "struct_offset": 147,
+          "total_size": 1,
+          "declared_size": 1,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 212,
+          "name": "LED_TYPE",
+          "offset": 53460,
+          "type": 0,
+          "struct_offset": 148,
+          "total_size": 1,
+          "declared_size": 1,
+          "element_size": 1,
+          "tail_nonzero": false
+        }
+      ]
+    },
+    {
+      "offset": 51000,
+      "record_count": 13,
+      "entries": [
+        {
+          "id": 1191,
+          "name": "IPQOS_ENTRY_NAME",
+          "offset": 51000,
+          "type": 2,
+          "struct_offset": 0,
+          "total_size": 16,
+          "declared_size": 16,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 1192,
+          "name": "IPQOS_ENABLED",
+          "offset": 51060,
+          "type": 0,
+          "struct_offset": 16,
+          "total_size": 1,
+          "declared_size": 1,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 1193,
+          "name": "IPQOS_MAC",
+          "offset": 51120,
+          "type": 4,
+          "struct_offset": 17,
+          "total_size": 6,
+          "declared_size": 6,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 1194,
+          "name": "IPQOS_MODE",
+          "offset": 51180,
+          "type": 0,
+          "struct_offset": 23,
+          "total_size": 1,
+          "declared_size": 1,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 1195,
+          "name": "IPQOS_LOCAL_IP_START",
+          "offset": 51240,
+          "type": 6,
+          "struct_offset": 24,
+          "total_size": 4,
+          "declared_size": 4,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 1196,
+          "name": "IPQOS_LOCAL_IP_END",
+          "offset": 51300,
+          "type": 6,
+          "struct_offset": 28,
+          "total_size": 4,
+          "declared_size": 4,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 1183,
+          "name": "IPQOS_LOCAL_PORT_START",
+          "offset": 51360,
+          "type": 2,
+          "struct_offset": 32,
+          "total_size": 9,
+          "declared_size": 9,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 1184,
+          "name": "IPQOS_LOCAL_PORT_END",
+          "offset": 51420,
+          "type": 2,
+          "struct_offset": 41,
+          "total_size": 9,
+          "declared_size": 9,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 1197,
+          "name": "IPQOS_BANDWIDTH",
+          "offset": 51480,
+          "type": 7,
+          "struct_offset": 50,
+          "total_size": 4,
+          "declared_size": 4,
+          "element_size": 4,
+          "tail_nonzero": false
+        },
+        {
+          "id": 1198,
+          "name": "IPQOS_BANDWIDTH_DOWNLINK",
+          "offset": 51540,
+          "type": 7,
+          "struct_offset": 54,
+          "total_size": 4,
+          "declared_size": 4,
+          "element_size": 4,
+          "tail_nonzero": false
+        },
+        {
+          "id": 1199,
+          "name": "IPQOS_LAYER7_PROTOCOL",
+          "offset": 51600,
+          "type": 2,
+          "struct_offset": 58,
+          "total_size": 65,
+          "declared_size": 65,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 1200,
+          "name": "IPQOS_IPV6_SRC",
+          "offset": 51660,
+          "type": 2,
+          "struct_offset": 123,
+          "total_size": 40,
+          "declared_size": 40,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 3112,
+          "name": "IPQOS_INSTANCENUM",
+          "offset": 51720,
+          "type": 7,
+          "struct_offset": 163,
+          "total_size": 4,
+          "declared_size": 4,
+          "element_size": 4,
+          "tail_nonzero": false
+        }
+      ]
+    },
+    {
+      "offset": 45360,
+      "record_count": 12,
+      "entries": [
+        {
+          "id": 2106,
+          "name": "PROFILE_SSID",
+          "offset": 45360,
+          "type": 2,
+          "struct_offset": 0,
+          "total_size": 33,
+          "declared_size": 33,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 2107,
+          "name": "PROFILE_ENC",
+          "offset": 45420,
+          "type": 0,
+          "struct_offset": 33,
+          "total_size": 1,
+          "declared_size": 1,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 2108,
+          "name": "PROFILE_AUTH",
+          "offset": 45480,
+          "type": 0,
+          "struct_offset": 34,
+          "total_size": 1,
+          "declared_size": 1,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 2109,
+          "name": "PROFILE_WPA_CIPHER",
+          "offset": 45540,
+          "type": 0,
+          "struct_offset": 35,
+          "total_size": 1,
+          "declared_size": 1,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 2110,
+          "name": "PROFILE_WPA_PSK",
+          "offset": 45600,
+          "type": 2,
+          "struct_offset": 36,
+          "total_size": 65,
+          "declared_size": 65,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 2111,
+          "name": "PROFILE_WEP_DEFAULT_KEY",
+          "offset": 45660,
+          "type": 0,
+          "struct_offset": 101,
+          "total_size": 1,
+          "declared_size": 1,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 2112,
+          "name": "PROFILE_WEP_KEY1",
+          "offset": 45720,
+          "type": 8,
+          "struct_offset": 102,
+          "total_size": 27,
+          "declared_size": 27,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 2113,
+          "name": "PROFILE_WEP_KEY2",
+          "offset": 45780,
+          "type": 8,
+          "struct_offset": 129,
+          "total_size": 27,
+          "declared_size": 27,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 2114,
+          "name": "PROFILE_WEP_KEY3",
+          "offset": 45840,
+          "type": 8,
+          "struct_offset": 156,
+          "total_size": 27,
+          "declared_size": 27,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 2115,
+          "name": "PROFILE_WEP_KEY4",
+          "offset": 45900,
+          "type": 8,
+          "struct_offset": 183,
+          "total_size": 27,
+          "declared_size": 27,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 2117,
+          "name": "PROFILE_WEP_KEY_TYPE",
+          "offset": 45960,
+          "type": 0,
+          "struct_offset": 210,
+          "total_size": 1,
+          "declared_size": 1,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 2118,
+          "name": "PROFILE_PSK_FORMAT",
+          "offset": 46020,
+          "type": 0,
+          "struct_offset": 211,
+          "total_size": 1,
+          "declared_size": 1,
+          "element_size": 1,
+          "tail_nonzero": false
+        }
+      ]
+    },
+    {
+      "offset": 46140,
+      "record_count": 12,
+      "entries": [
+        {
+          "id": 2106,
+          "name": "PROFILE_SSID",
+          "offset": 46140,
+          "type": 2,
+          "struct_offset": 0,
+          "total_size": 33,
+          "declared_size": 33,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 2107,
+          "name": "PROFILE_ENC",
+          "offset": 46200,
+          "type": 0,
+          "struct_offset": 33,
+          "total_size": 1,
+          "declared_size": 1,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 2108,
+          "name": "PROFILE_AUTH",
+          "offset": 46260,
+          "type": 0,
+          "struct_offset": 34,
+          "total_size": 1,
+          "declared_size": 1,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 2109,
+          "name": "PROFILE_WPA_CIPHER",
+          "offset": 46320,
+          "type": 0,
+          "struct_offset": 35,
+          "total_size": 1,
+          "declared_size": 1,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 2110,
+          "name": "PROFILE_WPA_PSK",
+          "offset": 46380,
+          "type": 2,
+          "struct_offset": 36,
+          "total_size": 65,
+          "declared_size": 65,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 2111,
+          "name": "PROFILE_WEP_DEFAULT_KEY",
+          "offset": 46440,
+          "type": 0,
+          "struct_offset": 101,
+          "total_size": 1,
+          "declared_size": 1,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 2112,
+          "name": "PROFILE_WEP_KEY1",
+          "offset": 46500,
+          "type": 8,
+          "struct_offset": 102,
+          "total_size": 27,
+          "declared_size": 27,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 2113,
+          "name": "PROFILE_WEP_KEY2",
+          "offset": 46560,
+          "type": 8,
+          "struct_offset": 129,
+          "total_size": 27,
+          "declared_size": 27,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 2114,
+          "name": "PROFILE_WEP_KEY3",
+          "offset": 46620,
+          "type": 8,
+          "struct_offset": 156,
+          "total_size": 27,
+          "declared_size": 27,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 2115,
+          "name": "PROFILE_WEP_KEY4",
+          "offset": 46680,
+          "type": 8,
+          "struct_offset": 183,
+          "total_size": 27,
+          "declared_size": 27,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 2117,
+          "name": "PROFILE_WEP_KEY_TYPE",
+          "offset": 46740,
+          "type": 0,
+          "struct_offset": 210,
+          "total_size": 1,
+          "declared_size": 1,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 2118,
+          "name": "PROFILE_PSK_FORMAT",
+          "offset": 46800,
+          "type": 0,
+          "struct_offset": 211,
+          "total_size": 1,
+          "declared_size": 1,
+          "element_size": 1,
+          "tail_nonzero": false
+        }
+      ]
+    },
+    {
+      "offset": 47760,
+      "record_count": 12,
+      "entries": [
+        {
+          "id": 1021,
+          "name": "PORTFW_IPADDR",
+          "offset": 47760,
+          "type": 6,
+          "struct_offset": 0,
+          "total_size": 4,
+          "declared_size": 4,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 1022,
+          "name": "PORTFW_FROMPORT",
+          "offset": 47820,
+          "type": 1,
+          "struct_offset": 4,
+          "total_size": 2,
+          "declared_size": 2,
+          "element_size": 2,
+          "tail_nonzero": false
+        },
+        {
+          "id": 1023,
+          "name": "PORTFW_TOPORT",
+          "offset": 47880,
+          "type": 1,
+          "struct_offset": 6,
+          "total_size": 2,
+          "declared_size": 2,
+          "element_size": 2,
+          "tail_nonzero": false
+        },
+        {
+          "id": 1024,
+          "name": "PORTFW_PROTOTYPE",
+          "offset": 47940,
+          "type": 0,
+          "struct_offset": 8,
+          "total_size": 1,
+          "declared_size": 1,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 1026,
+          "name": "PORTFW_SVRPORT",
+          "offset": 48000,
+          "type": 1,
+          "struct_offset": 9,
+          "total_size": 2,
+          "declared_size": 2,
+          "element_size": 2,
+          "tail_nonzero": false
+        },
+        {
+          "id": 1027,
+          "name": "PORTFW_SVRNAME",
+          "offset": 48060,
+          "type": 2,
+          "struct_offset": 11,
+          "total_size": 21,
+          "declared_size": 21,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 1028,
+          "name": "PORTFW_INSTANCENUM",
+          "offset": 48120,
+          "type": 7,
+          "struct_offset": 32,
+          "total_size": 4,
+          "declared_size": 4,
+          "element_size": 4,
+          "tail_nonzero": false
+        },
+        {
+          "id": 1029,
+          "name": "PORTFW_WANIFACE_ID",
+          "offset": 48180,
+          "type": 7,
+          "struct_offset": 36,
+          "total_size": 4,
+          "declared_size": 4,
+          "element_size": 4,
+          "tail_nonzero": false
+        },
+        {
+          "id": 1025,
+          "name": "PORTFW_COMMENT",
+          "offset": 48240,
+          "type": 2,
+          "struct_offset": 40,
+          "total_size": 21,
+          "declared_size": 21,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 1018,
+          "name": "PORTFW_EXTERNEL_FROMPORT",
+          "offset": 48300,
+          "type": 1,
+          "struct_offset": 61,
+          "total_size": 2,
+          "declared_size": 2,
+          "element_size": 2,
+          "tail_nonzero": false
+        },
+        {
+          "id": 1019,
+          "name": "PORTFW_EXTERNEL_TOPORT",
+          "offset": 48360,
+          "type": 1,
+          "struct_offset": 63,
+          "total_size": 2,
+          "declared_size": 2,
+          "element_size": 2,
+          "tail_nonzero": false
+        },
+        {
+          "id": 1020,
+          "name": "PORTFW_REMOTE_IPADDR",
+          "offset": 48420,
+          "type": 6,
+          "struct_offset": 65,
+          "total_size": 4,
+          "declared_size": 4,
+          "element_size": 1,
+          "tail_nonzero": false
+        }
+      ]
+    },
+    {
+      "offset": 50220,
+      "record_count": 12,
+      "entries": [
+        {
+          "id": 1091,
+          "name": "STATICROUTE_DSTADDR",
+          "offset": 50220,
+          "type": 6,
+          "struct_offset": 0,
+          "total_size": 4,
+          "declared_size": 4,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 1092,
+          "name": "STATICROUTE_NETMASK",
+          "offset": 50280,
+          "type": 6,
+          "struct_offset": 4,
+          "total_size": 4,
+          "declared_size": 4,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 1093,
+          "name": "STATICROUTE_GATEWAY",
+          "offset": 50340,
+          "type": 6,
+          "struct_offset": 8,
+          "total_size": 4,
+          "declared_size": 4,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 1094,
+          "name": "STATICROUTE_INTERFACE",
+          "offset": 50400,
+          "type": 0,
+          "struct_offset": 12,
+          "total_size": 1,
+          "declared_size": 1,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 1095,
+          "name": "STATICROUTE_METRIC",
+          "offset": 50460,
+          "type": 7,
+          "struct_offset": 13,
+          "total_size": 4,
+          "declared_size": 4,
+          "element_size": 4,
+          "tail_nonzero": false
+        },
+        {
+          "id": 1776,
+          "name": "STATICROUTE_ENABLE",
+          "offset": 50520,
+          "type": 0,
+          "struct_offset": 17,
+          "total_size": 1,
+          "declared_size": 1,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 1777,
+          "name": "STATICROUTE_TYPE",
+          "offset": 50580,
+          "type": 0,
+          "struct_offset": 18,
+          "total_size": 1,
+          "declared_size": 1,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 1778,
+          "name": "STATICROUTE_SRCADDR",
+          "offset": 50640,
+          "type": 6,
+          "struct_offset": 19,
+          "total_size": 4,
+          "declared_size": 4,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 1779,
+          "name": "STATICROUTE_SRCNETMASK",
+          "offset": 50700,
+          "type": 6,
+          "struct_offset": 23,
+          "total_size": 4,
+          "declared_size": 4,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 1780,
+          "name": "STATICROUTE_IFACEINDEX",
+          "offset": 50760,
+          "type": 7,
+          "struct_offset": 27,
+          "total_size": 4,
+          "declared_size": 4,
+          "element_size": 4,
+          "tail_nonzero": false
+        },
+        {
+          "id": 1781,
+          "name": "STATICROUTE_INSTANCENUM",
+          "offset": 50820,
+          "type": 7,
+          "struct_offset": 31,
+          "total_size": 4,
+          "declared_size": 4,
+          "element_size": 4,
+          "tail_nonzero": false
+        },
+        {
+          "id": 1782,
+          "name": "STATICROUTE_FLAGS",
+          "offset": 50880,
+          "type": 0,
+          "struct_offset": 35,
+          "total_size": 1,
+          "declared_size": 1,
+          "element_size": 1,
+          "tail_nonzero": false
+        }
+      ]
+    },
+    {
+      "offset": 47280,
+      "record_count": 7,
+      "entries": [
+        {
+          "id": 1081,
+          "name": "VLANCONFIG_ENTRY_ENABLED",
+          "offset": 47280,
+          "type": 0,
+          "struct_offset": 0,
+          "total_size": 1,
+          "declared_size": 1,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 1082,
+          "name": "VLANCONFIG_NETIFACE",
+          "offset": 47340,
+          "type": 2,
+          "struct_offset": 1,
+          "total_size": 16,
+          "declared_size": 16,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 1083,
+          "name": "VLANCONFIG_TAGGED",
+          "offset": 47400,
+          "type": 0,
+          "struct_offset": 17,
+          "total_size": 1,
+          "declared_size": 1,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 1085,
+          "name": "VLANCONFIG_PRIORITY",
+          "offset": 47460,
+          "type": 0,
+          "struct_offset": 18,
+          "total_size": 1,
+          "declared_size": 1,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 1086,
+          "name": "VLANCONFIG_CFI",
+          "offset": 47520,
+          "type": 0,
+          "struct_offset": 19,
+          "total_size": 1,
+          "declared_size": 1,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 1088,
+          "name": "VLANCONFIG_VLANID",
+          "offset": 47580,
+          "type": 1,
+          "struct_offset": 20,
+          "total_size": 2,
+          "declared_size": 2,
+          "element_size": 2,
+          "tail_nonzero": false
+        },
+        {
+          "id": 1089,
+          "name": "VLANCONFIG_FORWARDING_RULE",
+          "offset": 47640,
+          "type": 0,
+          "struct_offset": 22,
+          "total_size": 1,
+          "declared_size": 1,
+          "element_size": 1,
+          "tail_nonzero": false
+        }
+      ]
+    },
+    {
+      "offset": 48540,
+      "record_count": 7,
+      "entries": [
+        {
+          "id": 1031,
+          "name": "IPFILTER_IPADDR",
+          "offset": 48540,
+          "type": 6,
+          "struct_offset": 0,
+          "total_size": 4,
+          "declared_size": 4,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 1036,
+          "name": "IPFILTER_FROMPORT",
+          "offset": 48600,
+          "type": 1,
+          "struct_offset": 4,
+          "total_size": 2,
+          "declared_size": 2,
+          "element_size": 2,
+          "tail_nonzero": false
+        },
+        {
+          "id": 1037,
+          "name": "IPFILTER_TOPORT",
+          "offset": 48660,
+          "type": 1,
+          "struct_offset": 6,
+          "total_size": 2,
+          "declared_size": 2,
+          "element_size": 2,
+          "tail_nonzero": false
+        },
+        {
+          "id": 1032,
+          "name": "IPFILTER_PROTOTYPE",
+          "offset": 48720,
+          "type": 0,
+          "struct_offset": 8,
+          "total_size": 1,
+          "declared_size": 1,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 1033,
+          "name": "IPFILTER_COMMENT",
+          "offset": 48780,
+          "type": 2,
+          "struct_offset": 9,
+          "total_size": 21,
+          "declared_size": 21,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 1034,
+          "name": "IPFILTER_IP6ADDR",
+          "offset": 48840,
+          "type": 2,
+          "struct_offset": 30,
+          "total_size": 48,
+          "declared_size": 48,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 1035,
+          "name": "IPFILTER_IP_VERSION",
+          "offset": 48900,
+          "type": 0,
+          "struct_offset": 78,
+          "total_size": 1,
+          "declared_size": 1,
+          "element_size": 1,
+          "tail_nonzero": false
+        }
+      ]
+    },
+    {
+      "offset": 49560,
+      "record_count": 7,
+      "entries": [
+        {
+          "id": 1061,
+          "name": "TRIGGERPORT_TRI_FROMPORT",
+          "offset": 49560,
+          "type": 1,
+          "struct_offset": 0,
+          "total_size": 2,
+          "declared_size": 2,
+          "element_size": 2,
+          "tail_nonzero": false
+        },
+        {
+          "id": 1062,
+          "name": "TRIGGERPORT_TRI_TOPORT",
+          "offset": 49620,
+          "type": 1,
+          "struct_offset": 2,
+          "total_size": 2,
+          "declared_size": 2,
+          "element_size": 2,
+          "tail_nonzero": false
+        },
+        {
+          "id": 1063,
+          "name": "TRIGGERPORT_TRI_PROTOTYPE",
+          "offset": 49680,
+          "type": 0,
+          "struct_offset": 4,
+          "total_size": 1,
+          "declared_size": 1,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 1064,
+          "name": "TRIGGERPORT_INC_FROMPORT",
+          "offset": 49740,
+          "type": 1,
+          "struct_offset": 5,
+          "total_size": 2,
+          "declared_size": 2,
+          "element_size": 2,
+          "tail_nonzero": false
+        },
+        {
+          "id": 1065,
+          "name": "TRIGGERPORT_INC_TOPORT",
+          "offset": 49800,
+          "type": 1,
+          "struct_offset": 7,
+          "total_size": 2,
+          "declared_size": 2,
+          "element_size": 2,
+          "tail_nonzero": false
+        },
+        {
+          "id": 1066,
+          "name": "TRIGGERPORT_INC_PROTOTYPE",
+          "offset": 49860,
+          "type": 0,
+          "struct_offset": 9,
+          "total_size": 1,
+          "declared_size": 1,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 1067,
+          "name": "TRIGGERPORT_COMMENT",
+          "offset": 49920,
+          "type": 2,
+          "struct_offset": 10,
+          "total_size": 21,
+          "declared_size": 21,
+          "element_size": 1,
+          "tail_nonzero": false
+        }
+      ]
+    },
+    {
+      "offset": 54360,
+      "record_count": 6,
+      "entries": [
+        {
+          "id": 910,
+          "name": "TX_POWER_5G_HT40_1S_A",
+          "offset": 54360,
+          "type": 8,
+          "struct_offset": 163,
+          "total_size": 196,
+          "declared_size": 196,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 911,
+          "name": "TX_POWER_5G_HT40_1S_B",
+          "offset": 54420,
+          "type": 8,
+          "struct_offset": 359,
+          "total_size": 196,
+          "declared_size": 196,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 912,
+          "name": "TX_POWER_DIFF_5G_HT40_2S",
+          "offset": 54480,
+          "type": 8,
+          "struct_offset": 555,
+          "total_size": 196,
+          "declared_size": 196,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 913,
+          "name": "TX_POWER_DIFF_5G_HT20",
+          "offset": 54540,
+          "type": 8,
+          "struct_offset": 751,
+          "total_size": 196,
+          "declared_size": 196,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 914,
+          "name": "TX_POWER_DIFF_5G_OFDM",
+          "offset": 54600,
+          "type": 8,
+          "struct_offset": 947,
+          "total_size": 196,
+          "declared_size": 196,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 273,
+          "name": "WSC_PIN",
+          "offset": 54660,
+          "type": 2,
+          "struct_offset": 1143,
+          "total_size": 9,
+          "declared_size": 9,
+          "element_size": 1,
+          "tail_nonzero": false
+        }
+      ]
+    },
+    {
+      "offset": 46920,
+      "record_count": 5,
+      "entries": [
+        {
+          "id": 1011,
+          "name": "SCHEDULE_TEXT",
+          "offset": 46920,
+          "type": 2,
+          "struct_offset": 0,
+          "total_size": 20,
+          "declared_size": 20,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 1012,
+          "name": "SCHEDULE_ECO",
+          "offset": 46980,
+          "type": 1,
+          "struct_offset": 20,
+          "total_size": 2,
+          "declared_size": 2,
+          "element_size": 2,
+          "tail_nonzero": false
+        },
+        {
+          "id": 1013,
+          "name": "SCHEDULE_FTIME",
+          "offset": 47040,
+          "type": 1,
+          "struct_offset": 22,
+          "total_size": 2,
+          "declared_size": 2,
+          "element_size": 2,
+          "tail_nonzero": false
+        },
+        {
+          "id": 1014,
+          "name": "SCHEDULE_TTIME",
+          "offset": 47100,
+          "type": 1,
+          "struct_offset": 24,
+          "total_size": 2,
+          "declared_size": 2,
+          "element_size": 2,
+          "tail_nonzero": false
+        },
+        {
+          "id": 1015,
+          "name": "SCHEDULE_DAY",
+          "offset": 47160,
+          "type": 1,
+          "struct_offset": 26,
+          "total_size": 2,
+          "declared_size": 2,
+          "element_size": 2,
+          "tail_nonzero": false
+        }
+      ]
+    },
+    {
+      "offset": 49020,
+      "record_count": 5,
+      "entries": [
+        {
+          "id": 1041,
+          "name": "PORTFILTER_FROMPORT",
+          "offset": 49020,
+          "type": 1,
+          "struct_offset": 0,
+          "total_size": 2,
+          "declared_size": 2,
+          "element_size": 2,
+          "tail_nonzero": false
+        },
+        {
+          "id": 1042,
+          "name": "PORTFILTER_TOPORT",
+          "offset": 49080,
+          "type": 1,
+          "struct_offset": 2,
+          "total_size": 2,
+          "declared_size": 2,
+          "element_size": 2,
+          "tail_nonzero": false
+        },
+        {
+          "id": 1043,
+          "name": "PORTFILTER_PROTOTYPE",
+          "offset": 49140,
+          "type": 0,
+          "struct_offset": 4,
+          "total_size": 1,
+          "declared_size": 1,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 1044,
+          "name": "PORTFILTER_COMMENT",
+          "offset": 49200,
+          "type": 2,
+          "struct_offset": 5,
+          "total_size": 21,
+          "declared_size": 21,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 1045,
+          "name": "PORTFILTER_IPVERSION",
+          "offset": 49260,
+          "type": 0,
+          "struct_offset": 26,
+          "total_size": 1,
+          "declared_size": 1,
+          "element_size": 1,
+          "tail_nonzero": false
+        }
+      ]
+    },
+    {
+      "offset": 83764,
+      "record_count": 4,
+      "entries": [
+        {
+          "id": 200,
+          "name": "BOARD_VER",
+          "offset": 83764,
+          "type": 0,
+          "struct_offset": 0,
+          "total_size": 1,
+          "declared_size": 1,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 201,
+          "name": "NIC0_ADDR",
+          "offset": 83824,
+          "type": 4,
+          "struct_offset": 1,
+          "total_size": 6,
+          "declared_size": 6,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 202,
+          "name": "NIC1_ADDR",
+          "offset": 83884,
+          "type": 4,
+          "struct_offset": 7,
+          "total_size": 6,
+          "declared_size": 6,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 32969,
+          "name": "WLAN_ROOT",
+          "offset": 83944,
+          "type": 16,
+          "struct_offset": 13,
+          "total_size": 1152,
+          "declared_size": 1152,
+          "element_size": 1152,
+          "tail_nonzero": false
+        }
+      ]
+    },
+    {
+      "offset": 45120,
+      "record_count": 3,
+      "entries": [
+        {
+          "id": 1001,
+          "name": "DHCPRSVDIP_IPADDR",
+          "offset": 45120,
+          "type": 6,
+          "struct_offset": 0,
+          "total_size": 4,
+          "declared_size": 4,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 1002,
+          "name": "DHCPRSVDIP_MACADDR",
+          "offset": 45180,
+          "type": 4,
+          "struct_offset": 4,
+          "total_size": 6,
+          "declared_size": 6,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 1003,
+          "name": "DHCPRSVDIP_HOSTNAME",
+          "offset": 45240,
+          "type": 2,
+          "struct_offset": 10,
+          "total_size": 32,
+          "declared_size": 32,
+          "element_size": 1,
+          "tail_nonzero": false
+        }
+      ]
+    },
+    {
+      "offset": 52200,
+      "record_count": 3,
+      "entries": [
+        {
+          "id": 1221,
+          "name": "WLAN_WDS_MACADDR",
+          "offset": 52200,
+          "type": 4,
+          "struct_offset": 0,
+          "total_size": 6,
+          "declared_size": 6,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 1222,
+          "name": "WLAN_WDS_FIXEDTXRATE",
+          "offset": 52260,
+          "type": 7,
+          "struct_offset": 6,
+          "total_size": 4,
+          "declared_size": 4,
+          "element_size": 4,
+          "tail_nonzero": false
+        },
+        {
+          "id": 1223,
+          "name": "WLAN_WDS_COMMENT",
+          "offset": 52320,
+          "type": 2,
+          "struct_offset": 10,
+          "total_size": 21,
+          "declared_size": 21,
+          "element_size": 1,
+          "tail_nonzero": false
+        }
+      ]
+    },
+    {
+      "offset": 49380,
+      "record_count": 2,
+      "entries": [
+        {
+          "id": 1051,
+          "name": "MACFILTER_MACADDR",
+          "offset": 49380,
+          "type": 4,
+          "struct_offset": 0,
+          "total_size": 6,
+          "declared_size": 6,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 1052,
+          "name": "MACFILTER_COMMENT",
+          "offset": 49440,
+          "type": 2,
+          "struct_offset": 6,
+          "total_size": 21,
+          "declared_size": 21,
+          "element_size": 1,
+          "tail_nonzero": false
+        }
+      ]
+    },
+    {
+      "offset": 50040,
+      "record_count": 2,
+      "entries": [
+        {
+          "id": 1071,
+          "name": "URLFILTER_URLADDR",
+          "offset": 50040,
+          "type": 2,
+          "struct_offset": 0,
+          "total_size": 31,
+          "declared_size": 31,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 1072,
+          "name": "URLFILTER_RULE_MODE",
+          "offset": 50100,
+          "type": 0,
+          "struct_offset": 31,
+          "total_size": 1,
+          "declared_size": 1,
+          "element_size": 1,
+          "tail_nonzero": false
+        }
+      ]
+    },
+    {
+      "offset": 51840,
+      "record_count": 2,
+      "entries": [
+        {
+          "id": 1201,
+          "name": "MECH_ACL_MACADDR",
+          "offset": 51840,
+          "type": 4,
+          "struct_offset": 0,
+          "total_size": 6,
+          "declared_size": 6,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 1202,
+          "name": "MECH_ACL_COMMENT",
+          "offset": 51900,
+          "type": 2,
+          "struct_offset": 6,
+          "total_size": 21,
+          "declared_size": 21,
+          "element_size": 1,
+          "tail_nonzero": false
+        }
+      ]
+    },
+    {
+      "offset": 52020,
+      "record_count": 2,
+      "entries": [
+        {
+          "id": 1211,
+          "name": "WLAN_ACL_ADDR_MACADDR",
+          "offset": 52020,
+          "type": 4,
+          "struct_offset": 0,
+          "total_size": 6,
+          "declared_size": 6,
+          "element_size": 1,
+          "tail_nonzero": false
+        },
+        {
+          "id": 1212,
+          "name": "WLAN_ACL_ADDR_COMMENT",
+          "offset": 52080,
+          "type": 2,
+          "struct_offset": 6,
+          "total_size": 21,
+          "declared_size": 21,
+          "element_size": 1,
+          "tail_nonzero": false
+        }
+      ]
+    }
+  ],
+  "geometry_records": 611,
+  "geometry_anomalies": [],
   "anchors_matched": 2,
   "anchors_checked": {
     "0xb6": "USER_NAME",

@@ -408,6 +408,22 @@ def main(argv: list[str]) -> int:
                 errors.append(
                     f"{path.name}: ring_fill_agrees is false - decoding with two "
                     "different LZSS window fills disagrees")
+            # A region is not "decoded" while one of its entries is a hex blob.
+            # `WLAN_ROOT` was 22,044 of the 45,226 decompressed bytes and rode in
+            # the committed report as hex for five days, under a note that read
+            # as though the region were understood. The count is in the report,
+            # so make it a condition of committing it.
+            seen = doc.get("table_entries")
+            done = doc.get("table_entries_decoded")
+            if seen is None or done is None:
+                errors.append(
+                    f"{path.name}: no table_entries/table_entries_decoded - "
+                    "regenerate with the current fwrecon")
+            elif seen != done:
+                errors.append(
+                    f"{path.name}: {seen - done} of {seen} table-valued entries "
+                    "did not decode, so the region is partly opaque and must not "
+                    "be committed as a decode of it")
             if doc.get("verdict") != "consistent":
                 errors.append(
                     f"{path.name}: verdict is {doc.get('verdict')!r} - a config "

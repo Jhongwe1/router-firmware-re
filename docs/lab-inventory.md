@@ -95,6 +95,63 @@ radio at all and never did.
 > `P7-3`'s second reason — that injection reaches every device in range —
 > survives intact and has to be answered on its own.
 
+**2026-08-21: the board is identified and it is the easy variant.** An **ESP-12F
+on a carrier with a USB socket and both buttons** (`RST` and `FLASH`), so it
+carries a USB-serial bridge and an auto-download circuit: `esptool.py` writes it
+directly and no CP2102, no wiring and no GPIO0 pull-down are involved. **The
+firmware is not the blocker for `P7-3` / `P7-4`. Consent is.**
+
+*Why the ESP8266 stops at the 802.11 header, since "it cannot" is the kind of
+claim this file exists to make checkable.* The promiscuous callback is
+`void cb(uint8 *buf, uint16 len)` and the struct behind `buf` depends on the
+frame type: a **management** frame arrives as `struct sniffer_buf2`, which has
+`uint8 buf[112]` and carries the frame; a **data** frame arrives as
+`struct sniffer_buf`, which has `uint8 buf[36]` — the MAC header and nothing
+after it. EAPOL sits behind an LLC/SNAP header inside a data frame's payload, so
+the PMKID in M1 and the MIC in M2 are past byte 36 and never reach the
+application. It is documented, not a defect, and there is no SDK call that
+changes it. *And it bites the receive side of the management path too*: 112
+bytes is short of a beacon carrying many IEs, so verifying what the router's own
+beacon contains is not something this board can do either.
+
+**What would make `P7-3`'s radiation half answerable — and it is a measurement,
+not a purchase.** "Relatively isolated" is a description; the register needs a
+number. Before transmitting, scan and record **how many BSSIDs are visible and
+the strongest RSSI**, into `BENCH-LOG.md`, as a precondition that can fail.
+Twelve neighbours at −60 dBm is not isolation; two at −85 dBm is a different
+situation, and only the scan distinguishes them.
+
+**And the experiment does not have to be a broadcast.** The Site Survey parse
+path ingests **probe responses** as well as beacons, and a probe response is a
+**unicast** management frame addressed to the station that solicited it. Answer
+the router's own probe request with the over-long SSID and every other device in
+range drops the frame in its MAC filter before any parser sees it. If the
+over-long SSID reaches the survey table by beacon but not by probe response,
+**that is a finding about two parse paths**, not a failed test.
+
+### Raspberry Pi Pico — not a wireless instrument, and one place it would be
+
+**RP2040 (plain Pico): no radio.** Nothing in `P7-*` is reachable.
+**Pico W / Pico 2 W: CYW43439, a FullMAC part** — the 802.11 MAC runs in the
+chip's own firmware and the host driver exchanges Ethernet-shaped frames.
+Monitor mode and injection need firmware support that the mainline `cyw43`
+driver does not expose, and `nexmon`'s supported targets are bcm43438 and
+bcm43455c0, not this one. **Falsifiable, and stated that way on purpose:** a
+mainline API or firmware patch that sends a raw 802.11 frame from a CYW43439
+brings this row back.
+
+Where it *would* earn a place is not wireless at all: **an RP2040 clipped
+passively onto the SPI bus, using PIO to clock in on the bus's own `CLK`**, would
+record the opcodes the SoC issues during boot — which answers `PROGRESS.md`
+open 89 (which erase opcode `FLW` uses on a part the loader cannot name) and
+open 91 (whether boot writes flash) directly rather than by inference.
+**It was proposed and declined on 2026-08-21**, for reasons that are not price:
+it needs the clip on a **powered** board, which this project forbids for the
+CH341A because two masters on one bus collide; there is one SOIC-8 clip, so the
+two instruments cannot both be attached; and `A5.5`'s new `seat-c` read answers
+open 91 with hardware already on the desk, using the same instrument at both
+ends so that instrument disagreement cannot masquerade as a boot-time write.
+
 ### 2. An SPI flash programmer and a SOIC-8 clip — blocks 4 tests
 
 `P9-5` (direct SPI dump), `P9-6` (direct SPI write), `P9-7` (JEDEC id),

@@ -12,6 +12,28 @@ function in the binary.
 > G3 ✅ passed 2026-08-11 · G3.5 ✅ · G3.75 ✅ both passed 2026-08-17 ·
 > G4 ✅ passed 2026-08-18, clause 3 split into 3a met / 3b impossible.**
 >
+> **Latest (W08 Day 1, 2026-08-21): half of this device's configuration had
+> never been decoded, and the tool that had found the name table for it printed
+> the table's length and threw the table away.** Thirteen of the 344 entries in
+> the configuration region are *table-valued*; one of them, `WLAN_ROOT`, is
+> **22,044 of the 45,226 decompressed bytes**. All thirteen decode now — six
+> blocks of 3,674 bytes with no remainder, checked against a geometry read out
+> of `libapmib.so`'s own records (`count = total_size / element_size`) rather
+> than inferred from the data it validates.
+>
+> The name table was already in the committed report, as a number:
+> `"runner_up": 133`, printed since W04, and each `WLAN_ROOT` block is 133 TLVs.
+> **Nothing was wrong, nothing disagreed, no figure was absurd** — the recovery
+> had asked "which run is the table" instead of "what are the runs", and a check
+> cannot catch a question nobody posed.
+>
+> What it settles: this build's factory wireless configuration is an **open
+> network** — `ENCRYPT = 0`, `WPA_PSK` and `WSC_PSK` all zero, a fixed SSID,
+> WPS enabled — corroborated by one line the device's own `/bin/flash` printed
+> in W07. And reading across six builds, the two 2020 ones add
+> `WSC_AUTO_LOCK_DOWN` and `IEEE80211W`; the 2018 build on this unit has neither.
+> [`notes/wlan-root.md`](notes/wlan-root.md).
+>
 > **Latest (W08 Day 0, 2026-08-20): the boot loader has been printing
 > `chipName: UNKNOWN` since the first boot log this project captured, and the
 > answer was inside the loader.** It carries a table of 32 SPI flash
@@ -608,7 +630,7 @@ that is not backed by a command someone else can re-run.
 | [`poc/`](poc/) | **The reproductions** — two public CVE chains with the requests, the flash-byte evidence, and one file that deliberately carries **no request at all** because what it describes has not been reported to anyone. `run.sh` runs against a device or against an emulated copy, and says which step failed |
 | [`docs/report-draft.md`](docs/report-draft.md) | **The report that has not been sent** — what would go to TWCERT/CC, what is attached and what is not, and the one step that is blocking it |
 | [`docs/disclosure.md`](docs/disclosure.md) | **The disclosure register** — what might be new, what state it is in, and the rule separating a finding from a reproduction from tradecraft. Two entries were **withdrawn** on 2026-08-17, one of them by prior art that a by-handler search found in a single query |
-| [`test-ledger.md`](test-ledger.md) | **The test register, generated** — 134 tests with their predictions frozen before the first request, what would refute each, and what nine items were cut and why (Traditional Chinese) |
+| [`test-ledger.md`](test-ledger.md) | **The test register, generated** — 135 tests with their predictions frozen before the first request, what would refute each, and what nine items were cut and why (Traditional Chinese) |
 | [`notes/attack-surface.md`](notes/attack-surface.md) | Where to look, ranked |
 | [`notes/ghidra-triage.md`](notes/ghidra-triage.md) | Which functions to open first, and why — with the three W01 calls W03 overturned |
 | [`notes/dispatch-table.md`](notes/dispatch-table.md) | `root_form[]` recovered: every `/boafrm/` route in both builds, and what changed between them |

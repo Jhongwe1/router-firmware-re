@@ -37,6 +37,40 @@ So: a 60-byte record, a big-endian ``uint32`` id, then a 32-byte inline name.
 The names being *inline* rather than pointed-to is why ``strings`` shows them
 run together with a stray leading byte from the previous record's tail.
 
+The 24 bytes nobody read for four days
+--------------------------------------
+A record is 60 bytes and the two fields above account for 36. The remainder was
+never looked at, and it carries the geometry::
+
+    +36  uint32  type            0 byte · 2 string · 4 byte-array · >=0x10 table
+    +40  uint32  struct_offset   where this field sits in the in-memory config
+    +44  uint32  total_size      bytes this field occupies
+    +48  uint16  declared_size   the same number again
+    +50  uint16  element_size    size of one element
+    +52  8 bytes                 zero in every record of all six builds
+
+so ``count = total_size / element_size``, **read off the binary** rather than
+counted in the data. That is what turns ``WLAN_ROOT`` from "22,044 bytes of
+something" into "six blocks of 2,526", and it is what lets
+:mod:`fwrecon.compcs` refuse a nested decode instead of believing whatever the
+walk produced. The field names here are descriptions of measured behaviour, not
+a leaked header's labels — ``declared_size`` is called that because it repeats
+``total_size`` in all 344 records and nothing yet explains why.
+
+Sub-tables: the runner-up was the answer
+----------------------------------------
+The walk below takes the longest run and reports the next longest as a bare
+count. That count has read ``133`` in ``reports/mib-table-unit-2018.json`` since
+the day the report was written, and the entry ``WLAN_ROOT`` decodes to six
+blocks of exactly 133 TLVs. The runner-up *was* the name table for them.
+
+There are twenty-one runs of two records or more in this ``libapmib.so`` and the
+first version kept one. They are all here now, because a table-valued id is
+meaningless without the table its elements are drawn from, and the binding is
+checkable: the ids observed inside the value must match exactly one run, and
+that run's element sizes must sum to ``element_size``. Zero matches and two
+matches are both refusals — see :mod:`fwrecon.compcs`.
+
 How this is allowed to fail
 ---------------------------
 A recovery script that cannot fail proves nothing. This one refuses in three
@@ -74,6 +108,21 @@ NAME_OFFSET = 4
 NAME_SIZE = 32
 ID_STRUCT = ">I"
 
+#: Offsets of the geometry fields inside a record. See the module note; these
+#: were read off the binary, not taken from a header.
+GEOM_OFFSET = 36
+GEOM_STRUCT = ">IIIHH"          # type, struct_offset, total_size, declared, element
+GEOM_SIZE = struct.calcsize(GEOM_STRUCT)
+TAIL_OFFSET = GEOM_OFFSET + GEOM_SIZE
+#: A table-valued id has bit 15 set, and every such record observed carries a
+#: `type` at or above this. Reported, never used to decide anything on its own:
+#: the id bit is the authority and this is the cross-check.
+TABLE_TYPE_MIN = 0x10
+#: Runs shorter than this are not offered as sub-tables. Two is the smallest
+#: real one in this library (`WLAN_ACL_ADDR_MACADDR` + `..._COMMENT`), so the
+#: floor is 2 and not a round number chosen for comfort.
+MIN_SUBTABLE_RECORDS = 2
+
 # Anchors: id -> name. Not chosen for convenience. Every one of these is an id
 # that process_header_end passes to apmib_get/apmib_set, so if the recovered
 # table disagrees the recovery is wrong in exactly the place the rest of the
@@ -100,10 +149,59 @@ class MibEntry:
     id: int
     name: str
     offset: int          # file offset of the record
+    type: int = 0
+    struct_offset: int = 0
+    total_size: int = 0
+    declared_size: int = 0
+    element_size: int = 0
+    tail_nonzero: bool = False
 
     @property
     def id_hex(self) -> str:
         return f"0x{self.id:x}"
+
+    @property
+    def table_valued(self) -> bool:
+        return bool(self.id & 0x8000)
+
+    @property
+    def count(self) -> int:
+        """Elements this field holds, from the binary's own two numbers.
+
+        Zero when the geometry is absent or inconsistent rather than a guess of
+        1: a caller that needs a count must be able to tell "the binary says
+        one" from "the binary did not say".
+        """
+        if self.element_size <= 0 or self.total_size <= 0:
+            return 0
+        if self.total_size % self.element_size:
+            return 0
+        return self.total_size // self.element_size
+
+
+@dataclass
+class MibSubTable:
+    """One run of records that is not the main table.
+
+    `libapmib` chains these (`mibtbl->nextbl`) and a table-valued entry's
+    elements are drawn from exactly one of them. Which one is decided by
+    :mod:`fwrecon.compcs` against the data, not asserted here.
+    """
+    offset: int
+    record_count: int
+    entries: list[MibEntry] = field(default_factory=list)
+
+    @property
+    def ids(self) -> set[int]:
+        return {e.id for e in self.entries}
+
+    @property
+    def element_bytes(self) -> int:
+        """Sum of the members' sizes — what one element of a table using this
+        run must measure. Zero if any member has no geometry."""
+        if any(e.total_size <= 0 for e in self.entries):
+            return 0
+        return sum(e.total_size for e in self.entries)
 
 
 @dataclass
@@ -116,6 +214,9 @@ class MibTable:
     record_size: int = RECORD_SIZE
     segments: int = 1
     runner_up: int = 0
+    sub_tables: list[MibSubTable] = field(default_factory=list)
+    geometry_records: int = 0
+    geometry_anomalies: list[str] = field(default_factory=list)
     anchors_matched: int = 0
     anchors_checked: dict[str, str] = field(default_factory=dict)
     duplicate_ids: list[str] = field(default_factory=list)
@@ -127,6 +228,29 @@ class MibTable:
             if e.id == mib_id:
                 return e.name
         return None
+
+    def entry_by_id(self, mib_id: int) -> MibEntry | None:
+        for e in self.entries:
+            if e.id == mib_id:
+                return e
+        return None
+
+    def all_names(self) -> dict[int, str]:
+        """id -> name across the main table *and* every sub-table.
+
+        The main table wins a collision, because that is the table the outer
+        TLV stream is walked against. Sub-table ids live in their own number
+        space and overlap (`SSID` is 0x0001 in the wlan table and nothing in the
+        main one), which is exactly why a flat merge is wrong for naming a
+        nested value and this is only used for reporting.
+        """
+        out: dict[int, str] = {}
+        for t in self.sub_tables:
+            for e in t.entries:
+                out.setdefault(e.id, e.name)
+        for e in self.entries:
+            out[e.id] = e.name
+        return out
 
 
 def _name_at(data: bytes, off: int) -> str | None:
@@ -145,7 +269,17 @@ def _record_at(data: bytes, off: int) -> MibEntry | None:
     (mib_id,) = struct.unpack_from(ID_STRUCT, data, off)
     if mib_id == 0 or mib_id > 0xFFFF:
         return None
-    return MibEntry(id=mib_id, name=name, offset=off)
+    # The geometry is read but never allowed to reject a record. A record is
+    # identified by an id in range next to an identifier-shaped name; making the
+    # tail a condition of that would mean a build with one changed field silently
+    # shortens the run, and a shortened run is how the whole table goes missing.
+    kind, struct_off, total, declared, element = struct.unpack_from(
+        GEOM_STRUCT, data, off + GEOM_OFFSET)
+    tail = data[off + TAIL_OFFSET: off + RECORD_SIZE]
+    return MibEntry(id=mib_id, name=name, offset=off, type=kind,
+                    struct_offset=struct_off, total_size=total,
+                    declared_size=declared, element_size=element,
+                    tail_nonzero=any(tail))
 
 
 def analyse(path: str) -> MibTable:
@@ -207,6 +341,75 @@ def analyse(path: str) -> MibTable:
         table.entries.append(rec)
         off += RECORD_SIZE
 
+    # Every other run, kept rather than counted. `runner_up` above is left in
+    # place because it is what the committed reports have carried since W04 and
+    # removing it would quietly rewrite history; it is now the length of
+    # sub_tables[0] and nothing more.
+    for start, n in runs[1:]:
+        if n < MIN_SUBTABLE_RECORDS:
+            continue
+        sub = MibSubTable(offset=start, record_count=n)
+        for k in range(n):
+            rec = _record_at(data, start + k * RECORD_SIZE)
+            assert rec is not None
+            sub.entries.append(rec)
+        table.sub_tables.append(sub)
+
+    # Geometry invariants, reported as their own list. They are *not* folded
+    # into `anomalies`, because `anomalies` makes the verdict SUSPECT and a
+    # SUSPECT table is refused by check-reports.py: a build that changes one
+    # field's tail must not make the id/name recovery inadmissible, which is the
+    # part everything else depends on. What they must do is be visible.
+    _geometry_checks(table)
+
+    return _finish(table)
+
+
+def _geometry_checks(table: MibTable) -> None:
+    """The three things the tail says about itself, each able to fail."""
+    every = list(table.entries) + [e for t in table.sub_tables for e in t.entries]
+    table.geometry_records = sum(1 for e in every if e.total_size > 0)
+
+    mismatched = [e for e in every if e.total_size != e.declared_size]
+    if mismatched:
+        table.geometry_anomalies.append(
+            f"{len(mismatched)} record(s) where total_size != declared_size, "
+            f"first {mismatched[0].name} ({mismatched[0].total_size} vs "
+            f"{mismatched[0].declared_size}) - the two copies of the size "
+            "disagree, so at least one of them is not a size")
+
+    unusable = [e for e in every if e.total_size > 0 and e.count == 0]
+    if unusable:
+        table.geometry_anomalies.append(
+            f"{len(unusable)} record(s) whose total_size is not a whole number "
+            f"of element_size, first {unusable[0].name} "
+            f"({unusable[0].total_size} / {unusable[0].element_size})")
+
+    dirty = [e for e in every if e.tail_nonzero]
+    if dirty:
+        table.geometry_anomalies.append(
+            f"{len(dirty)} record(s) with a non-zero tail after "
+            f"offset {TAIL_OFFSET}, first {dirty[0].name} - those 8 bytes are "
+            "zero in every record of all six builds read so far, so a non-zero "
+            "one means the record is longer than this walk believes")
+
+    # Bit 15 and the type field are two statements about the same thing. They
+    # are allowed to disagree; what is not allowed is for the disagreement to be
+    # invisible, because compcs.py decides how to decode from the id bit alone.
+    contradicting = [e for e in every
+                     if e.table_valued != (e.type >= TABLE_TYPE_MIN)
+                     and e.total_size > 0]
+    if contradicting:
+        names = ", ".join(f"{e.name}(id {e.id_hex}, type {e.type:#x})"
+                          for e in contradicting[:4])
+        table.geometry_anomalies.append(
+            f"{len(contradicting)} record(s) where bit 15 of the id and the "
+            f"type field disagree about being table-valued: {names}")
+
+
+def _finish(table: MibTable) -> MibTable:
+    """Segment counting, duplicate ids, anchors — unchanged from the first
+    version, moved out of `analyse` when the sub-table walk went in."""
     # A falling id is a sub-table boundary, not damage - see the module note.
     for prev, cur in zip(table.entries, table.entries[1:], strict=False):
         if (cur.id & 0x7FFF) <= (prev.id & 0x7FFF):
