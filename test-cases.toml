@@ -31,7 +31,7 @@ schema_version = "1"
 # sha256 over (id, predict, refute) of every case that has a refutation.
 # Change a prediction and this must change in the same commit, where the diff
 # shows it. `python3 tools/rtcase.py freeze` prints the current value.
-sha256 = "ef4a7c4a02bec5d923509f52d7238b1d11814515f28095a7a6d2ea8958f48902"
+sha256 = "90181162481334794e2ef19a52f66ee9c22bfee70cd0659a2490f79768011d9e"
 committed = "2026-08-20"
 note = """W05 Day 0 — frozen before any request has been served to this device.
 
@@ -157,7 +157,7 @@ result existed, and the correction is dated in the same commit as the edit."""
 # breaking the plan or editing the field. Editing it quietly is
 # indistinguishable from moving the goalposts, so now it hashes.
 # `python3 tools/rtcase.py schedule` prints the current value.
-sha256 = "8d8dfaf438066359c22c67c7b6594cc405b46a616ddc3476efec6bd4db9e0a44"
+sha256 = "f6a613234f80053a4e0f45965fa29b0cd7b74f28a45d21424daaa4a47a5088c7"
 committed = "2026-08-20"
 note = """The payload changed on 2026-08-17: it was (id, week) and is now
 (id, week, rescheduled_from, reschedule_date, reschedule_reason), so every
@@ -233,6 +233,41 @@ Both cut reasons name the observation that would bring them back.
 P9-7 is the row to watch here. It has never moved and it is now the cheapest
 thing on the list: three bytes off the chip, against a prediction frozen two
 days before the instrument that reads it existed.
+
+2026-08-20, later the same day: **two of those eight cuts were reversed, and the
+reason they were made was wrong.** P7-3 and P7-4 are live again, which is why
+this hash moved a second time.
+
+The cut reason said "the instrument does not exist". That was established by
+looking at **one** radio — the workstation's AX201 — and generalising to the
+lab. There is an **ESP8266** on the same desk, and the line it draws is not
+between "wireless" and "not wireless", it is between **management frames and
+data frames**:
+
+  * it transmits management frames (`wifi_send_pkt_freedom`) and receives them
+    in full. **A beacon is a management frame**, so P7-3 — inject an over-long
+    SSID and watch the Site Survey table — is runnable, and so is P7-4's
+    beacon-side WPS IE;
+  * in sniffer mode it delivers **data frames as the 802.11 header only**. EAPOL
+    is a data frame, so the 4-way handshake (P7-6) and the PMKID (P7-5) are out
+    of reach on this part. An ESP32 would reach both; its promiscuous mode
+    returns whole frames.
+
+The other six stay cut and **each now carries the reason that applies to it**
+rather than a reason about the laboratory. P7-6's is the interesting one: the
+ESP8266 can send the deauthentication and cannot capture what follows, so what
+remains of that row is knocking third-party devices off a network and learning
+nothing — which is the one thing this register should never schedule.
+
+**And the radiation half of P7-3's reason is untouched by any of this.** A
+beacon is a broadcast. Having an instrument is not having consent, and that half
+has to be answered on its own rather than riding along on a reason that turned
+out to be wrong.
+
+*What this episode says about this file:* the freeze caught the predictions and
+the schedule caught the two rows coming back, but **nothing hashes a
+`cut_reason`.** Six of them were rewritten in this commit and not one hash moved
+because of it. `PROGRESS.md` open item 93.
 """
 
 [ledger]
@@ -1332,7 +1367,11 @@ refute = '任一個 UDP 埠有回應 → rootfs 的 ELF 清單漏了東西，與
 
 [[case]]
 id = "P7-1"
-cut_reason = '''2026-08-20：儀器不存在，而這一次是查過之後才這樣寫的。這台機器唯一的無線介面是 Intel Wi-Fi 6 AX201（PnP id `PCI\VEN_8086&DEV_A0F0`），而兩個各自獨立、各自就足夠的理由擋住這一項：（一）它掛在 **PCIe** 上，`usbipd-win` 只轉送 USB 裝置，所以 WSL 在任何設定下都拿不到它；（二）就算改用裸機 Linux，`iwlwifi` 沒有實作 frame injection，而這一項需要注入。`docs/lab-inventory.md` 建議的 AR9271（約 US$30）沒有購入，本專案到 W10 結案前也不打算購入。**這個理由是可否證的**：買一張 AR9271、讓 `aireplay-ng --test` 通過，這一列就該回來。被砍掉的是量測，不是問題——W08 writeup 的〈What this does not prove〉第一段就是它。'''
+cut_reason = '''2026-08-20：儀器不存在，而這一次是查過之後才這樣寫的。這台機器唯一的無線介面是 Intel Wi-Fi 6 AX201（PnP id `PCI\VEN_8086&DEV_A0F0`），而兩個各自獨立、各自就足夠的理由擋住這一項：（一）它掛在 **PCIe** 上，`usbipd-win` 只轉送 USB 裝置，所以 WSL 在任何設定下都拿不到它；（二）就算改用裸機 Linux，`iwlwifi` 沒有實作 frame injection，而這一項需要注入。`docs/lab-inventory.md` 建議的 AR9271（約 US$30）沒有購入，本專案到 W10 結案前也不打算購入。**這個理由是可否證的**：買一張 AR9271、讓 `aireplay-ng --test` 通過，這一列就該回來。被砍掉的是量測，不是問題——W08 writeup 的〈What this does not prove〉第一段就是它。
+
+**2026-08-20，同一天稍晚，這個理由被修正過，而修正的方向對這一列不利：上面那段話說「儀器不存在」，而它是靠看一張網卡（工作站的 AX201）就推廣到整個實驗室的。桌上有一片 ESP8266。** 它送得出管理框（`wifi_send_pkt_freedom`），也收得到管理框；它收不到完整的資料框 —— sniffer 模式下資料框只給到 802.11 標頭為止。`P7-3` 與 `P7-4` 因此被**撤銷刪除**，理由見 `PROGRESS.md` 2026-08-20 § Corrections。這一列留著，而理由換成下面這一句，因為它是針對這一列的，不是針對整個實驗室的。
+
+**這一列的真理由**：Pixie Dust 要當 enrollee 走完 WPS 的 M1–M3 並且拿得到雙方的 nonce 與雜湊，那是走在資料框上的 EAP 交換。ESP8266 的 WPS 是 SDK 裡的封閉實作，拿不到那些欄位，而 promiscuous 也讀不到資料框的內容。'''
 phase = "7"
 section = "10.1"
 title = "WPS Pixie Dust"
@@ -1348,7 +1387,11 @@ refute = 'wash 顯示 WPS 已鎖或未啟用 → 這條前提不成立'
 
 [[case]]
 id = "P7-2"
-cut_reason = '''2026-08-20：儀器不存在，而這一次是查過之後才這樣寫的。這台機器唯一的無線介面是 Intel Wi-Fi 6 AX201（PnP id `PCI\VEN_8086&DEV_A0F0`），而兩個各自獨立、各自就足夠的理由擋住這一項：（一）它掛在 **PCIe** 上，`usbipd-win` 只轉送 USB 裝置，所以 WSL 在任何設定下都拿不到它；（二）就算改用裸機 Linux，`iwlwifi` 沒有實作 frame injection，而這一項需要注入。`docs/lab-inventory.md` 建議的 AR9271（約 US$30）沒有購入，本專案到 W10 結案前也不打算購入。**這個理由是可否證的**：買一張 AR9271、讓 `aireplay-ng --test` 通過，這一列就該回來。被砍掉的是量測，不是問題——W08 writeup 的〈What this does not prove〉第一段就是它。　靜態的那一半已經有答案：出廠 WPS PIN 是 `COMPDS` 裡的一筆普通欄位（`notes/compcs-decode.md`），所以被砍掉的是「線上爆破」這半邊，不是「PIN 值取得」。'''
+cut_reason = '''2026-08-20：儀器不存在，而這一次是查過之後才這樣寫的。這台機器唯一的無線介面是 Intel Wi-Fi 6 AX201（PnP id `PCI\VEN_8086&DEV_A0F0`），而兩個各自獨立、各自就足夠的理由擋住這一項：（一）它掛在 **PCIe** 上，`usbipd-win` 只轉送 USB 裝置，所以 WSL 在任何設定下都拿不到它；（二）就算改用裸機 Linux，`iwlwifi` 沒有實作 frame injection，而這一項需要注入。`docs/lab-inventory.md` 建議的 AR9271（約 US$30）沒有購入，本專案到 W10 結案前也不打算購入。**這個理由是可否證的**：買一張 AR9271、讓 `aireplay-ng --test` 通過，這一列就該回來。被砍掉的是量測，不是問題——W08 writeup 的〈What this does not prove〉第一段就是它。　靜態的那一半已經有答案：出廠 WPS PIN 是 `COMPDS` 裡的一筆普通欄位（`notes/compcs-decode.md`），所以被砍掉的是「線上爆破」這半邊，不是「PIN 值取得」。
+
+**2026-08-20，同一天稍晚，這個理由被修正過，而修正的方向對這一列不利：上面那段話說「儀器不存在」，而它是靠看一張網卡（工作站的 AX201）就推廣到整個實驗室的。桌上有一片 ESP8266。** 它送得出管理框（`wifi_send_pkt_freedom`），也收得到管理框；它收不到完整的資料框 —— sniffer 模式下資料框只給到 802.11 標頭為止。`P7-3` 與 `P7-4` 因此被**撤銷刪除**，理由見 `PROGRESS.md` 2026-08-20 § Corrections。這一列留著，而理由換成下面這一句，因為它是針對這一列的，不是針對整個實驗室的。
+
+**這一列的真理由**：線上 PIN 爆破要能反覆建立關聯、送 WPS 訊息、讀回 NACK，全部在資料框上。ESP8266 收不到資料框內容，所以連「這一發是不是對的」都判斷不了 —— 沒有回饋的爆破不是測試。'''
 phase = "7"
 section = "10.1"
 title = "WPS 線上 PIN 爆破 / 廠商預設 PIN"
@@ -1361,7 +1404,6 @@ reschedule_reason = '''需要 monitor mode + 封包注入的無線網卡，而�
 
 [[case]]
 id = "P7-3"
-cut_reason = '''2026-08-20：儀器不存在，而這一次是查過之後才這樣寫的。這台機器唯一的無線介面是 Intel Wi-Fi 6 AX201（PnP id `PCI\VEN_8086&DEV_A0F0`），而兩個各自獨立、各自就足夠的理由擋住這一項：（一）它掛在 **PCIe** 上，`usbipd-win` 只轉送 USB 裝置，所以 WSL 在任何設定下都拿不到它；（二）就算改用裸機 Linux，`iwlwifi` 沒有實作 frame injection，而這一項需要注入。`docs/lab-inventory.md` 建議的 AR9271（約 US$30）沒有購入，本專案到 W10 結案前也不打算購入。**這個理由是可否證的**：買一張 AR9271、讓 `aireplay-ng --test` 通過，這一列就該回來。被砍掉的是量測，不是問題——W08 writeup 的〈What this does not prove〉第一段就是它。　另外，這一項還有第二個**不轉移**的理由：deauth 與 beacon 注入會打到範圍內所有第三方裝置，需要屏蔽環境或真正隔離的場地，而登記簿已經因為同一個理由砍掉三項。買了網卡也不會解除這一條。'''
 phase = "7"
 section = "10.2"
 title = "惡意 Beacon → Site Survey 表溢位"
@@ -1378,7 +1420,10 @@ refute = '超長 SSID 的 beacon 完全不出現在 Site Survey 表 → 有長�
 
 [[case]]
 id = "P7-4"
-cut_reason = '''2026-08-20：儀器不存在，而這一次是查過之後才這樣寫的。這台機器唯一的無線介面是 Intel Wi-Fi 6 AX201（PnP id `PCI\VEN_8086&DEV_A0F0`），而兩個各自獨立、各自就足夠的理由擋住這一項：（一）它掛在 **PCIe** 上，`usbipd-win` 只轉送 USB 裝置，所以 WSL 在任何設定下都拿不到它；（二）就算改用裸機 Linux，`iwlwifi` 沒有實作 frame injection，而這一項需要注入。`docs/lab-inventory.md` 建議的 AR9271（約 US$30）沒有購入，本專案到 W10 結案前也不打算購入。**這個理由是可否證的**：買一張 AR9271、讓 `aireplay-ng --test` 通過，這一列就該回來。被砍掉的是量測，不是問題——W08 writeup 的〈What this does not prove〉第一段就是它。'''
+predict = '''WSC 的屬性是 2-byte type + **2-byte length**，而設定頁上 Device Name 的上限是 32。一個宣告超長 length 的 Device Name 屬性，塞在**信標或探測回應**的 WPS IE 裡，走的是掃描端的解析路徑而不是關聯路徑 —— 而 `P2-1` 已經確認這台的 Site Survey **不需要憑證就能觸發**，所以掃描動作可以自己發起。預測：解析端把宣告長度當成可信值拷進固定大小的緩衝區，`wscd` 或 `boa` 其中之一出現可觀察的異常（行程消失、連線被拒、或頁面回不完整）。
+
+**儀器側的限制寫在前面而不是事後**：這一發由 ESP8266 的 `wifi_send_pkt_freedom` 送出，它送得出管理框，單框長度上限約 1400 byte。所以「宣告長度 0xFFFF、實際只帶 40 byte」這種形式送得出去，而「真的塞 65535 byte」送不出去 —— **這一列測的是解析端信不信那個宣告值，不是它擋不擋得住真的長資料**。這兩件事不一樣，混為一談會把一個負面結果讀成正面結果。'''
+refute = '''（a）帶著超長宣告的 beacon 完全不出現在 Site Survey 表，而**同一片板子送出的正常 beacon 出現得了** → 解析端在讀那個長度欄之前就把框丟掉了，這條攻擊面不在掃描路徑上。**那個對照組是必要的**：只送惡意框而沒有出現，跟「ESP8266 根本沒送出去」從外面看一模一樣 —— 這是 `P6-1` 那個對照組的同一課。（b）出現了、而且 SSID／Device Name 被安全截斷成 32 字元，`wscd` 與 `boa` 都活著 → 有長度檢查，溢位面不存在，那是一個可以寫的正面結論。'''
 phase = "7"
 section = "10.2"
 title = "惡意 WPS IE（Device Name 長度欄 2 bytes）"
@@ -1392,7 +1437,11 @@ caution = "無線發射"
 
 [[case]]
 id = "P7-5"
-cut_reason = '''2026-08-20：儀器不存在，而這一次是查過之後才這樣寫的。這台機器唯一的無線介面是 Intel Wi-Fi 6 AX201（PnP id `PCI\VEN_8086&DEV_A0F0`），而兩個各自獨立、各自就足夠的理由擋住這一項：（一）它掛在 **PCIe** 上，`usbipd-win` 只轉送 USB 裝置，所以 WSL 在任何設定下都拿不到它；（二）就算改用裸機 Linux，`iwlwifi` 沒有實作 frame injection，而這一項需要注入。`docs/lab-inventory.md` 建議的 AR9271（約 US$30）沒有購入，本專案到 W10 結案前也不打算購入。**這個理由是可否證的**：買一張 AR9271、讓 `aireplay-ng --test` 通過，這一列就該回來。被砍掉的是量測，不是問題——W08 writeup 的〈What this does not prove〉第一段就是它。　補一句技術理由，因為它常被誤會成被動題：PMKID 的擷取要先送出一個 association request，那是注入，不是監聽。只有 monitor mode 不夠。'''
+cut_reason = '''2026-08-20：儀器不存在，而這一次是查過之後才這樣寫的。這台機器唯一的無線介面是 Intel Wi-Fi 6 AX201（PnP id `PCI\VEN_8086&DEV_A0F0`），而兩個各自獨立、各自就足夠的理由擋住這一項：（一）它掛在 **PCIe** 上，`usbipd-win` 只轉送 USB 裝置，所以 WSL 在任何設定下都拿不到它；（二）就算改用裸機 Linux，`iwlwifi` 沒有實作 frame injection，而這一項需要注入。`docs/lab-inventory.md` 建議的 AR9271（約 US$30）沒有購入，本專案到 W10 結案前也不打算購入。**這個理由是可否證的**：買一張 AR9271、讓 `aireplay-ng --test` 通過，這一列就該回來。被砍掉的是量測，不是問題——W08 writeup 的〈What this does not prove〉第一段就是它。　補一句技術理由，因為它常被誤會成被動題：PMKID 的擷取要先送出一個 association request，那是注入，不是監聽。只有 monitor mode 不夠。
+
+**2026-08-20，同一天稍晚，這個理由被修正過，而修正的方向對這一列不利：上面那段話說「儀器不存在」，而它是靠看一張網卡（工作站的 AX201）就推廣到整個實驗室的。桌上有一片 ESP8266。** 它送得出管理框（`wifi_send_pkt_freedom`），也收得到管理框；它收不到完整的資料框 —— sniffer 模式下資料框只給到 802.11 標頭為止。`P7-3` 與 `P7-4` 因此被**撤銷刪除**，理由見 `PROGRESS.md` 2026-08-20 § Corrections。這一列留著，而理由換成下面這一句，因為它是針對這一列的，不是針對整個實驗室的。
+
+**這一列的真理由**：PMKID 在 EAPOL 的第一則訊息裡，而 EAPOL 是**資料框**。ESP8266 的 sniffer 模式對資料框只給到 802.11 標頭，PMKID 落在那之後。**換一片 ESP32 就成立**——它的 promiscuous 回傳完整框——而那是約 US$5。'''
 phase = "7"
 section = "10.3"
 title = "PMKID（clientless）"
@@ -1405,7 +1454,13 @@ reschedule_reason = '''需要 monitor mode + 封包注入的無線網卡，而�
 
 [[case]]
 id = "P7-6"
-cut_reason = '''2026-08-20：儀器不存在，而這一次是查過之後才這樣寫的。這台機器唯一的無線介面是 Intel Wi-Fi 6 AX201（PnP id `PCI\VEN_8086&DEV_A0F0`），而兩個各自獨立、各自就足夠的理由擋住這一項：（一）它掛在 **PCIe** 上，`usbipd-win` 只轉送 USB 裝置，所以 WSL 在任何設定下都拿不到它；（二）就算改用裸機 Linux，`iwlwifi` 沒有實作 frame injection，而這一項需要注入。`docs/lab-inventory.md` 建議的 AR9271（約 US$30）沒有購入，本專案到 W10 結案前也不打算購入。**這個理由是可否證的**：買一張 AR9271、讓 `aireplay-ng --test` 通過，這一列就該回來。被砍掉的是量測，不是問題——W08 writeup 的〈What this does not prove〉第一段就是它。　另外，這一項還有第二個**不轉移**的理由：deauth 與 beacon 注入會打到範圍內所有第三方裝置，需要屏蔽環境或真正隔離的場地，而登記簿已經因為同一個理由砍掉三項。買了網卡也不會解除這一條。'''
+cut_reason = '''2026-08-20：儀器不存在，而這一次是查過之後才這樣寫的。這台機器唯一的無線介面是 Intel Wi-Fi 6 AX201（PnP id `PCI\VEN_8086&DEV_A0F0`），而兩個各自獨立、各自就足夠的理由擋住這一項：（一）它掛在 **PCIe** 上，`usbipd-win` 只轉送 USB 裝置，所以 WSL 在任何設定下都拿不到它；（二）就算改用裸機 Linux，`iwlwifi` 沒有實作 frame injection，而這一項需要注入。`docs/lab-inventory.md` 建議的 AR9271（約 US$30）沒有購入，本專案到 W10 結案前也不打算購入。**這個理由是可否證的**：買一張 AR9271、讓 `aireplay-ng --test` 通過，這一列就該回來。被砍掉的是量測，不是問題——W08 writeup 的〈What this does not prove〉第一段就是它。　另外，這一項還有第二個**不轉移**的理由：deauth 與 beacon 注入會打到範圍內所有第三方裝置，需要屏蔽環境或真正隔離的場地，而登記簿已經因為同一個理由砍掉三項。買了網卡也不會解除這一條。
+
+**2026-08-20，同一天稍晚，這個理由被修正過，而修正的方向對這一列不利：上面那段話說「儀器不存在」，而它是靠看一張網卡（工作站的 AX201）就推廣到整個實驗室的。桌上有一片 ESP8266。** 它送得出管理框（`wifi_send_pkt_freedom`），也收得到管理框；它收不到完整的資料框 —— sniffer 模式下資料框只給到 802.11 標頭為止。`P7-3` 與 `P7-4` 因此被**撤銷刪除**，理由見 `PROGRESS.md` 2026-08-20 § Corrections。這一列留著，而理由換成下面這一句，因為它是針對這一列的，不是針對整個實驗室的。
+
+**這一列的真理由，而它是「一半可行」而不是「不可行」**：deauth 送得出去（那正是 ESP8266 deauther 在做的事），**但抓不到四次握手** —— EAPOL 是資料框，ESP8266 只給到標頭。所以在這片板子上，這一列剩下的只有「把第三方裝置踢下線」而沒有任何結果，那是這個登記簿最不該做的一種動作。**換 ESP32 則兩半都成立。**
+
+**而輻射那一半沒有被這片板子解除，這一點要說清楚。** beacon 注入是廣播，打得到範圍內每一台裝置。ESP8266 換掉的是「有沒有儀器」，沒有換掉「同不同意」。這一列要跑之前，衰減或屏蔽必須先有答案。'''
 phase = "7"
 section = "10.4"
 title = "Deauth → 4-way handshake → 離線爆破"
@@ -1445,7 +1500,11 @@ cut_reason = '需要一個會上鉤的真人管理員；實驗室裡沒有，所
 
 [[case]]
 id = "P7-9"
-cut_reason = '''2026-08-20：儀器不存在，而這一次是查過之後才這樣寫的。這台機器唯一的無線介面是 Intel Wi-Fi 6 AX201（PnP id `PCI\VEN_8086&DEV_A0F0`），而兩個各自獨立、各自就足夠的理由擋住這一項：（一）它掛在 **PCIe** 上，`usbipd-win` 只轉送 USB 裝置，所以 WSL 在任何設定下都拿不到它；（二）就算改用裸機 Linux，`iwlwifi` 沒有實作 frame injection，而這一項需要注入。`docs/lab-inventory.md` 建議的 AR9271（約 US$30）沒有購入，本專案到 W10 結案前也不打算購入。**這個理由是可否證的**：買一張 AR9271、讓 `aireplay-ng --test` 通過，這一列就該回來。被砍掉的是量測，不是問題——W08 writeup 的〈What this does not prove〉第一段就是它。　另外，這一項還有第二個**不轉移**的理由：deauth 與 beacon 注入會打到範圍內所有第三方裝置，需要屏蔽環境或真正隔離的場地，而登記簿已經因為同一個理由砍掉三項。買了網卡也不會解除這一條。'''
+cut_reason = '''2026-08-20：儀器不存在，而這一次是查過之後才這樣寫的。這台機器唯一的無線介面是 Intel Wi-Fi 6 AX201（PnP id `PCI\VEN_8086&DEV_A0F0`），而兩個各自獨立、各自就足夠的理由擋住這一項：（一）它掛在 **PCIe** 上，`usbipd-win` 只轉送 USB 裝置，所以 WSL 在任何設定下都拿不到它；（二）就算改用裸機 Linux，`iwlwifi` 沒有實作 frame injection，而這一項需要注入。`docs/lab-inventory.md` 建議的 AR9271（約 US$30）沒有購入，本專案到 W10 結案前也不打算購入。**這個理由是可否證的**：買一張 AR9271、讓 `aireplay-ng --test` 通過，這一列就該回來。被砍掉的是量測，不是問題——W08 writeup 的〈What this does not prove〉第一段就是它。　另外，這一項還有第二個**不轉移**的理由：deauth 與 beacon 注入會打到範圍內所有第三方裝置，需要屏蔽環境或真正隔離的場地，而登記簿已經因為同一個理由砍掉三項。買了網卡也不會解除這一條。
+
+**2026-08-20，同一天稍晚，這個理由被修正過，而修正的方向對這一列不利：上面那段話說「儀器不存在」，而它是靠看一張網卡（工作站的 AX201）就推廣到整個實驗室的。桌上有一片 ESP8266。** 它送得出管理框（`wifi_send_pkt_freedom`），也收得到管理框；它收不到完整的資料框 —— sniffer 模式下資料框只給到 802.11 標頭為止。`P7-3` 與 `P7-4` 因此被**撤銷刪除**，理由見 `PROGRESS.md` 2026-08-20 § Corrections。這一列留著，而理由換成下面這一句，因為它是針對這一列的，不是針對整個實驗室的。
+
+**這一列的真理由**：KRACK 要在受害者與 AP 之間做通道式中間人，並且在正確的時機重放 message 3。那需要一台能同時當 AP 與 STA、而且能轉發資料框的裝置。ESP8266 兩件都做不到。'''
 phase = "7"
 section = "10.7"
 title = "WDS / Repeater 模式 → KRACK"
@@ -1460,7 +1519,11 @@ refute = '重放 message 3 沒有造成 nonce 重用 → 已修補，那是一�
 
 [[case]]
 id = "P7-10"
-cut_reason = '''2026-08-20：儀器不存在，而這一次是查過之後才這樣寫的。這台機器唯一的無線介面是 Intel Wi-Fi 6 AX201（PnP id `PCI\VEN_8086&DEV_A0F0`），而兩個各自獨立、各自就足夠的理由擋住這一項：（一）它掛在 **PCIe** 上，`usbipd-win` 只轉送 USB 裝置，所以 WSL 在任何設定下都拿不到它；（二）就算改用裸機 Linux，`iwlwifi` 沒有實作 frame injection，而這一項需要注入。`docs/lab-inventory.md` 建議的 AR9271（約 US$30）沒有購入，本專案到 W10 結案前也不打算購入。**這個理由是可否證的**：買一張 AR9271、讓 `aireplay-ng --test` 通過，這一列就該回來。被砍掉的是量測，不是問題——W08 writeup 的〈What this does not prove〉第一段就是它。'''
+cut_reason = '''2026-08-20：儀器不存在，而這一次是查過之後才這樣寫的。這台機器唯一的無線介面是 Intel Wi-Fi 6 AX201（PnP id `PCI\VEN_8086&DEV_A0F0`），而兩個各自獨立、各自就足夠的理由擋住這一項：（一）它掛在 **PCIe** 上，`usbipd-win` 只轉送 USB 裝置，所以 WSL 在任何設定下都拿不到它；（二）就算改用裸機 Linux，`iwlwifi` 沒有實作 frame injection，而這一項需要注入。`docs/lab-inventory.md` 建議的 AR9271（約 US$30）沒有購入，本專案到 W10 結案前也不打算購入。**這個理由是可否證的**：買一張 AR9271、讓 `aireplay-ng --test` 通過，這一列就該回來。被砍掉的是量測，不是問題——W08 writeup 的〈What this does not prove〉第一段就是它。
+
+**2026-08-20，同一天稍晚，這個理由被修正過，而修正的方向對這一列不利：上面那段話說「儀器不存在」，而它是靠看一張網卡（工作站的 AX201）就推廣到整個實驗室的。桌上有一片 ESP8266。** 它送得出管理框（`wifi_send_pkt_freedom`），也收得到管理框；它收不到完整的資料框 —— sniffer 模式下資料框只給到 802.11 標頭為止。`P7-3` 與 `P7-4` 因此被**撤銷刪除**，理由見 `PROGRESS.md` 2026-08-20 § Corrections。這一列留著，而理由換成下面這一句，因為它是針對這一列的，不是針對整個實驗室的。
+
+**這一列的真理由**：FragAttacks 要精確控制**資料框的分片**，收與送都是。ESP8266 送得出的是管理框，收得到的資料框只有標頭。兩端都不夠。'''
 phase = "7"
 section = "10.8"
 title = "FragAttacks"

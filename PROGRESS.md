@@ -5334,6 +5334,37 @@ rule's evidence of working is that it catches the person who wrote it.**
   is **not** amended: no result has been recorded against it, and the row will be
   scored against the condition as written, with the inadequacy reported in the
   result note. That is the same treatment `P5-2` got on 2026-08-19.
+- **Two of the eight wireless cuts were made on a reason that was wrong, and are
+  reversed.** The reason read "the instrument does not exist", and it was reached
+  by examining **one** radio — the workstation's AX201 — and generalising to the
+  laboratory. There is an ESP8266 on the same desk. **`P7-3` and `P7-4` are live
+  again**; `test-cases.toml` `[schedule].note` carries the argument and both
+  hashes moved a second time in the same day.
+
+  The distinction that should have been drawn in the first place is **management
+  frames versus data frames**, not "Wi-Fi adapter versus not". The ESP8266
+  transmits management frames and receives them in full, so a beacon-borne
+  over-long SSID (`P7-3`, a `star` row) and a beacon-borne WPS IE (`P7-4`) are
+  both reachable. It delivers **data frames as the 802.11 header only**, so
+  EAPOL — and therefore the 4-way handshake and the PMKID — is not. An ESP32
+  returns whole frames and would reach those two.
+
+  **The six that stay cut now each carry the reason that applies to that row**
+  rather than a claim about the laboratory. `P7-6`'s is the one worth reading:
+  the ESP8266 can send the deauthentication and cannot capture what follows, so
+  what remains of the row is disconnecting third-party devices and learning
+  nothing.
+
+  **The radiation half of `P7-3`'s reason is untouched.** A beacon is a
+  broadcast, and an ESP8266 broadcasts as far as an AR9271 at the same power.
+  Having the instrument is not having consent, and that half now has to be
+  answered on its own instead of riding along on a reason that turned out to be
+  wrong.
+
+  *This is the second time in one session that a general absence was asserted
+  from a single source.* The first was `P9-5`'s own justification — every
+  byte-level claim about the flash resting on one instrument — which is the
+  thing this week exists to fix. Writing the correction next to it is the point.
 
 ### Deliberately not done
 
@@ -5360,6 +5391,15 @@ rule's evidence of working is that it catches the person who wrote it.**
 90. **`WLAN_ROOT` is 22,044 bytes and has never been decoded.** Half the
     decompressed configuration. It blocks `P7-7` and it is the reason
     `notes/compcs-decode.md` reads as more complete than it is.
+93. **Nothing hashes a `cut_reason`.** The freeze covers `predict` and
+    `refute`; the schedule covers `week` and the reschedule record of every
+    *live* case — and a cut case is not live. On 2026-08-20 six cut reasons were
+    rewritten and **not one hash moved because of it**. The two hashes that did
+    move moved for other reasons (a prediction, and two rows returning to the
+    schedule), which means the rewrite was visible only because it shared a
+    commit with them. A reason that can be edited silently is the same defect
+    the schedule hash was added to fix, one field over: "I could not do this"
+    can become "I chose not to" with nothing marking it.
 92. **The doctor's tiers do not know about station 5.** At the clip station the
     serial adapter and the USB Ethernet adapter are deliberately *not* attached —
     each is a second ground and a second supply into the same board — and
