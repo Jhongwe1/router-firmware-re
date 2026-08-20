@@ -4456,7 +4456,19 @@ usbipd attach --wsl --busid 1-5
 ```
 
 > ⚠️ **`1-5` 是範例，不是你的 busid。** 從 `usbipd list` 裡找 `1a86:5512` 那一列。
-> `bind` 要系統管理員身分，而且一顆裝置只需要做一次；`attach` 每次重插都要做。
+> `bind` 要系統管理員身分；`attach` 每次重插都要做。
+
+> 🔴 **三個會在工作台上吃掉時間的坑，2026-08-21 那一場三個全部踩過一次。**
+> 它們都不會壞掉任何東西，但每一個都會讓人以為是硬體出問題。
+>
+> | 你看到 | 成因 | 修法 |
+> |---|---|---|
+> | `attach` 回 `There is no WSL 2 distribution running` | WSL 閒置一段時間會自己關掉，而 `attach` 需要一個**正在執行**的發行版才有地方掛 | 先讓 WSL 活著（開一個視窗，或跑一個長命令），再 `attach` |
+> | 換過 USB 埠之後 `attach` 回 `Device is not shared` | **busid 是跟著埠走的，而 `bind` 綁的是那個 busid** —— 換埠等於一顆沒有 bind 過的新裝置 | 用新的 busid 重跑一次 `bind`，一樣要提權 |
+> | `usbipd list` 的 `Connected` 裡沒有 `1a86:5512`，但 `Persisted` 有一列 | **`Persisted` 是舊的 bind 記錄，不是「它在線上」** | 只讀 `Connected` 那一段。`Persisted` 有名字而 `Connected` 沒有，代表裝置目前不在匯流排上 |
+>
+> ⚠️ **最後一列在 `A5.2` 會變成一個真正的訊號**：夾子坐上去之後 `1a86:5512` 從
+> `Connected` 消失，那不是 usbipd 的問題，是程式器自己斷電了。見 `A5.2` 的先決條件。
 
 ```bash
 lsusb | grep -i '1a86:5512'
