@@ -5943,3 +5943,118 @@ The four entries were written by hand this session.
 
 66, 67, 69, 70, 71, 74, 75, 77, 78, 79, 81, 82, 84, 85, 86, 87, 88, 89, 91, 92,
 93, 94, 95, 96 — unchanged.
+## W08 Day 1, the clip session — three supplies, one voltage, and not one byte read — 2026-08-21
+
+**The device was never powered and its flash was never read.** `A5.2`'s `probe`
+did not run, `A5.3` did not run, `A5.4` and `A5.5` did not happen. The reason is
+not time: **the chip never reached operating voltage.** `BENCH-LOG.md`
+2026-08-21 實錄 carries the sequence and every number verbatim; this section
+carries what it changed.
+
+### The result is a negative one, and it has a number attached
+
+Seating the SOIC-8 clip on `U19` takes the **CH341A itself** off the USB bus.
+Reproducible both ways: clip on, the programmer disappears from
+`usbipd list`; clip off, it returns. No USB over-current or power-surge event
+appears in the Windows System log at any point, and **no LED on the router lit
+at any point in the session.**
+
+Three supply configurations were tried, and the number that matters did not move:
+
+| supply | `VCC` measured at the chip |
+|---|---|
+| the CH341A's own 3.3 V rail | **1.70 V** — and the programmer browns out with it |
+| a rear motherboard USB 2.0 port, no hub, no extension | **1.70 V** |
+| an **ESP8266's regulator** injected into the CH341A's 3.3 V rail | **1.7 V**, while the supply side measured **3.3 V** |
+
+The third row is the informative one. It keeps the programmer alive — so the
+CH341A's own supply was one of the causes — and it **still does not raise the
+chip**. Whatever limits this is not the host's USB port and not the programmer's
+regulator.
+
+**The cold resistance and the loaded voltage are not in conflict.** `VCC` to
+`GND` on the unpowered board measures **8 kΩ climbing past 10 kΩ and still
+rising**. A meter's resistance range applies under a volt, which is below the
+threshold where the board's silicon conducts; at 1.7 V it conducts. **It is a
+non-linear load, and an ohmmeter cannot see it.**
+
+### What was measured, and what was not — the distinction is the whole entry
+
+**Measured:** in-circuit reading of `U19` with this CH341A and this clip does not
+work on this board. The chip does not reach operating voltage under any supply
+tried.
+
+**Not measured, and now open item 97:** whether the 1.7 V is the target board
+**clamping** the `VCC` net, or **series resistance** in the clip and ribbon.
+Separating them needs a current measurement or an out-of-circuit read, and
+neither was available: the clip's ribbon terminates in a fixed header, so
+nothing can be inserted in series with `VCC`.
+
+### `probe` was not run, and that was a decision rather than an omission
+
+1.7 V is outside the part's operating range. **A read taken there that looks
+correct is worse than one that fails**, because `A5.3` compares 4,194,304 bytes
+against the `FLR` dump byte for byte — and a handful of bits wrong from
+undervoltage renders as *"two instruments disagree about one die"*, which is
+precisely the confound `P9-5` exists to remove. **A test that manufactures the
+confound it was designed to eliminate is not measuring what it thinks.**
+`runsheet.md` `A5.2` now gates on the voltage before `probe`, and
+`RUNBOOK` §8.12.41 carries the argument.
+
+### The stop conditions frozen before the session did not cover what happened
+
+`BENCH-LOG.md` 2026-08-20 §3 lists four, and **every one of them imagines the
+tool returning a wrong answer**: `A5.1` not passing, `no JEDEC id`, `MORE THAN
+ONE id`, `A5.3` not producing a screened image. What happened is that the tool
+**lost power before it could answer**. No condition fires for that, and the
+operator's default next action — re-seat the clip — is repair applied to a thing
+that is not broken. The gap is recorded in `RUNBOOK` §8.12.41 and the voltage
+gate in `A5.2` is what closes it.
+
+### Corrections to the plan
+
+- **`B-W08`'s cycle table assumed the clip station would produce a read.** Cycles
+  1 through 4 — `A5.3` seat-a/seat-b, `A5.4`, `A5.5`'s write, the reboot
+  verification, `seat-c`, the restore — none of them happened. `B-W08` is
+  append-only and is not edited; this is the record that it did not run.
+- **`A5.2`'s precondition list was incomplete.** It required `A5.1` passing, the
+  router unplugged and pin 1 aligned. It did not require the chip to have
+  operating voltage, because "the clip powers the chip" was assumed rather than
+  checked. It is now a written gate with a number.
+- **Four explanations were offered for the failure during the session and three
+  were refuted by the meter**: the main-rail-loads-it explanation died on the
+  8–10 kΩ cold reading; the inrush-ordering explanation died when clip-first
+  then-power failed identically; the inrush-capacity explanation died on `VCC`
+  still sitting at 1.70 V ten seconds in. The fourth — a clamp — is open item 97
+  and is *not* being written as a conclusion.
+
+### Deliberately not done
+
+- **No register row was recorded.** `P9-5`, `P9-6` and `P9-7` stay `⬜`.
+  `rtcase record` offers `confirmed / na / partial / refuted`, and what was
+  measured tonight is **whether the instrument can reach the part**, not anything
+  about the part. Filing an instrument measurement as a verdict on a device test
+  is a category error, and recording one would freeze predictions on rows that an
+  out-of-circuit read could still close properly. `make todo WEEK=W08` continues
+  to list all three as outstanding, which is true.
+- **`U19` was not desoldered.** It is the definitive answer and it is the only
+  unit; it is a planned session with the right tools, not an improvisation at the
+  end of a long night.
+- **No fourth seating.** Three attempts across three supply configurations gave
+  one number. A fourth repeats an experiment rather than changing a variable, and
+  each attempt back-powers the board through the part's `VCC`.
+
+### Open, carried forward
+
+66, 67, 69, 70, 71, 74, 75, 77, 78, 79, 81, 82, 84, 85, 86, 87, 88, 89, 91, 92,
+93, 94, 95, 96 — unchanged.
+
+97. **Is `U19`'s `VCC` net clamped by the board, or is the drop series resistance
+    in the clip path?** Three supplies of very different capability all leave the
+    chip at ~1.70 V while the supply side holds 3.3 V. A voltage that does not
+    move with supply strength reads as a clamp; a voltage that drops across a
+    path reads as resistance; **this session separated neither.** Two things
+    settle it and both need something not on the desk: a current measurement in
+    series with `VCC` — impossible while the clip's ribbon ends in a fixed header
+    — or an out-of-circuit read after `U19` comes off the board. Until then the
+    committed claim is only that in-circuit reading does not work here, **not why.**

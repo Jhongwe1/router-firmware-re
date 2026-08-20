@@ -345,9 +345,18 @@ that is not backed by a command someone else can re-run.
   > - **The UART header is already populated** — W02 requires no soldering at all,
   >   which takes the week's largest irreversible-damage risk off the table.
   > - **Every one of those readings has exactly one source: the ink on the package.**
-  >   `flashrom` agreeing that an `EN25QH32` is 4096 KiB is **not** independent — its
-  >   database is keyed on the same part name. The second-source column is empty on
-  >   purpose, and it is the Day 2–4 work list.
+  >   The second-source column is empty on purpose, and it is the Day 2–4 work list.
+  >
+  >   > **Corrected 2026-08-21.** This bullet used to add that `flashrom` agreeing
+  >   > on 4096 KiB is not independent *"because its database is keyed on the same
+  >   > part name"*. **That is false** — flashrom matches on `manufacture_id` and
+  >   > `model_id`, and the name is the lookup's output rather than its index. Told
+  >   > to emulate `W25Q128FV` it answers `W25Q128.V`: a different string comes out
+  >   > than went in, which a name-keyed lookup cannot do. So flashrom's answer
+  >   > **is** a second source for *which part an id denotes* — though not for
+  >   > *what the id bytes are*, which is the same clip on the same bus. The same
+  >   > wrong sentence stood in `RUNBOOK` §8.12.41 and in `P9-7`'s registered
+  >   > prediction; the RUNBOOK is corrected, the prediction is deliberately not.
   >
   > ### ★ What W02 Day 2–3 turned up
   >
@@ -407,8 +416,19 @@ that is not backed by a command someone else can re-run.
   > boot loader's `FLR`, so a systematically wrong `FLR` would be invisible to
   > every one of them. That column stays empty on purpose.
   >
-  > 📌 **The instrument now exists, is verified, and has still not been used**
-  > (2026-08-20). The CH341A that W02 measured as an un-modded 5 V board has been
+  > 🛑 **The instrument was used on 2026-08-21 and could not reach the part.**
+  > Seating the SOIC-8 clip on `U19` takes the **CH341A itself** off the USB bus,
+  > and the chip measures **1.70 V** under three different supplies — including an
+  > external regulator that held a healthy 3.3 V on its own side. **In-circuit
+  > reading does not work on this board.** Whether that is the board clamping the
+  > `VCC` net or resistance in the clip path is **open item 97**, and the committed
+  > claim is only the first half. **Nothing was read and nothing was written**; the
+  > router was never powered. `BENCH-LOG.md` 2026-08-21 實錄 carries every number.
+  > The column above therefore stays empty, now for a measured reason rather than
+  > for want of an instrument.
+  >
+  > 📌 **The instrument exists and is verified** (2026-08-20). The CH341A that W02
+  > measured as an un-modded 5 V board has been
   > re-worked — 5 V feed cut on the back, 3.3 V jumpered into that pin — and the
   > mod is confirmed **at two points in the circuit**: all eight socket pins read
   > 3.3 V (the effect, and `DO` was the 5 V board's worst pin, held 1.7 V above
