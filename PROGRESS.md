@@ -623,6 +623,22 @@ voltage on the CH341A's own pin 28.** That measurement was not taken, so the log
 records "cause not isolated", not "the soldering failed". The board is now in a
 **modified, unverified** state and must be re-measured before it is used.
 
+> ✅ **Corrected 2026-08-20.** "Modified, unverified" stood for four days and is
+> now closed by measurement at **two** points: all eight socket pins read 3.3 V,
+> and **pin 28 — the CH341A's own I/O supply, the measurement named as missing
+> two paragraphs above — reads 3.3 V.** `BENCH-LOG.md` `T-84`.
+>
+> **One of the three candidates above is refuted and the other two are now
+> unanswerable**, which is a different thing from being answered. Candidate
+> three — "`DO`'s pull-up is independent of the chip's supply, so the theory is
+> incomplete" — is refuted: `DO` came down with pin 28, so on this board the
+> pull-up rail and the chip supply are the same node. Candidates one and two (the
+> trace not actually cut; a lifted pin still touching its pad) cannot be settled
+> any more, because the board has been re-worked and the configuration that
+> failed no longer exists. **Repairing a thing destroys the evidence for why it
+> broke**, and that cost belongs on the record rather than in the gap between two
+> sentences.
+
 **The decision was to read through the boot loader instead, and the reason is
 ordering, not caution.** What is irreplaceable is the 4 MiB, not a $3
 programmer: `FLR`+`DB` is already proven *on this unit*, a second mod attempt
@@ -5377,6 +5393,24 @@ rule's evidence of working is that it catches the person who wrote it.**
   the exemption is written to disappear with the tool rather than with the week.
 - **The second `P9-6` shot** (`zzzzz`, checksum deliberately broken) is not in
   this session's order. Two changes at once answers neither.
+
+### The programmer is verified, and that is not the same as used
+
+Measured at the end of this session, with nothing clipped and the router
+unplugged: **all eight socket pins at 3.3 V, and pin 28 at 3.3 V.** Effect and
+cause, at two different points in the circuit, against a stop condition written
+before the meter came out. `BENCH-LOG.md` `T-84`.
+
+That closes W02 Day 4's "modified, unverified" and closes the SPI programmer row
+in `docs/lab-inventory.md`. It closes **nothing about the flash** — `A5.1`'s
+third item (`U19`'s body width, 150 mil against 208 mil) has not been measured,
+and that is where the next session starts, because a clip forced onto the wrong
+package lifts a leg and a board with a lifted leg does not boot.
+
+**The distinction this project keeps having to make out loud:** 2026-08-16 also
+produced a reassuring number. `VCC` read 3.3 V, and that reading *was the trap* —
+it made a board that drove 5 V into every pin the chip owns look safe. The
+difference today is not a better number, it is **two points instead of one**.
 
 ### Open, carried forward
 

@@ -372,13 +372,19 @@ that is not backed by a command someone else can re-run.
   > boot loader's `FLR`, so a systematically wrong `FLR` would be invisible to
   > every one of them. That column stays empty on purpose.
   >
-  > 📌 **The instrument now exists and has still not been used** (2026-08-20). The
-  > CH341A that W02 measured as an un-modded 5 V board has been re-worked — 5 V
-  > feed cut, 3.3 V jumpered in — and `A5.1`–`A5.5` are written, with every
-  > prediction in `BENCH-LOG.md` 2026-08-20 §2 and a stop condition that ends the
-  > session if the meter disagrees. **Having the instrument is not having the
-  > measurement**, and the distinction is exactly what this line has been holding
-  > open since 2026-08-16.
+  > 📌 **The instrument now exists, is verified, and has still not been used**
+  > (2026-08-20). The CH341A that W02 measured as an un-modded 5 V board has been
+  > re-worked — 5 V feed cut on the back, 3.3 V jumpered into that pin — and the
+  > mod is confirmed **at two points in the circuit**: all eight socket pins read
+  > 3.3 V (the effect, and `DO` was the 5 V board's worst pin, held 1.7 V above
+  > its own supply), and **pin 28**, the CH341A's own I/O supply, reads 3.3 V
+  > (the cause — and the measurement W02 recorded as missing). `BENCH-LOG.md`
+  > `T-84`.
+  >
+  > **Having a verified instrument is still not having the measurement**, and
+  > that distinction is what this line has been holding open since 2026-08-16.
+  > `A5.1`–`A5.5` are written, every prediction is in `BENCH-LOG.md` 2026-08-20
+  > §2, and nothing has been clipped.
   >
   > 🔎 What the desk *did* settle, with no clip: the boot loader carries a table of
   > 32 flash descriptors keyed on JEDEC id, and **this unit's part has no row in

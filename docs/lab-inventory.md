@@ -109,6 +109,19 @@ radio at all and never did.
 **Recommended: Pico + `serprog`**, purely because the voltage problem cannot be
 got wrong by accident, and this project has exactly one unit.
 
+> ✅ **Closed 2026-08-20, and not the recommended way.** The CH341A already on the
+> desk was re-worked instead: the 5 V feed cut on the back of the board, 3.3 V
+> jumpered into the pin it used to supply. It is verified at **two** points —
+> all eight socket pins at 3.3 V, and pin 28, the CH341A's own I/O supply, at
+> 3.3 V. `BENCH-LOG.md` `T-84`.
+>
+> **The recommendation above is left standing rather than rewritten**, because it
+> was right about the risk and this outcome does not make it wrong. A Pico still
+> cannot get the voltage wrong by accident; a CH341A still can, and this one took
+> two attempts and four days to stop getting it wrong. What settled it was a
+> measurement at two points, not the second attempt being more careful than the
+> first.
+
 > **What the absence costs, and it is the interesting one.** The flash was read
 > **through the boot loader's own `FLR` command** — the device's code, over the
 > device's UART. That is one instrument. `P9-5` exists to read the same chip with
