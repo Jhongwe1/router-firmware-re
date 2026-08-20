@@ -5360,6 +5360,15 @@ rule's evidence of working is that it catches the person who wrote it.**
 90. **`WLAN_ROOT` is 22,044 bytes and has never been decoded.** Half the
     decompressed configuration. It blocks `P7-7` and it is the reason
     `notes/compcs-decode.md` reads as more complete than it is.
+92. **The doctor's tiers do not know about station 5.** At the clip station the
+    serial adapter and the USB Ethernet adapter are deliberately *not* attached —
+    each is a second ground and a second supply into the same board — and
+    `make doctor TIER=3` reports both absences as `FAIL`. **A check that prints an
+    expected failure as `FAIL` trains an operator to read past `FAIL`**, which is
+    worse than not having the check at all. Noted in `runsheet.md` `A5.1` so a
+    reader is not misled by it; the fix is a station argument to
+    `tools/bench-doctor.sh`, and it is not being made under time pressure with a
+    clip in hand.
 91. **Does this device write its own flash during boot?** Nobody knows, and
     `A5.3` answers it either way: the prediction is that the clip read is
     byte-identical to the 2026-08-16 `FLR` read across all 4,194,304 bytes, and a

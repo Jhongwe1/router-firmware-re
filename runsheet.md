@@ -4392,6 +4392,13 @@ Bus 001 Device 007: ID 1a86:5512 QinHeng Electronics CH341 in EPP/MEM/I2C mode
   ok    CH341A (1a86:5512) is attached to this WSL instance
 ```
 
+> 🔴 **這一站有兩個 `FAIL` 是預期的，而 `A1.1` 的「有 FAIL 就不要往下」在這裡要讀細一點。**
+> `make doctor` 的 tier 3 會對 `/dev/ttyUSB*` 與 `enx*` 各報一個 `FAIL` —— 那是
+> CP2102 與 USB 網卡沒有接進 WSL，而**這一站本來就不該接它們**：兩者都是第二個接地
+> 與第二個供電源，插在同一塊板子上。第 5 站要看的只有 CH341A 那兩列。
+> **這是 `bench-doctor.sh` 的分層還沒跟上第 5 站**，記在 `PROGRESS.md` 開放題 92 ——
+> 一個把預期中的失敗印成 `FAIL` 的檢查，會訓練操作者忽略 `FAIL`，那比沒有檢查更糟。
+
 > ⚠️ **`lsusb` 缺席在這一節是 `FAIL` 而不是 `--`，那是刻意的。**
 > 沒有 `lsusb`，`flash-read.sh` 只會印一行 warning 就繼續，而 `flash-write.sh` 直接拒跑。
 > 這是儀器 bug 45 的規則：**降級成 skip 的檢查等於沒有跑**，而它降級的環境
