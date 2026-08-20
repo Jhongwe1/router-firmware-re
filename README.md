@@ -34,6 +34,19 @@ function in the binary.
 > `WSC_AUTO_LOCK_DOWN` and `IEEE80211W`; the 2018 build on this unit has neither.
 > [`notes/wlan-root.md`](notes/wlan-root.md).
 >
+> **The same day, this project broke its own first rule and caught it four hours
+> later.** Two format strings in the boot loader — `**TFTP Client Upload...` —
+> were read as saying the loader is a TFTP *client*, a design conclusion was
+> written on top of that single source, and it was pushed. "Client" names the
+> peer. The measurement that settles it had been in `BENCH-LOG.md` since
+> 2026-08-17: a read request sent to the loader came back with **516 bytes of
+> DATA from port 2098**. A wrong claim about protocol direction does not look
+> wrong — it becomes a tool that is written, tested and taken to the bench,
+> where it listens on port 69 while the loader waits to be asked, and the
+> failure arrives as "the rescue path does not work", pointing at the device.
+> The correction, and the client that replaced the server:
+> [`tools/loader-tftp.py`](tools/loader-tftp.py).
+>
 > **Latest (W08 Day 0, 2026-08-20): the boot loader has been printing
 > `chipName: UNKNOWN` since the first boot log this project captured, and the
 > answer was inside the loader.** It carries a table of 32 SPI flash

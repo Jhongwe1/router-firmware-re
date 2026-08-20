@@ -47,6 +47,7 @@
 | `A2.4` | 進救援模式，而且不上傳任何東西 | `P9-3` `P9-4` |
 | `A2.5` | **`FLW` 寫入演練 —— 全檔唯一不可逆的一節** | `P0-3` |
 | `A2.6` | **把設定區寫回去 —— 16 KiB，不是 8 個 byte** | `P10-10` |
+| `A2.7` | TFTP：先問它在供應什麼，再上傳一份它沒看過的映像 | `P9-12` |
 | **第 3 站** | **板子正常開機、web 服務中** | |
 | `A3.1` | 設好網段，並且**證明**封包是直連不是繞道 | `P1-1` |
 | `A3.2` | 一次冷開機量到「幾秒可服務」與**開機後 601 秒的視窗** | `P1-12` `P2-11` |
@@ -1680,6 +1681,84 @@ COMPCS 0xC000-0x10000              4f721579d2a01875   46f9fc090625707e   DIFF
 **這個 loader 的命令列緩衝區是 64 bytes，而且它靜靜地截斷**，不報錯。
 `A2.6.5` 的 RAM 回讀就是為了擋這件事，而它擋住了：四個磁區每一個都是
 `staged and verified in RAM` 之後才 `FLW`。
+
+---
+
+### A2.7 🔌 TFTP：先問它在供應什麼，再上傳一份它沒看過的映像（關 `P9-12`）
+
+| 層 | 動到裝置 | 為什麼這一節存在 | 最後驗證 |
+|---|---|---|---|
+| T3 | `probe`/`get` **純讀**；`put` 送 bytes 但 **`AUTOBURN 0` 之下不寫 flash** | [`RUNBOOK` §8.12.45](RUNBOOK.md) | 2026-08-21 |
+
+**先決條件**：`A2.4` 跑過，而且它的 JSON 留著（`put` 會去解析它）；網路線在 LAN 埠
+
+> 🔴 **loader 是 TFTP 伺服器，不是客戶端。** 2026-08-17 `T-09` 送了一個 RRQ 給它，
+> 回來 **516 bytes DATA (opcode 3) from `:2098`**。2026-08-21 曾經照著兩個格式字串
+> （`**TFTP Client Upload...`）把方向讀反、寫進兩個 committed 檔案，隔幾小時被這一行
+> 量測推翻。**回覆從一個新的臨時 port 來，不是從 69 回來** —— 一支照 69 過濾的
+> 客戶端會什麼都收不到，然後報「服務死了」。
+
+**先確認服務會回應，一個請求、只收第一塊、不寫檔：**
+
+```bash
+./tools/loader-tftp.py probe --host 10.1.1.1 --report "$HOME/fwre-work/dumps/w08-tftp-probe.json"
+```
+
+**預期**：
+
+```text
+  ok    DATA opcode 3 from 10.1.1.1:2098, 512 bytes in 1 block
+```
+
+> ⚠️ **`probe` 有回應只證明服務活著，不證明檔案存在。** 這個 loader **不看檔名** ——
+> `T-09` 用一個不存在的檔名照樣拿到一整塊。
+
+**開放題 96 —— 這一節真正要答的東西，而且它一次進站就答得完：**
+
+```bash
+./tools/console-dump.py cmd --port /dev/ttyUSB0 FLR 300000 81000000 1000
+./tools/loader-tftp.py get --host 10.1.1.1 -o "$HOME/fwre-work/dumps/w08-tftp-a.bin"
+./tools/console-dump.py cmd --port /dev/ttyUSB0 FLR 000000 81000000 1000
+./tools/loader-tftp.py get --host 10.1.1.1 -o "$HOME/fwre-work/dumps/w08-tftp-b.bin"
+cmp -l "$HOME/fwre-work/dumps/w08-tftp-a.bin" "$HOME/fwre-work/dumps/w08-tftp-b.bin" | wc -l
+```
+
+**預期 —— 而兩個結果指向相反的答案：**
+
+```text
+0
+```
+
+> 🔴 **兩份不同 → loader 供應的是 RAM 裡 load address 的內容**，所以 `get` 是
+> `FLR` 輸出的快速通道：4 MiB 從 105 分鐘變成幾秒，而且是**第二條傳輸路徑**
+> （排除掉序列線，排除不掉別的 —— 兩條都經過 SoC 自己的 SPI 控制器）。
+> **兩份相同（`0`）→ 它跟 `FLR` 無關**，自己有一份固定來源，那時 `T-09` 那 516 byte
+> 對上 flash `0x060010` 就要重新解釋。在這一步做完之前，`get` 的來源是**假設**的。
+
+**然後才是 `P9-12`：上傳一份這台沒看過的映像，而且一個 flash byte 都不寫。**
+
+```bash
+./tools/loader-tftp.py put --host 10.1.1.1 \
+        --image "$HOME/fwre-work/w08-ramboot.bin" \
+        --rescue-report "$HOME/fwre-work/dumps/rescue.json" --yes \
+        --report "$HOME/fwre-work/dumps/w08-tftp-put.json"
+```
+
+**預期**：
+
+```text
+  ok    rescue transcript for 10.1.1.1 shows AutoBurning=0
+  ok    ... bytes in ... blocks to 10.1.1.1:2098
+```
+
+> 🔴 **`put` 看不到主控台，所以它去解析 `A2.4` 留下的那份 JSON。**
+> 找不到針對同一個位址的 `AutoBurning=0` 就拒跑 —— 那個開關決定上傳的東西會不會
+> 被寫進 flash，而這支工具沒有任何一條路徑送得出 `AUTOBURN 1`。
+
+> ❌ **`J` 不由工具送，手打在主控台上。** 跳轉是對唯一一台機器的狀態改變。
+> 而 `P9-12` 的凍結反證條件寫得很清楚：**`J` 之後主控台沒有輸出，分不出「跳過去了
+> 但沒東西講話」與「根本沒跳」** —— 所以上傳的映像第一件事就要往 UART 寫一個字元，
+> 否則這一列只能記 `partial`。
 
 ---
 
@@ -5149,3 +5228,21 @@ boot loader 自己的 `FLR`，所以一個系統性的讀取錯誤對它們三�
 `WLAN_ROOT` 六個區塊全部解開，判定 `refuted`，證據在
 [`notes/wlan-root.md`](notes/wlan-root.md)。**不需要裝置，所以它不佔這一場的任何一次
 夾子就座或電源循環**，登記簿的 W08 從 0/8 變成 1/8。
+
+## B-W08 增補之二（2026-08-21 桌面第二場，仍然寫在夾子上去之前）
+
+**上面兩張表都不改。** 這一則只更正一個理由，而且那個理由現在只錯了一半。
+
+`B-W08` 的「這一場不做」把 `P9-10` / `P9-12` 的理由寫成「兩列都還沒有工具」。
+**工具現在有了**：`tools/loader-tftp.py`（`probe` / `get` / `put`）與
+`runsheet.md` `A2.7`。**沒有變的那一半是重點**：這一場仍然不做它們，因為
+`A2.7` 是**第 2 站**（板子停在 `<RealTek>`）而這一場的裝置狀態是**斷電**，
+兩者接不起來 —— 這跟第 5 站接不在第 4 站後面是同一個理由。
+
+**而工具從來沒有碰過裝置。** `A2.7` 裡每一句關於 loader 會怎麼回應的話，
+都是關於一支程式的主張，不是關於一場對話的主張。
+
+**`A2.7` 的第一件事不是 `P9-12`，是開放題 96。** `T-09` 量到 loader 對一個不存在的
+檔名回了 516 byte，而那些 byte 對上 flash `0x060010`。它供應的是 RAM 裡 load address
+的內容，還是它自己有一份固定來源？**兩次 `FLR` 打不同範圍、中間各 `get` 一次就分得
+出來**，而在那之前 `get` 的來源是假設的。先答那一題再上傳，順序寫在 `A2.7` 裡。

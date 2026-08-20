@@ -173,6 +173,15 @@ jobs:
       - name: flash writer — every range it must refuse, and two it must accept
         run: bash tools/test-console-write.sh
 
+      # Added in the same commit as the tool, which is the only way this list
+      # has ever stayed in step. The client under test can otherwise only be
+      # exercised by pulling the unit's power and stopping it at <RealTek>, so
+      # a stand-in server drives every branch here — including a `put` that
+      # must refuse unless a rescue transcript shows AutoBurning=0, because
+      # with that switch on an upload is written to flash.
+      - name: loader TFTP client — the transfer id, and the upload it must refuse
+        run: bash tools/test-loader-tftp.sh
+
       # And two more that were in `make ci` and not here — the same divergence
       # this job's own header describes, found again on 2026-08-18 and this time
       # in both directions at once: the ledger check was here and not in

@@ -5617,11 +5617,11 @@ the loosened rule is still strictly narrower than "pick the first match".
   an instrument one. "Relatively isolated" is not yet a number: a scan taken
   before transmitting, recording how many BSSIDs are visible and at what RSSI,
   is what would turn it into a precondition that can fail.
-- **`P9-10` / `P9-12`'s loader tooling.** One thing was established at the desk
-  and it changes the design: the loader's strings are **TFTP *Client*** —
-  `**TFTP Client Upload File Size = %X Bytes at %X` and
-  `*TFTP Client Download Success!` — so the work is a TFTP **server** on the WSL
-  side, not an upload client. No tool was written.
+- **`P9-10` / `P9-12`'s loader tooling.** ~~The loader's strings are **TFTP
+  *Client***, so the work is a TFTP **server** on the WSL side.~~ **Struck
+  through: this was wrong, and it was corrected the same day — see
+  § Corrections below and `tools/loader-tftp.py`.** The tool was written after
+  the correction.
 - **The write-up draft.** Chapter 8 only acquired `WLAN_ROOT` today and chapter
   14 is waiting on this week's measurements. Drafting now means redrafting
   within the week, which `plan/W08` §六 forbids for its own reasons.
@@ -5664,3 +5664,129 @@ unchanged.
     advertise a PIN that no enrollee can complete, is unmeasured. **One source:
     this session computed the standard checksum in Python.** The second would be
     the vendor's own validator, if there is one, in `wscd` or `boa`.
+
+## W08 Day 1, second desk session — the loader is the TFTP server, and this repository had measured that four days ago — 2026-08-21
+
+**Desk only, no device.** `BENCH-LOG.md` 2026-08-21 補記 carries the correction
+in the append-only form; this section carries what it changed.
+
+### Instrument bug 49, and it is the one this project is supposed to be immune to
+
+Earlier today two format strings out of the loader's LZMA second stage were read
+as saying the loader is a TFTP *client*::
+
+    **TFTP Client Upload, File Name: %s
+    *TFTP Client Download Success! File Size = %X Bytes
+
+**"Client" names the peer.** The loader is the **server**, and the design
+conclusion drawn from that misreading — "the work is a TFTP server on the WSL
+side" — went into `PROGRESS.md` and `BENCH-LOG.md` and was **pushed**.
+
+**The measurement that settles it was already in this repository, from
+2026-08-17.** `BENCH-LOG.md` `T-09`:
+
+```
+TFTP RRQ(a filename that does not exist) -> 516 bytes DATA (opcode 3) from :2098
+```
+
+A read request was answered with data. The same record card carries two more
+facts that the tool is now built around, and both were filed as open and not
+pursued: **the filename is ignored** — a name that exists nowhere still returned
+a full block — and the 516 bytes were byte-identical to the `cr6c` payload at
+flash `0x060010`.
+
+**Three things about how this happened are worth more than the fix.**
+
+* **It is the repository's own first rule, broken in the week that exists to
+  enforce it.** One source — two format strings — read once, and a design
+  written on top of it. The second source was not missing, was not expensive,
+  and was not somewhere else: it was in the file the same session had appended
+  to four hours earlier.
+* **`console-dump.py` was already printing the answer.** Its `rescue` help text
+  lists what shows the link is live, and the third item is *"a TFTP read request
+  comes back with DATA"*. That sentence describes a server. It was read past.
+* **A wrong claim about protocol direction does not look wrong.** It produces a
+  tool that would have been built, tested, committed and taken to the bench,
+  where it would have sat listening on port 69 while the loader waited to be
+  asked. The failure would have arrived as "the rescue path does not work",
+  three power cycles into a session, pointing at the device.
+
+The one thing that went right: the tool was not written first. The design note
+was written first, and writing it out is what made the claim big enough to check.
+
+### `tools/loader-tftp.py`
+
+A TFTP **client**, three subcommands, and the protocol detail this loader makes
+load-bearing is the transfer id: **the reply comes from a fresh ephemeral port,
+not from 69** (`:2098` when the bench looked). The peer *address* is pinned and
+checked on every datagram; the peer *port* is learned from the first reply and
+pinned from then on. A client that filters on 69 sees nothing and reports the
+service as dead.
+
+| | |
+|---|---|
+| `probe` | one request, first block only, nothing written. Reproduces `T-09` and reports the transfer id |
+| `get` | the fast read path. `FLR` puts flash in RAM and this moves RAM over Ethernet — against **105 minutes** for 4 MiB through `DB` at 38400. **A second transport, not a second instrument**: both reach the die through the SoC's own SPI controller, so it rules out the serial line and rules out nothing else |
+| `put` | `P9-12`. With `AUTOBURN 0` an uploaded image lands in RAM and **no flash byte is written** |
+
+**`put` cannot see the console, so it does not pretend to.** It requires the
+JSON `console-dump.py rescue` writes, **parses it**, and refuses unless it finds
+`AutoBurning=0` for this same host — the switch that decides whether an upload
+is written to flash. A transcript showing `AutoBurning=1`, a transcript that
+never confirmed the switch, and a transcript for a different address are three
+separate refusals with three separate tests. `--yes` is required on top.
+
+**It does not send `J`.** A jump is a state change on the only unit there is and
+it belongs where a person is watching the console.
+
+### Instrument work
+
+| | |
+|---|---|
+| `tools/loader-tftp.py` | new. Refuses: a hostname where an address is required, an existing output file, a gap in the block numbers, an ERROR packet rendered as a short transfer, a transfer with no final short block, a datagram from another address, and every `put` whose rescue transcript does not vouch for it |
+| `tools/test-loader-tftp-fake.py` | new. A stand-in server that can **misbehave** — skip a block, answer with ERROR, never send a short block, drop the first request. A client whose tests only meet a well-behaved peer has no evidence its refusals fire |
+| `tools/test-loader-tftp.sh` | **17 cases**, two of them controls that must *succeed* (a 1500-byte read whose bytes are compared, not just counted; a 1536-byte upload compared byte for byte at the far end) |
+| `Makefile` · `.github/workflows/ci.yml` | added to **both**, in the same commit as the tool. `check-ci-parity.py` confirms 24 scripts in both lists |
+
+**The stand-in answers from a different port by default**, because that is what
+the loader did. Every read case is therefore also evidence that the client
+follows the transfer id rather than the port it asked.
+
+**A `--port` flag exists on the client and it is not for the device.** It is
+there so the whole file can be driven with no hardware attached. A network tool
+that can only be exercised by pulling the power on the only unit there is, is a
+network tool whose first real run happens at the bench.
+
+### Corrections to the plan
+
+- **`PROGRESS.md` W08 Day 1 and `BENCH-LOG.md` 2026-08-21 both said the work
+  here was a TFTP server. Both were wrong and both were pushed.** The PROGRESS
+  sentence is struck through in place and pointed here; `BENCH-LOG.md` is
+  append-only and carries a 補記, which is the third time that file has been
+  corrected by appending rather than editing.
+- **`runsheet.md` `B-W08` lists `P9-10` / `P9-12` as "no tool exists".** Half of
+  that is now false — the transfer tool exists — and the other half is not:
+  nothing has been sent to a loader yet. Recorded here; `B-W08` is append-only.
+
+### Deliberately not done
+
+- **Nothing was sent to the device.** The client has never met the loader. Every
+  claim above about what it will do at the bench is a claim about a program, not
+  about a conversation.
+- **`P9-10` is untouched.** It needs `AUTOBURN 1`, which writes flash, and this
+  tool has no path that sends it. `P9-12` is the non-destructive half and it is
+  the one with a procedure.
+- **`J` is not automated**, and the reason is in the tool's own output rather
+  than only here.
+
+### Open, carried forward
+
+Unchanged, plus:
+
+96. **What does the loader serve, and from where?** `T-09` recorded 516 bytes
+    matching the `cr6c` payload at flash `0x060010`, from a filename that exists
+    nowhere. Whether the loader serves *RAM at the load address* or reads flash
+    itself decides whether `get` is a fast path for `FLR` output or a second
+    reader of the part. **It is answerable in one visit**: `FLR` a range with a
+    distinctive pattern into RAM, then `get`, and see whether the bytes follow
+    the `FLR`. Until that is done, `get` is a transport whose source is assumed.
