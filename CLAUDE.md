@@ -50,8 +50,12 @@ Then: run each test, record it with `python3 tools/rtcase.py record --id … `
 **Do not write test outcomes into prose in `PROGRESS.md`** — that file owns
 gates and weeks, not individual tests.
 
-Nine items were deliberately cut, each with its reason in the register. Do not
-quietly reinstate one; if a cut looks wrong, argue with the reason first.
+Twenty-three items were deliberately cut, each with its reason in the register
+and each with the condition that would bring it back. Do not quietly reinstate
+one; if a cut looks wrong, argue with the reason first. **The register keeps
+"out of scope by consent", "blocked on an instrument" and "traded away on
+purpose" apart, and so should you** — collapsing them is how "I chose not to"
+becomes "I could not", which is the flattering direction.
 
 ## The rule that outranks the others
 

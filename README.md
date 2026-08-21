@@ -636,7 +636,7 @@ that is not backed by a command someone else can re-run.
   - [x] **the `FLW` recovery path rehearsed** — this is G3.5 #5, cited and not restated. Closed 2026-08-17
   - [x] **isolation verified** — exactly two MAC addresses on the segment, eight packets each, no DNS and nothing outbound. The control is that the capture recorded 16 packets at all: an earlier one recorded **zero**, and zero proves nothing until the link is known to deliver
   - [x] **IoC pre-check** — both halves, against criteria written before the check: **the live config differs from this unit's own factory baseline in 4 of 343 entries**, no fifth, and every port the register named is closed
-  - [x] **the prediction ledger is frozen** ← [`test-ledger.md`](test-ledger.md) — **138** registered tests, **124** carrying a written refutation condition, hashed and committed **before any request is served**; W05 closed **27 of 27**, and W08's three newest rows were frozen at the desk and closed at the bench the same night
+  - [x] **the prediction ledger is frozen** ← [`test-ledger.md`](test-ledger.md) — **141** registered tests, **127** carrying a written refutation condition, hashed and committed **before any request is served**; W05 closed **27 of 27**, and W08's three newest rows were frozen at the desk and closed at the bench the same night
   - [x] **the disclosure register is written** ← [`docs/disclosure.md`](docs/disclosure.md) — seventeen rows, what each is worth, and the rule that decides what gets published
 
   > ### ★ Why this gate exists
@@ -660,11 +660,29 @@ that is not backed by a command someone else can re-run.
   > of those refusals actually fires, and CI runs it beside the gate — because a
   > gate that has never been seen to fail is the shape of instrument bug 12.
   >
-  > **Nine items were cut rather than run**, each with its reason in the ledger:
-  > post-exploitation persistence, anti-forensics, lateral movement, credential
-  > harvesting on a live host, downgrading the unit to reinstall a factory
-  > backdoor, and the wireless attacks whose radiation reaches third parties.
-  > None of them produce a checkable fact about this device.
+  > **Twenty-three items were cut rather than run**, each with its reason in the
+  > ledger and each with the condition that would bring it back. They are three
+  > different things and the ledger does not blur them.
+  >
+  > **Out of scope by consent** — post-exploitation persistence, anti-forensics,
+  > lateral movement, credential harvesting on a live host, downgrading the unit
+  > to reinstall a factory backdoor, and the wireless attacks whose radiation
+  > reaches third parties. None of these produce a checkable fact about this
+  > device, and buying equipment does not change that.
+  >
+  > **Blocked on an instrument** — the wireless tests that need a monitor-mode
+  > adapter, and the three SPI-clip tests, which stopped when the part measured
+  > **1.70 V against a 3.3 V supply**. **These would produce checkable facts**,
+  > and their absence is the first entry in the write-up's *what this does not
+  > prove*: no second instrument has ever read this unit's flash, and the JEDEC
+  > id has never been read, so `Eon EN25QH32B` still rests on the ink on the
+  > package.
+  >
+  > **Traded away on purpose** — the one irreversible reflash. Its preconditions
+  > were met; it was cut anyway, because `P9-12` already handed this SoC 156
+  > bytes of code it had never seen **without writing a flash byte**, and what
+  > the reflash adds on top of that is persistence across a power cycle — paid
+  > for with the only unit there is.
 
 - [x] **G4 — a PoC a stranger can follow** (W05–W06) ✅ **passed 2026-08-18**, clause 3 split ← [PROGRESS.md](PROGRESS.md#w07-day-0--g4-closed--2026-08-18)
   - [x] a chain on the physical unit, each link separately pointable — [`poc/`](poc/)
@@ -765,7 +783,7 @@ that is not backed by a command someone else can re-run.
 | [`poc/`](poc/) | **The reproductions** — two public CVE chains with the requests, the flash-byte evidence, and one file that deliberately carries **no request at all** because what it describes has not been reported to anyone. `run.sh` runs against a device or against an emulated copy, and says which step failed |
 | [`docs/report-draft.md`](docs/report-draft.md) | **The report that has not been sent** — what would go to TWCERT/CC, what is attached and what is not, and the one step that is blocking it |
 | [`docs/disclosure.md`](docs/disclosure.md) | **The disclosure register** — what might be new, what state it is in, and the rule separating a finding from a reproduction from tradecraft. Two entries were **withdrawn** on 2026-08-17, one of them by prior art that a by-handler search found in a single query |
-| [`test-ledger.md`](test-ledger.md) | **The test register, generated** — 138 tests with their predictions frozen before the first request, what would refute each, and what nine items were cut and why (Traditional Chinese) |
+| [`test-ledger.md`](test-ledger.md) | **The test register, generated** — 141 tests with their predictions frozen before the first request, what would refute each, and what **23** items were cut, why, and what would bring each one back (Traditional Chinese) |
 | [`notes/attack-surface.md`](notes/attack-surface.md) | Where to look, ranked |
 | [`notes/ghidra-triage.md`](notes/ghidra-triage.md) | Which functions to open first, and why — with the three W01 calls W03 overturned |
 | [`notes/dispatch-table.md`](notes/dispatch-table.md) | `root_form[]` recovered: every `/boafrm/` route in both builds, and what changed between them |

@@ -51,8 +51,8 @@ W05 週計畫原本要另外建一份 `notes/prediction-scorecard.md`（12 條�
 
 | | |
 |---|---|
-| 登記項目 | **141**（排入 124，砍掉 17） |
-| 已寫反證條件（凍結） | **127** / 124 |
+| 登記項目 | **141**（排入 118，砍掉 23） |
+| 已寫反證條件（凍結） | **127** / 118 |
 | 已執行 | **115** |
 | 其中以真機動態證據收掉 | **79** |
 | 其中以模擬環境執行收掉（**不是矽上**） | **20** |
@@ -71,7 +71,7 @@ W05 週計畫原本要另外建一份 `notes/prediction-scorecard.md`（12 條�
 | **W05** | Phase 0, 1, 2, 3, 6, 9 | 27 / 27 | `▰▰▰▰▰▰▰▰▰▰` |
 | **W06** | Phase 0, 2, 3, 4, 5, 10 | 20 / 20 | `▰▰▰▰▰▰▰▰▰▰` |
 | **W07** | Phase 1, 2, 3, 4, 5, 6, 8, 9, 10 | 58 / 58 | `▰▰▰▰▰▰▰▰▰▰` |
-| **W08** | Phase 7, 9 | 5 / 14 | `▰▰▰▰▱▱▱▱▱▱` |
+| **W08** | Phase 7, 9 | 5 / 8 | `▰▰▰▰▰▰▱▱▱▱` |
 
 ## 圖例
 
@@ -631,25 +631,9 @@ W05 週計畫原本要另外建一份 `notes/prediction-scorecard.md`（12 條�
 
 | ID | 項目 | § | 可行性 | 出場證據 | 排程 | 結果 | 證據 |
 |---|---|---|---|---|---|---|---|
-| **P7-3** | 惡意 Beacon → Site Survey 表溢位 | 10.2 | ★★★☆☆ | 🟨 | W08 | ⬜ | — |
-| P7-4 | 惡意 WPS IE（Device Name 長度欄 2 bytes） | 10.2 | ★★★☆☆ | 🟨 | W08 | ⬜ | — |
 | P7-7 | 預設 PSK 推導（或直接讀 COMPDS） | 10.5 | ★★★☆☆ | 🟦 | W08 | ❌ 預測的前提不成立，而反證條件本身無法評估——照 2026-08-19 給 `P5-2` 的同一種處理，登記簿的凍結條件不改，結果照條件的字面去記，不足之處寫在這裡。登記簿寫「出廠 PSK 已經在 COMPDS 裡解出來了」。把 `WLAN_ROOT`（22,044 byte，佔解壓設定的一半，今天之前從未被解過）解開之後，六個無線介面區塊每一個的 `ENCRYPT`(0x0019) 都是 0，`WPA_PSK`(0x001e) 與 `WSC_PSK`(0x0115) 65 byte 全零，WEP 四把鑰匙也全零，`SSID` 是固定的 `TOTOLINK N150RT`（沒有每台不同的尾碼）。**這台出廠是一個開放網路，沒有 PSK 可以推導**，所以「推導公式算出來的值與 COMPDS 裡的不同」連比對的對象都不存在。第二來源是裝置自己的 `/bin/flash`：`dumps/w07-enc.txt` 只有一行 `ENCRYPT=0`，與靜態解碼一致。順帶：WPS 是開的（`WSC_DISABLE`=0、`WSC_METHOD`=3、`WSC_REGISTRAR_ENABLED`=1），而 2020 那兩個 build 的無線 MIB 表多了 `WSC_AUTO_LOCK_DOWN` 與 `IEEE80211W`，這一版兩者都沒有。範圍：這是一份靜態解碼加上裝置自己 MIB 讀取工具的一行輸出，說的是出廠映像裡有什麼，**不是**現在空中在傳什麼——本專案至今沒有收過任何一個 802.11 frame。 | [compds-unit-2018.json](reports/compds-unit-2018.json) · [compcs-unit-2018.json](reports/compcs-unit-2018.json) · [mib-table-unit-2018.json](reports/mib-table-unit-2018.json) · [wlan-root.md](notes/wlan-root.md) |
 
-<details><summary>Phase 7 的預測與反證條件（3/3 項已凍結）</summary>
-
-**P7-3 — 惡意 Beacon → Site Survey 表溢位**
-
-- ⚠️ **無線發射，且 beacon 是廣播。需要衰減或屏蔽環境；不能在共用頻段直接灑**
-- 預測：這台的 Site Survey 頁不需要憑證就能觸發（P2-1），所以掃描動作可以自己發起，不必等管理員
-- **反證：超長 SSID 的 beacon 完全不出現在 Site Survey 表 → 有長度截斷，溢位面不存在**
-
-**P7-4 — 惡意 WPS IE（Device Name 長度欄 2 bytes）**
-
-- ⚠️ **無線發射**
-- 預測：WSC 的屬性是 2-byte type + **2-byte length**，而設定頁上 Device Name 的上限是 32。一個宣告超長 length 的 Device Name 屬性，塞在**信標或探測回應**的 WPS IE 裡，走的是掃描端的解析路徑而不是關聯路徑 —— 而 `P2-1` 已經確認這台的 Site Survey **不需要憑證就能觸發**，所以掃描動作可以自己發起。預測：解析端把宣告長度當成可信值拷進固定大小的緩衝區，`wscd` 或 `boa` 其中之一出現可觀察的異常（行程消失、連線被拒、或頁面回不完整）。
-
-**儀器側的限制寫在前面而不是事後**：這一發由 ESP8266 的 `wifi_send_pkt_freedom` 送出，它送得出管理框，單框長度上限約 1400 byte。所以「宣告長度 0xFFFF、實際只帶 40 byte」這種形式送得出去，而「真的塞 65535 byte」送不出去 —— **這一列測的是解析端信不信那個宣告值，不是它擋不擋得住真的長資料**。這兩件事不一樣，混為一談會把一個負面結果讀成正面結果。
-- **反證：（a）帶著超長宣告的 beacon 完全不出現在 Site Survey 表，而**同一片板子送出的正常 beacon 出現得了** → 解析端在讀那個長度欄之前就把框丟掉了，這條攻擊面不在掃描路徑上。**那個對照組是必要的**：只送惡意框而沒有出現，跟「ESP8266 根本沒送出去」從外面看一模一樣 —— 這是 `P6-1` 那個對照組的同一課。（b）出現了、而且 SSID／Device Name 被安全截斷成 32 字元，`wscd` 與 `boa` 都活著 → 有長度檢查，溢位面不存在，那是一個可以寫的正面結論。**
+<details><summary>Phase 7 的預測與反證條件（1/1 項已凍結）</summary>
 
 **P7-7 — 預設 PSK 推導（或直接讀 COMPDS）**
 
@@ -809,11 +793,7 @@ W05 週計畫原本要另外建一份 `notes/prediction-scorecard.md`（12 條�
 | P9-2 | FLR / DB 全 flash 讀出（＝ P0-1） | 12.2 | ★★★★★ | 🟥 | W02 | ✅ FLR+DB 105 分鐘、零 chunk 重試；W01 導出的三個 burn address 全中 | [flash-layout.md](notes/flash-layout.md) · [flashdump-unit-2018.json](reports/flashdump-unit-2018.json) |
 | P9-3 | bootloader TFTP / HTTP 救援 | 12.3 | ★★★★☆ | 🟥 | W05 | 🔶 救援模式進得去,凍結的反證條件不成立。AUTOBURN 0 → AutoBurning=0;IPCONFIG 10.1.1.1 → Now your Target IP is 10.1.1.1(**冒號形式兩個都回 Unknown command !,說明文字不是語法**)。網路活著,兩個來源:ARP 解析成功,以及 kernel 自己的 rx_packets 0→1。TFTP 服務確認會回應 —— 對一個不存在的檔名回 516 bytes 的 DATA(opcode 3)。判 partial 是因為預測寫的是「tftp **put** 可用」,而上傳依本場的非破壞性上限不做。**我自己寫在計畫裡的成功條件(ping 有回應、MAC 是這台)兩半都不成立,而那是我的條件錯了**:TFTP-only 的堆疊沒有義務實作 ICMP,loader 的 MAC 是從 IP 合成的(0a 01 01 01 = 10.1.1.1)。計畫外:TFTP GET 不看檔名,吐出的 516 bytes 與 flash 0x060010 起的 cr6c 酬載逐 byte 相同 —— 列為開放題。 | [BENCH-LOG.md](BENCH-LOG.md) |
 | P9-4 | 搶重開機瞬間的救援窗口上傳韌體 | 12.3 | ★★☆☆☆ | 🟦 | W07 | ✅ The boot loader puts nothing on the wire during a boot nobody interrupts. Two independent cold boots, captured passively with tcpdump armed before power was applied. Cycle 2: the serial port was not open by any process at all (fuser reported nobody), and the device emitted zero frames until t=19.947 s, when its first frame was an ARP REPLY from the Linux MAC. Cycle 3: the port was open read-only for the timestamped console log and nothing was ever sent to it; same result. Across both captures, udp.port==69 or tftp matched zero packets at any time. A free negative control fell out of the ARP cache: the host's first three ARP requests went UNICAST to 56:0a:01:01:01:e8, the address the loader had synthesised from IPCONFIG ten minutes earlier in A2.4, and the loader did not answer - its network stack does not survive a power cycle and exists only after a serial IPCONFIG. A2.4 is the positive control for the same stack: told to come up, it answers ARP and moves the host's rx_packets counter. The refutation was 'a passive capture on the isolated segment sees the loader send ARP or TFTP while nothing touches the serial port, which would mean anyone who can reboot this device can rewrite its firmware from the LAN'. It did not fire in either capture. | [BENCH-LOG.md](BENCH-LOG.md) · [bootloader-unit-2018.json](reports/bootloader-unit-2018.json) |
-| **P9-5** | SPI 直讀 dump（第二支儀器） | 12.4 | ★★☆☆☆ | 🟨 | W08 | ⬜ | — |
-| P9-6 | SPI 直寫植入 | 12.4 | ★★☆☆☆ | 🟨 | W08 | ⬜ | — |
-| **P9-7** | 讀 JEDEC ID（flash 型號的第二來源） | 12.4 | ★★☆☆☆ | 🟨 | W08 | ⬜ | — |
 | P9-9 | Reset 按鈕行為 | 12.6 | ★★★★★ | 🟥 | W07 | ✅ 第 2 次 Re-recorded: the previous run of this record lost four spans to shell command substitution (backticks in a double-quoted argument). Same measurement, complete text. The amended prediction held on all three clauses, and the amendment was frozen before the button was pressed (freeze ef7ab66d -> ea8cf733, commit b88b932). Clause 1: the reset restored the configuration from a hard-coded table, NOT from the DEFAULT_SETTING region that this project's own W05 POST round had corrupted. Measured with one unauthenticated GET /config.dat before and after. Before: 7510 bytes, DHCP_MTU_SIZE=0, UPNP_ENABLED=0, ALG_SIP_ENABLED=0, SSH_ENABLED=0, and 20 of 343 named fields off the 2026-08-16 baseline. After: 7490 bytes, sha256 e09cbf8428aa15944ed75939e79820c5..., which is byte-for-byte the 7490-byte COMPCS region of the 2026-08-16 flash dump, and 0 of 343 named fields differ. That matters because COMPDS itself was damaged: the 2026-08-18 station-2 snapshot decodes 25 of 343 factory-default fields off the pristine read, DHCP_MTU_SIZE 1500->0 among them, and COMPDS against COMPCS was 0/343 - so the register's ORIGINAL prediction, that reset copies COMPDS over COMPCS, had no discriminating power on this device today and was replaced before the button. The mechanism the new prediction named was read statically beforehand: /bin/reload (PID 291 in the previous session's ps) polls /proc/load_default and runs 'flash default-sw', while /bin/flash's own usage text separates 'default -- write all flash parameters from hard code' from 'reset -- reset current setting to default'. The button takes the former. Clause 2, the cell this row is really about: H601 UNCHANGED. 'flash allhw' after the reset returns HW_NIC0_ADDR, HW_NIC1_ADDR, four WLAN addresses and every TX power calibration table intact and non-zero, and HW_NIC0_ADDR matches both the ARP reply on the wire and the raw bytes at flash 0x006000 in seven snapshots spanning 2026-08-16 to 2026-08-18. Refutation branch (b) did not fire. Clause 3: eth1 came up MTU:1500 (it had been MTU:0 for two days) and transmitted, and with the cable in the WAN port the device completed a full DISCOVER/OFFER/REQUEST/ACK - the third independent verification of P8-19's chain, and the only one that changed nothing by hand. NOT done: the byte-level H601 comparison from a second station-2 dump, and the state of COMPDS after the reset. Both need the boot loader console and the session ended before that; the seven-snapshot 'before' baseline does not go stale, so the comparison is still available. Corrected in the same session: runsheet A3.24's own H601 command dumped 0x3F0000, which is erased flash (0 non-FF bytes in 4096, against 4093 at 0x006000), so the one step that section called unskippable was comparing 0xFF against 0xFF - a control that could not fail, sitting on this row's only real question. | [BENCH-LOG.md](BENCH-LOG.md) · [device-liveness.py](tools/device-liveness.py) · [compcs-unit-2018.json](reports/compcs-unit-2018.json) |
-| P9-10 | 改造韌體回刷 / implant | 12.7 | ★★★☆☆ | 🟨 | W08 | ⬜ | — |
 | P9-12 | 換自製 flash / tftpboot RAM kernel（HW-b/c） | 12.8 | ★★★☆☆ | 🟦 | W08 | ✅ J 80500000 handed control to a 156-byte image the device has never seen: the loader printed ---Jump to address=80500000 (0x8040B35C) and the payload then printed *** N150RT RAMBOOT P9-12 4baee517 *** repeatedly. The nonce and the marker occur zero times in the 4 MiB flash dump and zero times in the decompressed loader stage 2, checked before the build. Zero flash bytes written: AutoBurning=0 echoed in this same boot, autoburn read at exactly one place (0x80401B9C) where beqz skips the burn routine, and the cr6c header plus the boot loader head verified unchanged afterwards. The upload was also proved to land by a byte-identical TFTP round trip before any jump. First attempt truncated at 16 bytes per iteration (the 16550 FIFO depth) because the payload read a register in the MIPS-I load delay slot; fixed and re-run as a single-variable experiment. | [MANIFEST.json](dumps/MANIFEST.json) |
 | **P9-13** | 韌體映像驗收檢查：這個 build 實際驗哪幾個欄位（純靜態，不回刷） | 12.7 | ★★★★☆ | 🟦 | W07 | 🟥 Checksum only, and the addresses are in the note. UpgradeByData @0x00460798 (1608 bytes) is the whole acceptance path and it does exactly three things: memcmp against the four-byte section tags cr6c/w6cg/r6cr at 0x004608cc, 0x00460924, 0x0046097c; a checksum, FUN_00460600 called at 0x00460a98 for cr6c and r6cr and FUN_00460690 at 0x00460aec for w6cg; and a strncmp at 0x00460a04 against a model string the caller supplies. Both checksums are additive with no key - FUN_00460600 sums big-endian halfwords and requires 0, FUN_00460690 sums bytes and requires 0 with a length cap of 0x800000. No signature, no hw_version, no anti-rollback: strings over the whole binary finds no signature/RSA/pubkey/pem/hw_version match, and the listing has no room for one. Read at instruction level with BoaListing, not from the decompiler. The model string form_formUpload passes at 0x0044f4dc is the literal TOTOLINK-N150RT-V2.1.0 while this unit reports TOTOLINK-CX-N150RT-V2.1.6-B20171121.1002, and nothing compares the two - the accepted label is an older, published version string. | [firmware-upgrade-path.md](notes/firmware-upgrade-path.md) · [ghidra-xref-unit-2018-upgrade.json](reports/ghidra-xref-unit-2018-upgrade.json) |
 | **P9-14** | `FLW` 的第四個參數（`<SPI cnt#>`）：指令表說 4，handler 讀 3 | 12.3 | ★★★★★ | 🟦 | W08 | ✅ 四格 FLW 只差第四個參數（無 / 0 / 5 / DEADBEEF），印出來的那一行逐字相同，flash# 永遠是 1。四格全部答 N，Abort!，零 flash 寫入。li a2,1（0x80409BE4）是那個 %d 的唯一來源。順帶：裝置自己印出的 ? 說明字串含 ': Write offset-data to SPI from RAM'，手抄那份把它截掉了。 | [BENCH-LOG.md](BENCH-LOG.md) |
@@ -823,7 +803,7 @@ W05 週計畫原本要另外建一份 `notes/prediction-scorecard.md`（12 條�
 | **P9-17** | `J` 的網路死因：把中斷還原，TFTP 會不會回來 | 12.8 | ★★★★☆ | 🟦 | W08 | ⬜ | — |
 | **P9-19** | 假的提示字元與前導空白：把 2026-08-21 那次 `Unknown command !` 照著重現 | 12.8 | ★★★★★ | 🟦 | W08 | ⬜ | — |
 
-<details><summary>Phase 9 的預測與反證條件（17/17 項已凍結）</summary>
+<details><summary>Phase 9 的預測與反證條件（13/13 項已凍結）</summary>
 
 **P9-1 — UART 攔 bootloader → init=/bin/sh**
 
@@ -845,41 +825,10 @@ W05 週計畫原本要另外建一份 `notes/prediction-scorecard.md`（12 條�
 - 預測：開機記錄（`dumps/uart-boot.log`）顯示 loader 印完 `---RealTek(RTL8196E)at 2014.04.22...` 之後**直接** `Jump to image start=0x80500000`，中間沒有任何網路初始化、沒有等待提示、沒有倒數。`P9-3` 進得去救援模式，但那是靠序列埠連續送 ESC 打斷開機才進去的，而 `reports/bootloader-unit-2018.json` 裡的 `IPCONFIG` / `AUTOBURN` / `LOADADDR` / TFTP 字串全部屬於命令模式。所以預期**這個救援窗口不是遠端可達的**：TFTP 堆疊只在命令模式下起來，而進命令模式需要 UART
 - **反證：在一次重開機期間，隔離網段上的主機對 loader 送 ARP 或 TFTP 請求得到回應，**而全程沒有碰序列埠** → loader 在 Linux 之前就服務網路。那麼任何能讓這台重開機的人（`P3-3` 的 `formSysCmd` 就可以）都能從 LAN 改寫韌體，這一條的嚴重度要整個上調，而且它會變成本專案最嚴重的發現。觀測要用被動 tcpdump 全程錄，不能只看主動探測有沒有回應 —— 窗口若只有幾百毫秒，主動探測會錯過它而被動錄不會**
 
-**P9-5 — SPI 直讀 dump（第二支儀器）**
-
-- ⚠️ **桌上那片 CH341A 實測是未改板的 5V 版本，每一支腳都對 3.3V 的顆粒輸出 5V。夾之前一定要量 CS#/CLK/DI**
-- 預測：目前兩次全讀都走 bootloader 的 FLR，所以一個系統性錯誤的 FLR 對兩次讀取都是隱形的。第二支儀器就是為了打掉這個單點
-- **反證：SPI 讀出來的 sha256 與 FLR 讀出來的一致 → FLR 這條路徑被第二來源確認；不一致才是需要解釋的那一邊**
-
-**P9-6 — SPI 直寫植入**
-
-- ⚠️ **最高風險。P0-3 與 P9-3 都通過之前不做**
-- 預測：兩發，刻意分開，因為它們問的是不同的問題，而混在一起就兩個都答不了。
-
-**第一發（校驗和刻意保持有效）**：flash `0x00C0D1` 的五個 byte，`admin` → `nimda`。這五個字元是同一組字元的重排，所以 8-bit payload 校驗和**一個數都不動**——變因因此只剩下「直寫有沒有到達執行中的系統」這一件事。桌面上已經先算過而且可以重跑：`fwrecon compcs` 對改過的映像仍然回 `checksum_ok=True`、`ring_fill_agrees=True`、`entry_count=344`，而**恰好兩筆**欄位改變——`USER_NAME`(id 182 = `0xb6`) 與 `USER_PASSWORD`(id 183 = `0xb7`)，兩筆都變成 `nimda`。原因是壓縮串流裡只有**一份** `admin` 字面值（`0x00C0D1`），密碼那一筆是往回指的參照。預測：開機後未認證的 `GET /config.dat` 解出來的兩筆都是 `nimda`，而 `nimda`/`nimda` 通得過 Basic 驗證、`admin`/`admin` 不行。**五個 byte，沒有執行任何一行程式碼，換掉這台的管理帳號與密碼。**
-
-**第二發（校驗和刻意留壞）**：同樣五個 byte 換成 `zzzzz`。payload 校驗和會差 **178**，而 178 = 2 × 89，89 是 `zzzzz` 與 `admin` 的位元組和之差——**那個 2 就是「參照被用了兩次」的算術證明**，不是推測。預測：裝置判定這一區不合法，改用預設值。
-
-復原有兩條互不相干的路，這是選 `COMPCS` 而不選 `H601` 的理由：把 `admin` 五個 byte 寫回去，以及 2026-08-19 已經在這台上證實過的 reset 按鈕（`flash default-sw` 逐 byte 還原 `COMPCS`）。`H601` 一條都沒有。
-- **反證：**第一發**：開機後兩筆仍然是 `admin` → 直寫沒有到達執行中的系統，而「沒到達」不可以含糊帶過，要在三個候選裡指名一個：（i）開機時有東西從別處重寫這一區；（ii）夾子寫進去的位址不是這顆晶片上的那一段；（iii）寫成功但 `boa` 讀的是別的來源——第三個特別要當真，因為 `A3.6` 的鏈已經量到 `/config.dat` **不是** flash blob 本身（開放項目 87）。
-
-**第二發**：`zzzzz` 帶著壞掉的校驗和照常生效 → 那比預測更強，而且它推翻的是**這個 repo 自己工具的一句斷言**：`fwrecon compcs` 拒絕壞校驗和時印的是「The device itself would reject this blob」。那句話是一個關於裝置行為的主張，而到今天為止沒有任何量測支撐它。這一發就是讓它負責。**
-
-**P9-7 — 讀 JEDEC ID（flash 型號的第二來源）**
-
-- 預測：目前「Eon EN25QH32B」只有一個來源：封裝上的字。flashrom 同意它是 4096 KiB 並不獨立，因為它的資料庫就是用同一個型號名索引的
-- **反證：JEDEC ID 對應到別的廠牌或別的容量 → 封裝上的字被誤讀，或這顆是換過的**
-
 **P9-9 — Reset 按鈕行為**
 
 - 預測：按鈕的路徑是靜態讀出來的：`/bin/reload`（昨晚 `ps` 裡 PID 291，活著）輪詢 `/proc/load_default`，命中之後印 `Going to Reload Default` 並執行 `flash default-sw`；而 `/bin/flash` 自己的 usage 把兩件事分開寫——`default` 是「write all flash parameters from hard code」，`reset` 才是「reset current setting to default」。按鈕走的是前者，所以它寫的是編譯進去的硬編碼表，不是 flash 上那塊已經被本專案自己弄壞的 `DEFAULT_SETTING` 區。於是預測三段，三段都要對：（1）reset 之後 `COMPCS` 的 `DHCP_MTU_SIZE` 回到 `1500`、`UPNP_ENABLED` 回到 `1`、`ALG_SIP_ENABLED` 回到 `1`，即使 `COMPDS` 自己這三格仍然是 0；（2）`H601`（0x3F0000，這台獨有的 MAC 與射頻校準）前後兩份快照 byte 相同，因為 `-sw` 是 software setting，HW setting 不在其中；（3）因此 WAN 在 reset 後的第一次開機就能送出 DISCOVER——那是 `P8-19` 那條「一發未認證 POST 造成持久性 WAN DoS」的第三個獨立驗證，而且是唯一一個不需要動手改任何東西的。
 - **反證：（a）reset 之後那三個欄位仍然是 0 → 按鈕的復原來源是 flash 上的 `DEFAULT_SETTING` 區，不是硬編碼表，而那個區是本專案 W05 那一輪未認證、參數缺席的 POST 寫壞的。那時 `P8-19` 要從「跨越所有重開機」升級成「跨越原廠重置」：一個未認證請求把裝置推進一個連廠商自己的復原路徑都出不來的狀態，唯一的回頭路是寫 flash。同時 `/bin/reload` → `flash default-sw` 這條靜態讀法對 `-sw` 的解釋是錯的，要回去讀 `/bin/flash` 的 argv 分派。（b）reset 之後 `H601` 的內容改變 → 出廠區的範圍判斷錯了，這會直接影響 `P0-3` 的風險評估（原條件，不變；這是這一列真正在問的那一格）。模擬環境不能答任何一邊：按鈕是 GPIO，`/proc/load_default` 在 `qemu-user` 下不存在。**
-
-**P9-10 — 改造韌體回刷 / implant**
-
-- ⚠️ **最高風險且不可逆。IMG_HEADER_T 的欄位順序已經在 tools/fwrecon/src/fwrecon/rtlimage.py 裡，不要重新猜**
-- 預測：`P9-13` 若讀出升級路徑只驗 checksum 不驗簽章，那麼一個用 `fwrecon` 重組、checksum 算對的映像會被接受，implant 成立。回刷管道有兩條：web 的升級 handler，以及 boot loader 的 `IPCONFIG` + `AUTOBURN 1` + TFTP。**預期用後者**，因為它不經過 `boa`，失敗時人就已經在主控台前面
-- **反證：改造映像被拒絕 → `P9-13` 讀出來的檢查欄位不完整，回去讀，不要用試錯法逼它接受。或映像被接受但開機不起來 → 檢查通過不等於映像正確，那時 `P9-3` 的 TFTP 救援是唯一的路，而「救援路徑沒被演練過就不做這一項」是這條改期理由的全部內容**
 
 **P9-12 — 換自製 flash / tftpboot RAM kernel（HW-b/c）**
 
@@ -1016,6 +965,24 @@ B 與 C 之間唯一的差別是那五個 word，而那五個 word 是從 loader
 **2026-08-20，同一天稍晚，這個理由被修正過，而修正的方向對這一列不利：上面那段話說「儀器不存在」，而它是靠看一張網卡（工作站的 AX201）就推廣到整個實驗室的。桌上有一片 ESP8266。** 它送得出管理框（`wifi_send_pkt_freedom`），也收得到管理框；它收不到完整的資料框 —— sniffer 模式下資料框只給到 802.11 標頭為止。`P7-3` 與 `P7-4` 因此被**撤銷刪除**，理由見 `PROGRESS.md` 2026-08-20 § Corrections。這一列留著，而理由換成下面這一句，因為它是針對這一列的，不是針對整個實驗室的。
 
 **這一列的真理由**：線上 PIN 爆破要能反覆建立關聯、送 WPS 訊息、讀回 NACK，全部在資料框上。ESP8266 收不到資料框內容，所以連「這一發是不是對的」都判斷不了 —— 沒有回饋的爆破不是測試。 |
+| P7-3 | 惡意 Beacon → Site Survey 表溢位 | 10.2 | 2026-08-22：兩個理由，各自獨立、各自就足夠，**而第二個買不掉**。
+
+（一）**注入端的儀器**：這台機器唯一的無線介面是 Intel Wi-Fi 6 AX201（PnP id `PCI\VEN_8086&DEV_A0F0`），掛在 **PCIe** 上，`usbipd-win` 只轉送 USB 裝置，所以 WSL 在任何設定下都拿不到它；就算改用裸機 Linux，`iwlwifi` 沒有實作 frame injection。`docs/lab-inventory.md` 建議的 AR9271（約 US$30）沒有購入，本專案到 W10 結案前也不打算購入。
+
+（二）**輻射範圍，而這一條買了網卡也不會解除**：beacon 是廣播。一個宣告超長 SSID 的 beacon 會進到範圍內每一台裝置的掃描路徑，那跟兩個乙太網埠之間拉一條線是完全不同的同意情境。要做它需要屏蔽箱或真正隔離的場地，兩者都不在本專案範圍內，而**登記簿已經因為同一個理由砍掉 `P7-6` 與 `P7-9`**。
+
+**可否證形式要分兩條寫，因為門檻不同**：買一張 AR9271、讓 `aireplay-ng --test` 通過，只解除（一）。要解除（二）需要一個屏蔽環境，而那不是 US$30 的問題。**所以這一列即使有了網卡也不該回來** —— 這句話本身就是結論，不是免責聲明。
+
+被砍掉的是量測，不是問題：本專案到結案為止沒有做過任何無線測試，`writeup/14-limits.md` 明寫這件事。**靜態的那一半沒有被這一刀影響** —— Site Survey 頁不需要憑證就能觸發（`P2-1`，已量）是這一項當初的立足點，它還站著。 |
+| P7-4 | 惡意 WPS IE（Device Name 長度欄 2 bytes） | 10.2 | 2026-08-22：跟 `P7-1` / `P7-2` / `P7-5` 同一類 —— **等一張 USB 無線網卡，到時候一起做**。
+
+（一）**儀器**：這台機器唯一的無線介面是 Intel Wi-Fi 6 AX201（PnP id `PCI\VEN_8086&DEV_A0F0`），掛在 **PCIe** 上，`usbipd-win` 只轉送 USB 裝置，所以 WSL 在任何設定下都拿不到它；就算改用裸機 Linux，`iwlwifi` 沒有實作 frame injection。`docs/lab-inventory.md` 建議的 AR9271（約 US$30）沒有購入，本專案到 W10 結案前也不打算購入。
+
+（二）**這一列的儀器側要寫得比其他無線項精確，因為它自己的凍結預測不是用網卡送的**：預測寫的發射端是 ESP8266 的 `wifi_send_pkt_freedom`，而桌上確實有一片 ESP8266（2026-08-21 當過一顆 3.3 V 穩壓器）。所以「完全沒有發射手段」對本列**不成立**，而把它寫成那樣會是把「我選擇不做」說成「我做不到」—— `schedule_payload` 的 docstring 就是為了擋這個方向才把理由納入雜湊的。**改用網卡的理由是量測品質**，兩條：（a）ESP8266 那條路能不能燒進送管理框的韌體**沒有查過**，`docs/lab-inventory.md` 也沒有這一項的盤點 —— 那是「未查」，不是「不存在」；（b）monitor mode 的**接收端**會把反證條件（a）從間接對照升級成直接觀測：現行對照是「同一片板子送出的正常 beacon 出現得了」，那是用一個間接訊號排除「根本沒發出去」；有監聽端就能直接看見那一幀在空中。
+
+（三）**輻射範圍對本列不是阻礙，而這一點跟 `P7-3` 不同**：WPS IE 可以掛在**探測回應**上，而探測回應是回給發出探測請求的那一台（也就是這台路由器自己的 Site Survey），不是無差別廣播。`P7-3` / `P7-6` / `P7-9` 需要屏蔽環境，**本列不需要** —— 2026-08-18 的改期理由當初點名那三項時就沒有把本列算進去，那個判斷現在仍然成立。
+
+**可否證形式**：買一張支援 monitor mode + 注入的 USB 無線網卡（`docs/lab-inventory.md` 建議 AR9271，約 US$30），`aireplay-ng --test` 通過，本列就跟 `P7-1` / `P7-2` / `P7-5` 一起回來。**單一條件，跟 `P7-3` 的兩條不一樣。** |
 | P7-5 | PMKID（clientless） | 10.3 | 2026-08-20：儀器不存在，而這一次是查過之後才這樣寫的。這台機器唯一的無線介面是 Intel Wi-Fi 6 AX201（PnP id `PCI\VEN_8086&DEV_A0F0`），而兩個各自獨立、各自就足夠的理由擋住這一項：（一）它掛在 **PCIe** 上，`usbipd-win` 只轉送 USB 裝置，所以 WSL 在任何設定下都拿不到它；（二）就算改用裸機 Linux，`iwlwifi` 沒有實作 frame injection，而這一項需要注入。`docs/lab-inventory.md` 建議的 AR9271（約 US$30）沒有購入，本專案到 W10 結案前也不打算購入。**這個理由是可否證的**：買一張 AR9271、讓 `aireplay-ng --test` 通過，這一列就該回來。被砍掉的是量測，不是問題——W08 writeup 的〈What this does not prove〉第一段就是它。　補一句技術理由，因為它常被誤會成被動題：PMKID 的擷取要先送出一個 association request，那是注入，不是監聽。只有 monitor mode 不夠。
 
 **2026-08-20，同一天稍晚，這個理由被修正過，而修正的方向對這一列不利：上面那段話說「儀器不存在」，而它是靠看一張網卡（工作站的 AX201）就推廣到整個實驗室的。桌上有一片 ESP8266。** 它送得出管理框（`wifi_send_pkt_freedom`），也收得到管理框；它收不到完整的資料框 —— sniffer 模式下資料框只給到 802.11 標頭為止。`P7-3` 與 `P7-4` 因此被**撤銷刪除**，理由見 `PROGRESS.md` 2026-08-20 § Corrections。這一列留著，而理由換成下面這一句，因為它是針對這一列的，不是針對整個實驗室的。
@@ -1043,7 +1010,49 @@ B 與 C 之間唯一的差別是那五個 word，而那五個 word 是從 loader
 | P8-9 | 弱化式持久化（weaken-to-persist） | 11.6 | 它的設計目的就是讓鑑識人員把一台被入侵的機器讀成一台設定很爛的機器。沒有任何 gate 要求它，也不產生關於這台的新事實。技法留在私有手冊。 |
 | P8-13 | 逼管理員自己交出設備（A–E 五法） | 11.9 | 社交工程，對象是人不是裝置。實驗室裡沒有管理員，所以在這個環境裡不可證偽；而且它與 README 的 scope 直接衝突。 |
 | P8-22 | 降版回刷，把原廠 skt 後門裝回去 | 11.13 | 不可逆，而且它的作用是把一個已知後門重新裝進一台已經修掉它的裝置。要證明的性質（無韌體簽章、無 anti-rollback）已經由靜態分析建立，回刷不會讓那個結論更真。 |
+| P9-5 | SPI 直讀 dump（第二支儀器） | 12.4 | 2026-08-22：**在找到一支能真的驅動這顆晶片的燒錄器之前，不做在板讀寫。**
+
+**已經量到的**：CH341A（已改 3.3 V，改機量測見 `BENCH-LOG.md` 2026-08-20）夾上 `U19` 之後，晶片端 `VCC` 在三種供電下都停在 **1.70 V**，而供電端保持 3.3 V（`PROGRESS.md` W08 Day 1 the clip session）。1.70 V 在這顆零件的工作範圍之外，而**一次在欠壓下看起來正確的讀取，比一次失敗的讀取更糟** —— `P9-5` 存在的目的就是消除「兩支儀器對同一顆晶粒不一致」這個混淆，欠壓正好會製造它。
+
+**沒有量到的是為什麼，而它仍然是開放題 97。** 作者的判斷是板子的設計使然、要解焊下來才讀得到；**那是判斷，不是量測** —— 三種供電同一個電壓讀起來像箝位，但箝位與夾具路徑電阻這一場一條都沒有分離。所以本列寫的是「不做」，不是「做不到，因為 X」。
+
+**可否證形式，兩條，任何一條成立這一列就該回來**：（一）換一支能在這種負載下維持 3.3 V 的燒錄器；（二）把 `U19` 解焊下來離板讀 —— 第二條同時會直接答掉開放題 97。
+
+**這一刀的代價要寫清楚，因為它是全專案最貴的一刀。** 這台 flash 的每一個 byte 級主張至今只有一個來源 —— boot loader 自己的 `FLR`，走裝置自己的 UART，進裝置自己的 RAM，再由 `DB` 出來。兩次全讀 sha256 相同證明的是**傳輸與 SPI 讀取穩定，不是讀得對**：一個系統性的 `FLR` 錯誤（錯的 stride、chunk 邊界差一、一個本專案不知道的 bank 選擇）對兩趟都是隱形的。`writeup/14-limits.md` 的第一段就是這件事，而這一刀把它從**待辦**變成**永久**。 |
+| P9-6 | SPI 直寫植入 | 12.4 | 2026-08-22：**在找到一支能真的驅動這顆晶片的燒錄器之前，不做在板讀寫。**
+
+**已經量到的**：CH341A（已改 3.3 V，改機量測見 `BENCH-LOG.md` 2026-08-20）夾上 `U19` 之後，晶片端 `VCC` 在三種供電下都停在 **1.70 V**，而供電端保持 3.3 V（`PROGRESS.md` W08 Day 1 the clip session）。1.70 V 在這顆零件的工作範圍之外，而**一次在欠壓下看起來正確的讀取，比一次失敗的讀取更糟** —— `P9-5` 存在的目的就是消除「兩支儀器對同一顆晶粒不一致」這個混淆，欠壓正好會製造它。
+
+**沒有量到的是為什麼，而它仍然是開放題 97。** 作者的判斷是板子的設計使然、要解焊下來才讀得到；**那是判斷，不是量測** —— 三種供電同一個電壓讀起來像箝位，但箝位與夾具路徑電阻這一場一條都沒有分離。所以本列寫的是「不做」，不是「做不到，因為 X」。
+
+**可否證形式，兩條，任何一條成立這一列就該回來**：（一）換一支能在這種負載下維持 3.3 V 的燒錄器；（二）把 `U19` 解焊下來離板讀 —— 第二條同時會直接答掉開放題 97。
+
+**附帶的代價，因為它牽到本 repo 自己的工具。** `fwrecon compcs` 在拒絕壞 checksum 時印的是「The device itself would reject this blob」（`tools/fwrecon/src/fwrecon/compcs.py:749`；`tools/ioc-precheck.sh:87` 另有一句）。那是一句**關於裝置行為的主張**，而**唯一要驗它的就是本列的第二發**（`zzzzz`，刻意留壞 178 的 checksum）。這一刀之後那句話沒有任何量測支撐它。
+
+**經作者決定，工具的原文保留不改**（等到有燒錄器的時候再量），所以它改為登記在 `writeup/14-limits.md` 的未量測主張清單裡。**一句沒有量測支撐的裝置行為主張，留在工具裡可以，不被標示不行。** |
+| P9-7 | 讀 JEDEC ID（flash 型號的第二來源） | 12.4 | 2026-08-22：**在找到一支能真的驅動這顆晶片的燒錄器之前，不做在板讀寫。**
+
+**已經量到的**：CH341A（已改 3.3 V，改機量測見 `BENCH-LOG.md` 2026-08-20）夾上 `U19` 之後，晶片端 `VCC` 在三種供電下都停在 **1.70 V**，而供電端保持 3.3 V（`PROGRESS.md` W08 Day 1 the clip session）。1.70 V 在這顆零件的工作範圍之外，而**一次在欠壓下看起來正確的讀取，比一次失敗的讀取更糟** —— `P9-5` 存在的目的就是消除「兩支儀器對同一顆晶粒不一致」這個混淆，欠壓正好會製造它。
+
+**沒有量到的是為什麼，而它仍然是開放題 97。** 作者的判斷是板子的設計使然、要解焊下來才讀得到；**那是判斷，不是量測** —— 三種供電同一個電壓讀起來像箝位，但箝位與夾具路徑電阻這一場一條都沒有分離。所以本列寫的是「不做」，不是「做不到，因為 X」。
+
+**可否證形式，兩條，任何一條成立這一列就該回來**：（一）換一支能在這種負載下維持 3.3 V 的燒錄器；（二）把 `U19` 解焊下來離板讀 —— 第二條同時會直接答掉開放題 97。
+
+**三項裡最便宜的一項，而它跟另外兩項一起倒下。** 讀 JEDEC ID 只要三個 byte 出來，不必讀完 4 MiB，也不寫任何東西 —— 它倒下的理由跟另外兩項**一模一樣**（晶片到不了工作電壓），不是因為它比較難。
+
+**所以「Eon EN25QH32B」到結案為止仍然只有一個來源：封裝上的字。** `flashrom` 同意它是 4096 KiB 不算第二來源 —— 那個資料庫就是用同一個型號名索引的，兩者不獨立。 |
 | P9-8 | EJTAG | 12.5 | 2026-08-20：被 W08 拿到的第二支儀器取代，而不是被跳過。`docs/lab-inventory.md` 對這一項的建議從第一天就是**不要買**——boot loader 主控台已經給了記憶體讀寫與 flash 讀寫，EJTAG 在這台上多出來的東西有限，而板子是否有可用的 EJTAG 焊點從未確認過。W08 的 CH341A（3.3 V 改機，量測見 `BENCH-LOG.md` 2026-08-20）直接覆蓋了「不經過 SoC 讀寫 flash」這件事，也就是原本要花 US$25–60 買 EJTAG 來做的那一半。**可否證形式**：若哪天需要在 CPU 停住的狀態下讀暫存器，這一列就回來，而目前沒有一個 open item 需要那個。 |
+| P9-10 | 改造韌體回刷 / implant | 12.7 | 2026-08-22：**全檔唯一不可逆的一項，而它的前置條件已經全部滿足** —— 所以這一刀不是「還不安全」，是一個明講出來的取捨。
+
+`P0-3`（`FLW` 寫回，2026-08-17 `confirmed`，2026-08-22 帶對照組重演一次）與 `P9-3`（bootloader TFTP 救援，`partial`）都演練過，brick 之後有兩條回來的路。**當初改期理由寫的條件成立了**，而這一列仍然不做，理由是：這一台是 G2 與 G4 的單點故障，**而它要買到的東西已經被一項不可逆度低得多的測試買到了**。
+
+**那項測試是 `P9-12`，而它 `confirmed`**：`J 80500000` 把控制權交給一個 156 byte、這台裝置從未見過的映像，payload 印出自己的 nonce（該 nonce 在 4 MiB dump 與解壓後的 loader stage 2 裡各出現 0 次，**建置之前就先查過**）；`AutoBurning=0` 在同一次開機被回顯、`autoburn` 只在 `0x80401B9C` 一個地方被讀、`beqz` 跳過燒錄常式，**flash 一個 byte 都沒寫**。所以「這台會執行我給它的、原廠沒有的程式碼」**已經在矽上被量到了**。
+
+**`P9-10` 在 `P9-12` 之上只多買到一件事：跨電源循環的持續性。** 而那正是會花掉這台唯一單位的那一件事。這個取捨明著寫，不留白。
+
+**代價兩條，寫在這裡而不是等讀者自己發現**：（一）`writeup/10-chain.md` 的鏈結尾停在「一個 HTTP 請求改掉了 flash 上的一個 byte」，不會延伸到「一份改造映像開得起來」。（二）`P8-10`（`batchRemoteUpgrade` 的明文 HTTP 對外連線）與 `P9-13`（升級路徑只驗 checksum、不驗簽章）到結案為止**永遠是靜態的** —— 那是一條供應鏈路徑，而靜態讀出來的東西不會被寫成已驗證的行為。
+
+**可否證形式**：買第二台 N150RT（EOL，二手市場上還找得到）。這一列就不再是拿整個專案的單點故障去換一次量測，而是一次乾淨的實驗，**而且它會同時解除上面那兩條代價**。 |
 | P9-11 | 短接 SPI 強制落回 bootloader（HW-a） | 12.8 | 2026-08-20：被 `A5.x` 取代，而不是被跳過。這一項要的結果是「板子落回 `<RealTek>`」，而 `A2.2` 的連續 ESC 每一次進站都拿得到，沒有失敗過。它真正的價值是保險——萬一寫壞 flash，導致板子在主控台可用之前就掛掉——而 CH341A 能把 2026-08-16 的整份映像寫回去，那是**嚴格更強**的復原路徑：它不需要 SoC 願意執行任何一行程式。拿短接把一支**正在被驅動的輸出腳**拉到地，換一個 ESC 已經拿得到的狀態，在只有一台的情況下不划算。**可否證形式**：只要出現一次「寫入之後 ESC 拿不到 `<RealTek>`」，這一列就回來。 |
 | P10-5 | 拿到 root 之後的 60 秒法則 | 13.3 | 拿到 shell 之後的作業程序，不產生關於這台的可驗證事實。 |
 | P10-6 | 憑證與情資收割（loot） | 13.4 | 要收的東西已經從 flash 靜態解出來了（notes/compcs-decode.md、notes/credentials.md）。在活機上再收一次不會知道任何新的事，只會多出一份不該存在的憑證副本。 |
