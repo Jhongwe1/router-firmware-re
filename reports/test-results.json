@@ -1469,8 +1469,41 @@
       ],
       "note": "J 80500000 handed control to a 156-byte image the device has never seen: the loader printed ---Jump to address=80500000 (0x8040B35C) and the payload then printed *** N150RT RAMBOOT P9-12 4baee517 *** repeatedly. The nonce and the marker occur zero times in the 4 MiB flash dump and zero times in the decompressed loader stage 2, checked before the build. Zero flash bytes written: AutoBurning=0 echoed in this same boot, autoburn read at exactly one place (0x80401B9C) where beqz skips the burn routine, and the cr6c header plus the boot loader head verified unchanged afterwards. The upload was also proved to land by a byte-identical TFTP round trip before any jump. First attempt truncated at 16 bytes per iteration (the 16550 FIFO depth) because the payload read a register in the MIPS-I load delay slot; fixed and re-run as a single-variable experiment.",
       "case_freeze_sha256": "40c5855c6c90806845aaae08d59efa4237d71ea97fbce02177744acaf5052505"
+    },
+    {
+      "id": "P9-14",
+      "date": "2026-08-21",
+      "verdict": "confirmed",
+      "evidence_kind": "dynamic",
+      "artefacts": [
+        "BENCH-LOG.md"
+      ],
+      "note": "四格 FLW 只差第四個參數（無 / 0 / 5 / DEADBEEF），印出來的那一行逐字相同，flash# 永遠是 1。四格全部答 N，Abort!，零 flash 寫入。li a2,1（0x80409BE4）是那個 %d 的唯一來源。順帶：裝置自己印出的 ? 說明字串含 ': Write offset-data to SPI from RAM'，手抄那份把它截掉了。",
+      "case_freeze_sha256": "124aef6a53dca20aea1f57b0161cae38bd823e01470a2235c09cec13e299fd88"
+    },
+    {
+      "id": "P9-15",
+      "date": "2026-08-21",
+      "verdict": "confirmed",
+      "evidence_kind": "dynamic",
+      "artefacts": [
+        "BENCH-LOG.md"
+      ],
+      "note": "不跳轉的開關實驗：probe 活 -> EW 清掉 PCRP0-PCRP4 的 bit 0 -> probe 死 -> EW 寫回原值 -> probe 活。三個獨立訊號一致（DATA 回應、ip neigh REACHABLE/FAILED、rx_packets 2->2->4），中斷全程未動，無電源循環。同一次 DW 裡 0xBB80411C/0x20 的 bit 0 是 0，所以該欄位不是卡在 1。另：J 之後直接讀那五個暫存器，全部已被清成 ...38，沒有人碰過它們 —— 0x804092F4 那一段執行過的直接證據。",
+      "case_freeze_sha256": "616b50e8a97c5633f7e52ab8e1701f34c09ef40785802b755348b3244cff9f94"
+    },
+    {
+      "id": "P9-16",
+      "date": "2026-08-21",
+      "verdict": "confirmed",
+      "evidence_kind": "dynamic",
+      "artefacts": [
+        "BENCH-LOG.md"
+      ],
+      "note": "EB 打入 03E00008 00000000（jr ra; nop）於 0x80540000，DW 驗過，J 80540000 之後主控台印 ---Jump to address=80540000 並回到 <RealTek>，且回來之後 DW/EW 照常工作。J 是 jalr 不是 jr，payload 可返回，不需要電源循環。推翻 runsheet Part B「J 之後沒有軟體的路回去」。",
+      "case_freeze_sha256": "31d52c8e590b6a96f1f0cc29a886a21daa3bd009b51302d2d3c8c93ad4375aad"
     }
   ],
   "register": "test-cases.toml",
-  "register_freeze_sha256": "90181162481334794e2ef19a52f66ee9c22bfee70cd0659a2490f79768011d9e"
+  "register_freeze_sha256": "b026221b558abb8f7d16c9e3ac965e9fb1859176f71ffdf923a0f8561e4ab26c"
 }

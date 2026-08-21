@@ -53,10 +53,10 @@ W05 週計畫原本要另外建一份 `notes/prediction-scorecard.md`（12 條�
 |---|---|
 | 登記項目 | **138**（排入 121，砍掉 17） |
 | 已寫反證條件（凍結） | **124** / 121 |
-| 已執行 | **112** |
-| 其中以真機動態證據收掉 | **76** |
+| 已執行 | **115** |
+| 其中以真機動態證據收掉 | **79** |
 | 其中以模擬環境執行收掉（**不是矽上**） | **20** |
-| 判定成立 / 判定不成立 | **65** / **18** |
+| 判定成立 / 判定不成立 | **68** / **18** |
 | 凍結雜湊 | `b026221b558abb8f7d16c9e3ac965e9fb1859176f71ffdf923a0f8561e4ab26c` |
 
 ## 排程：哪一週要打掉哪些
@@ -71,7 +71,7 @@ W05 週計畫原本要另外建一份 `notes/prediction-scorecard.md`（12 條�
 | **W05** | Phase 0, 1, 2, 3, 6, 9 | 27 / 27 | `▰▰▰▰▰▰▰▰▰▰` |
 | **W06** | Phase 0, 2, 3, 4, 5, 10 | 20 / 20 | `▰▰▰▰▰▰▰▰▰▰` |
 | **W07** | Phase 1, 2, 3, 4, 5, 6, 8, 9, 10 | 58 / 58 | `▰▰▰▰▰▰▰▰▰▰` |
-| **W08** | Phase 7, 9 | 2 / 11 | `▰▰▱▱▱▱▱▱▱▱` |
+| **W08** | Phase 7, 9 | 5 / 11 | `▰▰▰▰▰▱▱▱▱▱` |
 
 ## 圖例
 
@@ -816,9 +816,9 @@ W05 週計畫原本要另外建一份 `notes/prediction-scorecard.md`（12 條�
 | P9-10 | 改造韌體回刷 / implant | 12.7 | ★★★☆☆ | 🟨 | W08 | ⬜ | — |
 | P9-12 | 換自製 flash / tftpboot RAM kernel（HW-b/c） | 12.8 | ★★★☆☆ | 🟦 | W08 | ✅ J 80500000 handed control to a 156-byte image the device has never seen: the loader printed ---Jump to address=80500000 (0x8040B35C) and the payload then printed *** N150RT RAMBOOT P9-12 4baee517 *** repeatedly. The nonce and the marker occur zero times in the 4 MiB flash dump and zero times in the decompressed loader stage 2, checked before the build. Zero flash bytes written: AutoBurning=0 echoed in this same boot, autoburn read at exactly one place (0x80401B9C) where beqz skips the burn routine, and the cr6c header plus the boot loader head verified unchanged afterwards. The upload was also proved to land by a byte-identical TFTP round trip before any jump. First attempt truncated at 16 bytes per iteration (the 16550 FIFO depth) because the payload read a register in the MIPS-I load delay slot; fixed and re-run as a single-variable experiment. | [MANIFEST.json](dumps/MANIFEST.json) |
 | **P9-13** | 韌體映像驗收檢查：這個 build 實際驗哪幾個欄位（純靜態，不回刷） | 12.7 | ★★★★☆ | 🟦 | W07 | 🟥 Checksum only, and the addresses are in the note. UpgradeByData @0x00460798 (1608 bytes) is the whole acceptance path and it does exactly three things: memcmp against the four-byte section tags cr6c/w6cg/r6cr at 0x004608cc, 0x00460924, 0x0046097c; a checksum, FUN_00460600 called at 0x00460a98 for cr6c and r6cr and FUN_00460690 at 0x00460aec for w6cg; and a strncmp at 0x00460a04 against a model string the caller supplies. Both checksums are additive with no key - FUN_00460600 sums big-endian halfwords and requires 0, FUN_00460690 sums bytes and requires 0 with a length cap of 0x800000. No signature, no hw_version, no anti-rollback: strings over the whole binary finds no signature/RSA/pubkey/pem/hw_version match, and the listing has no room for one. Read at instruction level with BoaListing, not from the decompiler. The model string form_formUpload passes at 0x0044f4dc is the literal TOTOLINK-N150RT-V2.1.0 while this unit reports TOTOLINK-CX-N150RT-V2.1.6-B20171121.1002, and nothing compares the two - the accepted label is an older, published version string. | [firmware-upgrade-path.md](notes/firmware-upgrade-path.md) · [ghidra-xref-unit-2018-upgrade.json](reports/ghidra-xref-unit-2018-upgrade.json) |
-| **P9-14** | `FLW` 的第四個參數（`<SPI cnt#>`）：指令表說 4，handler 讀 3 | 12.3 | ★★★★★ | 🟦 | W08 | ⬜ | — |
-| **P9-15** | `J` 之後網路死掉的歸因：五個 port 的 PHY enable bit 是不是充分原因 | 12.8 | ★★★★☆ | 🟦 | W08 | ⬜ | — |
-| **P9-16** | `J` 是呼叫不是跳轉：一個以 `jr ra` 結尾的 payload 會回到提示字元 | 12.8 | ★★★★★ | 🟦 | W08 | ⬜ | — |
+| **P9-14** | `FLW` 的第四個參數（`<SPI cnt#>`）：指令表說 4，handler 讀 3 | 12.3 | ★★★★★ | 🟦 | W08 | ✅ 四格 FLW 只差第四個參數（無 / 0 / 5 / DEADBEEF），印出來的那一行逐字相同，flash# 永遠是 1。四格全部答 N，Abort!，零 flash 寫入。li a2,1（0x80409BE4）是那個 %d 的唯一來源。順帶：裝置自己印出的 ? 說明字串含 ': Write offset-data to SPI from RAM'，手抄那份把它截掉了。 | [BENCH-LOG.md](BENCH-LOG.md) |
+| **P9-15** | `J` 之後網路死掉的歸因：五個 port 的 PHY enable bit 是不是充分原因 | 12.8 | ★★★★☆ | 🟦 | W08 | ✅ 不跳轉的開關實驗：probe 活 -> EW 清掉 PCRP0-PCRP4 的 bit 0 -> probe 死 -> EW 寫回原值 -> probe 活。三個獨立訊號一致（DATA 回應、ip neigh REACHABLE/FAILED、rx_packets 2->2->4），中斷全程未動，無電源循環。同一次 DW 裡 0xBB80411C/0x20 的 bit 0 是 0，所以該欄位不是卡在 1。另：J 之後直接讀那五個暫存器，全部已被清成 ...38，沒有人碰過它們 —— 0x804092F4 那一段執行過的直接證據。 | [BENCH-LOG.md](BENCH-LOG.md) |
+| **P9-16** | `J` 是呼叫不是跳轉：一個以 `jr ra` 結尾的 payload 會回到提示字元 | 12.8 | ★★★★★ | 🟦 | W08 | ✅ EB 打入 03E00008 00000000（jr ra; nop）於 0x80540000，DW 驗過，J 80540000 之後主控台印 ---Jump to address=80540000 並回到 <RealTek>，且回來之後 DW/EW 照常工作。J 是 jalr 不是 jr，payload 可返回，不需要電源循環。推翻 runsheet Part B「J 之後沒有軟體的路回去」。 | [BENCH-LOG.md](BENCH-LOG.md) |
 
 <details><summary>Phase 9 的預測與反證條件（14/14 項已凍結）</summary>
 

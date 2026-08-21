@@ -6556,3 +6556,195 @@ session and not.
      interrupt-driven. Nothing here has looked at where `0x80406728` and the
      TFTP receive path are called from, and the SDK tree has both an
      `ethInt_865x.c` and an `irq.c`, so the static answer is not obvious either.
+
+## W08 Day 1, station 2 second visit — three confirmed, and the cell that was not scored is the one that changes the next session — 2026-08-22
+
+**`BENCH-LOG.md` 2026-08-21 夜 – 2026-08-22 「進站場次之二」 carries what was
+typed and seen; record cards `T-91`–`T-95`.** Two power cycles, four flash
+writes all inside `0x3F0000`/`0x3F0100` and **all restored to `ff` before
+close**, `P9-14` `P9-15` `P9-16` all `confirmed`. `make todo WEEK=W08` went 9 → 6
+— three rows opened and closed in the same session.
+
+Thirteen of the frozen conditions were checked. **The one that mattered most was
+deliberately written with no bet on it, and it is the one that did not resolve.**
+
+### `FLW`'s fourth argument, measured
+
+Four cells differing only in the fourth token — absent, `0`, `5`, `DEADBEEF` —
+produced a **byte-identical** message, `flash#1` every time, `Abort!` every time.
+`0x80409BE4` `li a2,1` is the only source of that `%d`. Zero flash bytes.
+
+The device confirmed one of the same day's desk corrections before anything was
+typed: its own `?` prints `FLW <…> <SPI cnt#>: Write offset-data to SPI from
+RAM` — **the six words the hand transcription had truncated** — and all
+seventeen lines match `tools/loader-unpack.py --commands` line for line.
+
+### The five PHY enable bits are sufficient on their own
+
+At the prompt, no jump, interrupts untouched: `probe` answers → `EW` clears bit 0
+of `PCRP0`–`PCRP4` → `probe` times out three times → `EW` restores the read-back
+values → `probe` answers again. Three signals that share no code agree at every
+step: DATA-from-`:2098`, `ip neigh` `REACHABLE`/`FAILED`/`REACHABLE`, and
+`rx_packets` 2 → 2 → 4 — **the counter moved exactly when DATA came back.**
+
+The same `DW` carried a control nobody planned: `0xBB80411C` and `0xBB804120`
+have bit 0 **clear** and `0xBB804118` is entirely zero, so the read is not an
+address echo and the field is not stuck at 1.
+
+**`carrier` stayed 1 throughout, and that says nothing.** Two explanations —
+this rtl8153 is documented to assert carrier into thin air, and `EnablePHYIf`
+may gate the SoC's internal MAC↔PHY interface rather than the line side. The
+instrument that would separate them is the one already known to be unreliable.
+Both are recorded; neither is chosen.
+
+### `J` is a call, and a committed sentence was wrong
+
+`EB` put `03E00008 00000000` (`jr ra; nop`) at `0x80540000`, `DW` verified it,
+and `J 80540000` printed `---Jump to address=80540000` and **returned to the
+`<RealTek>` prompt**, with `DW`/`EW` working normally afterwards. `0x80409360` is
+`jalr s0`; `ra` is `0x80409368`.
+
+`runsheet.md` Part B's "`J` 之後沒有軟體的路回去" came from a real observation —
+`P9-12`'s payload loops forever — but that is a property of that payload. **One
+observation written as a rule whose scope exceeds the observation.**
+
+### Open #99 is closed, and what it leaves behind is bigger
+
+Immediately after the jump, `DW BB804104 5` showed all five bits cleared with
+nobody having touched them. That is `0x804092F4`–`0x80409354` executing, and it
+is exactly what #99 asked. Closed.
+
+**Then restoring those five bits did not bring TFTP back.** Not immediately, and
+not 28 seconds later — so link renegotiation is excluded. The same five bits,
+cleared and restored *without* a jump, had revived it minutes earlier. So `J`'s
+network kill is **not** attributable to those bits alone, and three candidates
+survive untouched: `GIMR0 = 0` / `IE = 0` stopping the receive path, the cache
+maintenance or the payload disturbing something else, or the switch needing more
+than bit 0 after the interface was disabled.
+
+**That cell was frozen as "both outcomes get recorded, and no deciding after the
+fact which was expected".** It landed on the second, and because no bet was
+placed it scores nothing. That was the right way to write it — I did not know,
+and `GetLine` polling does not imply the TFTP path does. But it is worth naming
+the cost plainly: **an honest "I don't know" buys a result with no score, while a
+confident prediction buys a good-looking tally and a wrong conclusion.** Take the
+first, and do not pretend it was free.
+
+**And the experiment that separates the candidates did not exist before this
+session.** The loader has no command that writes CP0 status — `MTC0SR` is
+commented out of the vendor's table, and the seventeen lines printed that night
+confirm it is absent here — so re-enabling interrupts requires a RAM payload
+that returns. **Which is what `P9-16` had just proved possible.** One result
+turning the next experiment from impossible into cheap is worth more than its
+own row.
+
+### `A2.5` re-run, and the control broke twice
+
+`P0-3` was already `confirmed` from 2026-08-17, so this was a rehearsal for
+`P9-10` rather than a debt. It produced a stronger answer anyway: the sector
+model is now pinned by three independent legs — writing `FF` over `DE` returns
+`FF` (pure NOR programming cannot do that, so `FLW` erases); **both neighbour
+directions survive** (writing `0x3F0100` preserves `0x3F0000`, and writing
+`0x3F0000` preserves `0x3F0100` — the second is new); and the loader's seventeen
+commands contain no erase, so the erase is inside `FLW`.
+
+**Two ways a control can be worthless, one of each:**
+
+* **No control at all.** Every read-back was "into a RAM address we have not
+  used". Measured: that address held `bf 84 9e 83 8f e4 f5 3c …` — **random, not
+  zero.** If it had held `ff`, "the read worked" and "nothing happened" would
+  look identical. `§8.9.4`'s tool version has done this since W05; the hand-typed
+  path had never been given it. `A2.5` now has a Step 0 and three more controls.
+* **A control whose expected value was already there.** Step 5 used
+  "`0x3F0100` reads `ca fe ba be`" as proof the second write landed — and
+  2026-08-17 wrote **the same pattern to the same address**. Under the preserve
+  model it had been sitting there for four days. **That check passes in both
+  worlds, and a check that cannot fail is not a check.** The fix (Step 6c) is
+  also the restore: write `FF` over `0x3F0100` and watch it change from a value
+  read a minute earlier.
+
+Both are the same shape: not a wrong measurement, a right measurement whose
+evidence does not hold. One lacked a way to be negative; the other lacked a way
+to fail.
+
+### Two explanations of mine, both dead inside two minutes
+
+* "`make doctor` opened the serial port, so DTR toggled and reset the board" —
+  `bench-doctor.sh` uses `[ -r ] && [ -w ]`, an `access(2)` permission test that
+  **never opens the device**.
+* "the first `EB` failed because asynchronous TFTP output interleaved with
+  `GetLine`" — still a candidate for that one line, but `cat -A` shows the line
+  carried no escape bytes, and the *other* `Unknown command !` that night had a
+  completely different cause.
+
+Both were said out loud before the evidence was looked at, and both times the
+evidence was two minutes away. The problem is not being wrong; it is that a
+spoken guess becomes the next step's premise without passing any check.
+
+### The arrow keys, and how a verbatim log gets read
+
+`FLR 80520000 0 100` came back `Unknown command !`. Under `cat -A` the line is
+`<RealTek>^[[A^[[BFLR 80520000 0 100` — **up-arrow, down-arrow.** This loader has
+no history and no line editing, so `↑` puts `1b 5b 41` straight into the command
+line and `argv[0]` becomes `\x1b[A…`. It looks exactly like broken firmware. The
+rule is now at the top of station 2.
+
+The lesson is not the arrow keys. The earlier `EB` failure was written up as
+"two candidate causes, this session did not separate them" — **and the verbatim
+log was already on disk; `cat -A` takes two seconds.** A verbatim record read the
+wrong way is the same as no record. `BENCH-LOG.md` is append-only and exact, and
+all of that value rests on somebody reading it correctly.
+
+### Instrument and procedure work
+
+- **`A2.5`**: new Step 0; controls added to Steps 4, 5 and 6; new Step 6c which
+  restores `0x3F0100` and closes Step 5's degenerate control in the same action.
+- **`A2.8`**: the three liveness checks changed from `get` to `probe` — with no
+  `FLR` the length global is 0, so `get` returns an empty file and "empty" versus
+  "timed out" needs a second inference. A single-variable experiment needs the
+  three observations to be the identical command.
+- **Station 2 preamble**: no arrow keys.
+- **`A2.8` step 1's expected output** said `Write 0x8 Bytes`; the device prints
+  `Write 0x00000008 Bytes` — this loader's `printf` pads `%x` to eight. An
+  approximately-right expected output teaches the operator to accept an
+  approximately-right result.
+- `RUNBOOK` §8.9.5 (the two control failures, owned by `A2.5`'s section) and
+  §8.12.46's post-run half (the unscored cell, the arrow keys, the dead
+  explanations).
+
+### Deliberately not done
+
+- **`A2.3`, `A2.6`, `A2.7`, station 5**: nothing tonight changed the config
+  region, so the two hash-verified dumps are the restore point; `A2.7`'s two
+  purposes were met on 2026-08-21; station 5 is still blocked on open #97.
+- **The interrupt-restoring payload was not designed at the bench.** `A2.8`'s own
+  stop condition 5 forbids it: needing to try another value to find out means the
+  prediction was not specific enough, and searching on the device is not
+  measuring.
+- **`FLW` with fewer than three arguments** — still not scheduled, same reason.
+
+### Open, carried forward
+
+66, 67, 69, 70, 71, 74, 75, 77, 78, 79, 81, 82, 84, 85, 86, 87, 88, 89, 91, 92,
+93, 94, 95, 97, 100 — unchanged.
+
+99. **Closed by measurement.** `J` does clear `EnablePHYIf` in `PCRP0`–`PCRP4`;
+    read directly off the registers after the jump with nobody having touched
+    them. `BENCH-LOG.md` `T-94`. What it leaves behind is #101.
+
+101. **Restated and sharpened.** It asked whether the loader's TFTP is polled or
+     interrupt-driven. The measurement that would have answered it as a side
+     effect — restore the five bits after `J` and see if `probe` revives — came
+     back **negative**, so the question is now: *why is restoring those five bits
+     not sufficient after `J` when it is sufficient before one?* Three candidates,
+     none excluded. The way in is a RAM payload that re-enables interrupts and
+     `jr ra`s back, which `P9-16` made possible; the loader itself cannot write
+     CP0 status. **Design it at the desk.**
+
+102. **Why did a clean `EB` line come back `Unknown command !`?** One line,
+     verified escape-free under `cat -A`, rejected by the dispatcher; the
+     identical line succeeded after one Enter. It arrived immediately after
+     asynchronous TFTP output. Answerable statically: find what the TFTP receive
+     path writes and whether it can reach the monitor's line buffer or the argv
+     array at `0x8040EAE0`. Until then, the operational rule stands — **press
+     Enter before typing whenever anything has printed since the last prompt.**

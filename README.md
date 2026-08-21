@@ -12,7 +12,39 @@ function in the binary.
 > G3 ✅ passed 2026-08-11 · G3.5 ✅ · G3.75 ✅ both passed 2026-08-17 ·
 > G4 ✅ passed 2026-08-18, clause 3 split into 3a met / 3b impossible.**
 >
-> **Latest (W08 Day 1, 2026-08-21, desk): `FLW`'s command table declares four
+> **Latest (2026-08-22, bench): three tests confirmed, four flash writes all
+> restored before close — and the cell that changes the next session is the one
+> that scored nothing, on purpose.**
+>
+> `FLW`'s fourth argument was sent four ways — absent, `0`, `5`, `DEADBEEF` — and
+> the loader's reply was **byte-identical** every time, `flash#1` every time.
+> Clearing bit 0 of `PCRP0`–`PCRP4` at the prompt killed the loader's TFTP and
+> restoring the read-back values revived it, with interrupts never touched and no
+> power cycle: three signals that share no code agreed at every step. And an
+> eight-byte `jr ra; nop` payload, jumped to with `J`, **came back to the
+> `<RealTek>` prompt** — `0x80409360` is `jalr`, so a committed sentence saying
+> there is no software path back from `J` was wrong.
+>
+> Then the cell with no bet on it: after `J`, restoring those same five bits did
+> **not** revive TFTP — not immediately and not 28 seconds later, so
+> renegotiation is excluded. `J`'s network kill is therefore not those bits
+> alone, and three candidates survive untouched. It was frozen as "both outcomes
+> get recorded, and no deciding after the fact which was expected", so it scores
+> nothing. **An honest "I don't know" buys a result with no score; a confident
+> prediction buys a good-looking tally and a wrong conclusion.** The experiment
+> that separates the candidates needs a RAM payload that re-enables interrupts
+> and returns — which the same session had just shown is possible.
+>
+> The rehearsal that followed pinned `FLW`'s sector model with three independent
+> legs, and broke its own control twice: once with no control at all (the "unused"
+> RAM address held `bf 84 9e 83 …`, random, not zero) and once with **a control
+> whose expected value was already there** — Step 5 checked for a pattern an
+> earlier session had written to the same address, so it would have passed in
+> both worlds. **A check that cannot fail is not a check.**
+>
+> ---
+>
+> **Earlier that day, at the desk: `FLW`'s command table declares four
 > arguments and its handler reads three. The fourth is not a mystery — the line
 > that would parse it is commented out in the vendor's own source, and no
 > instruction in the image reads the count the table declares.**
@@ -562,7 +594,7 @@ that is not backed by a command someone else can re-run.
   - [x] **the `FLW` recovery path rehearsed** — this is G3.5 #5, cited and not restated. Closed 2026-08-17
   - [x] **isolation verified** — exactly two MAC addresses on the segment, eight packets each, no DNS and nothing outbound. The control is that the capture recorded 16 packets at all: an earlier one recorded **zero**, and zero proves nothing until the link is known to deliver
   - [x] **IoC pre-check** — both halves, against criteria written before the check: **the live config differs from this unit's own factory baseline in 4 of 343 entries**, no fifth, and every port the register named is closed
-  - [x] **the prediction ledger is frozen** ← [`test-ledger.md`](test-ledger.md) — **138** registered tests, **124** carrying a written refutation condition, hashed and committed **before any request is served**; W05 closed **27 of 27**
+  - [x] **the prediction ledger is frozen** ← [`test-ledger.md`](test-ledger.md) — **138** registered tests, **124** carrying a written refutation condition, hashed and committed **before any request is served**; W05 closed **27 of 27**, and W08's three newest rows were frozen at the desk and closed at the bench the same night
   - [x] **the disclosure register is written** ← [`docs/disclosure.md`](docs/disclosure.md) — seventeen rows, what each is worth, and the rule that decides what gets published
 
   > ### ★ Why this gate exists
