@@ -187,14 +187,18 @@ def branch_off(here: int, target: int) -> int:
 
 def build(message: bytes, delay_hi: int = DEFAULT_DELAY_HI) -> tuple[bytes, list[tuple[int, str]]]:
     """Return (image, listing).  Offsets below are the labels, kept explicit so
-    that the branch arithmetic is checked against them rather than counted."""
-    body_len = 0x68
+    that the branch arithmetic is checked against them rather than counted.
+
+    The two ``nop``s at 0x20 and 0x34 are **load delay slots**, not padding, and
+    version 1 of this file did not have them.  See ``simulate`` below.
+    """
+    body_len = 0x70
     msg = message + b"\x00"
     while len(msg) % 4:
         msg += b"\x00"
 
     L_OUTER, L_NEXT, L_WAIT, L_EMIT, L_DELAY, L_DLOOP, L_MSG = (
-        0x18, 0x1C, 0x2C, 0x44, 0x50, 0x54, body_len)
+        0x18, 0x1C, 0x30, 0x4C, 0x58, 0x5C, body_len)
 
     prog: list[tuple[int, int, str]] = [
         (0x00, bal(branch_off(0x00, 0x08)), "bal     0x08"),
@@ -205,24 +209,26 @@ def build(message: bytes, delay_hi: int = DEFAULT_DELAY_HI) -> tuple[bytes, list
         (0x14, ori(T0, T0, UART_THR), f"ori     t0,t0,{UART_THR:#x}"),
         (L_OUTER, addu(S1, S0, ZERO), "addu    s1,s0,zero"),
         (L_NEXT, lbu(A0, S1, 0), "lbu     a0,0(s1)"),
-        (0x20, beq(A0, ZERO, branch_off(0x20, L_DELAY)), "beq     a0,zero,delay"),
-        (0x24, addiu(S1, S1, 1), "addiu   s1,s1,1"),
-        (0x28, addiu(T3, ZERO, TX_SPIN), f"addiu   t3,zero,{TX_SPIN}"),
+        (0x20, NOP, "nop                     # load delay slot"),
+        (0x24, beq(A0, ZERO, branch_off(0x24, L_DELAY)), "beq     a0,zero,delay"),
+        (0x28, addiu(S1, S1, 1), "addiu   s1,s1,1"),
+        (0x2C, addiu(T3, ZERO, TX_SPIN), f"addiu   t3,zero,{TX_SPIN}"),
         (L_WAIT, lbu(T2, T1, 0), "lbu     t2,0(t1)"),
-        (0x30, andi(T2, T2, LSR_TX_EMPTY), f"andi    t2,t2,{LSR_TX_EMPTY:#x}"),
-        (0x34, bne(T2, ZERO, branch_off(0x34, L_EMIT)), "bne     t2,zero,emit"),
-        (0x38, addiu(T3, T3, -1), "addiu   t3,t3,-1"),
-        (0x3C, bne(T3, ZERO, branch_off(0x3C, L_WAIT)), "bne     t3,zero,wait"),
-        (0x40, NOP, "nop"),
+        (0x34, NOP, "nop                     # load delay slot"),
+        (0x38, andi(T2, T2, LSR_TX_EMPTY), f"andi    t2,t2,{LSR_TX_EMPTY:#x}"),
+        (0x3C, bne(T2, ZERO, branch_off(0x3C, L_EMIT)), "bne     t2,zero,emit"),
+        (0x40, addiu(T3, T3, -1), "addiu   t3,t3,-1"),
+        (0x44, bne(T3, ZERO, branch_off(0x44, L_WAIT)), "bne     t3,zero,wait"),
+        (0x48, NOP, "nop"),
         (L_EMIT, sb(A0, T0, 0), "sb      a0,0(t0)"),
-        (0x48, beq(ZERO, ZERO, branch_off(0x48, L_NEXT)), "b       next"),
-        (0x4C, NOP, "nop"),
+        (0x50, beq(ZERO, ZERO, branch_off(0x50, L_NEXT)), "b       next"),
+        (0x54, NOP, "nop"),
         (L_DELAY, lui(T4, delay_hi), f"lui     t4,{delay_hi:#x}"),
         (L_DLOOP, addiu(T4, T4, -1), "addiu   t4,t4,-1"),
-        (0x58, bne(T4, ZERO, branch_off(0x58, L_DLOOP)), "bne     t4,zero,dloop"),
-        (0x5C, NOP, "nop"),
-        (0x60, beq(ZERO, ZERO, branch_off(0x60, L_OUTER)), "b       outer"),
+        (0x60, bne(T4, ZERO, branch_off(0x60, L_DLOOP)), "bne     t4,zero,dloop"),
         (0x64, NOP, "nop"),
+        (0x68, beq(ZERO, ZERO, branch_off(0x68, L_OUTER)), "b       outer"),
+        (0x6C, NOP, "nop"),
     ]
 
     words = bytearray()
@@ -270,6 +276,30 @@ class SimResult:
         self.out, self.lsr_reads, self.steps = out, lsr_reads, steps
 
 
+def sources(w: int) -> set[int]:
+    """Which registers this instruction reads.  Only the forms the encoder emits;
+    anything else is a crash in the simulator rather than a guess."""
+    op = w >> 26
+    rs, rt = (w >> 21) & 31, (w >> 16) & 31
+    if w == 0:
+        return set()
+    if op == 0x00 and (w & 0x3F) == 0x21:          # addu
+        return {rs, rt}
+    if op == 0x0F:                                  # lui
+        return set()
+    if op in (0x09, 0x0C, 0x0D):                    # addiu, andi, ori
+        return {rs}
+    if op == 0x24:                                  # lbu
+        return {rs}
+    if op == 0x28:                                  # sb
+        return {rs, rt}
+    if op in (0x04, 0x05):                          # beq, bne
+        return {rs, rt}
+    if op == 0x01:                                  # bgezal
+        return {rs}
+    raise SimError(f"sources(): unimplemented instruction {w:#010x}")
+
+
 def simulate(image: bytes, load: int, *, lsr_value: int = SIM_LSR_IDLE,
              max_steps: int = 4_000_000, want_bytes: int = 0) -> SimResult:
     reg = [0] * 32
@@ -278,6 +308,9 @@ def simulate(image: bytes, load: int, *, lsr_value: int = SIM_LSR_IDLE,
     steps = 0
     lsr_reads = 0
     pending: tuple[int, int] | None = None   # (target, executes_after_delay_slot)
+    # The MIPS-I load delay slot, which this core exposes architecturally.  A
+    # load's result is not readable by the instruction that follows it.
+    load_pending: tuple[int, int] | None = None
 
     def word_at(a: int) -> int:
         o = a - load
@@ -310,6 +343,18 @@ def simulate(image: bytes, load: int, *, lsr_value: int = SIM_LSR_IDLE,
         simm = imm - 0x10000 if imm & 0x8000 else imm
         taken: int | None = None
 
+        # The hazard, refused rather than modelled.  A stale read here is not a
+        # technique anyone would choose, so the useful behaviour is to stop and
+        # name it -- see the note on this in `simulate`'s section header.
+        to_apply, load_pending = load_pending, None
+        if to_apply is not None and to_apply[0] in sources(w):
+            raise SimError(
+                f"the instruction at {pc:#010x} ({w:#010x}) reads r{to_apply[0]} in the "
+                f"load delay slot. On this core it sees the PREVIOUS value: 1,474 loads "
+                f"in the loader's own second stage and not one of them is followed by an "
+                f"instruction reading what it loaded. Put a nop there")
+        new_load: tuple[int, int] | None = None
+
         if w == 0:
             pass
         elif op == 0x00 and (w & 0x3F) == 0x21:                      # addu
@@ -324,7 +369,7 @@ def simulate(image: bytes, load: int, *, lsr_value: int = SIM_LSR_IDLE,
         elif op == 0x09:                                             # addiu
             reg[rt] = (reg[rs] + simm) & 0xFFFFFFFF
         elif op == 0x24:                                             # lbu
-            reg[rt] = load_byte((reg[rs] + simm) & 0xFFFFFFFF)
+            new_load = (rt, load_byte((reg[rs] + simm) & 0xFFFFFFFF))
         elif op == 0x28:                                             # sb
             store_byte((reg[rs] + simm) & 0xFFFFFFFF, reg[rt])
         elif op == 0x04:                                             # beq
@@ -340,6 +385,10 @@ def simulate(image: bytes, load: int, *, lsr_value: int = SIM_LSR_IDLE,
         else:
             raise SimError(f"unimplemented instruction {w:#010x} at {pc:#010x}")
 
+        # The previous instruction's load lands now, after this one's own write.
+        if to_apply is not None:
+            reg[to_apply[0]] = to_apply[1]
+        load_pending = new_load
         reg[ZERO] = 0
         if pending is not None:
             target = pending[0]
@@ -439,9 +488,9 @@ def main(argv=None) -> int:
     # except for that one immediate" is checked here rather than asserted.
     short, _ = build(message, 1)
     diff = [i for i in range(0, len(image), 4) if image[i:i + 4] != short[i:i + 4]]
-    if diff != [0x50]:
+    if diff != [0x58]:
         fail(f"the short-delay build differs from the shipped one at {diff}, not only at "
-             "the delay constant (0x50). The repeat check would be testing another program")
+             "the delay constant (0x58). The repeat check would be testing another program")
     twice = run(short, args.load, "the second banner", want_bytes=len(message) * 2)
     if twice.out != message * 2:
         fail(f"the payload does not repeat: the second banner came out as "

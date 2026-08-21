@@ -224,8 +224,15 @@ IFACE="$(ip -br link 2>/dev/null | awk '/^enx/{print $1; exit}')"
 if [ -n "$IFACE" ]; then
   ok "USB Ethernet is inside WSL as $IFACE"
   state="$(ip -br link show "$IFACE" | awk '{print $2}')"
+  # NOT "the other end is powered and negotiated", which this said until
+  # 2026-08-21. This rtl8153 asserts carrier with nothing at the far end: on
+  # 2026-08-18 it reported LOWER_UP with the board demonstrably unplugged, and it
+  # did so again on 2026-08-21 while the router sat unpowered on the desk.
+  # runsheet.md A3.1 carries the same warning and the doctor was contradicting
+  # it. A check that states a conclusion its input cannot support is worse than
+  # no check, because the operator believes it.
   if ip -br link show "$IFACE" | grep -q LOWER_UP; then
-    ok "$IFACE has carrier (the other end is powered and negotiated)"
+    ok "$IFACE reports carrier — which this adapter also does with nothing attached, so it is not evidence the device is powered (ip neigh + rx_packets are)"
   else
     skip "$IFACE is $state with no carrier — normal while the device is unplugged or sitting in the boot loader before Ethernet init"
   fi

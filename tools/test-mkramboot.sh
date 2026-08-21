@@ -30,7 +30,7 @@ bad() { echo "  FAIL  $1"; fail=$((fail + 1)); }
 
 # A fixed nonce, so that the golden hash below is a hash of something.
 NONCE=3f7c91a2
-GOLDEN=9223fc15a466c7ae4be7f8ebbbd8eb024a52cf1874189dab0aa792fe7a5b0a28
+GOLDEN=977a84b439f77dc0641e7e993702de0132818e6908af56b3f26b6550f4e22dfd
 
 echo "=== interpreter ==="
 "$PY" -c 'import sys; print("  " + sys.executable + "  " + sys.version.split()[0]); \
@@ -201,13 +201,34 @@ broken "a payload that materialises the message address absolutely is caught" \
 
 # 5. The outer loop: make the banner print once and fall off the end.
 broken "a payload that does not repeat is caught, and as a refusal not a traceback" \
-       's/(0x60, beq(ZERO, ZERO, branch_off(0x60, L_OUTER)), "b       outer")/(0x60, NOP, "nop")/' \
+       's/(0x68, beq(ZERO, ZERO, branch_off(0x68, L_OUTER)), "b       outer")/(0x68, NOP, "nop")/' \
        "does not run"
 
 # 6. The cursor: drop the increment and the banner becomes one byte forever.
 broken "a cursor that does not advance is caught" \
-       's/(0x24, addiu(S1, S1, 1), "addiu   s1,s1,1")/(0x24, NOP, "nop")/' \
+       's/(0x28, addiu(S1, S1, 1), "addiu   s1,s1,1")/(0x28, NOP, "nop")/' \
        "parted company"
+
+# 8. The bug that reached the device on 2026-08-21 -- the only one in this file
+#    that a build certified and the silicon refuted.
+#
+#    `andi t2,t2,0x60` sat in the load delay slot of `lbu t2,0(t1)`, so it masked
+#    the PREVIOUS line-status reading, which after the first character is
+#    permanently non-zero. The wait loop therefore never waited: all 41 bytes went
+#    out back to back, the 16550's 16-byte FIFO took the first 16 and dropped the
+#    rest, and the console printed `*** N150RT RAM` forever -- with the nonce in
+#    the part that was thrown away.
+#
+#    Version 1 of the simulator applied a load's result immediately, which models
+#    a core WITH interlocks. This one has none, and the evidence is in its own
+#    loader: 1,474 loads in the second stage, not one followed by an instruction
+#    that reads what it loaded, 43.8% followed by an explicit nop.
+broken "an instruction in the load delay slot is caught" \
+       's|(0x34, NOP, "nop                     # load delay slot"),|(0x34, addiu(T2, T2, 0), "addiu   t2,t2,0"),|' \
+       "load delay slot"
+broken "the same hazard on the character fetch is caught" \
+       's|(0x20, NOP, "nop                     # load delay slot"),|(0x20, addu(A0, A0, ZERO), "move    a0,a0"),|' \
+       "load delay slot"
 
 # 7. The layout assertion: move a label without moving the instruction.
 broken "a label that disagrees with the layout is caught" \

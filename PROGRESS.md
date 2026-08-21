@@ -6207,3 +6207,140 @@ loader answers on the network only after `IPCONFIG` is typed at the console.
     argument does is unknown**, and it sits in the only irreversible section in
     the runsheet. Answerable at the desk from the handler at `0x80409B6C`, and it
     should be answered before `A2.5` is run again rather than during it.
+
+## W08 Day 1, station 2 — four cells, four predicted hashes, and a payload the simulator certified that the silicon refused — 2026-08-21
+
+**`BENCH-LOG.md` 2026-08-21 第 2 站進站場次 carries what was typed and seen, and
+the 補記 under it corrects this session's own scoreboard.** Two power cycles,
+**zero flash bytes written**, `P9-12` closed `confirmed`.
+
+Eleven of thirteen frozen predictions hit. **One was refuted — prediction 11 —
+and that refutation is the most valuable thing this session produced.** One
+(prediction 12) was simply not run.
+
+### Open question 96 is closed by measurement
+
+Four cells, each moving one variable, each with a sha256 computed at the desk
+from `dumps/flash-n150rt-console-2.bin` before the visit:
+
+| after | bytes | sha256 | predicted? |
+|---|---|---|---|
+| nothing | 0 | `e3b0c442…` | ✅ |
+| `FLR 0x010000` → RAM `0x81000000`, len `0x1000` | 4096 | `3c586859…` | ✅ |
+| `FLR 0x180000` → RAM `0x80500000`, len `0x1000` | 4096 | `06c9622f…` | ✅ |
+| `LOADADDR 81000000`, no `FLR` | 4096 | `e7335bc0…` | ✅ |
+
+**The loader's TFTP read serves `[0x8040D3A8] + (block-1)*512` for
+`[0x8040DD28]` bytes. `LOADADDR` owns the address; `FLR`'s third argument owns
+the length.** So `get` is a fast path for `FLR` output *only* when `FLR`'s
+destination equals `LOADADDR` — which is neither answer the question offered
+itself, and is the opposite of what the section's previous design would have
+concluded.
+
+Three things came free with it:
+
+* **`DB 80500000 64` before anything else returned flash `0x060010` byte for
+  byte.** Nothing this session put it there — the `FLR`s came later. **The
+  loader stages the `cr6c` payload into RAM before it offers the ESC window**;
+  the boot log's `+5.84 Jump to image start=0x80500000` is the jump, not the copy.
+  That also explains `T-09` from 2026-08-17, which had sat unexplained.
+* **`IPCONFIG` does not reset the length global** — cell 4 sent no `FLR` and
+  still served `0x1000` bytes.
+* **Port 2098 is a constant, and it increments per completed upload.** Every
+  reply came from `:2098`; the read after the first `put` came from `:2099`,
+  twice, on two separate boots.
+
+And the `?` command set printed by the device matched the 17-entry table
+recovered from `.data` at `0x8040DBC0` line for line — the static table
+recovery confirmed by the device itself.
+
+### `P9-12` — `confirmed`, and how it nearly wasn't
+
+`J 80500000` handed control to a 156-byte image the device has never seen. The
+loader printed `---Jump to address=80500000` (`0x8040B35C`) and the payload then
+printed `*** N150RT RAMBOOT P9-12 4baee517 ***` repeatedly. **The marker and the
+nonce occur zero times in the 4 MiB dump and zero times in the decompressed
+loader stage 2**, checked before the build rather than after the console.
+
+Zero flash bytes written, argued three ways: `AutoBurning=0` echoed in that same
+boot; autoburn read at exactly one place, `0x80401B9C`, where a `beqz` skips the
+burn routine; and the `cr6c` header plus the boot loader head verified unchanged
+afterwards. The upload was *also* proved to land by a **byte-identical TFTP round
+trip taken before any jump** — which converts "did the upload arrive" from
+unverifiable-without-executing into a `cmp`.
+
+### The result worth more than the row: a model kinder than the device
+
+**The first jump printed `*** N150RT RAM` and nothing more — exactly 16 bytes per
+iteration, 272 times over ten minutes.** 16 is the 16550's transmit FIFO depth.
+
+`andi t2,t2,0x60` sat in the **load delay slot** of `lbu t2,0(t1)`, so it masked
+the *previous* line-status reading, which after the first character is
+permanently non-zero. The wait loop never waited; 41 bytes went out back to back;
+the FIFO took 16 and dropped 25 — with the nonce among them.
+
+`tools/mkramboot.py` simulates every build and had reported *"it emits `*** N150RT
+RAMBOOT P9-12 4baee517 ***` and repeats"*. **It models a core with load
+interlocks. This one has none.**
+
+The second source cost two minutes and was available before the bench:
+**1,474 loads in the loader's own second stage, 646 followed by an explicit
+`nop`, and not one — 0.00% — followed by an instruction that reads what it
+loaded.** That is a compiler honouring an architecturally exposed load delay
+slot. The confirmation was a single-variable experiment: two `nop`s, nothing
+else changed, full banner.
+
+**And the answer was inside the routine being copied.** The loader's putchar has
+a `nop` at `0x80406B88`. Its addresses were copied, its 6540-iteration bound was
+copied, and that instruction was discarded as padding.
+
+This is the third time in one session a model erred in the forgiving direction —
+after the simulator sharing the encoder's constants, and the `PC+8` branch
+offset. The pattern is worth more than any of the three: **a model that is
+kinder than the device certifies exactly the bugs the device will reject.**
+`tools/test-mkramboot.sh` is **26 → 28 cases**; the simulator now refuses any
+instruction that reads a register in the load delay slot, and both slots have a
+reverse-verified case.
+
+### Instrument correction
+
+`tools/bench-doctor.sh` printed *"has carrier (the other end is powered and
+negotiated)"*. It said that on 2026-08-21 with the router unpowered on the desk,
+and on 2026-08-18 with it demonstrably unplugged. `runsheet.md` `A3.1` already
+carried the warning that this rtl8153 asserts carrier into thin air; the doctor
+was contradicting the runsheet. Reworded to report the carrier and name what it
+is not evidence of.
+
+### Deliberately not done
+
+- **`A2.3`, `A2.5`, `A2.6` were skipped**, and `A2.3` on purpose: it is the usual
+  opening step, and its `FLR` would have set the TFTP length global before cell 1
+  could ask whether that global is where the length comes from.
+- **The auto-execute filenames were not tested.** `--allow-autoexec` exists and
+  was not used.
+- **Prediction 12 was not run** — see below.
+
+### Open, carried forward
+
+66, 67, 69, 70, 71, 74, 75, 77, 78, 79, 81, 82, 84, 85, 86, 87, 88, 89, 91, 92,
+93, 94, 95, 97, 98 — unchanged.
+
+96. **Closed.** Answered statically on 2026-08-21 and confirmed the same evening
+    on four pre-registered hashes. Mechanism and addresses:
+    [`notes/loader-tftp-and-commands.md`](notes/loader-tftp-and-commands.md);
+    what was typed and seen: `BENCH-LOG.md` `T-86` / `T-87`.
+
+99. **Does the loader really take the switch ports down on the way out of `J`?**
+    `0x804092F4` clears one bit in each of `0xBB804104`–`0xBB804114` before
+    jumping, and prediction 12 said the network would be dead afterwards. **It
+    was never checked** — after the jump nobody ran `get` or looked at
+    `ip neigh`. That is a planned step skipped in execution, not an inapplicable
+    one, and it costs one command at the next visit.
+
+100. **Is the RTL8196E's load delay slot exposed for *stores* and for the
+     `mfc0`/`mtc0` pair too?** This session established it for loads, from 1,474
+     samples and one silicon experiment. Nothing here says anything about the
+     other classic MIPS-I hazards, and `tools/mkramboot.py`'s simulator models
+     none of them — so the next payload that uses a coprocessor register or
+     depends on store ordering will be certified by a model that has not been
+     checked against this core.
