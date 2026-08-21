@@ -31,8 +31,8 @@ schema_version = "1"
 # sha256 over (id, predict, refute) of every case that has a refutation.
 # Change a prediction and this must change in the same commit, where the diff
 # shows it. `python3 tools/rtcase.py freeze` prints the current value.
-sha256 = "b026221b558abb8f7d16c9e3ac965e9fb1859176f71ffdf923a0f8561e4ab26c"
-committed = "2026-08-20"
+sha256 = "7ade245482e61ad14ab273cc12f04d1a9e0ae742cdd31e8b0ce44e8fe93285c7"
+committed = "2026-08-22"
 note = """W05 Day 0 — frozen before any request has been served to this device.
 
 2026-08-18: two cases added, P0-11 and P3-14, both for G4 clause 3a — the L2
@@ -146,7 +146,31 @@ sharper in the way that matters — it can fail:
 Editing a frozen prediction is allowed and is never allowed to be quiet; this
 hash is what makes it loud, and the reason is that the first one was wrong about
 the format rather than unlucky about the outcome. Nothing had been measured, no
-result existed, and the correction is dated in the same commit as the edit."""
+result existed, and the correction is dated in the same commit as the edit.
+
+2026-08-22 (W08, desk) — three cases added, `P9-17`, `P9-18` and `P9-19`, and
+nothing existing was edited. All three are frozen **before the device is next
+powered on**, and all three are zero-write.
+
+They exist because 2026-08-22's bench session produced a result nobody had bet
+on: after `J`, restoring the five `EnablePHYIf` bits did **not** revive TFTP, so
+"the network is dead after `J`" still has three candidate causes and none is
+excluded. The desk work that followed read the loader's interrupt wiring out of
+its own second stage — `request_IRQ(15, "eth0")` at `0x80402A44`, the `sti` at
+`0x80408494`, and a command prompt whose character source polls nothing but the
+UART — and that turns the open question into a prediction with a number in it.
+
+**`P9-18` is deliberately the first of the three, and it is the one that can
+stop the other two.** It reads `GIMR0` and two interrupt-routing registers
+before anything is jumped to; if bit 15 is clear, or `GIMR0` reads zero, the
+reading behind `P9-17` is wrong and `P9-17` does not get sent.
+
+**And `P9-18` names a bit it cannot predict.** Bit 8 of `GIMR0` has two possible
+writers and the call graph between them was not resolved; both outcomes are
+written down, with the instruction that settles it. That is the same shape as
+2026-08-22's unscored cell, and it is on purpose: a prediction that says which
+of its bits are load-bearing survives a hostile reader, and a confident number
+that happens to be wrong does not."""
 
 [schedule]
 # sha256 over (id, week) of every live case. `week` is deliberately NOT in
@@ -157,8 +181,8 @@ result existed, and the correction is dated in the same commit as the edit."""
 # breaking the plan or editing the field. Editing it quietly is
 # indistinguishable from moving the goalposts, so now it hashes.
 # `python3 tools/rtcase.py schedule` prints the current value.
-sha256 = "7bdcc16b8884eca614b344dc9cdb8ea0b0343f0626e82c423c66f798e29adb4f"
-committed = "2026-08-20"
+sha256 = "85cb83a20a1c49c920df50a94b662d92cd24307bb24d7a1a73d079a3c1e9e8da"
+committed = "2026-08-22"
 note = """The payload changed on 2026-08-17: it was (id, week) and is now
 (id, week, rescheduled_from, reschedule_date, reschedule_reason), so every
 declared hash before this line is on the old basis and cannot be compared to
@@ -2048,6 +2072,69 @@ star = true
 caution = "零寫入。payload 只有兩個指令，用 `EB` 打進 RAM，不經過 TFTP，也不經過 flash"
 predict = '''`0x80409360` 是 `jalr s0` 而不是 `jr s0`，所以 `ra` 被設成 `0x80409368`；handler 在那裡從堆疊還原 `ra` 與 `s0` 之後 `jr ra`，回到 dispatcher 的迴圈。因此一個內容只有 `jr ra; nop`（`03 e0 00 08 00 00 00 00`）的 8-byte payload 被 `J` 過去之後，主控台會印 `---Jump to address=…` 然後**回到 `<RealTek>` 提示字元**，不需要重開機。上一場為了從 `P9-12` 的 payload 回到 loader 燒掉一次電源循環，而 `runsheet.md` Part B 的 `B-W08 進站實錄` 寫的是「`J` 之後沒有軟體的路回去」—— 這一項就是去推翻那句話。回到提示字元之後，`get` 應該是死的（`P9-15` 的那五個 bit 已經被 `J` 自己清掉了），而把原值寫回去之後如果 `get` 復活，`J` 的網路副作用就與中斷無關。'''
 refute = '''（a）主控台沒有回到提示字元 → `jalr` 的讀法對而回程被別的東西擋住（cache 維護之後的狀態，或 `cli()` 讓 `GetLine` 收不到字元），那時「payload 可返回」在這台上不成立，`P9-10` 的 payload 一律要當成單程，而這比讀對了更值得記。（b）回到了提示字元但之後每一個指令都失常 → 回程存在但 loader 的狀態被破壞了，同樣不能拿來省電源循環。（c）`EB` 打進去的兩個 word 用 `DW` 讀回來不是 `03e00008` / `00000000` → 先修 `EB` 的用法，不要跳。'''
+
+[[case]]
+id = "P9-18"
+phase = "9"
+section = "12.8"
+title = "進站前把中斷接線讀出來：`GIMR0` 與兩個路由暫存器"
+feasibility = 5
+exit_evidence = "unverified"
+week = "W08"
+star = true
+caution = "零寫入，全部是 `DW`。三格都在任何 `J` 之前，板子停在 `<RealTek>`"
+predict = '''靜態讀法（`notes/loader-interrupts-and-console.md`、`reports/bootloader-unit-2018.json` 的 `interrupt_wiring`）說：loader 在抓到 ESC 之後走 `0x80408468`，那裡呼叫乙太網初始化 `0x804028B4`（內含 `request_IRQ(15, "eth0")`，`0x80402A44`）、印出 `---Ethernet init Okay!`、在 `0x80408494` 用 `ori 0x1f` / `xori 0x1e` 把 CP0 status 的 IE 設起來，然後才進命令迴圈 `0x80409144`。所以在提示字元下：
+
+（1）`DW B8003000 1`（`GIMR0`）**bit 15 = 1**，這是 `eth0`；**bit 27 = 0**，因為 `SPEED` 的初始化在 `0x8040A4B0` 把它自己存下來的舊值寫回去了。**bit 8 這份讀法不敢定**：`0x80402FB8` 有一個 `GIMR0 |= 0x100`，而它在不在 `0x804028B4` 的呼叫路徑上沒有查出來，`request_IRQ(8, "timer")` 設的又是同一個 bit，中間還隔著 `0x804086E4` 的 `GIMR0 = 0`。**兩種結果都要記，讀到哪一種就去看 `0x80402F80` 的呼叫者。**
+
+（2）`DW B800300C 1`（`IRR1`，source 8–15 各四個 bit）**bit 28–31 = 3**，由 `0x80402A1C` 寫入，那是 source 15 的優先權欄。
+
+（3）`DW B8003014 1`（`IRR3`，source 24–31）**bit 12–15 = 3**，由 `0x8040A398` 寫入，那是 source 27。
+
+（4）第四格是獨立的一路，用來檢查「網路堆疊在 `IPCONFIG` 之前就起來了」：`A2.2` 抓到提示字元之後、**還沒有打過 `IPCONFIG`**，把主機加一個 `192.168.1.10/24`，`loader-tftp.py probe --host 192.168.1.6`。預測有 DATA 回來（0 byte 也算成功）。`0x80401D18` 在 `sti` 之後立刻被呼叫，`0x80401D1C` 把 `192.168.1.6` 寫進 `0x8040EDC0`，而 `IPCONFIG` 的 handler `0x80409378` 只解析一組點分十進位再存進同一個位址 —— 它換的是位址，不是把堆疊叫起來。'''
+refute = '''（a）`GIMR0` 的 bit 15 是 0 → `request_IRQ(15,"eth0")` 沒有跑到，整條「TFTP 由中斷驅動」的讀法失去它的支柱，`J` 之後網路死掉要另外歸因，`P9-17` 的兩個 payload 先不要送。（b）`GIMR0` 整個讀回 `00000000` → 提示字元下中斷全被遮著，那 TFTP 既不可能由中斷驅動，`0x80406BBC` 又證實命令迴圈不 poll 網路 —— 兩個讀法至少有一個是錯的，**停手**，回去讀，不要試別的值。（c）`IRR1` 的 bit 28–31 不是 3 → 路由暫存器的模型錯了，「irq 15 = eth0」這個對應沒有第二個來源，`installs` 那張表要降級成「這個結構長得像 irqaction」。（d）第四格沒有回應 → 網路堆疊不是在 escape 視窗起來的，`P9-4` 結果欄那句「只在序列埠打過 IPCONFIG 之後才存在」是對的，而 `notes/loader-interrupts-and-console.md` 對 `0x80401D18` 的讀法要改寫。'''
+
+[[case]]
+id = "P9-17"
+phase = "9"
+section = "12.8"
+title = "`J` 的網路死因：把中斷還原，TFTP 會不會回來"
+feasibility = 4
+exit_evidence = "unverified"
+week = "W08"
+star = true
+caution = "零 flash 寫入。只寫 RAM 與兩個暫存器，斷電即還原。**每一次 `J` 都會重新清掉那五個 PHY bit**，所以每跳一次都要重寫一次 `EW BB804104 …`"
+predict = '''`J` 在跳之前做三件事，2026-08-22 已經證明還原其中一件（五個 `EnablePHYIf` bit）不足以讓 TFTP 回來。剩下兩件是 `0x804092AC` 的 `GIMR0 = 0` 與 `0x804092B0`–`0x804092C0` 的清 `IE`，而 loader 沒有任何指令寫得到 CP0 status，所以只能用 payload。兩個 payload 由 `tools/mkramboot.py --irq-restore` 產生，**只差五個 word，而且五個都落在第二行 `EW` 上**：
+
+**A（對照，先做）**：`J` 到任何 payload 之後 `DW B8003000 1` 讀到 `00000000`。這是 `0x804092AC` 的直接證據，而且是在沒有人手動清過的情況下讀到的 —— `T-94` 已經對那五個 PHY bit 做過同一件事，這一格是對 `GIMR0` 補上同樣的證據。
+
+**B（`--no-set-ie`，只還原 `GIMR0`）**：`J` → `DW B8003000 1` 讀回 `P9-18` 抄下來的那個值 → `EW BB804104 <五個原值>` → `DW` 確認五個 bit 0 回到 1 → `probe`。**預測仍然逾時**，因為 `IE` 還是 0，中斷還是不會被取。
+
+**C（完整版，`GIMR0` + `IE`）**：`J` → `EW BB804104 <五個原值>` → `probe`。**預測有 DATA 回來**，`ip neigh` 回 `REACHABLE`，`rx_packets` 前進。
+
+B 與 C 之間唯一的差別是那五個 word，而那五個 word 是從 loader 自己 `0x80408484`–`0x80408494` 的 `sti` 逐字拷過來的。所以 C 成立而 B 不成立的話，`J` 之後網路死掉的**未歸因那一半就是被遮掉的中斷**，而且是 `IE` 那一半，不是 `GIMR0` 那一半。'''
+refute = '''（a）**B 就復活了** → `J` 的 `mtc0`（`0x804092B0`–`0x804092C0`）沒有真的清掉 `IE`，或者 `IE` 不是收送路徑的必要條件。那時 `notes/loader-interrupts-and-console.md` 對那四個指令的讀法要重寫，而「四值 per-bit 格」那支儀器要先被質疑一次 —— 它正是為了不要再用形狀去猜而寫的。（b）**C 也不復活** → 中斷不是充分原因，剩下兩個候選（cache 維護或 payload 動到別的狀態、交換器在介面被關掉之後需要比 bit 0 更多的重新初始化）活著。**這是負面結果不是失敗**，而且它比正面結果更值得寫：它會把問題縮到「交換器需要重新初始化」，下一步是 `PORT1` / `PHYW` 那幾條指令，而那要另外設計。不准當場試別的值。（c）**`J` 之後回不到提示字元** → `P9-16` 的回程只對兩個指令的 payload 成立，二十個 word 的不成立。那時 `P9-10` 的 payload 一律當成單程，而這比原本的結論更重要。（d）**設完 `IE` 之後主控台不再回應** → 中斷風暴（`GIMR0` 打開時有掛著的事件而 ISR 清不掉）。斷電重來；flash 一個 byte 都沒動過，所以代價是一次電源循環。**而它本身是一個發現**：`J` 留下的狀態不是可以隨便把中斷打回去的狀態。（e）`DW` 讀回來的二十個 word 與 `mkramboot` 印出來的不一致 → 先修 `EW` 的打法（一行最多十八個值，`GetLine` 只收 128 個字元），**不要跳**。'''
+
+[[case]]
+id = "P9-19"
+phase = "9"
+section = "12.8"
+title = "假的提示字元與前導空白：把 2026-08-21 那次 `Unknown command !` 照著重現"
+feasibility = 5
+exit_evidence = "unverified"
+week = "W08"
+star = true
+caution = "零寫入。四格都只是打字，其中兩格預期會被拒絕 —— 被拒絕才是成立"
+predict = '''2026-08-21 有一行乾淨的 `EB` 被回 `Unknown command !`，當時記成「成因不明」。靜態讀法給出的成因有兩半，這一節把兩半分開各測一次：
+
+**（1）前導空白**：在提示字元下打 `<一個空白>DW 80540000 2`。tokeniser `0x80407248` 在 `0x80407290` 先把 `argv[i] = p` 存下去，**然後**才在 `0x804072D4` 測 `*p` 是不是空白並寫進 NUL —— 所以 `argv[0]` 是空字串，十七個名字一個都不match。**預測：`Unknown command !`。** 對照組：同一行不帶空白，正常印出兩個 word。
+
+**（2）TAB**：在提示字元下按一次 TAB 再按 Enter。`GetLine` 的 `0x8040713C`–`0x80407168` 把一個 TAB 展開成**正好八個空白**，寫進緩衝區也回顯出來。**預測：主控台上出現恰好八個空白，然後 `Unknown command !`。**
+
+**（3）假提示字元**：跑一次 `loader-tftp.py probe`。`0x80401CD0` 印的是 `"\\n.Success!\\n%s"`（`0x8040A948`），而那個 `%s` 是 `0x8040A894` —— 字串 `<RealTek>` 在這個映像裡的**第二份**。它是在 `eth0` 的中斷處理程序裡印的，不會清掉行緩衝區。所以：先按一次 TAB（不按 Enter），再跑 `probe`，等 `.Success!` 之後那個 `<RealTek>` 出現，**直接**打 `DW 80540000 2`。**預測：`Unknown command !`**，因為緩衝區裡還留著那八個空白。再按一次 Enter（預期靜靜地回一個新的提示字元，`0x804091C8` 的 `blez` 那條路，不印任何抱怨），同一行再打一次 —— 正常。
+
+**（4）儀器**：整場 `picocom` log 餵給 `python3 tools/console-lint.py`。預測它把每一個 `Unknown command !` 都歸到 `leading-whitespace` / `control-bytes` / `not-a-command` 其中之一，`unexplained` 為 0，而且 `repaints` 至少是 1。'''
+refute = '''（a）帶前導空白的那一行照常執行 → tokeniser 的讀法錯了，`0x80407290` 不是在測試空白之前存 `argv[i]`，`notes/loader-interrupts-and-console.md` 的 102 那一半整段要重寫。（b）按 TAB 回顯的不是八個空白（或什麼都沒有）→ `GetLine` 的 TAB 展開讀法錯，而 2026-08-21 那八個空白就要另外找來源 —— 那時「操作員打了八個空白」是唯一剩下的解釋，而它本來就分不開。（c）`probe` 跑完之後主控台沒有印出 `<RealTek>` → `%s` 的引數讀法錯，`0x8040A894` 不是那第二份字串，「假提示字元」這個機制不存在，8/21 那次要重新歸因。（d）第（3）格沒有被拒絕 → 中斷印出來的東西**有**清到行緩衝區，那比預測有意思：它表示 ISR 動到了主執行緒的狀態，而那是一個要單獨追的問題。（e）`console-lint` 的判讀和主控台看到的不一致 → **先修工具再談別的**，而且那正是這一節第四格存在的理由。'''
 
 # ===========================================================================
 # Phase 10 — 設定層

@@ -27,7 +27,8 @@ UNIT_DUMP  := $(FWRE_WORK)/dumps/flash-n150rt-console-1.bin
         rtcase rtcase-test todo ledger check-ledger shellcheck ci clean-work qemu-env qemu-test probe-test \
         loader-test loader-report tftp-test ramboot ramboot-test doctor check-runsheet runsheet-test \
         dump-test flash-tools-test photo-test write-test failopen-test alignfix-test check-benchlog benchlog-test config-diff-test count-checks liveness liveness-test dhcp-test mipsref-reports \
-        libbase-test libbase-report check-ci-parity ci-parity-test upnp-soap-test
+        libbase-test libbase-report check-ci-parity ci-parity-test upnp-soap-test \
+        irqboot console-lint console-lint-test
 
 help: ## Show this help
 	@grep -hE '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) \
@@ -209,6 +210,17 @@ ramboot: ## Build the RAM payload for P9-12 (NONCE=... required)
 ramboot-test: ## Prove the RAM payload builder's checks fire (needs no device)
 	bash tools/test-mkramboot.sh
 
+irqboot: ## Build the interrupt-restoring payload (GIMR0=... from DW B8003000 1)
+	@test -n "$(GIMR0)" || { echo "  usage: make irqboot GIMR0=<hex read at the prompt BEFORE the J> [NOIE=1]"; exit 1; }
+	python3 tools/mkramboot.py --irq-restore $(GIMR0) --load $(if $(LOAD),$(LOAD),80540000) $(if $(NOIE),--no-set-ie,) --report $(DUMPS)/w08-irqboot$(if $(NOIE),-noie,).json
+
+console-lint: ## Read a <RealTek> log the way the dispatcher does (LOG=...)
+	@test -n "$(LOG)" || { echo "  usage: make console-lint LOG=<picocom log>"; exit 1; }
+	python3 tools/console-lint.py $(LOG)
+
+console-lint-test: ## Prove the console log reader fires and stays quiet (needs no device)
+	bash tools/test-console-lint.sh
+
 # The three suites below were written before `ci` existed as a single list and
 # were never added to it -- 35 cases, none needing hardware, recorded as
 # PROGRESS open #33 when the totals were recounted on 2026-08-17. The largest of
@@ -325,7 +337,7 @@ loader-report: ## Unpack the boot loader's LZMA stage 2 (needs the flash dump)
 # `rtcase-test` is in here and not optional. It is the only thing proving the
 # register gate can fail; without it `make rtcase` going green means nothing,
 # which is the exact shape of instrument bug 12.
-ci: lint test shellcheck check-reports check-runsheet check-benchlog benchlog-test rtcase rtcase-test check-ledger check-ci-parity ci-parity-test qemu-test probe-test loader-test tftp-test ramboot-test runsheet-test dump-test flash-tools-test photo-test write-test failopen-test alignfix-test config-diff-test liveness-test dhcp-test libbase-test upnp-soap-test ## Everything CI checks, except the container build
+ci: lint test shellcheck check-reports check-runsheet check-benchlog benchlog-test rtcase rtcase-test check-ledger check-ci-parity ci-parity-test qemu-test probe-test loader-test tftp-test ramboot-test console-lint-test runsheet-test dump-test flash-tools-test photo-test write-test failopen-test alignfix-test config-diff-test liveness-test dhcp-test libbase-test upnp-soap-test ## Everything CI checks, except the container build
 	@echo "  ok   local CI equivalents passed (container build not included)"
 
 diff: venv ## Diff the two builds

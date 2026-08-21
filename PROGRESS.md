@@ -8,12 +8,25 @@
 | **W04** | CVE root-cause location | **G3** | ✅ **passed** — 2026-08-11 |
 | **W04-2** | Catch-up: move the findings onto the build this unit runs | **G3.5** | ✅ **passed** — 2026-08-17 (the fifth box closed in W05) |
 | **W05 Day 0** | Pre-engagement: freeze the predictions before the first packet | **G3.75** | ✅ **passed** — 2026-08-17 |
-| **W05** | Dynamic analysis, upper half | — (DoD) | ⚠️ **4 of 5 DoD, 22 / 31 register rows** — 2026-08-17 |
-| **W06** | PoC reproduction | **G4** | ⚠️ **4 of 5 — L2 clause not met, 18 / 18 register rows** — 2026-08-17 |
-| W07 | Systematic bug hunt | — | |
-| W08 | Write-up draft | — | |
+| **W05** | Dynamic analysis, upper half | — (DoD) | ✅ **DoD 5 of 5, 27 / 27 register rows** — 2026-08-17 |
+| **W06** | PoC reproduction | **G4** | ✅ **passed 5 of 5** — 2026-08-18, clause 3 split into 3a met / 3b impossible by construction; **20 / 20 register rows** |
+| **W07** | Systematic bug hunt | — (DoD) | ✅ **58 / 58 register rows, DoD 5 of 6** — 2026-08-19; the six-build differential harness was never built and `notes/bughunt.md` says so |
+| **W08** | Write-up draft, plus the bench work W07 deferred | — (DoD) | 🚧 **in progress** — **5 / 14 register rows**; the fourteen-chapter draft is written; six rows are blocked on an instrument that does not exist or on a bench visit, each with its reason in the register |
 | W09 | Write-up publication | G5 | |
 | W10 | Buffer / disclosure / close-out | — | |
+
+> 📌 **This table was four days stale and the author caught it, not a check.**
+> On 2026-08-22 it still read "W05 ⚠️ 4 of 5 DoD, 22 / 31 register rows" and
+> "W06 ⚠️ 4 of 5 — L2 clause not met, 18 / 18", with W07 and W08 blank — while
+> the body of this same file recorded W05 at 5 of 5 and 27 / 27
+> (2026-08-17 close-out), G4 passing at five of five on 2026-08-18, and eleven
+> W07 and W08 sessions below it. **The numbers were never wrong where they are
+> owned** — `test-cases.toml` and `make todo` have been right throughout — and
+> that is exactly the failure mode this repository has a rule about: a summary
+> that restates state it does not own drifts silently, because nothing reads it.
+> The counts above are now quoted from `python3 tools/rtcase.py todo --week W0N`
+> rather than typed, and the fix for the general case is in **§ Corrections**
+> below rather than here.
 
 ---
 
@@ -6748,3 +6761,184 @@ all of that value rests on somebody reading it correctly.
      path writes and whether it can reach the monitor's line buffer or the argv
      array at `0x8040EAE0`. Until then, the operational rule stands — **press
      Enter before typing whenever anything has printed since the last prompt.**
+
+## W08 Day 2, desk — the shape matched and the answer was backwards — 2026-08-22
+
+**Desk only. The device was not powered on and nothing was clipped.**
+`BENCH-LOG.md` 2026-08-22 桌面第六場 carries the plan and the three frozen
+predictions, written before the next power-on. **No record cards: nothing was
+sent to the device.**
+
+Open questions **101** and **102** are both closed. They turned out to be the
+same question from two sides — *what runs the loader's network, and what does
+the command prompt do while it waits?* — and one reading settles both. The
+working is [`notes/loader-interrupts-and-console.md`](notes/loader-interrupts-and-console.md);
+the reasoning is `RUNBOOK.md` §8.12.47.
+
+### 101 — the loader's TFTP is interrupt-driven
+
+Four legs that share no mechanism:
+
+* **The prompt polls nothing but the UART.** `0x80406BBC` is the command loop's
+  character source and it is an unbounded spin on `0xB8002014`. The only two
+  addresses the whole routine touches are that and `0xB8002000`, with **zero**
+  unresolved memory references.
+* **An `eth0` interrupt is installed.** `request_IRQ(15, …)` at `0x80402A44`,
+  handler `0x804023B0`, and the irqaction carries the literal name string
+  `eth0`. Two more: IRQ 8 `timer`, IRQ 27 `SPEED`.
+* **Interrupts are on before the prompt is ever printed.** `0x80408468` calls
+  the ethernet init, prints `---Ethernet init Okay!`, sets `IE` at `0x80408494`,
+  starts the TFTP service, and only then enters the command loop.
+  **That console line is in this unit's own W02 boot capture**, one line above
+  the first `<RealTek>`.
+* **The `eth0` handler is the packet input path**, `0x804023B0` to `0x80402040`,
+  dispatching on EtherType into the ARP and IP paths.
+
+So `J`'s `GIMR0 = 0` and its `IE` clear are **each independently sufficient** to
+stop TFTP, and restoring the five `EnablePHYIf` bits could never bring it back.
+That is exactly the cell 2026-08-22 measured and could not attribute.
+
+### The near-miss, and it is the one worth reading
+
+**Version 1 of this analysis concluded that the loader never enables interrupts
+at all.** It searched for Realtek's `sti` idiom — `mfc0 $1,$12 / ori $1,1 /
+mtc0 $1,$12` — found none, found seven `cli` sites of the matching shape, and
+read that as "the loader runs masked, so its TFTP must be polled".
+
+Every observation in that chain is correct. The conclusion is the opposite of
+the truth, because **this build writes `ori $1,0x1f / xori $1,0x1e`** — same
+effect, different bytes — and a search for one shape cannot see another.
+
+**Notice which way the error pointed.** It would have excluded the *correct*
+candidate out of the three that survived the bench, and excluded it with a
+sentence that sounds well-founded: *"interrupts cannot be the cause, because
+this loader never enables them."*
+
+The fix is not more care. It is a different question: not *"is this the shape I
+expected"* but *"what is bit 0 afterwards"*. The instrument now evaluates every
+`mtc0 $12` in the image with a four-valued per-bit lattice — `0`, `1`, *what
+`mfc0` read*, *its complement* — so `xori` is exact.
+`tools/test-loader-unpack.sh` holds it there with two fixtures that differ in
+**one bit of one immediate**.
+
+### 102 — the prompt was printed by the interrupt, and the answer was on disk
+
+A clean `EB` line was rejected because **eight spaces were already in the line
+buffer**, and the prompt that appeared to invite the command had been painted by
+the TFTP completion path from inside the `eth0` handler.
+
+* `0x80401CD0` prints `"\n.Success!\n%s"` and passes `0x8040A894` — a **second
+  copy** of the string `<RealTek>`. The upload and auto-burn messages do the
+  same. All of them run in the interrupt.
+* The tokeniser stores `argv[i]` at `0x80407290` **before** testing for a space
+  at `0x804072D4`, so a line with leading whitespace has `argv[0] == ""`.
+* `GetLine` expands a TAB into exactly eight spaces (`0x8040713C`).
+  **`stage2.bin` contains no run of eight spaces anywhere**, so no `printf`
+  produced them.
+* The log's next two lines confirm the model: one Enter produced a prompt with
+  **no** complaint, and the identical `EB` then worked.
+
+**Why it took a day**: the search for who prints `<RealTek>` was a
+cross-reference search on one address. It returned one result, the result was
+correct, and the conclusion drawn from it — *the prompt has one owner* — was
+false. A cross-reference search answers "who uses this address"; the question
+was "who prints this text".
+
+**And 102's own hypothesis is refuted, not confirmed.** It asked whether the
+TFTP receive path can write into the line buffer or the `argv` array at
+`0x8040EAE0`. It can — the payload write at `[0x8040DD10]` has no end-address
+check anywhere — but the `probe` that preceded the failure was a **read** of
+**zero** bytes and wrote nothing at all. The write path is excluded by the
+packet as well as by the code.
+
+### Three instruments, and what each is allowed to refuse
+
+| | |
+|---|---|
+| `tools/loader-unpack.py --irq` | The interrupt wiring: every `mtc0 $12` with bit 0 evaluated, every `GIMR0` access, every `request_IRQ` site with its handler and device name, and every memory address the prompt's character source touches. Refuses if the census cannot find the writes that **clear** IE — because then its report that nothing **sets** it is worthless. `reports/bootloader-unit-2018.json` gains an `interrupt_wiring` section |
+| `tools/console-lint.py` | Reads a `picocom` log the way the dispatcher reads it: classifies each prompt, reconstructs the line buffer across repaints, and **accounts for every `Unknown command !` or reports it unexplained**, which is a non-zero exit. 13 guard cases |
+| `tools/mkramboot.py --irq-restore` | Two payloads differing in exactly five words, all five on the second `EW` line. The simulator gained `sw` / `mfc0` / `mtc0` / `jr`; it refuses a word store to anything but `GIMR0`, a payload that does not return through `ra`, and an `EW` line the loader's 128-character buffer would silently truncate |
+
+Guard totals: `test-loader-unpack.sh` 26 to **34**, `test-mkramboot.sh` 32 to
+**42**, `test-check-runsheet.sh` 38 to **42**, plus **13** new in
+`test-console-lint.sh`.
+
+### What the log reader explained without being asked
+
+Run over `dumps/uart-bootloader.log` — W02's boot capture, 2026-08-16 — it
+attributes the three `Unknown command !` at the start of every escape-caught
+session to **`console-dump.py`'s own ESC stream landing in `argv[0]`**. Those
+three lines have been in the record for six days and nobody asked about them.
+
+The fourth is `help`, and it names something the disassembly had not: the
+dispatcher runs `strupr` (`0x80407040`) on `argv[0]` before comparing, so **the
+seventeen commands are case-insensitive**. `help` fails because the table's entry
+is `?`.
+
+### A pointer at a rule that does not exist
+
+`A2.8` step 4 ends with *"see stop condition 5 below"* and **`A2.8` has no
+numbered stop conditions at all.** The nearest list is `A2.7`'s — above, not
+below, and four items rather than five. `BENCH-LOG.md`'s 2026-08-22 entry quotes
+the same number back as though it were a rule.
+
+The rule's *content* was there all along (step 4's "do not design it in front of
+the device"). What was missing is that it was numbered and placed where the
+pointer points. **A pointer at a rule that does not exist is worse than no
+pointer**: the reader believes something is holding them and nothing is.
+
+`A2.8` and the new `A2.9` now carry five each, and `tools/check-runsheet.py`
+checks two things it never did: a heading that declares a count must carry that
+many items, and a "第 N 條" reference must resolve. Four guard cases.
+
+### Corrections
+
+| Said | Actually |
+|---|---|
+| **This file's own summary table:** W05 "4 of 5 DoD, 22 / 31", W06 "4 of 5 — L2 clause not met, 18 / 18", W07 and W08 blank | W05 closed at 5 of 5 and 27 / 27 on 2026-08-17, G4 passed at five of five on 2026-08-18, W07 closed at 58 / 58 on 2026-08-19. The table had been stale for four days **while the body of the same file recorded all three correctly**, and the author caught it, not a check. Fixed at the top of this file, with the counts quoted from `rtcase todo` rather than typed |
+| **`P9-4`'s recorded result:** the loader's network stack "exists only after a serial `IPCONFIG`" | It exists as soon as the **escape window is taken**, at the compiled-in `192.168.1.6` (`0x80401D1C`), one instruction after the `sti`. `IPCONFIG`'s handler (`0x80409378`) parses a dotted quad into `0x8040EDC0` and does nothing else — it changes the address, it does not bring the stack up. **`P9-4`'s conclusion is untouched**: an uninterrupted boot takes `0x804084B8` instead and puts nothing on the wire, which two passive captures measured and `dumps/uart-boot.log` shows by the absence of `---Ethernet init Okay!`. The sentence explaining it is what was wrong, and `P9-18`'s fourth cell measures the correction rather than assuming it |
+| **`runsheet.md` `A2.8` step 4:** "see stop condition 5 below" | There were no numbered stop conditions in that section. Five now exist, and the checker resolves the reference |
+| **The operational rule written 2026-08-22:** "press Enter before typing whenever anything has printed since the last prompt" | Still good advice, wrong shape — it asks the operator to remember something. The mechanical form is narrower: **a `<RealTek>` that follows `Success!` was printed by the interrupt handler and is not a prompt**, and `tools/console-lint.py` enforces it instead of the operator |
+
+### Deliberately not done
+
+- **Nothing was sent to the device.** Every claim above is "the code reads as",
+  and `P9-17`, `P9-18` and `P9-19` are the confirmations, frozen before the next
+  power-on (freeze `7ade2454…`).
+- **The `eth0` ISR was not traced all the way to the TFTP handler.** It reaches
+  `0x80402040` and that dispatches on EtherType; the rest is a call-graph
+  reading with no device observable behind it, and the note says so rather than
+  drawing the arrow.
+- **`GIMR0`'s bit 8 was not resolved.** Two possible writers, and the call graph
+  between them was not chased. Both outcomes are in `P9-18`'s prediction with
+  the instruction that settles them — the same shape as 2026-08-22's unscored
+  cell, on purpose.
+- **The TFTP filename's `%s` was read, not chased.** `0x804011FC` prints an
+  attacker-supplied string to the operator's console with no length check on the
+  request beyond a 42-byte floor. It needs the escape window caught first, so it
+  crosses no boundary a UART cable has not already crossed; it is recorded in
+  the note and not opened as a register row.
+- **`A2.5`, `A2.6`, `A2.7`, `A2.8`, station 5**: nothing this session changes any
+  of them. Station 5 is still blocked on open #97.
+
+### Open, carried forward
+
+66, 67, 69, 70, 71, 74, 75, 77, 78, 79, 81, 82, 84, 85, 86, 87, 88, 89, 91, 92,
+93, 94, 95, 97, 100 — unchanged.
+
+101. **Closed.** The loader's TFTP is interrupt-driven: `request_IRQ(15,"eth0")`
+     at `0x80402A44`, `IE` set at `0x80408494` before the prompt is printed, and
+     a command loop whose character source (`0x80406BBC`) touches only the two
+     UART registers. Mechanism, addresses and the near-miss that nearly
+     published the opposite:
+     [`notes/loader-interrupts-and-console.md`](notes/loader-interrupts-and-console.md);
+     reasoning: `RUNBOOK.md` §8.12.47. **`P9-17` is the device confirmation and
+     it is not the answer** — it is a two-step ladder that can refute it.
+
+102. **Closed, and its own hypothesis refuted.** The rejection was leading
+     whitespace in a buffer carried across a prompt the `eth0` interrupt handler
+     had painted (`0x80401CD0`, with the second copy of the prompt string at
+     `0x8040A894` as its `%s`), not anything the TFTP receive path wrote — the
+     `probe` that preceded it served zero bytes and wrote nothing.
+     `tools/console-lint.py` reproduces the diagnosis from the committed log and
+     reports an unexplained rejection as an error.

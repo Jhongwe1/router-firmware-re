@@ -153,6 +153,26 @@ def bne(rs: int, rt: int, off: int) -> int:
     return _i(0x05, rs, rt, off)
 
 
+def sw(rt: int, base: int, off: int) -> int:
+    return _i(0x2B, base, rt, off)
+
+
+def xori(rt: int, rs: int, imm: int) -> int:
+    return _i(0x0E, rs, rt, imm)
+
+
+def mfc0(rt: int, rd: int) -> int:
+    return 0x40000000 | (0 << 21) | (rt << 16) | (rd << 11)
+
+
+def mtc0(rt: int, rd: int) -> int:
+    return 0x40000000 | (4 << 21) | (rt << 16) | (rd << 11)
+
+
+def jr(rs: int) -> int:
+    return (rs << 21) | 0x08
+
+
 def bal(off: int) -> int:
     # bgezal $zero, off -- always taken, and $ra becomes the address after the
     # delay slot.  That is the whole of this payload's position independence.
@@ -246,6 +266,125 @@ def build(message: bytes, delay_hi: int = DEFAULT_DELAY_HI) -> tuple[bytes, list
 
 
 # ---------------------------------------------------------------------------
+# the second payload: put the interrupt state back, then return to the prompt
+#
+# `J` does four things before it jumps (0x8040925C): it writes 0 to GIMR0, it
+# clears IE in CP0 Status, it clears bit 0 of PCRP0-PCRP4, and it replaces the
+# running program.  On 2026-08-22 the bench restored the five PCRP bits after a
+# `J` and TFTP did not come back, which leaves three candidates and excludes
+# none.  The loader has no command that writes CP0 Status -- `MTC0SR` is
+# commented out of the vendor's table and absent from the seventeen this build
+# prints -- so separating them needs a payload, and `P9-16` had just shown that
+# a payload ending in `jr ra` returns to the prompt.
+#
+# Two variants, differing in exactly five words at the same five offsets, so the
+# operator retypes one `EW` line and nothing else:
+#
+#   --irq-restore <GIMR0>              GIMR0 := <value>, then set IE, then jr ra
+#   --irq-restore <GIMR0> --no-set-ie  GIMR0 := <value>, then jr ra
+#
+# The IE half is copied instruction for instruction out of the loader's own
+# `sti` at 0x80408484-0x80408494 -- the one it executes at boot, one instruction
+# after printing `---Ethernet init Okay!`, before it enters the command loop.
+# Reusing its bytes rather than writing an equivalent sequence means the payload
+# cannot restore a *different* interrupt state from the one the prompt normally
+# runs in, and the `DW` read-back of the image is a diff against a known five
+# words.
+GIMR0 = 0xB8003000
+STATUS = 12
+IRQ_BODY = 0x50
+# The loader's own line discipline, both measured: GetLine takes at most 128
+# characters (0x8040919C `li a1,128`) and the tokeniser has twenty argv slots
+# (0x8040728C `li a1,20`), so an `EW` line carries at most eighteen values.
+CONSOLE_LINE_MAX = 128
+CONSOLE_MAX_TOKENS = 20
+
+
+def build_irq_restore(gimr0: int, set_ie: bool) -> tuple[bytes, list[tuple[int, str]]]:
+    """Return (image, listing).  Eighteen words, no loads, no branches.
+
+    No `bal`, and that is deliberate.  The banner payload needs its own address
+    to find its message; this one has no data, so the constant goes in a
+    `lui`/`ori` pair and the image is position independent without touching
+    `ra` -- which it must not, because `ra` is how it gets back into the `J`
+    handler at 0x80409368.
+    """
+    hi, lo = (gimr0 >> 16) & 0xFFFF, gimr0 & 0xFFFF
+    # The five CP0 words sit at 0x28-0x38 on purpose: with ten words to an `EW`
+    # line that puts the whole `sti` on the SECOND line, so the two variants
+    # differ in one typed line and in nothing else. An experiment whose variable
+    # is spread across two commands is two experiments.
+    cp0 = [
+        (0x28, mfc0(AT, STATUS), "mfc0    $1,$12          # 0x80408484, verbatim"),
+        (0x2C, NOP, "nop                     # 0x80408488"),
+        (0x30, ori(AT, AT, 0x1F), "ori     $1,$1,0x1f      # 0x8040848C"),
+        (0x34, xori(AT, AT, 0x1E), "xori    $1,$1,0x1e      # 0x80408490 -> IE=1"),
+        (0x38, mtc0(AT, STATUS), "mtc0    $1,$12          # 0x80408494"),
+    ] if set_ie else [
+        (off, NOP, "nop                     # --no-set-ie: IE is left cleared")
+        for off in (0x28, 0x2C, 0x30, 0x34, 0x38)
+    ]
+
+    prog: list[tuple[int, int, str]] = [
+        (0x00, lui(T1, hi), f"lui     t1,{hi:#06x}"),
+        (0x04, ori(T1, T1, lo), f"ori     t1,t1,{lo:#06x}     # GIMR0 value: {gimr0:#010x}"),
+        (0x08, lui(T2, GIMR0 >> 16), f"lui     t2,{GIMR0 >> 16:#06x}"),
+        (0x0C, sw(T1, T2, GIMR0 & 0xFFFF), f"sw      t1,{GIMR0 & 0xFFFF:#x}(t2)      # 0xB8003000"),
+        (0x10, NOP, "nop"),
+        (0x14, NOP, "nop"),
+        (0x18, NOP, "nop"),
+        (0x1C, NOP, "nop"),
+        (0x20, NOP, "nop"),
+        (0x24, NOP, "nop"),
+        *cp0,
+        (0x3C, NOP, "nop                     # the loader pads its own mtc0 with three"),
+        (0x40, NOP, "nop"),
+        (0x44, NOP, "nop"),
+        (0x48, jr(RA), "jr      ra              # back into the J handler at 0x80409368"),
+        (0x4C, NOP, "nop"),
+    ]
+
+    words = bytearray()
+    listing: list[tuple[int, str]] = []
+    for want_off, word, text in prog:
+        if want_off != len(words):
+            raise AssertionError(
+                f"layout drift: {text} is at {len(words):#x}, the label says {want_off:#x}")
+        words += struct.pack(">I", word)
+        listing.append((want_off, f"{word:08x}  {text}"))
+    if len(words) != IRQ_BODY:
+        raise AssertionError(f"body is {len(words):#x}, the labels assume {IRQ_BODY:#x}")
+    return bytes(words), listing
+
+
+def ew_lines(load: int, image: bytes, per_line: int = 10) -> list[str]:
+    """The `EW` lines that put this image in RAM, split to fit the line buffer.
+
+    `EW` is on `console-dump.py`'s FORBIDDEN list, so these are typed by hand,
+    and the split is not cosmetic: a line longer than 128 characters is
+    truncated by `GetLine` with no error, and a line with more than twenty
+    tokens loses the tail to the tokeniser's slot count.  Both bounds are the
+    loader's, both are measured, and a payload silently half-written is a `J`
+    into whatever was there before.
+    """
+    out = []
+    words = [struct.unpack_from(">I", image, o)[0] for o in range(0, len(image), 4)]
+    for i in range(0, len(words), per_line):
+        chunk = words[i:i + per_line]
+        line = f"EW {load + i * 4:08X} " + " ".join(f"{w:08X}" for w in chunk)
+        if len(line) > CONSOLE_LINE_MAX:
+            raise ValueError(
+                f"`{line[:24]}...` is {len(line)} characters and GetLine takes "
+                f"{CONSOLE_LINE_MAX}; the tail would be silently dropped")
+        if len(line.split()) > CONSOLE_MAX_TOKENS:
+            raise ValueError(
+                f"that line has {len(line.split())} tokens and the tokeniser has "
+                f"{CONSOLE_MAX_TOKENS} slots; the tail would be silently dropped")
+        out.append(line)
+    return out
+
+
+# ---------------------------------------------------------------------------
 # simulator -- the reason a build here is evidence rather than an intention.
 #
 # It implements exactly the forms the encoder emits, including the branch delay
@@ -272,8 +411,16 @@ class SimError(Exception):
 class SimResult:
     """What came out of the UART, and how hard the payload had to work for it."""
 
-    def __init__(self, out: bytes, lsr_reads: int, steps: int) -> None:
+    def __init__(self, out: bytes, lsr_reads: int, steps: int,
+                 mmio: dict[int, int] | None = None,
+                 status: int | None = None, returned: bool = False) -> None:
         self.out, self.lsr_reads, self.steps = out, lsr_reads, steps
+        # For the interrupt-restoring payload the observable is not the UART:
+        # it is which register got which word, what CP0 Status ended up as, and
+        # whether `ra` was still intact when the payload returned through it.
+        self.mmio = mmio or {}
+        self.status = status
+        self.returned = returned
 
 
 def sources(w: int) -> set[int]:
@@ -297,16 +444,30 @@ def sources(w: int) -> set[int]:
         return {rs, rt}
     if op == 0x01:                                  # bgezal
         return {rs}
+    if op == 0x0E:                                  # xori
+        return {rs}
+    if op == 0x2B:                                  # sw
+        return {rs, rt}
+    if op == 0x10:                                  # mfc0 / mtc0
+        return {rt} if rs == 4 else set()
+    if op == 0x00 and (w & 0x3F) == 0x08:           # jr
+        return {rs}
     raise SimError(f"sources(): unimplemented instruction {w:#010x}")
 
 
 def simulate(image: bytes, load: int, *, lsr_value: int = SIM_LSR_IDLE,
-             max_steps: int = 4_000_000, want_bytes: int = 0) -> SimResult:
+             max_steps: int = 4_000_000, want_bytes: int = 0,
+             status_in: int | None = None, ra: int | None = None,
+             word_stores_allowed: frozenset[int] = frozenset()) -> SimResult:
     reg = [0] * 32
     out = bytearray()
     pc = load
     steps = 0
     lsr_reads = 0
+    mmio: dict[int, int] = {}
+    status = status_in
+    if ra is not None:
+        reg[RA] = ra
     pending: tuple[int, int] | None = None   # (target, executes_after_delay_slot)
     # The MIPS-I load delay slot, which this core exposes architecturally.  A
     # load's result is not readable by the instruction that follows it.
@@ -382,6 +543,41 @@ def simulate(image: bytes, load: int, *, lsr_value: int = SIM_LSR_IDLE,
             reg[RA] = pc + 8
             if reg[rs] >= 0:
                 taken = pc + 4 + simm * 4
+        elif op == 0x0E:                                             # xori
+            reg[rt] = reg[rs] ^ imm
+        elif op == 0x2B:                                             # sw
+            addr = (reg[rs] + simm) & 0xFFFFFFFF
+            if addr not in word_stores_allowed:
+                raise SimError(
+                    f"word store to {addr:#010x}, which this payload is not "
+                    f"allowed to touch (allowed: "
+                    f"{', '.join(f'{a:#010x}' for a in sorted(word_stores_allowed)) or 'nothing'})")
+            mmio[addr] = reg[rt]
+        elif op == 0x10 and rs == 0:                                 # mfc0
+            if ((w >> 11) & 31) != STATUS or status is None:
+                raise SimError(f"mfc0 from an unmodelled CP0 register at {pc:#010x}")
+            new_load = (rt, status)          # CP0 reads take the load slot too
+        elif op == 0x10 and rs == 4:                                 # mtc0
+            if ((w >> 11) & 31) != STATUS:
+                raise SimError(f"mtc0 to an unmodelled CP0 register at {pc:#010x}")
+            status = reg[rt]
+        elif op == 0x00 and (w & 0x3F) == 0x08:                      # jr
+            if pending is not None:
+                raise SimError(f"jr in a delay slot at {pc:#010x}")
+            pending = (reg[rs], 0)
+            if reg[rs] == (ra if ra is not None else 0):
+                # The payload is returning through `ra` -- run the delay slot
+                # and stop.  Anything after that belongs to the loader.
+                w2 = word_at(pc + 4)
+                if w2 != 0:
+                    raise SimError(
+                        f"the delay slot of `jr ra` holds {w2:#010x}, not a nop. "
+                        "It executes before the return and nothing here has "
+                        "modelled what it would do")
+                return SimResult(bytes(out), lsr_reads, steps, mmio, status, True)
+            raise SimError(
+                f"`jr` at {pc:#010x} jumps to {reg[rs]:#010x}, which is not the "
+                "return address the J handler set")
         else:
             raise SimError(f"unimplemented instruction {w:#010x} at {pc:#010x}")
 
@@ -406,12 +602,150 @@ def simulate(image: bytes, load: int, *, lsr_value: int = SIM_LSR_IDLE,
 
 
 # ---------------------------------------------------------------------------
+# `ra` when the payload starts, read off the loader: `J` reaches its target
+# through `jalr s0` at 0x80409360, so the return address is the next
+# instruction, where the handler restores ra and s0 and returns to the
+# dispatcher.  Confirmed on the device 2026-08-21 (`P9-16`).
+J_RETURN_ADDRESS = 0x80409368
+# A stand-in Status with IE clear and bits 1..4 set, so the simulation shows
+# both halves of the loader's `sti`: bit 0 raised, bits 1..4 cleared, the rest
+# untouched.  Not a measurement -- no loader command reads CP0 Status, which is
+# the whole reason this payload exists.
+SIM_STATUS_AFTER_J = 0x1000FF1E
+ETH_IRQ_BIT = 15
+
+
+def _main_irq_restore(args, p) -> int:
+    try:
+        gimr0 = int(args.irq_restore, 16)
+    except ValueError:
+        fail(f"--irq-restore {args.irq_restore!r} is not hex")
+        return 1
+    if not 0 <= gimr0 <= 0xFFFFFFFF:
+        fail("--irq-restore takes a 32-bit value")
+    if gimr0 == 0:
+        fail("--irq-restore 0 would write the value `J` already wrote. Read "
+             "GIMR0 with `DW B8003000 1` at the prompt BEFORE the jump; if it "
+             "really is zero then interrupts were already masked and the "
+             "experiment this payload is for does not apply")
+    if not (gimr0 >> ETH_IRQ_BIT) & 1 and not args.allow_no_eth_bit:
+        fail(f"--irq-restore {gimr0:#010x} has bit {ETH_IRQ_BIT} clear. That is "
+             f"the eth0 interrupt this loader installs (request_IRQ at "
+             f"0x80402A44, name string `eth0`), so restoring this value leaves "
+             f"the receive path masked and the measurement cannot come out "
+             f"positive for any reason worth reading. Pass --allow-no-eth-bit "
+             f"only if the device really did read this back")
+    if args.load % 4:
+        fail(f"--load {args.load:#x} is not word aligned")
+    if not KSEG[0] <= args.load < KSEG[1]:
+        fail(f"--load {args.load:#x} is outside KSEG0/KSEG1")
+
+    set_ie = not args.no_set_ie
+    try:
+        image, listing = build_irq_restore(gimr0, set_ie)
+    except (AssertionError, ValueError) as e:
+        fail(str(e))
+        return 1
+    if len(image) > args.max_bytes:
+        fail(f"the payload is {len(image)} bytes and --max-bytes is {args.max_bytes}")
+
+    def run(at: int) -> SimResult:
+        try:
+            return simulate(image, at, status_in=SIM_STATUS_AFTER_J,
+                            ra=J_RETURN_ADDRESS,
+                            word_stores_allowed=frozenset({GIMR0}),
+                            max_steps=1000)
+        except SimError as e:
+            fail(f"the payload does not run at {at:#010x}: {e}")
+            raise SystemExit(1) from e
+
+    first = run(args.load)
+    second = run(args.load + 0x10000)
+    if (first.mmio, first.status, first.returned) != \
+       (second.mmio, second.status, second.returned):
+        fail("the payload behaves differently at two load addresses, so it is "
+             "not position independent and `J` to anything but --load is a "
+             "different program")
+    if first.mmio.get(GIMR0) != gimr0:
+        fail(f"the payload writes {first.mmio.get(GIMR0)} to GIMR0, not {gimr0:#010x}")
+    if not first.returned:
+        fail("the payload does not return through `ra`, so `J` to it costs a "
+             "power cycle and P9-16's result is being thrown away")
+    want = ((SIM_STATUS_AFTER_J & ~0x1F) | 1) if set_ie else SIM_STATUS_AFTER_J
+    if first.status != want:
+        fail(f"CP0 Status ends as {first.status:#010x}, not {want:#010x}. "
+             + ('The sti was copied wrong' if set_ie
+                else 'Something touched Status and --no-set-ie says nothing should'))
+
+    try:
+        lines = ew_lines(args.load, image)
+    except ValueError as e:
+        fail(str(e))
+        return 1
+
+    digest = hashlib.sha256(image).hexdigest()
+    if args.output:
+        if os.path.exists(args.output) and not args.force:
+            fail(f"{args.output} exists; --force to overwrite")
+        with open(args.output, "wb") as fh:
+            fh.write(image)
+
+    print(f"  ok    irq-restore payload, {len(image)} bytes, "
+          f"IE {'set' if set_ie else 'left cleared'}, GIMR0 := {gimr0:#010x}")
+    print(f"        simulated at {args.load:#010x} and {args.load + 0x10000:#010x}: "
+          f"identical, returns to {J_RETURN_ADDRESS:#010x}")
+    print(f"        sha256 {digest}")
+    print()
+    for off, text in listing:
+        print(f"  {args.load + off:08X}  {text}")
+    print()
+    print("  type these at <RealTek>, then verify before jumping:")
+    for line in lines:
+        print(f"    {line}          ({len(line)} chars, "
+              f"{len(line.split())} tokens)")
+    print(f"    DW {args.load:08X} {len(image) // 4}")
+    print(f"    J {args.load:08X}")
+    if args.report:
+        with open(args.report, "w", encoding="utf-8") as fh:
+            fh.write(json.dumps({
+                "producer": "mkramboot", "mode": "irq-restore", "schema": "1",
+                "load": f"0x{args.load:08X}",
+                "gimr0": f"0x{gimr0:08X}",
+                "set_ie": set_ie,
+                "bytes": len(image),
+                "sha256": digest,
+                "returns_to": f"0x{J_RETURN_ADDRESS:08X}",
+                "simulated_status_in": f"0x{SIM_STATUS_AFTER_J:08X}",
+                "simulated_status_out": f"0x{first.status:08X}",
+                "simulated_gimr0_write": f"0x{first.mmio[GIMR0]:08X}",
+                "ew_lines": lines,
+                "listing": [f"{args.load + o:08X}  {t}" for o, t in listing],
+            }, indent=2) + "\n")
+    return 0
+
+
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(
         description="Build the UART-speaking RAM payload P9-12 needs")
-    p.add_argument("--nonce", required=True,
+    p.add_argument("--nonce",
                    help="hex, 4-16 characters. It must not occur in any --check-absent "
-                        "file, or seeing it on the console proves nothing")
+                        "file, or seeing it on the console proves nothing. Required "
+                        "for the banner payload; ignored by --irq-restore")
+    p.add_argument("--irq-restore", metavar="GIMR0HEX",
+                   help="build the OTHER payload instead: write this value to "
+                        "GIMR0 (0xB8003000), set IE, and `jr ra` back to the "
+                        "loader's prompt. The value is what `DW B8003000 1` "
+                        "read at the prompt BEFORE the J, in hex")
+    p.add_argument("--no-set-ie", action="store_true",
+                   help="--irq-restore only: leave IE cleared, so the two "
+                        "variants differ in exactly five words and the "
+                        "experiment has one variable")
+    p.add_argument("--allow-no-eth-bit", action="store_true",
+                   help="--irq-restore only: accept a GIMR0 value with bit 15 "
+                        "clear. Bit 15 is the eth0 line this loader installs at "
+                        "0x80402A44, so a value without it restores an interrupt "
+                        "state in which TFTP cannot answer -- which is not the "
+                        "experiment, and is almost always a transcription error")
     p.add_argument("--marker", default="N150RT RAMBOOT P9-12",
                    help="the fixed part of the banner (default: %(default)s)")
     p.add_argument("--load", type=lambda s: int(s, 16), default=0x80500000,
@@ -430,6 +764,10 @@ def main(argv=None) -> int:
     p.add_argument("--print-disassembly", action="store_true")
     args = p.parse_args(argv)
 
+    if args.irq_restore is not None:
+        return _main_irq_restore(args, p)
+    if args.nonce is None:
+        fail("--nonce is required for the banner payload (or use --irq-restore)")
     if not re.fullmatch(r"[0-9a-fA-F]{4,16}", args.nonce):
         fail(f"--nonce {args.nonce!r}: 4 to 16 hex characters, so that it is short enough "
              "to read off a console and long enough not to occur by accident")

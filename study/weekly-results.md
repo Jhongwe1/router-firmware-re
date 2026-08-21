@@ -928,3 +928,87 @@ of skipping it would have been a disclosure report naming the wrong CVE.
   having rewritten both regions. It is left in `BENCH-LOG.md` as written, with the
   refutation firing against it, because a register whose predictions are edited
   after the fact is a register that predicts nothing.
+
+## W08, the interrupt desk session — 2026-08-22
+
+**One line:** the loader's TFTP turned out to be interrupt-driven, the first
+version of that reading concluded the exact opposite from observations that were
+all individually correct, and the thing that caught it was changing the question
+rather than looking harder.
+
+**1. A conclusion reversed by asking a different question.**
+Deciding whether the loader ever enables interrupts began as a search for
+Realtek's `sti` idiom — `mfc0 $1,$12 / ori $1,1 / mtc0 $1,$12`. None exist.
+Seven `cli` sites of the matching shape do. The conclusion written from that was
+"the loader runs masked, therefore its TFTP is polled", and it is backwards:
+this build writes `ori $1,0x1f / xori $1,0x1e`, which sets bit 0 and clears bits
+1 to 4. The instrument now evaluates every `mtc0 $12` in the image with a
+four-valued per-bit lattice and reports what bit 0 *is*, not whether the
+instruction sequence *looks* like something.
+*Evidence:* `reports/bootloader-unit-2018.json` §`interrupt_wiring`;
+`notes/loader-interrupts-and-console.md`; `tools/test-loader-unpack.sh` cases
+25–27, two of which differ in one bit of one immediate.
+*What it demonstrates:* a pattern match answers "is this the shape I expected",
+and the question was "what is the value afterwards". The first has a failure
+mode no test can cover — you can only think of the shapes you can think of.
+**And the error pointed the wrong way**: it would have excluded the correct
+cause from the three that survived the bench, with a sentence that sounds
+well-founded.
+
+**2. A six-day-old console log that answered a one-day-old question.**
+The `Unknown command !` that a clean `EB` line drew on 2026-08-21 was caused by
+eight spaces already sitting in the loader's line buffer, behind a `<RealTek>`
+that the TFTP completion path had printed **from inside the ethernet interrupt
+handler** — `0x80401CD0`, passing a second copy of the prompt string at
+`0x8040A894`. The tokeniser stores `argv[0]` before it tests for a space
+(`0x80407290` then `0x804072D4`), so `argv[0]` was the empty string.
+*Evidence:* `$FWRE_WORK/dumps/w08-a28.log`, unchanged since the night it was
+captured; `tools/console-lint.py`, which reproduces the diagnosis and reports an
+unexplained rejection as a non-zero exit.
+*What it demonstrates:* the reason it took a day is worth more than the answer.
+The search for who prints the prompt was a **cross-reference on one address**.
+It returned one result, the result was correct, and the inference drawn from it —
+*the prompt has one owner* — was false, because the same text is in the image
+twice. A cross-reference answers "who uses this address"; the question was "who
+prints this text".
+
+**3. A pointer at a rule that does not exist.**
+`runsheet.md` `A2.8` ends step 4 with *"see stop condition 5 below"*, and `A2.8`
+carries no numbered stop conditions at all — the nearest list is `A2.7`'s, above
+rather than below, with four items. `BENCH-LOG.md` then quoted the same number
+back as though it were a rule.
+*Evidence:* `runsheet.md` `A2.8` 收尾, now five conditions;
+`tools/check-runsheet.py` and four cases in `tools/test-check-runsheet.sh`.
+*What it demonstrates:* the rule's content was there the whole time; what was
+missing was that it was numbered and placed where the pointer points. **A
+pointer at a rule that does not exist is worse than no pointer** — the reader
+believes something is holding them and nothing is. One of the four new guard
+cases passed before the checker's own regular expression was fixed, which is the
+same lesson one level down: the case caught the check being empty, not the
+document.
+
+### What this session did not prove
+
+- **Nothing was sent to the device.** Every claim is "the code reads as", and
+  `P9-17`, `P9-18` and `P9-19` are frozen before the next power-on. The whole
+  interrupt story could still be refuted by one `DW B8003000 1`.
+- **The `eth0` ISR was not traced to the TFTP handler.** It reaches
+  `0x80402040`, which dispatches on EtherType; the rest is a call-graph reading
+  with no device observable behind it.
+- **`GIMR0`'s bit 8 is not predicted.** Two possible writers, and the call graph
+  between them was not chased. Both outcomes are written down with the
+  instruction that settles them — deliberately, because a prediction that names
+  its own undecided bits survives a hostile reader and a confident wrong number
+  does not.
+- **Whether the eight spaces were a TAB or eight spacebars is undecidable from
+  the record.** Both leave the same echo and the same buffer. The cause of the
+  rejection is settled; the keystroke is not.
+- **The status census is a straight-line reading over a bounded window**, and it
+  can cross a function boundary. It is exact for the `sti` claim, which needs
+  four instructions of context; it reports five writes as *undetermined* and
+  prints where each one's value came from rather than guessing.
+- **The TFTP filename `%s` at `0x804011FC` was read and not chased.** It puts
+  attacker-supplied text on the operator's console with no length check beyond a
+  42-byte floor on the request. It requires the escape window to have been
+  caught, so it crosses no boundary a UART cable has not, and it is a note entry
+  rather than a register row — which is a judgement, not a measurement.

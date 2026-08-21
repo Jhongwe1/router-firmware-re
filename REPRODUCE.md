@@ -14,7 +14,7 @@ step, each with its expected output and its stop conditions.
 
 | tier | what you need | what you can check | roughly |
 |---|---|---|---|
-| **T1** | this clone and an internet connection | the two **published** firmware images, every report derived from them, and **322 checks that prove this project's own instruments can fail** (`make count-checks` re-derives that number and prints the table it comes from) | 30 min, most of it downloads |
+| **T1** | this clone and an internet connection | the two **published** firmware images, every report derived from them, and **592 checks that prove this project's own instruments can fail** (`make count-checks` re-derives that number and prints the table it comes from) | 30 min, most of it downloads |
 | **T2** | T1 **+ your own N150RT + a CP2102 serial adapter** (about US$3) | your unit's flash, its own boot loader, its own `boa`, the emulator — the same *procedures*, on *your* bytes | an afternoon |
 | **T3** | T2 **+ a USB Ethernet adapter + a segment you are willing to isolate** | the network behaviour: the authorisation gate, the endpoint census, the timing | a second afternoon |
 | **T-none** | — | **the specific byte-level results this repository reports** | not reproducible by anyone but the author, and the reason is below |
@@ -67,7 +67,7 @@ make setup             # the Linux-side toolchain
 make fetch             # the two published images, hash-verified
 make unpack            # carve and extract
 make recon             # every report a downloadable image supports
-make ci                # ← the 322 checks
+make ci                # ← the 592 checks
 make count-checks      # ← where that number comes from, per suite
 ```
 
@@ -117,14 +117,17 @@ Most of a reverse-engineering repository is assertions. This part is not:
 | `tools/test-flash-tools.sh`, `tools/test-photo-tools.sh` | 39 + 13 | the hardware-side helpers, and photo redaction |
 | `tools/fwrecon` pytest | 130 | the parsers |
 | `tools/test-loader-tftp.sh` | 30 | the TFTP client follows the transfer id rather than the port it asked; `put` refuses a rescue transcript that is for another address, that never confirmed the switch, or that is **too old to describe the loader now listening** |
-| `tools/test-mkramboot.sh` | 28 | seven of them put a real bug back into the RAM payload's encoder and require the build to go red — including the off-by-one-word branch offset the tool actually shipped with for an hour |
+| `tools/test-mkramboot.sh` | 42 | ten of them put a real bug back into the RAM payload's encoder and require the build to go red — including the off-by-one-word branch offset the tool actually shipped with for an hour, and a payload that no longer returns through `ra` |
+| `tools/test-console-lint.sh` | 13 | seven fire on a console log carrying exactly one failure mechanism; the rest hold the reader to staying **silent** on a clean session and to saying `unexplained` when a rejection matches none of its rules |
 
-**413 guard cases across twenty suites, plus 130 parser tests, and `make ci`
-runs all of them** — **543 checks** from a clone, with no device. The number is
+**462 guard cases across twenty-one suites, plus 130 parser tests, and `make ci`
+runs all of them** — **592 checks** from a clone, with no device. The number is
 re-derivable with `make count-checks`, which also states what it counts and what
 it does not; it said 276 for some time while the true figure was 304, because
-nothing could re-derive it. The table above lists the suites worth describing,
-not all twenty — `make count-checks` prints every one.
+nothing could re-derive it, and this file quoted 322 and 543 in three places on
+2026-08-22 while the suites had grown past both. The table above lists the
+suites worth describing, not all twenty-one — `make count-checks` prints every
+one.
 
 Until 2026-08-17 it ran 89 of 124: `test-console-dump.sh` (18),
 `test-photo-tools.sh` (13) and `test-flash-tools.sh` (4) were in no CI list at

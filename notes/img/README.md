@@ -54,6 +54,10 @@ Redact **before** `git add`. A redaction applied after a push is not a redaction
 | `13-ch341a-clip-and-adapters.jpg` | the CH341A, SOIC-8 clip and both socket adapters — **the programmer that was measured and not used** | — |
 | `14-bench-during-dump-redacted.jpg` | the bench during the 105-minute console dump | **two barcode strips on the case** |
 | `15-bench-overview.jpg` | the bench, wider | — |
+| `16-bench-during-w06-station2.jpg` | the desk mid-session on 2026-08-17: the board stopped at `<RealTek>`, the CP2102 lit, the console dump running | — (checked: see below) |
+| `17-ch341a-back-jumper-legend.jpg` | the CH341A's back silkscreen — `V1.612`, and the `1-2 TTL` / `2-3 编程` jumper legend that decides what the pads carry | — |
+| `18-ch341a-zif-adapter-seated.jpg` | the same programmer with the SOIC-8 adapter seated in the ZIF socket, jumper block visible | — |
+| `19-clip-on-u19-in-circuit-redacted.jpg` | **the clip on `U19` with the board in circuit** — the 2026-08-21 session that measured ~1.70 V at the part and read nothing | **two barcode strips on the case underside** |
 
 `10` and `11` are the evidence behind two claims that would otherwise be assertions:
 [`uart-pinout.md` §2](../uart-pinout.md#2-baud-measured-not-guessed) says the baud was
@@ -105,7 +109,27 @@ $PY tools/redact-photo.py $FWRE_WORK/photos/orig-14-bench-during-dump.jpeg \
     notes/img/14-bench-during-dump-redacted.jpg \
     --expect-size 2048x1536 --box 1580,1020,130,110 \
                             --box 1730,1120,140,120    # two barcode strips
+
+# 2026-08-22. The clip session's photograph caught the same two strips as `14`,
+# from the other side and much larger: at 2.6x the model/serial barcode reads
+# cleanly by eye, so it would certainly scan.
+$PY tools/redact-photo.py $FWRE_WORK/photos/orig-19-clip-on-u19.jpeg \
+    notes/img/19-clip-on-u19-in-circuit-redacted.jpg \
+    --expect-size 2048x1536 --box 1070,865,300,190 \
+                            --box 1320,985,290,180     # two barcode strips
 ```
+
+**`16`, `17` and `18` were checked the same way and left alone**, and what was
+checked is worth naming because "no redaction" is a claim too. All three carry
+**zero EXIF tags** — the transfer path stripped them, which is luck rather than
+procedure, so they were still read with `Image.getexif()` and the GPS IFD before
+anything else. `17` and `18` show only the programmer. `16` has the unit in
+frame: its case underside was cropped out at 7x and carries only moulded
+regulatory text, and no serial QR is on the board face that is visible. The
+laptop screen in `16` shows a Windows path containing the author's user name,
+which is **already in `CLAUDE.md`, `RUNBOOK.md` and `docs/workspace-layout.md`**
+— so it leaks nothing the repository does not already publish, and covering it
+here while leaving it in four text files would be theatre.
 
 > Those two were caught by **looking at every new photograph before `git add`**, not
 > by the tool. The barcodes in `14` are far too blurred for a person to read — which

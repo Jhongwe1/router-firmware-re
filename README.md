@@ -12,7 +12,49 @@ function in the binary.
 > G3 ✅ passed 2026-08-11 · G3.5 ✅ · G3.75 ✅ both passed 2026-08-17 ·
 > G4 ✅ passed 2026-08-18, clause 3 split into 3a met / 3b impossible.**
 >
-> **Latest (2026-08-22, bench): three tests confirmed, four flash writes all
+> **Latest (2026-08-22, desk): the boot loader's TFTP is interrupt-driven — and
+> the first version of that reading concluded the exact opposite, from
+> observations that were all correct.**
+>
+> The night before, restoring the five PHY enable bits after a `J` had failed to
+> revive TFTP, leaving three candidate causes and excluding none. Reading the
+> loader's own second stage settles it: the command prompt's character source
+> (`0x80406BBC`) is an unbounded spin on the UART and touches **no other
+> address**; the loader installs `request_IRQ(15, …)` whose irqaction carries the
+> name string `eth0`; and it sets CP0 `IE` at `0x80408494` — one instruction
+> after printing `---Ethernet init Okay!`, **a line that is in this unit's own
+> W02 boot capture**, above the first `<RealTek>`. So `J` masking interrupts is
+> by itself enough, and no amount of PHY restoration could have worked.
+>
+> **The near-miss is the part worth reading.** Version 1 searched for Realtek's
+> `sti` idiom `ori $1,1 / mtc0 $1,$12`, found none, found seven `cli` sites of
+> the matching shape, and concluded the loader runs masked — *therefore its TFTP
+> must be polled*. This build writes `ori $1,0x1f / xori $1,0x1e` instead: same
+> effect, different bytes. That error would have **excluded the correct cause**,
+> in a sentence that sounds well-founded. The fix is a different question — not
+> "is this the shape I expected" but "what is bit 0 afterwards" — and the
+> instrument now evaluates every `mtc0 $12` with a four-valued per-bit lattice.
+> Two guard fixtures differ in **one bit of one immediate**.
+>
+> **And a clean command line the loader rejected the night before was explained
+> from a log that had been on disk for a day.** The TFTP completion path prints
+> `"\n.Success!\n%s"` and passes a **second copy** of the string `<RealTek>` —
+> from inside the interrupt handler, without clearing the line buffer. Eight
+> spaces were already in that buffer, and the tokeniser stores `argv[0]` *before*
+> it tests for a space, so `argv[0]` was the empty string. The reason it took a
+> day: the search for who prints the prompt was a cross-reference on one address.
+> It returned one result, the result was correct, and the conclusion drawn from
+> it — *the prompt has one owner* — was false.
+>
+> [`tools/console-lint.py`](tools/console-lint.py) now reads a console log the
+> way the dispatcher reads it and **accounts for every `Unknown command !` in a
+> file or reports it unexplained**. Run over the W02 boot capture it explains
+> three more nobody had asked about, six days old.
+>
+> ---
+
+> **Earlier, at the bench (2026-08-21 night into 2026-08-22): three tests
+> confirmed, four flash writes all
 > restored before close — and the cell that changes the next session is the one
 > that scored nothing, on purpose.**
 >
@@ -764,7 +806,7 @@ make verify    # G0: every tool answers when called
 make fetch     # download + hash-verify the firmware (not redistributed here)
 make unpack    # carve and extract the root filesystems
 make recon     # regenerate everything under reports/
-make ci        # 199 checks — and 89 of them exist to prove the tools can refuse
+make ci        # 592 checks — 462 of them exist to prove the tools can refuse
 make rtcase    # G3.75: the test register is frozen, every result carries evidence
 make ledger    # regenerate test-ledger.md from the register
 ```
@@ -775,7 +817,7 @@ make ledger    # regenerate test-ledger.md from the register
 bash tools/test-loader-unpack.sh
 ```
 
-Seven cases, no device and no downloads. It builds five deliberately broken
+Thirty-four cases, no device and no downloads. It builds deliberately broken
 synthetic boot-loader images and checks the unpacker refuses each **for the right
 reason**, then unpacks a good one as the positive control — because a tool that
 always refuses and a tool that refuses correctly are indistinguishable in a suite

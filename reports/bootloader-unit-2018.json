@@ -1,7 +1,7 @@
 {
   "producer": "loader-unpack",
   "schema": "1",
-  "source": "flash-n150rt-console-1.bin",
+  "source": "flash-n150rt-console-2.bin",
   "source_sha256": "a800059a9b8c414df026a22b8423a5939d0f9bb793109d0f7ce086f6810f37ea",
   "source_bytes": 4194304,
   "loader_region_end": "0x006000",
@@ -1085,6 +1085,329 @@
         "walk_truncated": false
       }
     ]
+  },
+  "interrupt_wiring": {
+    "cp0_status_writes": [
+      {
+        "at": "0x80400408",
+        "source_register": 0,
+        "ie_bit_after": "0",
+        "means": "clears IE"
+      },
+      {
+        "at": "0x8040041C",
+        "source_register": 9,
+        "ie_bit_after": "0",
+        "means": "clears IE"
+      },
+      {
+        "at": "0x80400460",
+        "source_register": 4,
+        "ie_bit_after": "S",
+        "means": "leaves IE as it was read"
+      },
+      {
+        "at": "0x804004C0",
+        "source_register": 8,
+        "ie_bit_after": "S",
+        "means": "leaves IE as it was read"
+      },
+      {
+        "at": "0x80400660",
+        "source_register": 8,
+        "ie_bit_after": "0",
+        "means": "clears IE"
+      },
+      {
+        "at": "0x80400704",
+        "source_register": 8,
+        "ie_bit_after": "0",
+        "means": "clears IE"
+      },
+      {
+        "at": "0x80400720",
+        "source_register": 2,
+        "ie_bit_after": "unknown",
+        "means": "not determined in a straight line",
+        "source": "built from a literal, a value loaded from memory, what `mfc0` read"
+      },
+      {
+        "at": "0x804008A0",
+        "source_register": 8,
+        "ie_bit_after": "0",
+        "means": "clears IE"
+      },
+      {
+        "at": "0x804008C4",
+        "source_register": 8,
+        "ie_bit_after": "0",
+        "means": "clears IE"
+      },
+      {
+        "at": "0x804008E0",
+        "source_register": 2,
+        "ie_bit_after": "unknown",
+        "means": "not determined in a straight line",
+        "source": "built from a literal, a value loaded from memory, what `mfc0` read"
+      },
+      {
+        "at": "0x80400A50",
+        "source_register": 2,
+        "ie_bit_after": "unknown",
+        "means": "not determined in a straight line",
+        "source": "built from what `mfc0` read"
+      },
+      {
+        "at": "0x80400A74",
+        "source_register": 2,
+        "ie_bit_after": "unknown",
+        "means": "not determined in a straight line",
+        "source": "built from live-in $4 (an argument, or set before this window), live-in $5 (an argument, or set before this window), what `mfc0` read"
+      },
+      {
+        "at": "0x80400AA4",
+        "source_register": 1,
+        "ie_bit_after": "0",
+        "means": "clears IE"
+      },
+      {
+        "at": "0x80400ACC",
+        "source_register": 2,
+        "ie_bit_after": "S",
+        "means": "leaves IE as it was read"
+      },
+      {
+        "at": "0x804012E0",
+        "source_register": 1,
+        "ie_bit_after": "0",
+        "means": "clears IE"
+      },
+      {
+        "at": "0x80401B54",
+        "source_register": 1,
+        "ie_bit_after": "0",
+        "means": "clears IE"
+      },
+      {
+        "at": "0x80404AC4",
+        "source_register": 2,
+        "ie_bit_after": "unknown",
+        "means": "not determined in a straight line",
+        "source": "built from a value loaded from memory"
+      },
+      {
+        "at": "0x80406670",
+        "source_register": 3,
+        "ie_bit_after": "S",
+        "means": "leaves IE as it was read"
+      },
+      {
+        "at": "0x804066A8",
+        "source_register": 2,
+        "ie_bit_after": "S",
+        "means": "leaves IE as it was read"
+      },
+      {
+        "at": "0x80408494",
+        "source_register": 1,
+        "ie_bit_after": "1",
+        "means": "sets IE"
+      },
+      {
+        "at": "0x8040854C",
+        "source_register": 1,
+        "ie_bit_after": "0",
+        "means": "clears IE"
+      },
+      {
+        "at": "0x804085F8",
+        "source_register": 1,
+        "ie_bit_after": "0",
+        "means": "clears IE"
+      },
+      {
+        "at": "0x8040865C",
+        "source_register": 1,
+        "ie_bit_after": "1",
+        "means": "sets IE"
+      },
+      {
+        "at": "0x804092C0",
+        "source_register": 1,
+        "ie_bit_after": "0",
+        "means": "clears IE"
+      },
+      {
+        "at": "0x8040D018",
+        "source_register": 3,
+        "ie_bit_after": "S",
+        "means": "leaves IE as it was read"
+      },
+      {
+        "at": "0x8040D044",
+        "source_register": 3,
+        "ie_bit_after": "S",
+        "means": "leaves IE as it was read"
+      },
+      {
+        "at": "0x8040D09C",
+        "source_register": 3,
+        "ie_bit_after": "S",
+        "means": "leaves IE as it was read"
+      }
+    ],
+    "writes_that_set_ie": [
+      "0x80408494",
+      "0x8040865C"
+    ],
+    "writes_that_clear_ie": [
+      "0x80400408",
+      "0x8040041C",
+      "0x80400660",
+      "0x80400704",
+      "0x804008A0",
+      "0x804008C4",
+      "0x80400AA4",
+      "0x804012E0",
+      "0x80401B54",
+      "0x8040854C",
+      "0x804085F8",
+      "0x804092C0"
+    ],
+    "gimr0_accesses": [
+      {
+        "at": "0x80400698",
+        "op": "read"
+      },
+      {
+        "at": "0x80400984",
+        "op": "read"
+      },
+      {
+        "at": "0x80400998",
+        "op": "write a computed value"
+      },
+      {
+        "at": "0x804009A0",
+        "op": "read"
+      },
+      {
+        "at": "0x804009B0",
+        "op": "read"
+      },
+      {
+        "at": "0x804009C8",
+        "op": "write a computed value"
+      },
+      {
+        "at": "0x804009CC",
+        "op": "read"
+      },
+      {
+        "at": "0x804012CC",
+        "op": "write zero"
+      },
+      {
+        "at": "0x80401B40",
+        "op": "write zero"
+      },
+      {
+        "at": "0x80402FB0",
+        "op": "read"
+      },
+      {
+        "at": "0x80402FBC",
+        "op": "write a computed value"
+      },
+      {
+        "at": "0x8040850C",
+        "op": "write zero"
+      },
+      {
+        "at": "0x80408630",
+        "op": "write zero"
+      },
+      {
+        "at": "0x804086E4",
+        "op": "write zero"
+      },
+      {
+        "at": "0x80408700",
+        "op": "write zero"
+      },
+      {
+        "at": "0x804092AC",
+        "op": "write zero"
+      },
+      {
+        "at": "0x8040A064",
+        "op": "write zero"
+      },
+      {
+        "at": "0x8040A318",
+        "op": "read"
+      },
+      {
+        "at": "0x8040A328",
+        "op": "write a computed value"
+      },
+      {
+        "at": "0x8040A394",
+        "op": "read"
+      },
+      {
+        "at": "0x8040A4B0",
+        "op": "write a computed value"
+      }
+    ],
+    "enable_irq_at": "0x80400980",
+    "disable_irq_at": "0x804009AC",
+    "request_irq_at": "0x80400AE4",
+    "installs": [
+      {
+        "call_site": "0x80402A44",
+        "irq": 15,
+        "irqaction": "0x8040D6EC",
+        "dev_id": "0x8040E9D0",
+        "handler": "0x804023B0",
+        "name": "eth0"
+      },
+      {
+        "call_site": "0x80408FEC",
+        "irq": 8,
+        "irqaction": "0x8040DCD0",
+        "dev_id": "0x00000000",
+        "handler": "0x80408EE0",
+        "name": "timer"
+      },
+      {
+        "call_site": "0x8040A3C0",
+        "irq": 27,
+        "irqaction": "0x8040DCF4",
+        "dev_id": "0x00000000",
+        "handler": "0x8040A2B4",
+        "name": "SPEED"
+      }
+    ],
+    "console_input": {
+      "getchar_at": "0x80406BBC",
+      "memory_addresses_touched": [
+        "0xB8002014",
+        "0xB8002000"
+      ],
+      "unresolved_memory_references": 0,
+      "polls_only_the_uart": true,
+      "bounded": false
+    },
+    "boot_path_to_the_prompt": {
+      "found": true,
+      "at": "0x80408468",
+      "calls_ethernet_init": "0x804028B4",
+      "then_sets_ie_at": "0x80408494",
+      "then_enters_the_command_loop_at": "0x80409144",
+      "console_line_printed_immediately_before_sti": "\n---Ethernet init Okay!\n"
+    },
+    "reading": "the command prompt's character source blocks on the UART and touches nothing else, so a service that answers the network while the prompt is up is not being driven by the command loop. Whether it is driven by an interrupt is settled by `installs` and by `boot_path_to_the_prompt`, which names the instruction that sets IE and the console line printed one instruction earlier."
   },
   "controls": {
     "help_banner_present": true,

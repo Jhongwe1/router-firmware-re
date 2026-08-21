@@ -75,6 +75,15 @@ NL = chr(10)
 STEP_RE = re.compile(r"^### (A(\d+)\.\d+) ")
 STATION_RE = re.compile(r"^## 第 (\d+) 站")
 SUBSTEP_RE = re.compile(r"^#### (A\d+(?:\.\d+)+)")
+
+# Stop conditions. The heading declares a count; the items are numbered inside a
+# blockquote; and a step may point at one by number from its own prose.
+CJK_NUM = {"一": 1, "二": 2, "三": 3, "四": 4, "五": 5,
+           "六": 6, "七": 7, "八": 8, "九": 9, "十": 10,
+           **{str(n): n for n in range(1, 11)}}
+STOPCOND_HEAD_RE = re.compile(r"停止條件，\s*([一二三四五六七八九十]|\d+)\s*條")  # noqa: RUF001
+STOPCOND_ITEM_RE = re.compile(r"^> (\d+)\. ", re.M)
+STOPCOND_REF_RE = re.compile(r"停止條件第\s*([一二三四五六七八九十]|\d+)\s*條")
 FENCE_RE = re.compile(r"^```(\w*)")
 
 # Every step heading ends with the tests it closes, or says it closes none. That
@@ -459,6 +468,37 @@ def check(path: Path, runbook: Path) -> int:
                 (i for i, s in enumerate(lines, 1) if s.startswith("# Part B")),
                 len(lines)))
         body = "\n".join(lines[ln:end])
+
+        # ---- stop conditions: the count must be real, and so must the pointer
+        #
+        # Added 2026-08-22, after `A2.8` step 4 shipped with "見下面的停止條件第 5
+        # 條" and `A2.8` had no numbered stop conditions at all. The nearest list
+        # was `A2.7`'s, above rather than below, and four items rather than five.
+        # `BENCH-LOG.md` then quoted the same number back. A pointer at a rule
+        # that does not exist is worse than no pointer: the reader believes a
+        # rule is holding them and nothing is.
+        declared = STOPCOND_HEAD_RE.findall(body)
+        items = STOPCOND_ITEM_RE.findall(body)
+        have = len(items)
+        for word in declared:
+            want = CJK_NUM.get(word)
+            if want is not None and want != have:
+                errors.append(
+                    f"{path.name}:{ln}: step {name} declares 停止條件，{word} 條 "  # noqa: RUF001
+                    f"and carries {have} numbered item(s). A count in a heading "
+                    f"that nothing checks drifts the moment an item is added")
+        for word in STOPCOND_REF_RE.findall(body):
+            want = CJK_NUM.get(word)
+            if want is None:
+                continue
+            if have == 0:
+                errors.append(
+                    f"{path.name}:{ln}: step {name} points at 停止條件第{word}條 "
+                    f"and has no numbered stop conditions at all")
+            elif want > have:
+                errors.append(
+                    f"{path.name}:{ln}: step {name} points at 停止條件第{word}條 "
+                    f"and carries {have}")
 
         # the station the step is filed under must match its own first digit
         want = int(name[1:].split(".")[0])

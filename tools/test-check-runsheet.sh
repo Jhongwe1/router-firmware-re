@@ -518,6 +518,52 @@ open(p, "w", encoding="utf-8").write(s)
 PYEOF
 expect_fail "a curl at the device inside a boot-loader step" "nothing is served until the board has booted"
 
+# ---------------------------------------------------------------------------
+# Stop conditions: the declared count, and the pointer at one by number.
+#
+# The bug: `A2.8` step 4 ended with "見下面的停止條件第 5 條" and `A2.8` carried
+# no numbered stop conditions at all. `BENCH-LOG.md` then quoted the same number
+# back as though it were a rule. Nothing in the repository read either.
+# ---------------------------------------------------------------------------
+add_stopconds() {
+  "$PY" - "$RS" "$1" <<'PYEOF'
+import sys
+p, block = sys.argv[1], sys.argv[2]
+s = open(p, encoding="utf-8").read()
+s = s.replace("See §8.12.3 and", block + "\n\nSee §8.12.3 and")
+open(p, "w", encoding="utf-8").write(s)
+PYEOF
+}
+
+write_good
+add_stopconds '> ❌ **停止條件，二條：**
+> 1. one
+> 2. two'
+if "$PY" tools/check-runsheet.py "$RS" >/dev/null 2>&1; then
+  ok "a stop-condition list whose count matches its heading passes"
+else
+  bad "a correct stop-condition list was rejected"
+  "$PY" tools/check-runsheet.py "$RS" 2>&1 | sed 's/^/          /'
+fi
+
+write_good
+add_stopconds '> ❌ **停止條件，三條：**
+> 1. one
+> 2. two'
+expect_fail "a stop-condition heading that over-counts its own items" "carries 2 numbered item"
+
+write_good
+add_stopconds '這一格見下面的停止條件第 5 條。
+
+> ❌ **停止條件，二條：**
+> 1. one
+> 2. two'
+expect_fail "a pointer at a stop condition past the end of the list" "points at 停止條件第5條"
+
+write_good
+add_stopconds '這一格見下面的停止條件第 5 條。'
+expect_fail "a pointer at a stop condition in a step that has none" "no numbered stop conditions at all"
+
 echo
 echo "  $pass passed, $fail failed"
 [ "$fail" -eq 0 ] || exit 1

@@ -190,6 +190,15 @@ jobs:
       - name: RAM payload — the seven bugs the build has to reject
         run: bash tools/test-mkramboot.sh
 
+      # Added 2026-08-22 in the same commit as the tool. Half the cases assert
+      # a finding fires on a fixture carrying exactly one mechanism; the other
+      # half assert silence on a clean session and an explicit `unexplained` on
+      # a rejection none of the rules covers. The second half is the load-bearing
+      # one: a log reader that recognises three patterns and says nothing about
+      # the rest looks identical to one that understands the device.
+      - name: console log — the reader that has to say when it does not know
+        run: bash tools/test-console-lint.sh
+
       # And two more that were in `make ci` and not here — the same divergence
       # this job's own header describes, found again on 2026-08-18 and this time
       # in both directions at once: the ledger check was here and not in
