@@ -117,10 +117,10 @@ Most of a reverse-engineering repository is assertions. This part is not:
 | `tools/test-flash-tools.sh`, `tools/test-photo-tools.sh` | 39 + 13 | the hardware-side helpers, and photo redaction |
 | `tools/fwrecon` pytest | 130 | the parsers |
 | `tools/test-loader-tftp.sh` | 30 | the TFTP client follows the transfer id rather than the port it asked; `put` refuses a rescue transcript that is for another address, that never confirmed the switch, or that is **too old to describe the loader now listening** |
-| `tools/test-mkramboot.sh` | 26 | seven of them put a real bug back into the RAM payload's encoder and require the build to go red — including the off-by-one-word branch offset the tool actually shipped with for an hour |
+| `tools/test-mkramboot.sh` | 28 | seven of them put a real bug back into the RAM payload's encoder and require the build to go red — including the off-by-one-word branch offset the tool actually shipped with for an hour |
 
-**411 guard cases across twenty suites, plus 130 parser tests, and `make ci`
-runs all of them** — **541 checks** from a clone, with no device. The number is
+**413 guard cases across twenty suites, plus 130 parser tests, and `make ci`
+runs all of them** — **543 checks** from a clone, with no device. The number is
 re-derivable with `make count-checks`, which also states what it counts and what
 it does not; it said 276 for some time while the true figure was 304, because
 nothing could re-derive it. The table above lists the suites worth describing,

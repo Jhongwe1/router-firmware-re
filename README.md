@@ -12,41 +12,42 @@ function in the binary.
 > G3 ✅ passed 2026-08-11 · G3.5 ✅ · G3.75 ✅ both passed 2026-08-17 ·
 > G4 ✅ passed 2026-08-18, clause 3 split into 3a met / 3b impossible.**
 >
-> **Latest (W08 Day 1, 2026-08-21): half of this device's configuration had
-> never been decoded, and the tool that had found the name table for it printed
-> the table's length and threw the table away.** Thirteen of the 344 entries in
-> the configuration region are *table-valued*; one of them, `WLAN_ROOT`, is
-> **22,044 of the 45,226 decompressed bytes**. All thirteen decode now — six
-> blocks of 3,674 bytes with no remainder, checked against a geometry read out
-> of `libapmib.so`'s own records (`count = total_size / element_size`) rather
-> than inferred from the data it validates.
+> **Latest (W08 Day 1, 2026-08-21): the boot loader's TFTP read was traced to one
+> function, four cells were predicted with a hash each before the visit, all four
+> hit — and then a payload this project's own simulator had certified printed
+> sixteen bytes of forty-one on the silicon.**
 >
-> The name table was already in the committed report, as a number:
-> `"runner_up": 133`, printed since W04, and each `WLAN_ROOT` block is 133 TLVs.
-> **Nothing was wrong, nothing disagreed, no figure was absurd** — the recovery
-> had asked "which run is the table" instead of "what are the runs", and a check
-> cannot catch a question nobody posed.
+> `0x80401ED4` serves `[0x8040D3A8] + (block-1)*512` for `[0x8040DD28]` bytes.
+> `LOADADDR` owns the address; **`FLR`'s third argument owns the length**. So the
+> rescue path's `get` is a fast read of `FLR`'s output *only* when `FLR`'s
+> destination equals the load address — which is neither of the two answers the
+> open question had offered itself, and the opposite of what the runsheet section
+> written four hours earlier would have concluded. That section would have run
+> correctly, returned `0`, and published the wrong answer.
 >
-> What it settles: this build's factory wireless configuration is an **open
-> network** — `ENCRYPT = 0`, `WPA_PSK` and `WSC_PSK` all zero, a fixed SSID,
-> WPS enabled — corroborated by one line the device's own `/bin/flash` printed
-> in W07. And reading across six builds, the two 2020 ones add
-> `WSC_AUTO_LOCK_DOWN` and `IEEE80211W`; the 2018 build on this unit has neither.
-> [`notes/wlan-root.md`](notes/wlan-root.md).
+> `P9-12` closed `confirmed`: `J 80500000` handed control to a 156-byte image the
+> device has never seen, its nonce occurs zero times in the 4 MiB flash dump and
+> zero times in the decompressed loader, and **not one flash byte was written** —
+> argued from the console echo, from autoburn being read at exactly one address,
+> and from a byte-identical TFTP round trip taken *before* the jump.
 >
-> **The same day, this project broke its own first rule and caught it four hours
-> later.** Two format strings in the boot loader — `**TFTP Client Upload...` —
-> were read as saying the loader is a TFTP *client*, a design conclusion was
-> written on top of that single source, and it was pushed. "Client" names the
-> peer. The measurement that settles it had been in `BENCH-LOG.md` since
-> 2026-08-17: a read request sent to the loader came back with **516 bytes of
-> DATA from port 2098**. A wrong claim about protocol direction does not look
-> wrong — it becomes a tool that is written, tested and taken to the bench,
-> where it listens on port 69 while the loader waits to be asked, and the
-> failure arrives as "the rescue path does not work", pointing at the device.
-> The correction, and the client that replaced the server:
-> [`tools/loader-tftp.py`](tools/loader-tftp.py).
+> The result worth more than the row is the failure. The first jump printed
+> `*** N150RT RAM` — exactly 16 bytes per iteration, the 16550's FIFO depth —
+> because the payload read a register in the **MIPS-I load delay slot** and
+> [`tools/mkramboot.py`](tools/mkramboot.py)'s simulator models a core *with*
+> interlocks. **A model kinder than the device certifies exactly the bugs the
+> device rejects.** The counter-evidence cost two minutes and was available
+> before the bench: 1,474 loads in the loader's own second stage, 646 followed by
+> an explicit `nop`, and **not one** followed by an instruction reading what it
+> loaded. Confirmed by a single-variable experiment — two `nop`s, nothing else
+> changed, full banner. The simulator now refuses the hazard; both slots have a
+> reverse-verified case.
 >
+> The session's own scoreboard is corrected in [`BENCH-LOG.md`](BENCH-LOG.md) by
+> appending rather than editing: eleven predictions hit, **one refuted**, one
+> never run. Writing it as twelve-and-zero would have deleted the night's best
+> result in exchange for a better-looking number.
+
 > **Latest (W08 Day 0, 2026-08-20): the boot loader has been printing
 > `chipName: UNKNOWN` since the first boot log this project captured, and the
 > answer was inside the loader.** It carries a table of 32 SPI flash

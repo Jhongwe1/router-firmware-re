@@ -1690,7 +1690,7 @@ COMPCS 0xC000-0x10000              4f721579d2a01875   46f9fc090625707e   DIFF
 
 | 層 | 動到裝置 | 為什麼這一節存在 | 最後驗證 |
 |---|---|---|---|
-| T3 | `probe`/`get` **純讀**；`put` 送 bytes 但 **`AUTOBURN 0` 之下不寫 flash**；`J` 交出控制權 | [`RUNBOOK` §8.12.45](RUNBOOK.md) | 2026-08-21 改寫，**未在機器上執行過** |
+| T3 | `probe`/`get` **純讀**；`put` 送 bytes 但 **`AUTOBURN 0` 之下不寫 flash**；`J` 交出控制權 | [`RUNBOOK` §8.12.45](RUNBOOK.md) | **2026-08-21 全節在機器上跑完，四格全中** |
 
 **先決條件**：`A2.4` 跑過、**而且是這一次開機跑的**（`put` 會檢查那份 JSON 的年紀，
 理由見下）；網路線在 LAN 埠；`$HOME/fwre-work/w08-ramboot.bin` 已經在桌面上做好
@@ -1716,8 +1716,9 @@ COMPCS 0xC000-0x10000              4f721579d2a01875   46f9fc090625707e   DIFF
 > `cmd` 不會回答 `(Y)es , (N)o ?`、而且沒有 `--at-prompt`。**這一版一個手打的 `FLR`
 > 都沒有** —— 參數順序由 `tools/console-dump.py` 的 `flr()` 擁有，作業單不再重述它。
 
-**這一節的量測就是下面這張表，四格，每一格的 sha256 都是 2026-08-20 那份
-`flash-n150rt-console-2.bin` 在桌面上算出來的。**
+**這一節的量測就是下面這張表，四格，每一格的 sha256 都是進站之前從
+`flash-n150rt-console-2.bin` 在桌面上算出來的 —— 而 2026-08-21 晚上
+四格全部命中。**
 
 | # | 做完什麼之後 `get` | 預期 bytes | 預期 sha256 | 它證明什麼 |
 |---|---|---|---|---|
@@ -1789,14 +1790,24 @@ python3 -u tools/console-dump.py dump --at-prompt --port /dev/ttyUSB0 \
         --report "$HOME/fwre-work/dumps/w08-tftp-cell2.json"
 ```
 
-**預期** —— `dump` 先跑陽性對照（`FLR` flash `0x000000`，前四個 byte 必須是
-`0b f0 00 04`），然後才是真的那一次：
+**預期，`dump` 那一支** —— 它先跑陽性對照（`FLR` flash `0x000000`，前四個 byte
+必須是 `0b f0 00 04`），然後才是真的那一次。**注意它算出來的雜湊是 `e7335bc0…`，
+也就是 flash `0x010000`：序列埠這條路讀到的是 `FLR` 真的搬過去的東西：**
 
 ```text
   ==>   control: FLR flash 0x000000 -> RAM, expecting 0b f0 00 04
   ok    control matched: 0b f0 00 04
   ==>   FLR flash 0x010000 +0x1000 -> RAM 0x81000000
-  ok    4096 bytes in 9 blocks from 10.1.1.1:2098 in 0.1s
+  ==>   DB, chunked and validated per chunk
+  ok    4096 bytes -> /home/…/dumps/w08-flr-w6cg.bin
+  ok    sha256  e7335bc08de18174ed3aeae6cbc19578febd9d8eeee690125c0478bfe67c148e
+  ok    1 chunks, 0 needed a re-read, 0.1 min
+```
+
+**預期，`get` 那一支** —— **同一個時刻，同一台機器，不同的雜湊**：
+
+```text
+  ok    4096 bytes in 9 blocks from 10.1.1.1:2098 in 0.03s
   ok    sha256 3c586859c52ba54166f88fc53e7392e5463bca8589e8b029afb422304f329747
   ok    these 4096 bytes are flash[0x060010 : 0x061010] in flash-n150rt-console-2.bin, and occur there exactly once
 ```
@@ -1822,13 +1833,20 @@ python3 -u tools/console-dump.py dump --at-prompt --port /dev/ttyUSB0 \
         --report "$HOME/fwre-work/dumps/w08-tftp-cell3.json"
 ```
 
-**預期**：
+**預期** —— 這一次 `dump` 與 `get` **兩支的雜湊相同**，因為 `FLR` 的目的位址
+就是被供應的那個位址：
 
 ```text
-  ok    4096 bytes in 9 blocks from 10.1.1.1:2098 in 0.1s
+  ok    4096 bytes -> /home/…/dumps/w08-flr-hsqs.bin
+  ok    sha256  06c9622f6ebbcc09637010e1db59170c3055857bd9087d9f054ece2361816c39
+  ok    4096 bytes in 9 blocks from 10.1.1.1:2098 in 0.03s
   ok    sha256 06c9622f6ebbcc09637010e1db59170c3055857bd9087d9f054ece2361816c39
   ok    these 4096 bytes are flash[0x180000 : 0x181000] in flash-n150rt-console-2.bin, and occur there exactly once
 ```
+
+> 💡 **兩條傳輸路徑對同一段 RAM 說法一致**，而那是免費拿到的：序列埠的 `DB` 與
+> 乙太網路的 TFTP 各自搬了一次，雜湊相同。**它排除的是傳輸，不是讀取** ——
+> 兩條都經過 SoC 自己的 SPI 控制器。
 
 > ⚠️ **這一步把 kernel 的 RAM 副本蓋掉了，而那沒關係** —— 本節結束前不會讓它繼續開機，
 > 而 `J` 的目標會是第 5 步自己上傳的東西。**但這也表示第 0 步只有一次機會。**
@@ -1888,7 +1906,7 @@ python3 -u tools/console-dump.py rescue --at-prompt --port /dev/ttyUSB0 \
 ```text
   ok    rescue transcript for 10.1.1.1 shows AutoBurning=0 (0 minutes old)
   ok    the transcript records the loader's load address as 0x80500000, which is what J must be given
-  ok    148 bytes in 1 blocks to 10.1.1.1:2098 in 0.01s
+  ok    156 bytes in 1 blocks to 10.1.1.1:2098 in 0.01s
 ```
 
 > 🔴 **`put` 現在會檢查那份 JSON 的年紀，而這是 2026-08-21 補的。** `AUTOBURN` 是
@@ -1912,7 +1930,7 @@ cmp "$HOME/fwre-work/w08-ramboot.bin" "$HOME/fwre-work/dumps/w08-tftp-roundtrip.
 **預期** —— `cmp` 不印任何東西，而 `get` 這一次的來源 port 是 **2099**：
 
 ```text
-  ok    148 bytes in 1 blocks from 10.1.1.1:2099 in 0.01s
+  ok    156 bytes in 1 blocks from 10.1.1.1:2099 in 0.02s
 ```
 
 > 🔴 **`2099` 不是雜訊，是預測。** 每完成一次上傳，`0x8040DD20` 加一
@@ -1944,12 +1962,15 @@ picocom -b 38400 --logfile "$HOME/fwre-work/dumps/w08-j-$(date +%Y%m%d-%H%M).log
 J 80500000
 ```
 
-**預期** —— loader 自己先印一行，然後才是我們的東西：
+**預期** —— loader 自己先印一行，然後才是我們的東西（2026-08-21 逐字）：
 
 ```text
+<RealTek>J 80500000
 ---Jump to address=80500000
-*** N150RT RAMBOOT P9-12 <nonce> ***
-*** N150RT RAMBOOT P9-12 <nonce> ***
+
+*** N150RT RAMBOOT P9-12 4baee517 ***
+
+*** N150RT RAMBOOT P9-12 4baee517 ***
 ```
 
 > 🔴 **那行 `---Jump to address=` 是 loader 印的（`0x8040B35C`），不是我們印的，
@@ -1958,7 +1979,8 @@ J 80500000
 > | 看到 | 記什麼 |
 > |---|---|
 > | `---Jump to address=` **加上** banner 一直重複 | `confirmed` —— 跳了，而且上傳的碼在執行 |
-> | `---Jump to address=` 之後**什麼都沒有** | 跳了但沒講話。**這不是 `partial`，是 payload 的問題** —— banner 在桌面上已經模擬過，所以要查的是 cache 或供電，不是「有沒有跳」 |
+> | banner 出現但**每一輪都在同一個字元被切掉** | 跳了、在執行，而 **payload 自己有 bug**。2026-08-21 就是這一格：每輪剛好 16 個 byte，也就是 16550 的 FIFO 深度，成因是 payload 在 load delay slot 裡讀暫存器。`P9-12` 仍然 `confirmed`，要修的是映像 |
+> | `---Jump to address=` 之後**什麼都沒有** | 跳了但沒講話。**這不是 `partial`** —— 要查的是 payload、cache 或供電，不是「有沒有跳」 |
 > | 連 `---Jump to address=` 都沒有 | **根本沒跳**。`J` 沒被接受（`Invalid Address(HEX) value.`），或那一行被排隊的輸入吃掉了 |
 >
 > ❌ **`J` 後面一定要帶位址。** 沒帶的話 `0x8040925C` 的 `blez a0` 會直接跳到
@@ -1969,6 +1991,13 @@ J 80500000
 >
 > 💡 **`J BFC00000` 是從主控台重開機的方法**（`0x804092D8` 那條 `bne` 走的另一邊：
 > 踢看門狗然後自旋）。這一節不用它，但它比拔電乾淨。
+>
+> 🔴 **payload 不可以在 load delay slot 裡讀暫存器，而這一條是 2026-08-21 被矽片
+> 教會的。** 這顆核心的 load delay slot 是**架構層可見的**：`lbu` 的下一個指令讀不到
+> 剛載入的值。第一版 payload 的 `andi t2,t2,0x60` 就坐在那裡，於是它遮的是**上一次**
+> 的讀值，等待迴圈從來沒有等過，41 個 byte 一口氣灌進 16 byte 的 FIFO。
+> **`tools/mkramboot.py` 的模擬器現在會拒絕**，而理由在
+> [`RUNBOOK` §8.12.45](RUNBOOK.md)。
 
 **離開 picocom：`Ctrl-A` 然後 `Ctrl-X`。**
 
@@ -5557,3 +5586,23 @@ boot loader 自己的 `FLR`，所以一個系統性的讀取錯誤對它們三�
 映像不存在的話 `put` 會停在開啟檔案那一步，而那是進站以後才會發現的事。
 2026-08-21 用的那一份：nonce `4baee517`，148 bytes，
 sha256 `46370ce9537e1573d63c90d4afa7874f3e446b70b0e59c6cfac3fd63e9bb6b92`。
+
+## B-W08 進站實錄（2026-08-21 夜，**寫在跑完之後**）
+
+**跑了什麼**：`A2.1` → `A2.2` → `A2.4` → `A2.7`，照增補之三的順序，中間沒有插別的。
+`A2.3` / `A2.5` / `A2.6` / 第 5 站全部沒有跑，理由在增補之三。
+
+| | |
+|---|---|
+| 電源循環 | **2 次**。第二次是為了從 payload 回到 loader —— `J` 之後沒有軟體的路回去 |
+| flash 寫入 | **零** |
+| 結果 | 開放題 96 四格全中；`P9-12` 記 `confirmed`；`make todo WEEK=W08` 由 7 剩 6 |
+| 逐字實錄 | `BENCH-LOG.md` 同日「第 2 站進站場次」，加它下面那則補記 |
+
+**這一節唯一一件沒有照計畫做的事**：跳轉之後沒有回頭確認網路真的死了
+（`0x804092F4` 把交換器五個 port 各清一個 bit）。**計畫裡有，執行時漏掉**，
+現在是 `PROGRESS.md` 開放題 99，下一次進站一個命令就能收。
+
+> 🔴 **`A2.7` 從此不必再跑。** 它的兩個目的都達成了。要重跑只有一個理由：
+> 換了一份 payload 而想重新驗證第 5 步 —— 那時前四格可以跳過，直接從第 5 步開始，
+> 但 **`rescue` 一定要重跑**，因為 `AUTOBURN` 與 `IPCONFIG` 都是 RAM 狀態。
