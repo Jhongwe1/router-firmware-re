@@ -6344,3 +6344,215 @@ is not evidence of.
      none of them — so the next payload that uses a coprocessor register or
      depends on store ordering will be certified by a model that has not been
      checked against this core.
+
+## W08 Day 1, fifth desk session — the fourth argument was answered by the line that was commented out, and the table it came from was transcribed wrong — 2026-08-21
+
+**`BENCH-LOG.md` 2026-08-21 第五場（桌面）carries the plan this session changed
+and the predictions frozen before the next power-on.** Nothing was sent to the
+device. Open #98 is closed statically; three new register rows carry what the
+device would have to say to refute it.
+
+### `FLW`'s fourth argument is never read, and the console's `#1` is a literal
+
+Open #98 asked what `<SPI cnt#>` does. It does nothing. The handler at
+`0x80409B6C` runs three `strtoul`s — `argv[0]`, `argv[1]`, `argv[2]` — and stops.
+Two constants carry the rest:
+
+* `0x80409BE4` `li a2,1` is the `%d` in `Write 0x%x Bytes to SPI flash#%d, …`.
+  The number the console prints is not read from anywhere.
+* `0x80409C14` `move a0,zero` is the chip index handed to the writer at
+  `0x80404FE4`, which multiplies it by 72 to index a descriptor array at
+  `0x8040FBD4` and calls its `+0x38` method. **The loader really is multi-chip
+  capable** — its own auto-burn path uses index 1 at `0x80401848` with a
+  destination offset of 0, which is how an image overrunning chip 0 gets its
+  tail written to the start of chip 1. The interactive `FLW` is the one caller
+  that cannot reach it.
+
+So `runsheet.md` `A2.5`/`A2.6` sending three arguments was never a shortcut that
+happened to work: **three is the only form there is.** A fourth token is
+tokenised, stored in the argv array, and never loaded.
+
+**And the count in the table is not enforced anywhere.** Exactly two
+instructions in the whole image build the table's address — `0x80409170` and
+`0x80409AC4` — and between them they read offsets 0, 8 and 12. Nothing reads
+offset 4. The dispatcher computes `argc = tokens - 1` at `0x804091FC` and passes
+`argv + 1` at `0x8040923C` without comparing either against the row.
+
+**The hazard in that section is the opposite of the one #98 was worried about.**
+`FLW` never checks `argc` at all, and it is one of six handlers that do not —
+`AUTOBURN`, `LOADADDR`, `FLR`, `FLW`, `PHYR`, `PHYW`. The tokeniser at
+`0x80407248` `memset`s its 20 slots to zero every line, so `FLW` with two
+arguments reaches `strtoul(NULL, …)` and dereferences at `0x80406F08`. That
+happens before the `(Y)es, (N)o->` prompt, so it cannot corrupt flash; it costs
+a power cycle. It is now a boxed warning in `A2.5` and deliberately not a test.
+
+### The second source explains every constant, and it is the vendor's own C
+
+`rtl819x/bootcode/boot/monitor/monitor.c` in a published GPL drop carries
+`CmdSFlw`, and its first line is:
+
+```c
+unsigned int cnt2=0;//strtoul((const char*)(argv[3]), (char **)NULL, 16);
+```
+
+**The line that would read the fourth argument is commented out in the vendor's
+source.** `printf(… cnt2+1 …)` is the `1` on the console and
+`spi_flw_image(cnt2, …)` is the `0` in the call — the off-by-one between the two
+literals, explained. The dispatcher's missing check is in the same file, inside
+`#if 0`. So the table's count column is not an unmaintained field; **someone
+switched off the only code that read it**, and it decayed from a specification
+into a comment.
+
+Two further details of this binary match that file and were not looked for until
+the disassembly had already said them: the four `sb zero` at `0x80409248` are
+`memset(argv[0],0,sizeof(argv[0]))`, which the vendor's own Coverity annotation
+flags as a wrong `sizeof`; and `COMMAND_TABLE` in `boot/include/monitor.h` is
+`{cmd, n_arg, func, msg}`.
+
+**That drop is a later SDK for a different SoC.** It is corroboration of *why*,
+never a substitute for this unit's binary, and the note says so where it is used.
+
+### The note it came from was wrong three ways, and none was findable
+
+`notes/loader-tftp-and-commands.md` was written the same day from a hand
+transcription of the table:
+
+1. the record was `{name, help, argc, handler}`; it is `{name, argc, handler,
+   help}`. **Every value in the table was right.** A right table under a wrong
+   sentence reads exactly like a right table under a right one, which is why
+   nothing caught it;
+2. `FLW`'s help string was truncated at `<SPI cnt#>`, dropping the six words that
+   name the field: `: Write offset-data to SPI from RAM`;
+3. `0xB8003000` was called "stop the timer". It is `GIMR0`, the global interrupt
+   mask, and the `mtc0` on the next line is the second half of the same `cli()`.
+
+The note also declared itself "one tool" and then argued about the whole command
+set anyway. **Naming a weakness is not answering it.**
+
+### Instrument work
+
+`tools/loader-unpack.py --commands`, and the report gains a `command_table`
+section beside the chip table it already had.
+
+* **The field order is derived, not supplied.** Each of the four possible record
+  alignments is classified — one column of small integers, one of command-name
+  strings, one of any strings, one of pointers at an `addiu sp,sp,-N` — and
+  exactly one alignment must split cleanly or it refuses. Telling the handler
+  column from the help column is the prologue test; both hold in-range pointers
+  and nothing else separates them. That is the transcription error, mechanised.
+* **The `argv` reading is a CFG walk, not a linear scan**, with intersection
+  merge at joins, o32 caller-saved clobbering across calls, delay slots executed
+  before the transfer, and a computed index reported as computed rather than
+  guessed at. Version 1 was a linear scan and read `IPCONFIG` as touching no
+  `argv` at all — the `argc == 0` arm overwrites `$a1` on a path the load is not
+  on — and `EB` as reading one slot when it reaches `argv[1+n]` through `addu`.
+* **A string reader that walks.** The existing printable-run scanner cannot see
+  this loader's first help line, which holds four tabs; the first version of the
+  decoder refused the real table for that reason and blamed the table.
+* **`tools/test-loader-unpack.sh` 16 → 26 cases**, and seven mutants were run
+  against them. The first round caught four. The three that survived were not
+  tool bugs — **no planted handler exercised those paths**, so a fixture that
+  loads in a delay slot, one that keeps an alias across a call, and one whose
+  two paths disagree about `$a1` were added and all seven now die.
+* **The reverse control is the one that matters.** `no instruction reads offset
+  4` is one hard-coded `False` away from being a lie, so a second fixture whose
+  reader does load `+4` must come back `true`.
+* The two decoders are cross-checked against each other: the command table's
+  recovered load base must equal the chip table's, or both are refused.
+
+Six handlers of seventeen were validated against the vendor source one by one —
+`CmdAuto`, `CmdLoad`, `CmdPHYregW`, `CmdFlr`, `CmdCfn`, `CmdSFlw` — and agreed
+on both axes, which `argv` slots and whether `argc` is tested.
+
+### `J` does three things, so "the network died" attributes nothing
+
+`0x804092AC` masks every interrupt (`GIMR0`), `0x804092B0` clears `IE`,
+`0x804092F4`–`0x80409354` clear `EnablePHYIf` in `PCRP0`–`PCRP4`
+(`0xBB804104`–`0xBB804114`), and only then does it transfer control. **Any one
+of those alone ends a TFTP transfer.** Open #99's planned step — run `get` or
+`ip neigh` after the jump — would have produced "the network is dead" and named
+no cause.
+
+`P9-15` replaces it with a switch: at the prompt, with no jump and interrupts
+untouched, `get` (control) → `DW` the five registers → `EW` bit 0 clear → `get`
+(predict: dead) → `EW` the read-back values → `get` (predict: alive). Single
+variable, reversible, no power cycle. The planned step is not deleted — it
+becomes step 4, run *after* the jump and with the loader still running, which
+upgrades its question from "is the network dead" to "does the interrupt half
+contribute at all".
+
+### `J` is a call, and a committed file says otherwise
+
+`0x80409360` is `jalr s0`, not `jr s0`. `ra` is `0x80409368`, where the handler
+restores `ra` and `s0` and returns into the dispatcher loop. **A payload ending
+in `jr ra` comes back to the `<RealTek>` prompt with no power cycle.**
+
+`runsheet.md` Part B `B-W08 進站實錄` says "`J` 之後沒有軟體的路回去". That
+sentence came from a real observation — `P9-12`'s payload loops forever, and the
+power switch was the only way back — but it is a property of that payload, not
+of `J`. One observation written as a rule whose scope exceeds the observation.
+
+Reading the instruction is not the same as having returned through it, so this is
+`P9-16` rather than a correction: eight bytes, one `J`, does the prompt come
+back. It matters because `P9-10` is a sequence of RAM payloads and each
+avoidable power cycle is the difference between finishing that week in one
+session and not.
+
+### Corrections to the plan
+
+- **`A2.5` is not owed.** `P0-3` was recorded `confirmed` on 2026-08-17 and
+  `A2.6` ran the same night. Running `A2.5` again is a **rehearsal for `P9-10`**,
+  the only irreversible item W08 still owes, and its value is proportional to how
+  soon `P9-10` follows it. `runsheet.md` Part B `B-W08 增補之四` says so at the
+  point where the run order is chosen, because "順便開 A2.5" reads like closing a
+  gap and there is no gap.
+- **`A2.8` must be followed by a power cycle before any other station-2 step.**
+  Its step 3 leaves the loader with interrupts masked, `IE` clear and five PHY
+  interfaces disabled. Not dangerous; not the machine the other sections were
+  written against.
+- The `W08` outstanding count moves **6 → 9**. Three new rows is a real cost and
+  it is paid on purpose: all three are device measurements that will be cited as
+  evidence, and this repository's rule is that a result with no refutation
+  condition written first is inadmissible.
+
+### Deliberately not done
+
+- **`FLW` with fewer than three arguments was not scheduled.** The NULL
+  dereference is legible in the disassembly and in the vendor source; confirming
+  a known crash costs a power cycle and buys a tick.
+- **`tools/mkramboot.py` was not given a `--return` mode.** A returnable payload
+  is worth building once `P9-16` says the return exists — building it first is
+  the same order of operations that produced the truncated banner.
+- **The auto-burn path's chip-1 write was read, not chased.** `0x80401848` is
+  enough to establish that the chip index is live somewhere; what the second
+  chip select is wired to on this board is a hardware question and this unit has
+  one flash.
+- **Nothing was sent to the device.** Every claim above is "the code reads as".
+
+### Open, carried forward
+
+66, 67, 69, 70, 71, 74, 75, 77, 78, 79, 81, 82, 84, 85, 86, 87, 88, 89, 91, 92,
+93, 94, 95, 97, 100 — unchanged.
+
+98. **Closed.** The fourth argument is not read: `0x80409BE4` `li a2,1` is the
+    printed chip number and `0x80409C14` `move a0,zero` is the one passed to the
+    writer; the vendor's own `CmdSFlw` has `//strtoul(argv[3], …)` commented out;
+    and no instruction in the image reads the table's count column. Mechanism,
+    addresses and the three readers:
+    [`notes/loader-tftp-and-commands.md`](notes/loader-tftp-and-commands.md);
+    reasoning: `RUNBOOK.md` §8.12.46. **`P9-14` is the device confirmation and it
+    is not the answer** — it is four cells that would refute the answer, and it
+    writes nothing.
+
+99. **Restated, because the experiment it named could not have answered it.**
+    `J` masks interrupts, clears `IE`, disables five PHY interfaces and replaces
+    the running program; "run `get` after the jump" has four sufficient causes
+    and separates none. Now `P9-15`, a reversible switch at the prompt with no
+    jump, plus the original observation as its step 4.
+
+101. **Is the loader's TFTP polled or interrupt-driven?** `P9-15` step 4c answers
+     it as a side effect: if restoring the five PHY bits after a `J` revives
+     `get` while `GIMR0` is still zero and `IE` still clear, the service cannot be
+     interrupt-driven. Nothing here has looked at where `0x80406728` and the
+     TFTP receive path are called from, and the SDK tree has both an
+     `ethInt_865x.c` and an `irq.c`, so the static answer is not obvious either.

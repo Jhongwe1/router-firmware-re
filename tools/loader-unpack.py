@@ -360,6 +360,487 @@ def chip_table(stage2: bytes) -> dict[str, Any]:
     }
 
 
+# --- the loader's own command table, and what its handlers actually read ----
+#
+# open #98: `FLW`'s table entry declares four arguments and `runsheet.md` A2.5
+# sends three. That question was asked because the table had been *transcribed*
+# into a note by hand, and a hand-transcribed table is a claim with no
+# instrument behind it. This decodes it instead, and then answers the question
+# the table cannot: how many arguments each handler *dereferences*, and whether
+# it looks at the count it was passed before doing so.
+#
+# What is measured and what is inferred, kept apart on purpose:
+#   measured  the record stride, which column holds the argument count (derived
+#             from the shape of the four words, not assumed), the load base, and
+#             for each handler the constant argv displacements it loads and the
+#             address of the first instruction that consumes argc
+#   inferred  nothing. Where the walk cannot see -- a handler that hands argv to
+#             a callee, or one whose index is computed at run time -- it says so
+#             rather than reporting a number
+COMMAND_RECORD = 0x10       # measured: four words per entry
+COMMAND_MIN_ROWS = 8        # below this a "run" is coincidence
+COMMAND_MAX_ARGC = 15       # the count column is a small int; 15 is generous
+COMMAND_NAME_RE = re.compile(r"^[A-Z0-9?]{1,10}$")
+
+# o32: a call may leave anything in these, so an alias held in one does not
+# survive a `jal`. s0-s8/gp/sp do survive, which is why every handler that uses
+# argv after a call has first moved it into an s register.
+CALLER_SAVED = frozenset({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
+                          24, 25, 31})
+REG_A0, REG_A1, REG_RA = 4, 5, 31
+MIPS_LOADS = {0x20, 0x21, 0x23, 0x24, 0x25}
+MIPS_STORES = {0x28, 0x29, 0x2B}
+
+
+def _mips(word: int) -> tuple[int, int, int, int, int, int]:
+    """op, rs, rt, rd, funct, immediate."""
+    return (word >> 26, (word >> 21) & 31, (word >> 16) & 31,
+            (word >> 11) & 31, word & 63, word & 0xFFFF)
+
+
+def _simm(imm: int) -> int:
+    return imm - 0x10000 if imm & 0x8000 else imm
+
+
+def _defines(word: int) -> int | None:
+    op, _rs, rt, rd, fn, _ = _mips(word)
+    if op == 0x00:
+        if fn in (0x08, 0x18, 0x19, 0x1A, 0x1B):     # jr, mult, div
+            return None
+        return rd or None
+    if op == 0x03:                                    # jal
+        return REG_RA
+    if op in (0x01, 0x02, 0x04, 0x05, 0x06, 0x07) or op in MIPS_STORES:
+        return None
+    return rt or None
+
+
+def _uses(word: int) -> set[int]:
+    op, rs, rt, _rd, fn, _ = _mips(word)
+    if op == 0x00:
+        if fn in (0x00, 0x02, 0x03):                  # sll/srl/sra: rt only
+            return {rt}
+        if fn in (0x08, 0x09):                        # jr/jalr
+            return {rs}
+        if fn in (0x10, 0x12):                        # mfhi/mflo
+            return set()
+        return {rs, rt}
+    if op in (0x02, 0x03, 0x0F):                      # j/jal/lui
+        return set()
+    if op in (0x04, 0x05):
+        return {rs, rt}
+    if op in (0x01, 0x06, 0x07):
+        return {rs}
+    if op in MIPS_STORES:
+        return {rs, rt}
+    return {rs}
+
+
+def _rename(word: int) -> tuple[int, int] | None:
+    """`move rd, rs` in either of the two encodings gcc emits -> (rd, rs)."""
+    op, rs, rt, rd, fn, _ = _mips(word)
+    if op == 0x00 and fn in (0x21, 0x25):             # addu/or with zero
+        if rt == 0:
+            return rd, rs
+        if rs == 0:
+            return rd, rt
+    return None
+
+
+class PointerWalk:
+    """Follow one tagged pointer through a routine's control flow graph.
+
+    Two properties make this usable as evidence rather than as a hint:
+
+    * **Merging at a join is an intersection.** A register counts as the
+      pointer only if it holds it on *every* path that reaches the instruction.
+      The other choice, union, calls a register the pointer on the strength of
+      one path and then invents dereferences that never happen -- and version 1
+      of this walk was a straight linear scan, which is a union of every path
+      whether or not it is reachable. It read `IPCONFIG` as touching no argv at
+      all, because the argc==0 branch overwrites `$a1` on a path the argc!=0
+      branch never takes.
+    * **A computed index is reported as computed**, never as a slot number.
+      `EB` reaches `argv[1+n]` through `addu`, and a walk that only understands
+      constant displacements has to either miss it or guess it.
+    """
+
+    def __init__(self, code_at, limit: int = 800) -> None:
+        self.code_at = code_at
+        self.limit = limit
+        self.reads: list[tuple[int, int, bool]] = []   # pc, byte offset, computed
+        self.secondary: list[int] = []                 # pc consuming the 2nd tag
+        self.calls_holding: list[tuple[int, int | None]] = []
+        self.returns: list[int] = []
+        self.truncated = False
+
+    def run(self, entry: int, pointer: dict[int, tuple[int, bool]],
+            secondary: frozenset[int] = frozenset()) -> None:
+        work = [(entry, dict(pointer), frozenset(secondary))]
+        seen: set[tuple] = set()
+        steps = 0
+        while work:
+            pc, ptr, sec = work.pop()
+            while True:
+                steps += 1
+                if steps > self.limit:
+                    self.truncated = True
+                    break
+                key = (pc, tuple(sorted(ptr.items())), sec)
+                if key in seen:
+                    break
+                seen.add(key)
+
+                word = self.code_at(pc)
+                op, rs, rt, _rd, fn, _imm = _mips(word)
+                self._observe(pc, word, ptr, sec)
+
+                is_call = op == 0x03 or (op == 0x00 and fn == 0x09)
+                is_ret = op == 0x00 and fn == 0x08 and rs == REG_RA
+                target = self._branch(pc, word)
+                jump = self._jump(pc, word) if op == 0x02 else None
+
+                if is_call or is_ret or target is not None or jump is not None:
+                    # the delay slot executes before control transfers
+                    delay = self.code_at(pc + 4)
+                    self._observe(pc + 4, delay, ptr, sec)
+                    ptr, sec = self._apply(delay, ptr, sec)
+
+                if is_call:
+                    held = [r for r in (4, 5, 6, 7) if r in ptr or r in sec]
+                    if held:
+                        self.calls_holding.append(
+                            (pc, self._jump(pc, word) if op == 0x03 else None))
+                    ptr = {r: v for r, v in ptr.items() if r not in CALLER_SAVED}
+                    sec = frozenset(sec - CALLER_SAVED)
+                    pc += 8
+                    continue
+                if is_ret:
+                    self.returns.append(pc)
+                    break
+                if jump is not None:
+                    pc = jump
+                    continue
+                if target is not None:
+                    work.append((target, dict(ptr), sec))
+                    if op == 0x04 and rs == rt:        # beq r,r: never falls through
+                        break
+                    pc += 8
+                    continue
+
+                ptr, sec = self._apply(word, ptr, sec)
+                pc += 4
+
+    def _observe(self, pc, word, ptr, sec) -> None:
+        op, rs, _, _, _, imm = _mips(word)
+        if (op in MIPS_LOADS or op in MIPS_STORES) and rs in ptr:
+            offset, computed = ptr[rs]
+            self.reads.append((pc, offset + _simm(imm), computed))
+        if sec and (_uses(word) & sec):
+            move = _rename(word)
+            if not (move and move[1] in sec):
+                self.secondary.append(pc)
+
+    @staticmethod
+    def _branch(pc: int, word: int) -> int | None:
+        op, _, rt, _, _, imm = _mips(word)
+        if op in (0x04, 0x05, 0x06, 0x07) or (op == 0x01 and rt in (0, 1, 16, 17)):
+            return pc + 4 + (_simm(imm) << 2)
+        return None
+
+    @staticmethod
+    def _jump(pc: int, word: int) -> int:
+        return ((pc + 4) & 0xF0000000) | ((word & 0x03FFFFFF) << 2)
+
+    @staticmethod
+    def _apply(word, ptr, sec):
+        op, rs, rt, _rd, fn, imm = _mips(word)
+        ptr, sec = dict(ptr), set(sec)
+        move = _rename(word)
+        derived = None
+        if move and move[1] in ptr:
+            derived = ptr[move[1]]
+        elif op == 0x09 and rs in ptr:                 # addiu rt, base, imm
+            derived = (ptr[rs][0] + _simm(imm), ptr[rs][1])
+        elif op == 0x00 and fn in (0x20, 0x21, 0x25):  # add/addu/or rd, rs, rt
+            if rs in ptr and rt not in ptr:
+                derived = (ptr[rs][0], True)
+            elif rt in ptr and rs not in ptr:
+                derived = (ptr[rt][0], True)
+        carries_secondary = bool(move and move[1] in sec)
+        dest = _defines(word)
+        if dest is not None:
+            ptr.pop(dest, None)
+            sec.discard(dest)
+            if derived is not None:
+                ptr[dest] = derived
+            if carries_secondary:
+                sec.add(dest)
+        return ptr, frozenset(sec)
+
+
+def _materialisations(stage2: bytes, base: int, addr: int,
+                      window: int = 16) -> list[int]:
+    """Every `lui`/`addiu` or `lui`/`ori` pair in the stage that builds `addr`.
+
+    A code reference to a table is not a data word pointing at it -- MIPS builds
+    the address out of two immediates -- so searching the image for the pointer
+    value finds nothing and proves nothing. This is what makes "no instruction
+    reads offset 4" a claim rather than a hope.
+    """
+    hi, lo = (addr >> 16) & 0xFFFF, addr & 0xFFFF
+    if lo & 0x8000:
+        hi = (hi + 1) & 0xFFFF
+    words = [struct.unpack_from(">I", stage2, o)[0]
+             for o in range(0, len(stage2) - 3, 4)]
+    sites = []
+    for i, word in enumerate(words):
+        op, rs, _rt, _, _, imm = _mips(word)
+        if op not in (0x09, 0x0D) or imm != lo or rs == 0:
+            continue                                   # addiu / ori
+        for back in range(1, window + 1):
+            if i - back < 0:
+                break
+            prev = words[i - back]
+            pop, _, prt, _, _, pimm = _mips(prev)
+            if pop == 0x0F and prt == rs and pimm == hi:
+                sites.append(base + i * 4)
+                break
+    return sites
+
+
+def _walk_cstring_soft(stage2: bytes, off: int, limit: int = 200) -> str | None:
+    """A C string is bytes-up-to-NUL, not a maximal run of printable bytes.
+
+    `cstrings()` above cannot see this loader's first help line at all: it holds
+    four tab characters, so the printable-run scanner breaks it in two and
+    neither half ends at a NUL. Following a *pointer* needs a reader that walks
+    from where the pointer lands, and the first version of this decoder refused
+    the real table for exactly that reason.
+    """
+    if off < 0 or off >= len(stage2):
+        return None
+    end = stage2.find(b"\x00", off, off + limit)
+    if end < 0 or end == off:
+        return None
+    body = stage2[off:end]
+    if any(b not in b"\t\n\r" and not 0x20 <= b <= 0x7E for b in body):
+        return None
+    return body.decode("ascii")
+
+
+def _is_prologue(word: int) -> bool:
+    """`addiu sp, sp, -N` -- how every routine in this stage starts.
+
+    This is what tells the handler column from the help column: both hold
+    in-range pointers into the stage, and only one of them points at something
+    that decodes as the first instruction of a function. Without it the two are
+    interchangeable and the decoder would be free to name them either way round
+    -- which is the mistake the hand transcription made.
+    """
+    op, rs, rt, _, _, imm = _mips(word)
+    return op == 0x09 and rs == 29 and rt == 29 and _simm(imm) < 0
+
+
+def command_table(stage2: bytes, base_hint: int | None = None) -> dict[str, Any]:
+    """Decode the `<RealTek>` command table, and read each handler for argc use.
+
+    The field order is *derived*: of the four words in a record, one column is a
+    small integer in every row, two resolve to string starts and one into the
+    code. A note in this repository asserted the order `{name, help, argc,
+    handler}` from a hand transcription and it is `{name, argc, handler, help}`
+    -- which is why this decoder refuses to be told the layout.
+    """
+    names = cstrings(stage2, 1)
+    end = len(stage2)
+    words = {off: struct.unpack_from(">I", stage2, off)[0]
+             for off in range(0, end - 3, 4)}
+
+    # Propose bases from any word that could be a name pointer at a plausible
+    # record start, then keep the ones that explain a run.
+    tally: dict[int, set[int]] = {}
+    for off, value in words.items():
+        if not KSEG0[0] <= value < KSEG0[1]:
+            continue
+        for s, text in names.items():
+            b = value - s
+            if b <= 0 or b & 0xFFF or not COMMAND_NAME_RE.match(text):
+                continue
+            tally.setdefault(b, set()).add(off)
+
+    survivors = []
+    for b, offs in sorted(tally.items()):
+        run = _run_at_stride(sorted(offs), COMMAND_RECORD)
+        if len(run) >= COMMAND_MIN_ROWS:
+            survivors.append((b, run))
+    funnel = {
+        "page_aligned_bases_proposed": len(tally),
+        f"...whose name pointers run at a 0x{COMMAND_RECORD:x} stride, "
+        f"{COMMAND_MIN_ROWS}+ deep": len(survivors),
+    }
+    if not survivors:
+        raise LoaderError(
+            "no page-aligned load base puts a run of at least "
+            f"{COMMAND_MIN_ROWS} command-name pointers on a "
+            f"0x{COMMAND_RECORD:x} stride")
+    if len(survivors) > 1:
+        raise LoaderError(
+            f"{len(survivors)} load bases each explain a command table: "
+            + ", ".join(f"0x{b:08x}" for b, _ in survivors)
+            + ". A recovery that cannot narrow to one has not recovered anything")
+    base, run = survivors[0]
+    if base_hint is not None and base != base_hint:
+        raise LoaderError(
+            f"the command table wants load base 0x{base:08x} and the chip table "
+            f"wants 0x{base_hint:08x}. Two tables in one image cannot have two "
+            "load bases; one of the two recoveries is wrong")
+
+    # Where the record starts and which column is which, both derived. The run
+    # was built from name pointers, so the name column may be any of the four
+    # and the record may start up to three words before the first hit. Each of
+    # the four alignments is tried and exactly one must split cleanly.
+    def word_at(va: int) -> int | None:
+        off = va - base
+        if off < 0 or off + 4 > end or off % 4:
+            return None
+        return struct.unpack_from(">I", stage2, off)[0]
+
+    def classify(start: int) -> tuple[dict[int, str], list[tuple]] | None:
+        if start < 0 or start + len(run) * COMMAND_RECORD > end:
+            return None
+        raw = [struct.unpack_from(">4I", stage2, start + i * COMMAND_RECORD)
+               for i in range(len(run))]
+        roles: dict[int, str] = {}
+        for col in range(4):
+            column = [r[col] for r in raw]
+            if all(v <= COMMAND_MAX_ARGC for v in column):
+                roles[col] = "argc"
+            elif all(COMMAND_NAME_RE.match(_walk_cstring_soft(stage2, v - base)
+                                           or "") for v in column):
+                roles[col] = "name"
+            elif all(_walk_cstring_soft(stage2, v - base) for v in column):
+                roles[col] = "help"
+            elif all((w := word_at(v)) is not None and _is_prologue(w)
+                     for v in column):
+                roles[col] = "handler"
+        if sorted(roles.values()) != ["argc", "handler", "help", "name"]:
+            return None
+        return roles, raw
+
+    aligned = [(start, got) for k in range(4)
+               if (start := run[0] - 4 * k) is not None
+               and (got := classify(start)) is not None]
+    if not aligned:
+        raise LoaderError(
+            "no alignment of the 0x10 record splits into one small integer, "
+            "one command name, one help string and one pointer at a function "
+            "prologue. The record shape is not the one this tool measured")
+    if len(aligned) > 1:
+        raise LoaderError(
+            f"{len(aligned)} record alignments each split cleanly "
+            + ", ".join(f"0x{base + s:08x}" for s, _ in aligned)
+            + ". A field order that cannot be narrowed to one has not been "
+              "measured")
+    start, (roles, rows_raw) = aligned[0]
+    name_col = next(c for c in roles if roles[c] == "name")
+    help_col = next(c for c in roles if roles[c] == "help")
+    argc_col = next(c for c in roles if roles[c] == "argc")
+    func_col = next(c for c in roles if roles[c] == "handler")
+
+    def resolves(value: int, b: int) -> str | None:
+        return _walk_cstring_soft(stage2, value - b)
+
+    def code_at(va: int) -> int:
+        off = va - base
+        if off < 0 or off + 4 > end:
+            raise LoaderError(f"handler walk left the stage at 0x{va:08x}")
+        return struct.unpack_from(">I", stage2, off)[0]
+
+    rows = []
+    for i, raw in enumerate(rows_raw):
+        name = resolves(raw[name_col], base)
+        walk = PointerWalk(code_at)
+        walk.run(raw[func_col], {REG_A1: (0, False)}, frozenset({REG_A0}))
+        exact = sorted({off // 4 for _, off, comp in walk.reads
+                        if not comp and off >= 0 and off % 4 == 0})
+        computed = sorted({off // 4 for _, off, comp in walk.reads
+                           if comp and off >= 0 and off % 4 == 0})
+        first_use = min((pc for pc, _, _ in walk.reads), default=None)
+        first_test = min(walk.secondary, default=None)
+        rows.append({
+            "at": f"0x{base + start + i * COMMAND_RECORD:08x}",
+            "name": name,
+            "declared_argc": raw[argc_col],
+            "handler": f"0x{raw[func_col]:08x}",
+            "help": resolves(raw[help_col], base),
+            "argv_slots_read": exact,
+            "argv_slots_read_at_a_computed_index": computed,
+            "argc_first_consumed_at":
+                None if first_test is None else f"0x{first_test:08x}",
+            "first_argv_dereference_at":
+                None if first_use is None else f"0x{first_use:08x}",
+            "argv_or_argc_live_at_calls": [f"0x{pc:08x}"
+                                           for pc, _ in walk.calls_holding],
+            "walk_truncated": walk.truncated,
+        })
+
+    missing = [c for c in DOCUMENTED_COMMANDS if c != "HELP"
+               and c not in {r["name"] for r in rows}]
+    if missing:
+        raise LoaderError(
+            "the decoded command table is missing commands the console's own "
+            f"`?` prints: {', '.join(missing)}. A table that does not contain "
+            "what the device already showed is not this loader's table")
+
+    table_va = base + start
+    sites = _materialisations(stage2, base, table_va)
+    if not sites:
+        raise LoaderError(
+            f"nothing in the image builds the address 0x{table_va:08x}. A table "
+            "no instruction can reach is not a table")
+    readers = []
+    for site in sites:
+        _op, _rs, rt, _, _, _ = _mips(code_at(site))
+        walk = PointerWalk(code_at)
+        walk.run(site + 4, {rt: (0, False)})
+        readers.append({
+            "site": f"0x{site:08x}",
+            "field_offsets_read": sorted({off % COMMAND_RECORD
+                                          for _, off, _ in walk.reads}),
+            "walk_truncated": walk.truncated,
+        })
+    read_offsets = sorted({o for r in readers for o in r["field_offsets_read"]})
+
+    return {
+        "load_base": f"0x{base:08x}",
+        "how_the_base_was_found": funnel,
+        "at": f"0x{table_va:08x}",
+        "record_stride": f"0x{COMMAND_RECORD:x}",
+        "record_count": len(rows),
+        "field_offsets": {
+            "name": name_col * 4, "argc": argc_col * 4,
+            "handler": func_col * 4, "help": help_col * 4,
+        },
+        "readers_of_the_table": readers,
+        "field_offsets_any_instruction_reads": read_offsets,
+        "declared_argc_is_read_by_the_dispatcher": argc_col * 4 in read_offsets,
+        "reading": (
+            "`declared_argc` is what the table says; `argv_slots_read` is what "
+            "the handler loads. Where the two differ the handler wins -- the "
+            "count column is only enforced if some instruction reads it, and "
+            "`field_offsets_any_instruction_reads` says whether any does."),
+        "rows": rows,
+    }
+
+
+def command_table_or_reason(stage2: bytes,
+                            base_hint: int | None = None) -> dict[str, Any]:
+    try:
+        return command_table(stage2, base_hint)
+    except LoaderError as exc:
+        return {"refused": str(exc)}
+
+
 def chip_table_or_reason(stage2: bytes) -> dict[str, Any]:
     try:
         return chip_table(stage2)
@@ -394,6 +875,10 @@ def build(dump: Path, region_end: int) -> tuple[dict[str, Any], bytes]:
             f"prints: {', '.join(missing_cmds)}. Until it finds all seventeen, "
             "this tool reporting that something is *absent* means nothing")
 
+    chip_tbl = chip_table_or_reason(stage2)
+    chip_base = (int(chip_tbl["load_base"], 16)
+                 if "load_base" in chip_tbl else None)
+
     doc: dict[str, Any] = {
         "producer": PRODUCER,
         "schema": SCHEMA,
@@ -418,7 +903,11 @@ def build(dump: Path, region_end: int) -> tuple[dict[str, Any], bytes]:
         # not either; neither is a reason to refuse the whole report. The
         # refusal text is kept so an absent table reads as an absent table
         # rather than as a field nobody filled in.
-        "chip_table": chip_table_or_reason(stage2),
+        "chip_table": chip_tbl,
+        # Soft for the same reason, and it takes the chip table's load base as a
+        # hint: two tables in one image cannot have two bases, so a disagreement
+        # is a refusal rather than a field nobody compared.
+        "command_table": command_table_or_reason(stage2, chip_base),
         "controls": {
             "help_banner_present": True,
             "documented_commands_found": found_cmds,
@@ -461,6 +950,10 @@ def main(argv: list[str]) -> int:
     ap.add_argument("--chip-table", action="store_true",
                     help="print the loader's SPI flash descriptor table instead "
                          "of JSON, and exit non-zero if it cannot be recovered")
+    ap.add_argument("--commands", action="store_true",
+                    help="print the loader's command table beside what each "
+                         "handler actually dereferences, and exit non-zero if "
+                         "it cannot be recovered")
     ap.add_argument("--has-id", metavar="HEX",
                     help="ask whether a three-byte JEDEC id, e.g. 1c7016, has a "
                          "row in that table. Exit 0 if it does, 1 if it does not")
@@ -483,6 +976,42 @@ def main(argv: list[str]) -> int:
     if args.strings:
         for off, s in strings(stage2):
             print(f"0x{off:05x}  {s}")
+        return 0
+
+    if args.commands:
+        tbl = doc["command_table"]
+        if "refused" in tbl:
+            print(f"refused: {tbl['refused']}", file=sys.stderr)
+            return 1
+        off = tbl["field_offsets"]
+        print(f"table at {tbl['at']}, {tbl['record_count']} records, "
+              f"stride {tbl['record_stride']}, load base {tbl['load_base']}")
+        print(f"fields (derived): name +{off['name']}  argc +{off['argc']}  "
+              f"handler +{off['handler']}  help +{off['help']}")
+        for r in tbl["readers_of_the_table"]:
+            print(f"  read at {r['site']}: field offsets "
+                  f"{r['field_offsets_read']}")
+        print(f"  declared_argc (+{off['argc']}) is read by an instruction: "
+              f"{tbl['declared_argc_is_read_by_the_dispatcher']}")
+        print()
+        print(f"  {'name':<9} {'says':>4} {'reads':<14} {'checks argc':<12} "
+              f"handler")
+        for r in tbl["rows"]:
+            reads = ",".join(str(s) for s in r["argv_slots_read"]) or "-"
+            if r["argv_slots_read_at_a_computed_index"]:
+                reads += "+" + ",".join(
+                    f"{s}+n" for s in r["argv_slots_read_at_a_computed_index"])
+            checks = ("no" if r["argc_first_consumed_at"] is None
+                      else r["argc_first_consumed_at"])
+            flag = ""
+            if r["argc_first_consumed_at"] is None and r["argv_slots_read"]:
+                flag = "  <- dereferences argv unchecked"
+            if not r["argv_slots_read"] and not \
+                    r["argv_slots_read_at_a_computed_index"] and \
+                    r["argv_or_argc_live_at_calls"]:
+                flag = "  <- hands argv to a callee; not followed"
+            print(f"  {r['name']:<9} {r['declared_argc']:>4} {reads:<14} "
+                  f"{checks:<12} {r['handler']}{flag}")
         return 0
 
     if args.chip_table or args.has_id:

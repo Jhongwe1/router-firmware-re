@@ -12,7 +12,33 @@ function in the binary.
 > G3 ✅ passed 2026-08-11 · G3.5 ✅ · G3.75 ✅ both passed 2026-08-17 ·
 > G4 ✅ passed 2026-08-18, clause 3 split into 3a met / 3b impossible.**
 >
-> **Latest (W08 Day 1, 2026-08-21): the boot loader's TFTP read was traced to one
+> **Latest (W08 Day 1, 2026-08-21, desk): `FLW`'s command table declares four
+> arguments and its handler reads three. The fourth is not a mystery — the line
+> that would parse it is commented out in the vendor's own source, and no
+> instruction in the image reads the count the table declares.**
+>
+> `0x80409BE4` `li a2,1` is the `SPI flash#1` the console prints; `0x80409C14`
+> `move a0,zero` is the chip index handed to the writer. Both are literals, and
+> the vendor's `CmdSFlw` explains the off-by-one: `printf(… cnt2+1 …)` over a
+> hard `cnt2 = 0`. The dispatcher's argument-count check is inside `#if 0` in the
+> same file — **so the table's count column is not an unmaintained field, it is a
+> field whose only reader was switched off.** The rest is the failure mode nobody
+> asked about: `FLW` never checks `argc` at all, and it is one of six handlers of
+> seventeen that dereference `argv` without looking at it.
+>
+> The question existed because the table had been **transcribed by hand**, and
+> that transcription was wrong three ways — the record order, a truncated help
+> string, and an interrupt mask read as a timer. It is decoded now:
+> [`tools/loader-unpack.py`](tools/loader-unpack.py) `--commands` derives the
+> field order from the shape of the columns, walks each handler's control flow
+> rather than scanning it linearly, and refuses when it cannot narrow an answer
+> to one. Its guard suite went 16 → 26 cases; seven mutants were run against it
+> and **the first round caught only four** — the three survivors were not tool
+> bugs but paths no planted fixture exercised.
+>
+> ---
+>
+> **Earlier that day, at the bench: the boot loader's TFTP read was traced to one
 > function, four cells were predicted with a hash each before the visit, all four
 > hit — and then a payload this project's own simulator had certified printed
 > sixteen bytes of forty-one on the silicon.**
@@ -536,7 +562,7 @@ that is not backed by a command someone else can re-run.
   - [x] **the `FLW` recovery path rehearsed** — this is G3.5 #5, cited and not restated. Closed 2026-08-17
   - [x] **isolation verified** — exactly two MAC addresses on the segment, eight packets each, no DNS and nothing outbound. The control is that the capture recorded 16 packets at all: an earlier one recorded **zero**, and zero proves nothing until the link is known to deliver
   - [x] **IoC pre-check** — both halves, against criteria written before the check: **the live config differs from this unit's own factory baseline in 4 of 343 entries**, no fifth, and every port the register named is closed
-  - [x] **the prediction ledger is frozen** ← [`test-ledger.md`](test-ledger.md) — **134** registered tests, **117** carrying a written refutation condition, hashed and committed **before any request is served**; W05 closed **27 of 27**
+  - [x] **the prediction ledger is frozen** ← [`test-ledger.md`](test-ledger.md) — **138** registered tests, **124** carrying a written refutation condition, hashed and committed **before any request is served**; W05 closed **27 of 27**
   - [x] **the disclosure register is written** ← [`docs/disclosure.md`](docs/disclosure.md) — seventeen rows, what each is worth, and the rule that decides what gets published
 
   > ### ★ Why this gate exists
@@ -664,7 +690,7 @@ that is not backed by a command someone else can re-run.
 | [`poc/`](poc/) | **The reproductions** — two public CVE chains with the requests, the flash-byte evidence, and one file that deliberately carries **no request at all** because what it describes has not been reported to anyone. `run.sh` runs against a device or against an emulated copy, and says which step failed |
 | [`docs/report-draft.md`](docs/report-draft.md) | **The report that has not been sent** — what would go to TWCERT/CC, what is attached and what is not, and the one step that is blocking it |
 | [`docs/disclosure.md`](docs/disclosure.md) | **The disclosure register** — what might be new, what state it is in, and the rule separating a finding from a reproduction from tradecraft. Two entries were **withdrawn** on 2026-08-17, one of them by prior art that a by-handler search found in a single query |
-| [`test-ledger.md`](test-ledger.md) | **The test register, generated** — 135 tests with their predictions frozen before the first request, what would refute each, and what nine items were cut and why (Traditional Chinese) |
+| [`test-ledger.md`](test-ledger.md) | **The test register, generated** — 138 tests with their predictions frozen before the first request, what would refute each, and what nine items were cut and why (Traditional Chinese) |
 | [`notes/attack-surface.md`](notes/attack-surface.md) | Where to look, ranked |
 | [`notes/ghidra-triage.md`](notes/ghidra-triage.md) | Which functions to open first, and why — with the three W01 calls W03 overturned |
 | [`notes/dispatch-table.md`](notes/dispatch-table.md) | `root_form[]` recovered: every `/boafrm/` route in both builds, and what changed between them |

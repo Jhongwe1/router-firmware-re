@@ -317,6 +317,287 @@ else
   bad "a fixture with no chip table was refused outright — the softness is gone"
 fi
 
+# ---------------------------------------------------------------------------
+# The command table, and what each handler actually reads. Added 2026-08-21 for
+# open #98 -- `FLW` declares four arguments and the runsheet sends three.
+#
+# The headline result here is again an ABSENCE, and a sharper one than the chip
+# table's: *no instruction in the image reads the table's argument-count field*.
+# A tool that reports that is one hard-coded `False` away from being a liar, so
+# the suite below carries the reverse control -- a fixture whose reader DOES
+# load that field, which must come back `true`. Same for the handler analysis:
+# four planted handlers with four different shapes, and the decoder has to tell
+# them apart rather than reporting "unchecked" for everything.
+# ---------------------------------------------------------------------------
+
+make_cmd_image() {
+  local out="$1" mode="${2:-good}"
+  "$PY" - "$out" "$mode" <<'PYEOF'
+import lzma, struct, sys
+out, mode = sys.argv[1], sys.argv[2]
+
+BASE, ALT = 0x80400000, 0x80500000
+NAMES = ["?", "DB", "DW", "EB", "EW", "CMP", "IPCONFIG", "AUTOBURN",
+         "LOADADDR", "J", "FLR", "FLW", "MDIOR", "MDIOW", "PHYR", "PHYW",
+         "PORT1"]
+
+BANNER = ("----------------- COMMAND MODE HELP ------------------\n"
+          "HELP (?)   : Print this help message\n"
+          "DB <Address> <Len>\nDW <Address> <Len>\n"
+          "EB <Address> <Value1> <Value2>...\n"
+          "EW <Address> <Value1> <Value2>...\n"
+          "CMP <dst><src><length>\nIPCONFIG:<TargetAddress>\n"
+          "AUTOBURN: 0/1\nLOADADDR: <Load Address>\n"
+          "J: Jump to <TargetAddress>\nFLR: FLR <dst><src><length>\n"
+          "FLW <dst_ROM_offset><src_RAM_addr><length_Byte> <SPI cnt#>\n"
+          "MDIOR MDIOW PHYR PHYW PORT1\nFlash Read Successed!\n"
+          + ("." * 79 + "\n") * 20)
+
+body = bytearray(BANNER.encode())
+
+
+def align():
+    while len(body) % 4:
+        body.append(0)
+
+
+def put_str(text):
+    align()
+    at = len(body)
+    body.extend(text.encode() + b"\x00")
+    return at
+
+
+def put_code(words):
+    align()
+    at = len(body)
+    for w in words:
+        body.extend(struct.pack(">I", w))
+    return at
+
+
+name_off = {n: put_str(n) for n in NAMES}
+# One help string carries tabs on purpose: the printable-run string scanner
+# cannot see it, so a decoder that resolves pointers with that scanner refuses
+# the whole table. That is how the first version of this decoder failed.
+help_off = {n: put_str("HELP (?)\t\t\t\t    : Print this help message"
+                       if n == "?" else "%s <arg1> <arg2>" % n)
+            for n in NAMES}
+
+PROLOGUE, JR_RA, NOP = 0x27BDFFE0, 0x03E00008, 0x00000000
+H = {
+    # returns without touching argv or argc
+    "plain": put_code([PROLOGUE, JR_RA, NOP]),
+    # blez a0, +2 ; nop ; lw a0,0(a1) ; jr ra  -- argc consumed before argv
+    "checked": put_code([PROLOGUE, 0x18800002, NOP, 0x8CA40000, JR_RA, NOP]),
+    # lw a0,0(a1) ; lw a0,4(a1) ; lw a0,8(a1) ; jr ra  -- three slots, no check
+    "unchecked3": put_code([PROLOGUE, 0x8CA40000, 0x8CA40004, 0x8CA40008,
+                            JR_RA, NOP]),
+    # sll v0,a2,2 ; addu v0,v0,a1 ; lw a0,4(v0) ; jr ra  -- argv[1+n]
+    "variadic": put_code([PROLOGUE, 0x00061080, 0x00451021, 0x8C440004,
+                          JR_RA, NOP]),
+    # blez a0,+2 ; lw a0,0(a1) ; lw a0,8(a1) ; jr ra -- the first load sits in
+    # the DELAY SLOT, so it runs whichever way the branch goes. A walk that
+    # steps over delay slots sees only slot 2 and calls that the answer.
+    "delayslot": put_code([PROLOGUE, 0x18800002, 0x8CA40000, 0x8CA40008,
+                           JR_RA, NOP]),
+    # bnez a0,+2 ; nop ; lui a1,0x1234 ; lw a0,0(a1) ; jr ra -- $a1 is
+    # overwritten only on the path the load is NOT on. This is `IPCONFIG`'s
+    # shape, and a linear scan reads it as touching no argv at all.
+    "twopath": put_code([PROLOGUE, 0x14800002, NOP, 0x3C051234, 0x8CA40000,
+                         JR_RA, NOP]),
+}
+# move s0,a1 ; jal plain ; nop ; lw a0,0(a1) ; lw a0,4(s0) ; jr ra -- the call
+# clobbers $a1 and does not clobber $s0, so exactly one of the two loads is a
+# read of argv. A walk with no o32 clobber rule records both.
+H["aftercall"] = put_code([
+    PROLOGUE, 0x00A08025, 0x0C000000 | (((BASE + H["plain"]) >> 2) & 0x03FFFFFF),
+    NOP, 0x8CA40000, 0x8E040004, JR_RA, NOP])
+
+SHAPE = {"?": "plain", "PORT1": "plain", "EB": "variadic", "EW": "variadic",
+         "J": "checked", "DB": "checked", "DW": "checked", "CMP": "checked",
+         "IPCONFIG": "checked", "MDIOR": "checked", "MDIOW": "checked",
+         "FLR": "aftercall", "PHYW": "delayslot", "PHYR": "twopath"}
+ARGC = {"?": 0, "DB": 2, "DW": 2, "EB": 2, "EW": 2, "CMP": 3, "IPCONFIG": 2,
+        "AUTOBURN": 1, "LOADADDR": 1, "J": 1, "FLR": 3, "FLW": 4, "MDIOR": 0,
+        "MDIOW": 0, "PHYR": 2, "PHYW": 3, "PORT1": 3}
+
+rows = [n for n in NAMES if not (mode == "missing" and n == "FLW")]
+stride = 0x14 if mode == "stride" else 0x10
+align()
+table_at = len(body)
+if mode != "none":
+    for n in rows:
+        handler = BASE + H[SHAPE.get(n, "unchecked3")]
+        if mode == "nohandler":
+            # Into the middle of a routine: not a string, and not a prologue.
+            # Pointing it at a *name* would be caught by the name column check
+            # instead, and the prologue test would never be exercised.
+            handler = BASE + H["plain"] + 4
+        body.extend(struct.pack(">4I", BASE + name_off[n], ARGC[n], handler,
+                                BASE + help_off[n]))
+        body.extend(b"\x00" * (stride - 0x10))
+if mode == "two":
+    align()
+    for n in rows:
+        body.extend(struct.pack(">4I", ALT + name_off[n], ARGC[n],
+                                ALT + H[SHAPE.get(n, "unchecked3")],
+                                ALT + help_off[n]))
+if mode == "basemix":
+    # A chip table whose name pointers imply a DIFFERENT load base. Two tables
+    # in one image cannot have two bases; the decoders must notice.
+    chip_names = ["ZZ25X%03d" % i for i in range(20)]
+    offs = [put_str(c) for c in chip_names]
+    align()
+    for i, o in enumerate(offs):
+        body.extend(struct.pack(">8I", 0x1C3000 + i, 0, 0x15, 0x10000,
+                                0x1000, 0x100, ALT + o, 0x50))
+
+# The two instructions that build the table's address, and a walk that reads
+# the fields a dispatcher would. `enforced` adds the one load that would make
+# the declared count load-bearing.
+if mode not in ("none", "unreachable"):
+    addr = BASE + table_at
+    hi, lo = (addr >> 16) & 0xFFFF, addr & 0xFFFF
+    if lo & 0x8000:
+        hi = (hi + 1) & 0xFFFF
+    reader = [0x3C020000 | hi, 0x24500000 | lo, 0x8E030000, 0x8E03000C]
+    if mode == "enforced":
+        reader.append(0x8E030004)                 # lw v1,4(s0) -- the count
+    reader += [0x8E030008, JR_RA, NOP]
+    put_code(reader)
+
+c = lzma.compress(bytes(body), format=lzma.FORMAT_ALONE,
+                  filters=[{"id": lzma.FILTER_LZMA1, "preset": 6,
+                            "dict_size": 1 << 23}])
+c = c[:5] + struct.pack("<Q", len(body)) + c[13:]
+buf = bytearray(b"\x00" * (4 << 20))
+buf[0x400:0x400 + 10] = b"Booting..."
+buf[0x1000:0x1000 + len(c)] = c
+open(out, "wb").write(bytes(buf))
+PYEOF
+}
+
+expect_cmd_refusal() {
+  local label="$1" needle="$2" img="$3" out rc
+  out="$("$PY" "$TOOL" --commands "$img" 2>&1)"; rc=$?
+  if [ "$rc" -eq 0 ]; then
+    bad "$label — the command table was accepted when it should have been refused"
+  elif printf '%s' "$out" | grep -qF "$needle"; then
+    ok "$label"
+  else
+    bad "$label — refused for the wrong reason: $(printf '%s' "$out" | head -2)"
+  fi
+}
+
+# 16. THE POSITIVE CONTROL, and it is four controls in one: the field order is
+#     derived (not told), and the four planted handler shapes have to come back
+#     as four different readings.
+make_cmd_image "$TMP/cmd-good.bin" good
+if out="$("$PY" "$TOOL" "$TMP/cmd-good.bin" 2>/dev/null)"; then
+  if printf '%s' "$out" | "$PY" -c '
+import json, sys
+t = json.load(sys.stdin)["command_table"]
+assert "refused" not in t, t
+assert t["field_offsets"] == {"name": 0, "argc": 4, "handler": 8, "help": 12}, \
+    t["field_offsets"]
+assert t["record_count"] == 17, t["record_count"]
+by = {r["name"]: r for r in t["rows"]}
+# declared four, dereferences three, and never looks at the count it was given
+assert by["FLW"]["declared_argc"] == 4
+assert by["FLW"]["argv_slots_read"] == [0, 1, 2], by["FLW"]
+assert by["FLW"]["argc_first_consumed_at"] is None, by["FLW"]
+# the same walk has to see a handler that DOES check, or it is measuring nothing
+assert by["J"]["argc_first_consumed_at"] is not None, by["J"]
+assert by["J"]["argv_slots_read"] == [0], by["J"]
+# a computed index is reported as computed, not as a slot number
+assert by["EB"]["argv_slots_read_at_a_computed_index"] == [1], by["EB"]
+assert by["EB"]["argv_slots_read"] == [], by["EB"]
+# and a handler that touches neither is not reported as unchecked-and-reading
+assert by["PORT1"]["argv_slots_read"] == [], by["PORT1"]
+# a load in a branch delay slot happens whichever way the branch goes
+assert by["PHYW"]["argv_slots_read"] == [0, 2], by["PHYW"]
+# $a1 dies across a call and $s0 does not, so one of two loads is a real read
+assert by["FLR"]["argv_slots_read"] == [1], by["FLR"]
+assert by["FLR"]["argv_or_argc_live_at_calls"], by["FLR"]
+# and the join is an intersection, so a clobber on the other path is not one
+assert by["PHYR"]["argv_slots_read"] == [0], by["PHYR"]
+assert not any(r["walk_truncated"] for r in t["rows"]), "a walk ran out of steps"
+'; then
+    ok "positive control: the field order is derived and seven handler shapes read as seven"
+  else
+    bad "positive control: the planted command table did not decode as planted"
+  fi
+else
+  bad "positive control: a well-formed command table was refused"
+fi
+
+# 17. The absence, in both directions. `declared_argc_is_read_by_the_dispatcher`
+#     is the whole answer to open #98, and a field that is always false answers
+#     it the same way whatever the loader does.
+if "$PY" "$TOOL" "$TMP/cmd-good.bin" 2>/dev/null | "$PY" -c '
+import json, sys
+t = json.load(sys.stdin)["command_table"]
+assert t["declared_argc_is_read_by_the_dispatcher"] is False, t
+assert t["field_offsets_any_instruction_reads"] == [0, 8, 12], t
+'; then
+  ok "a table whose count field nothing loads reports that field as unread"
+else
+  bad "the unread-count reading did not come back from a fixture that plants it"
+fi
+make_cmd_image "$TMP/cmd-enforced.bin" enforced
+if "$PY" "$TOOL" "$TMP/cmd-enforced.bin" 2>/dev/null | "$PY" -c '
+import json, sys
+t = json.load(sys.stdin)["command_table"]
+assert t["declared_argc_is_read_by_the_dispatcher"] is True, t
+assert 4 in t["field_offsets_any_instruction_reads"], t
+'; then
+  ok "REVERSE control: add one load of +4 and the same field comes back true"
+else
+  bad "a fixture whose reader loads the count field still reported it unread"
+fi
+
+# 18. Nothing to find.
+make_cmd_image "$TMP/cmd-none.bin" none
+expect_cmd_refusal "a stage with no command table is refused, not reported empty" \
+                   "command-name pointers on a" "$TMP/cmd-none.bin"
+
+# 19. Two bases each explaining a table.
+make_cmd_image "$TMP/cmd-two.bin" two
+expect_cmd_refusal "two load bases are refused, not chosen between" \
+                   "each explain a command table" "$TMP/cmd-two.bin"
+
+# 20. Records off the measured stride.
+make_cmd_image "$TMP/cmd-stride.bin" stride
+expect_cmd_refusal "records that do not sit on the 0x10 stride are refused" \
+                   "command-name pointers on a" "$TMP/cmd-stride.bin"
+
+# 21. The handler column pointed at a string. Both columns hold in-range
+#     pointers, so only the prologue check can tell them apart -- and getting
+#     this wrong is exactly the transcription error open #98 was chasing.
+make_cmd_image "$TMP/cmd-nohandler.bin" nohandler
+expect_cmd_refusal "a handler column that points at data, not a prologue, is refused" \
+                   "function prologue" "$TMP/cmd-nohandler.bin"
+
+# 22. A table that decodes but is missing a command the device's own `?` prints.
+make_cmd_image "$TMP/cmd-missing.bin" missing
+expect_cmd_refusal "a decoded table missing a command the console prints is refused" \
+                   "missing commands the console" "$TMP/cmd-missing.bin"
+
+# 23. A table nothing in the image can reach. The claim that rests on this walk
+#     is "no instruction reads +4"; if no instruction reaches the table at all,
+#     that sentence is true and worthless.
+make_cmd_image "$TMP/cmd-unreachable.bin" unreachable
+expect_cmd_refusal "a table no instruction builds the address of is refused" \
+                   "no instruction can reach" "$TMP/cmd-unreachable.bin"
+
+# 24. Two tables, two load bases. The chip table and the command table are
+#     recovered independently and must land on the same base; a disagreement is
+#     one of the two recoveries being wrong, and picking either is a guess.
+make_cmd_image "$TMP/cmd-basemix.bin" basemix
+expect_cmd_refusal "the chip table and the command table disagreeing on the base is refused" \
+                   "cannot have two" "$TMP/cmd-basemix.bin"
+
 echo
 echo "  $pass passed, $fail failed"
 [ "$fail" -eq 0 ] || exit 1

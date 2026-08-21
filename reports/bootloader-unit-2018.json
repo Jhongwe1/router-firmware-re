@@ -761,6 +761,331 @@
       }
     ]
   },
+  "command_table": {
+    "load_base": "0x80400000",
+    "how_the_base_was_found": {
+      "page_aligned_bases_proposed": 72,
+      "...whose name pointers run at a 0x10 stride, 8+ deep": 1
+    },
+    "at": "0x8040dbc0",
+    "record_stride": "0x10",
+    "record_count": 17,
+    "field_offsets": {
+      "name": 0,
+      "argc": 4,
+      "handler": 8,
+      "help": 12
+    },
+    "readers_of_the_table": [
+      {
+        "site": "0x80409170",
+        "field_offsets_read": [
+          0,
+          8
+        ],
+        "walk_truncated": false
+      },
+      {
+        "site": "0x80409ac4",
+        "field_offsets_read": [
+          12
+        ],
+        "walk_truncated": false
+      }
+    ],
+    "field_offsets_any_instruction_reads": [
+      0,
+      8,
+      12
+    ],
+    "declared_argc_is_read_by_the_dispatcher": false,
+    "reading": "`declared_argc` is what the table says; `argv_slots_read` is what the handler loads. Where the two differ the handler wins -- the count column is only enforced if some instruction reads it, and `field_offsets_any_instruction_reads` says whether any does.",
+    "rows": [
+      {
+        "at": "0x8040dbc0",
+        "name": "?",
+        "declared_argc": 0,
+        "handler": "0x80409a9c",
+        "help": "HELP (?)\t\t\t\t    : Print this help message",
+        "argv_slots_read": [],
+        "argv_slots_read_at_a_computed_index": [],
+        "argc_first_consumed_at": null,
+        "first_argv_dereference_at": null,
+        "argv_or_argc_live_at_calls": [
+          "0x80409ab4"
+        ],
+        "walk_truncated": false
+      },
+      {
+        "at": "0x8040dbd0",
+        "name": "DB",
+        "declared_argc": 2,
+        "handler": "0x804095d0",
+        "help": "DB <Address> <Len>",
+        "argv_slots_read": [
+          0,
+          1
+        ],
+        "argv_slots_read_at_a_computed_index": [],
+        "argc_first_consumed_at": "0x804095e0",
+        "first_argv_dereference_at": "0x804095fc",
+        "argv_or_argc_live_at_calls": [
+          "0x804095ec"
+        ],
+        "walk_truncated": false
+      },
+      {
+        "at": "0x8040dbe0",
+        "name": "DW",
+        "declared_argc": 2,
+        "handler": "0x804094b4",
+        "help": "DW <Address> <Len>",
+        "argv_slots_read": [
+          0,
+          1
+        ],
+        "argv_slots_read_at_a_computed_index": [],
+        "argc_first_consumed_at": "0x804094cc",
+        "first_argv_dereference_at": "0x804094e8",
+        "argv_or_argc_live_at_calls": [
+          "0x804094d8",
+          "0x8040951c"
+        ],
+        "walk_truncated": false
+      },
+      {
+        "at": "0x8040dbf0",
+        "name": "EB",
+        "declared_argc": 2,
+        "handler": "0x8040978c",
+        "help": "EB <Address> <Value1> <Value2>...",
+        "argv_slots_read": [
+          0
+        ],
+        "argv_slots_read_at_a_computed_index": [
+          1
+        ],
+        "argc_first_consumed_at": "0x804097c0",
+        "first_argv_dereference_at": "0x804097ac",
+        "argv_or_argc_live_at_calls": [],
+        "walk_truncated": false
+      },
+      {
+        "at": "0x8040dc00",
+        "name": "EW",
+        "declared_argc": 2,
+        "handler": "0x80409650",
+        "help": "EW <Address> <Value1> <Value2>...",
+        "argv_slots_read": [
+          0
+        ],
+        "argv_slots_read_at_a_computed_index": [
+          1
+        ],
+        "argc_first_consumed_at": "0x8040968c",
+        "first_argv_dereference_at": "0x80409670",
+        "argv_or_argc_live_at_calls": [],
+        "walk_truncated": false
+      },
+      {
+        "at": "0x8040dc10",
+        "name": "CMP",
+        "declared_argc": 3,
+        "handler": "0x80409820",
+        "help": "CMP: CMP <dst><src><length>",
+        "argv_slots_read": [
+          0,
+          1,
+          2
+        ],
+        "argv_slots_read_at_a_computed_index": [],
+        "argc_first_consumed_at": "0x8040983c",
+        "first_argv_dereference_at": "0x8040985c",
+        "argv_or_argc_live_at_calls": [
+          "0x8040984c"
+        ],
+        "walk_truncated": false
+      },
+      {
+        "at": "0x8040dc20",
+        "name": "IPCONFIG",
+        "declared_argc": 2,
+        "handler": "0x80409378",
+        "help": "IPCONFIG:<TargetAddress>",
+        "argv_slots_read": [
+          0
+        ],
+        "argv_slots_read_at_a_computed_index": [],
+        "argc_first_consumed_at": "0x8040938c",
+        "first_argv_dereference_at": "0x804093c8",
+        "argv_or_argc_live_at_calls": [],
+        "walk_truncated": false
+      },
+      {
+        "at": "0x8040dc30",
+        "name": "AUTOBURN",
+        "declared_argc": 1,
+        "handler": "0x80409914",
+        "help": "AUTOBURN: 0/1",
+        "argv_slots_read": [
+          0
+        ],
+        "argv_slots_read_at_a_computed_index": [],
+        "argc_first_consumed_at": null,
+        "first_argv_dereference_at": "0x8040991c",
+        "argv_or_argc_live_at_calls": [],
+        "walk_truncated": false
+      },
+      {
+        "at": "0x8040dc40",
+        "name": "LOADADDR",
+        "declared_argc": 1,
+        "handler": "0x8040996c",
+        "help": "LOADADDR: <Load Address>",
+        "argv_slots_read": [
+          0
+        ],
+        "argv_slots_read_at_a_computed_index": [],
+        "argc_first_consumed_at": null,
+        "first_argv_dereference_at": "0x80409974",
+        "argv_or_argc_live_at_calls": [],
+        "walk_truncated": false
+      },
+      {
+        "at": "0x8040dc50",
+        "name": "J",
+        "declared_argc": 1,
+        "handler": "0x8040925c",
+        "help": "J: Jump to <TargetAddress>",
+        "argv_slots_read": [
+          0
+        ],
+        "argv_slots_read_at_a_computed_index": [],
+        "argc_first_consumed_at": "0x80409264",
+        "first_argv_dereference_at": "0x8040926c",
+        "argv_or_argc_live_at_calls": [],
+        "walk_truncated": false
+      },
+      {
+        "at": "0x8040dc60",
+        "name": "FLR",
+        "declared_argc": 3,
+        "handler": "0x804099ac",
+        "help": "FLR: FLR <dst><src><length>",
+        "argv_slots_read": [
+          0,
+          1,
+          2
+        ],
+        "argv_slots_read_at_a_computed_index": [],
+        "argc_first_consumed_at": null,
+        "first_argv_dereference_at": "0x804099c4",
+        "argv_or_argc_live_at_calls": [],
+        "walk_truncated": false
+      },
+      {
+        "at": "0x8040dc70",
+        "name": "FLW",
+        "declared_argc": 4,
+        "handler": "0x80409b6c",
+        "help": "FLW <dst_ROM_offset><src_RAM_addr><length_Byte> <SPI cnt#>: Write offset-data to SPI from RAM",
+        "argv_slots_read": [
+          0,
+          1,
+          2
+        ],
+        "argv_slots_read_at_a_computed_index": [],
+        "argc_first_consumed_at": null,
+        "first_argv_dereference_at": "0x80409b84",
+        "argv_or_argc_live_at_calls": [],
+        "walk_truncated": false
+      },
+      {
+        "at": "0x8040dc80",
+        "name": "MDIOR",
+        "declared_argc": 0,
+        "handler": "0x80409c54",
+        "help": "MDIOR:  MDIOR <phyid> <reg>",
+        "argv_slots_read": [
+          0
+        ],
+        "argv_slots_read_at_a_computed_index": [],
+        "argc_first_consumed_at": "0x80409c64",
+        "first_argv_dereference_at": "0x80409c80",
+        "argv_or_argc_live_at_calls": [
+          "0x80409c70"
+        ],
+        "walk_truncated": false
+      },
+      {
+        "at": "0x8040dc90",
+        "name": "MDIOW",
+        "declared_argc": 0,
+        "handler": "0x80409ce8",
+        "help": "MDIOW:  MDIOW <phyid> <reg> <data>",
+        "argv_slots_read": [
+          0,
+          1,
+          2
+        ],
+        "argv_slots_read_at_a_computed_index": [],
+        "argc_first_consumed_at": "0x80409cfc",
+        "first_argv_dereference_at": "0x80409d1c",
+        "argv_or_argc_live_at_calls": [
+          "0x80409d0c"
+        ],
+        "walk_truncated": false
+      },
+      {
+        "at": "0x8040dca0",
+        "name": "PHYR",
+        "declared_argc": 2,
+        "handler": "0x80409d98",
+        "help": "PHYR: PHYR <PHYID><reg>",
+        "argv_slots_read": [
+          0,
+          1
+        ],
+        "argv_slots_read_at_a_computed_index": [],
+        "argc_first_consumed_at": null,
+        "first_argv_dereference_at": "0x80409dac",
+        "argv_or_argc_live_at_calls": [],
+        "walk_truncated": false
+      },
+      {
+        "at": "0x8040dcb0",
+        "name": "PHYW",
+        "declared_argc": 3,
+        "handler": "0x80409e10",
+        "help": "PHYW: PHYW <PHYID><reg><data>",
+        "argv_slots_read": [
+          0,
+          1,
+          2
+        ],
+        "argv_slots_read_at_a_computed_index": [],
+        "argc_first_consumed_at": null,
+        "first_argv_dereference_at": "0x80409e28",
+        "argv_or_argc_live_at_calls": [],
+        "walk_truncated": false
+      },
+      {
+        "at": "0x8040dcc0",
+        "name": "PORT1",
+        "declared_argc": 3,
+        "handler": "0x8040a294",
+        "help": "PORT1: port 1 patch for FT2",
+        "argv_slots_read": [],
+        "argv_slots_read_at_a_computed_index": [],
+        "argc_first_consumed_at": null,
+        "first_argv_dereference_at": null,
+        "argv_or_argc_live_at_calls": [
+          "0x8040a29c"
+        ],
+        "walk_truncated": false
+      }
+    ]
+  },
   "controls": {
     "help_banner_present": true,
     "documented_commands_found": [
