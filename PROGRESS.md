@@ -11,7 +11,7 @@
 | **W05** | Dynamic analysis, upper half | — (DoD) | ✅ **DoD 5 of 5, 27 / 27 register rows** — 2026-08-17 |
 | **W06** | PoC reproduction | **G4** | ✅ **passed 5 of 5** — 2026-08-18, clause 3 split into 3a met / 3b impossible by construction; **20 / 20 register rows** |
 | **W07** | Systematic bug hunt | — (DoD) | ✅ **58 / 58 register rows, DoD 5 of 6** — 2026-08-19; the six-build differential harness was never built and `notes/bughunt.md` says so |
-| **W08** | Write-up draft, plus the bench work W07 deferred | — (DoD) | 🚧 **in progress** — the fourteen-chapter draft is written ([`writeup/`](writeup/), 2026-08-22); **5 / 14 register rows**, with **9 outstanding**: three frozen this session for the next bench visit, six blocked on an instrument that does not exist or on a visit, each with its reason in the register |
+| **W08** | Write-up draft, plus the bench work W07 deferred | — (DoD) | ✅ **DoD met, 8 / 8 register rows, 0 outstanding** — 2026-08-22. The fourteen-chapter draft is written ([`writeup/`](writeup/)); six rows were **cut with reasons** rather than run, and the last three were frozen at the desk and closed at the bench the same night — **all three `partial`**, because each carries a clause its own prediction got wrong |
 | W09 | Write-up publication | G5 | |
 | W10 | Buffer / disclosure / close-out | — | |
 
@@ -7003,3 +7003,281 @@ week. The ten-minute read test in the week plan has not been run.
      `probe` that preceded it served zero bytes and wrote nothing.
      `tools/console-lint.py` reproduces the diagnosis from the committed log and
      reports an unexplained rejection as an error.
+
+## W08 Day 2, the bench — the control failed as designed, and the confirmation landed a layer below where it was aimed — 2026-08-22
+
+**`BENCH-LOG.md` 2026-08-22 「桌面第七場」 and 「第 2 站進站場次之三」 carry what was
+cut, what was typed and what was seen; record cards `T-96`–`T-100`.** Two power
+cycles, **zero flash bytes written all night**, two `J` jumps and both returned to
+the prompt. `make todo WEEK=W08` went 9 → 3 at the desk and 3 → **0** at the
+bench. **W08 closes at 8 / 8.**
+
+**All three rows are recorded `partial`, and not one of them is rounded up.** Each
+carries a clause its own frozen prediction got wrong. Writing all three as
+`confirmed` was available tonight — every main conclusion holds — and taking it
+would have been deciding after the fact which half counted.
+
+### Six rows cut, and the three groups are not the same thing
+
+`P7-3`, `P7-4`, `P9-5`, `P9-6`, `P9-7` and `P9-10` now carry a `cut_reason`
+instead of a schedule slot. The ledger keeps them apart by *kind*, because
+collapsing them is how "I chose not to" becomes "I could not":
+
+* **Out of scope by consent** — `P7-3`. A beacon is a broadcast; a malformed one
+  reaches the scan path of every device in range. Two independent legs, and
+  **the second is not purchasable**: an AR9271 lifts the instrument leg and does
+  nothing about the radiation leg. So this row should not come back even with
+  the card, and saying so *is* the conclusion.
+* **Blocked on an instrument** — `P7-4` with the wireless group, and `P9-5` /
+  `P9-6` / `P9-7` because the part sits at **1.70 V against a 3.3 V supply**.
+  **These would have produced checkable facts**, which is what separates them
+  from the group above.
+* **Traded away on purpose** — `P9-10`. Its preconditions were met: `P0-3`
+  rehearsed the `FLW` write-back twice and `P9-3` reached rescue mode. It is cut
+  because `P9-12` already handed this SoC 156 bytes of code it had never seen
+  **with no flash write**, and what the reflash adds on top is persistence
+  across a power cycle — paid for with the only unit that exists.
+
+**Open item 97 is not answered by any of this.** The author's reading is that the
+1.70 V is the board's design and that reading `U19` needs it desoldered. That is
+a judgement, not a measurement: three supplies giving one voltage reads like a
+clamp, but clamp versus clip-path resistance was never separated. The cut reasons
+say "not doing this", not "cannot, because X", and #97 stays open.
+
+### A reason I nearly wrote was the flattering one, and the file had the right one
+
+`P7-4` was about to be written as "the instrument does not exist". **It does
+exist**: the row's own frozen prediction names an ESP8266's
+`wifi_send_pkt_freedom` as the transmitter, and there is an ESP8266 on the desk —
+it was the 3.3 V regulator in the clip session. That correction stands and is in
+the reason.
+
+The replacement reason offered next — shared-band consent, as for `P7-3` — **was
+wrong**, and the register had settled it four days earlier: the 2026-08-18
+reschedule note names `P7-3` / `P7-6` / `P7-9` as the radiation group and leaves
+`P7-4` out, because a WPS IE can ride a **directed probe response** to the
+router's own Site Survey rather than a broadcast. The author said so; the file
+agreed with the author.
+
+**An invented reason and a looked-up one read with identical confidence.** The
+first correction was worth making and the second guess was not worth trusting,
+and nothing about how they were said distinguished them.
+
+### `P9-18` — three cells hold, one is refuted, and the refuted one has no branch
+
+`GIMR0` = `0x00008100`. Bit 15 = 1, so `request_IRQ(15,"eth0")` ran and stop
+conditions 1 and 2 do not fire; bit 27 = 0. `IRR1` = `0x30050004`, bits 28–31 =
+3, so refutation (c) does not fire. Reading the whole line rather than one nibble
+cost nothing and gave more: sources 8, 12 and 15 hold priorities 4, 5 and 3 while
+`GIMR0` unmasks only 8 and 15.
+
+**`IRR3` reads `0x00000000` and the prediction said bits 12–15 = 3.** Source 27's
+priority slot is never written. That is consistent with bit 27 being clear but
+**not for the reason the prediction gave**, so the `installs` table's source-27
+row is downgraded — and, importantly, **`IRR3` had a prediction with no
+refutation branch**, so it cannot be scored either way. It is recorded, not
+counted.
+
+**The cell frozen with no bet landed:** bit 8 = 1, so `0x80402FB8`'s
+`GIMR0 |= 0x100` is on the ethernet-init path. The instruction frozen beside it
+was to go read `0x80402F80`'s callers, which is now open item 104.
+
+### `P9-18`'s fourth cell, and a second witness nobody planned
+
+With the escape window taken and `IPCONFIG` never typed, a TFTP read request to
+the compiled-in `192.168.1.6` returned **DATA opcode 3 from `192.168.1.6:2098`**,
+`rx_packets` 0 → 2, `ip neigh` `REACHABLE`. Refutation (d) does not fire, and the
+desk correction of 2026-08-22 is measured rather than assumed.
+
+**Then the MAC settled it a second time, by a route nobody designed.** At
+`192.168.1.6` the loader answered as `56:aa:a5:5a:7d:e8`; after `IPCONFIG
+10.1.1.1` it answered as `56:0a:01:01:01:e8`, and `0a 01 01 01` is `10.1.1.1`. So
+the middle four bytes are written by **`IPCONFIG`'s handler**, not by the stack
+bring-up — which means the stack was serving TFTP at `192.168.1.6` **carrying a
+MAC that could not have come from `IPCONFIG`, because `IPCONFIG` had never run.**
+The recorded model — the loader synthesises its MAC from its IP — has the
+mechanism right and the timing wrong.
+
+### `P9-19` — the 2026-08-21 rejection reproduced on command
+
+Four cells confirmed and one split. `' DW 80540000 2'` with one leading space is
+rejected; **the identical line without the space executes**, same session, one
+variable. That control was initially skipped and had to be asked for — without
+it, "rejected because of the space" and "that command does not work right now"
+are the same observation.
+
+**2c is the reproduction the row exists for.** TAB pressed and *not* followed by
+Enter, a TFTP probe fired from the host, then `DW 80540000 2` typed straight
+after the `<RealTek>` that appeared — rejected. **In the log there is no space
+between `<RealTek>` and `DW` on that line**, because the echo shows only what was
+typed after the repaint while the buffer still held the eight spaces from before
+it. The mechanism and the illusion sit in the same four lines.
+
+**2b split, and the refuted half is a real refinement.** The TAB expanded to
+exactly eight spaces — three times in one log — but **no `Unknown command !`
+followed**; both TAB+Enter cycles returned a silent prompt. The prediction had
+conflated two paths the dispatcher keeps apart: a line of *only* whitespace takes
+the silent `blez` at `0x804091C8`, whitespace *followed by a token* gets the
+complaint.
+
+**`console-lint` closed 2e and then did the job the operator's account did not.**
+33 prompts (1 printed by the TFTP path), 3 rejections, **0 unexplained**, exit 0,
+and it reconstructed 2c's real buffer contents as eight spaces followed by the
+command — the line the device saw and the screen never showed. Its third finding
+was `control-bytes` at offset `0x198`, `\x1b[A\x1b`: **an arrow key, in a session
+whose runsheet preamble forbids them, which nobody reported.**
+
+### `P9-17` — the control failed as designed, and then the device answered a question I had not asked
+
+**B (GIMR0 restored, `IE` left clear) stayed dead on three signals that share no
+code**: no TFTP reply in three attempts, `rx_packets` 4 → 4, `ip neigh`
+`STALE` → `FAILED`. The payload demonstrably ran — `GIMR0` read back `00008100`
+where `J` clears it to zero. Refutation (a) does not fire.
+
+**C changed exactly five words** — only the second `EW` line was re-sent, because
+line 1 is byte-identical between the two payloads — and the instant it set `IE`
+the console printed, **with no probe having been sent**:
+
+```text
+File Start: 80500000,length=00000000
+**TFTP GET File probe,Size 00000000 Byte
+```
+
+That is **B's timed-out request**, which had been sitting in the receive path
+with the interrupt pending and masked, being taken the moment `IE` went to 1. A
+second witness for the same event turned up in a register nobody was watching:
+`0xB8003004` read `88000004` before any jump, `880001**04**` after B's jump with
+`IE` still clear, and `88000004` again after C's.
+
+**Measured on the wire**, with the neighbour entry deliberately deleted to force
+a fresh exchange:
+
+```text
+1  0.000000  fc:19:28:61:84:c9 -> ff:ff:ff:ff:ff:ff  ARP  Who has 10.1.1.1?
+2  0.000927  56:0a:01:01:01:e8 -> fc:19:28:61:84:c9  ARP  10.1.1.1 is at ...
+3  0.000007  10.1.1.100 -> 10.1.1.1  TFTP  Read Request, File: probe
+4  4.004022  10.1.1.100 -> 10.1.1.1  TFTP  Read Request, File: probe
+5  4.004479  10.1.1.100 -> 10.1.1.1  TFTP  Read Request, File: probe
+```
+
+**ARP answered in 0.9 ms; three TFTP requests got nothing.** So `IE` is what
+packet *reception* was missing, and restoring `GIMR0` alone could never have
+supplied it — that is confirmed, one layer below where the prediction aimed. And
+the prediction's own success criterion, "DATA comes back", **is refuted.**
+
+### The negative half is the valuable half, and this time it can be said why
+
+The register had frozen two surviving candidates in case C failed: cache
+maintenance or the payload disturbing something else, and the switch needing more
+than bit 0 after the interface was disabled. **The ARP round trip kills both** —
+frames pass in both directions and the stack under TFTP parses and replies.
+
+What is left is narrower and new: **the TFTP service's own state**, and it has
+evidence rather than a guess behind it. Two readings that share no mechanism
+agree:
+
+| | the healthy transaction (2c) | after C's `J` |
+|---|---|---|
+| spinner | `/` `\b` | `-` `\b` |
+| completion | `*TFTP Client Download Success!` | **absent** |
+| | `.Success!` | **absent** |
+| the `<RealTek>` after it | `console-lint`: **TFTP repaint** | `console-lint`: **real prompt** |
+
+`console-lint` counted exactly **one** repaint in the whole log, and it was 2c's.
+So the prompt after C's jump came from the command loop — the `J` handler
+returning — not from a transfer finishing. **The transfer started and never
+completed.** That is open item 103, and it is a candidate, not a conclusion.
+
+### Instrument bug 55, and a control that caught it when the exit code did not
+
+**`tshark` failed and reported success.** The first capture was written to
+`$FWRE_WORK/dumps/`; `sudo tshark` drops privileges, could not create the file,
+printed `Permission denied` and `0 packets captured` — and **exited 0**.
+
+"Zero packets on the wire" was one of the candidate answers to the question being
+asked, so that failure was in a position to *become* the result. **What caught it
+was a control, not the exit status**: the capture contained zero of **our own
+outgoing** packets, and those were known to have been sent. `P0-4` recorded the
+same lesson on 2026-08-17 — zero is not evidence until the link is known to
+deliver. Re-run into `/tmp`, five packets, all present.
+
+That is **fifty-five instrument bugs recorded, and the ratio has not moved**: not
+one was caught by the instrument's own self-check.
+
+### Two smaller things, recorded rather than chased
+
+* **`$VAR` is stripped dispatching Git Bash → WSL**, so `for R in …; do … DW $R 1`
+  sent `DW 1` three times. No harm — it is a read — but it exposed something:
+  **`DW` with one argument does not fault.** It read `0x80000004` and returned
+  normally. `FLW`'s missing argc check is not unique to `FLW`. Mechanism not
+  chased.
+* **A guard in the night's one-shot patch script could not fire.** It refused to
+  cut a row that already carried a result, by reading `test-results.json`; the
+  results file is `reports/test-results.json`, so `Path.exists()` was False and
+  the whole guard was skipped silently. Harmless — `rtcase check` enforces the
+  same rule and the rows had no results — and **not numbered**, because it was a
+  throwaway script and not one of this project's instruments. It is noted because
+  it is instrument bug 12's shape and this is its fifth appearance.
+
+### Deliberately not done
+
+- **`A2.3`, `A2.5`, `A2.6`, `A2.7`, station 5.** Nothing tonight changed the
+  config region and nothing was written to flash, so the two hash-verified dumps
+  remain the restore point. **`A2.5` is now permanently unnecessary rather than
+  merely unneeded tonight**: its only remaining purpose was rehearsing `P9-10`,
+  and `P9-10` is cut.
+- **Station 5 was not visited and the clip was not touched.** Open #97 is
+  unchanged, and the six cuts did not answer it.
+- **The separation experiment for #97 was designed and not run.** A known series
+  resistor in the ESP8266 injection line, with the meter across it, yields the
+  current without needing anything inserted at the clip's fixed header — which
+  was the stated reason it was called impossible. The author's decision is to
+  wait for a programmer that can drive the part. **The design is recorded in
+  `BENCH-LOG.md`, not in the cut reason, because it is a proposal and not a
+  measurement.**
+- **The TFTP state machine was not read.** Open #103 names it; it is a desk
+  question and designing it in front of the device is what `A2.9`'s stop
+  condition 5 forbids.
+- **`fwrecon compcs`'s sentence was left as written**, by decision — see
+  Corrections.
+
+### Corrections
+
+| Said | Actually |
+|---|---|
+| **The summary table's W08 row:** "5 / 14 register rows, 9 outstanding" | **8 / 8, 0 outstanding.** Six rows cut with reasons, three closed at the bench. Updated at the top of this file, quoted from `rtcase todo` |
+| **The board's register numbers:** 138 registered, 124 frozen, "nine items were cut" | **141 / 127 / 23.** These were stale *before* tonight. The sentence "none of them produce a checkable fact about this device" was true of the original nine and is **false** of the SPI-clip trio, so it was rewritten rather than renumbered |
+| **`CLAUDE.md`:** "Nine items were deliberately cut" | Twenty-three, and the file now also says to keep the three kinds of cut apart |
+| **`P9-18`'s prediction for `IRR3`:** bits 12–15 = 3, written by `0x8040A398` | `0x00000000`. Source 27's priority slot is never written, and the `installs` table's source-27 row is downgraded to "this structure resembles an irqaction" |
+| **`P9-19`'s prediction for the TAB cell:** eight spaces **then** `Unknown command !` | Eight spaces, **then a silent prompt**. Whitespace-only and whitespace-plus-token are different dispatcher paths |
+| **`P9-17`'s prediction for C:** DATA comes back | ARP comes back, DATA does not. The mechanism is confirmed at packet reception and refuted at the TFTP service |
+| **`runsheet.md` `A2.9` step 0:** assigns an address and probes | It never brings the host interface **up**, and it was administratively DOWN. Run as written it would have produced a **false negative on a cell that can only be measured once per boot**. Fixed, with the carrier wait beside it |
+| **`runsheet.md` `A2.4`'s closing rule:** "power-cycle after this section; do not `J` from an `IPCONFIG`'d state" | `A2.9`'s preconditions require exactly that, and `A2.9` is right — 2c and step 3 both need `IPCONFIG`, and `AUTOBURN 0` makes an upload unable to reach flash. `A2.4`'s rule is a generalisation whose scope exceeds its observation, the same shape as "`J` 之後沒有軟體的路回去", which was overturned on 2026-08-22. Both sections now say so |
+| **`tools/fwrecon/src/fwrecon/compcs.py:749`:** "The device itself would reject this blob" | An assertion about device behaviour whose **only** measurement was `P9-6`, now cut. **Left as written by the author's decision**, and listed in `writeup/14-limits.md` as an unmeasured claim rather than quietly kept |
+| **The register commit landed before this prose** | Deliberate. `make doctor` asks for a clean tree before a session so the plan's timestamp means something, and the cuts had to be on the record before the device was powered. The rule that `PROGRESS` moves with the work is met within the night, not within the single commit |
+
+### Open, carried forward
+
+66, 67, 69, 70, 71, 74, 75, 77, 78, 79, 81, 82, 84, 85, 86, 87, 88, 89, 91, 92,
+93, 94, 95, 97, 100 — unchanged. **#97 in particular is unchanged**: choosing not
+to measure it is not the same as finding out.
+
+103. **Why does the loader's TFTP service stop answering after a transfer is
+     interrupted?** With `GIMR0` and `IE` restored the stack receives, parses and
+     replies to ARP in 0.9 ms, and ignores three TFTP read requests with the
+     console silent. The candidate is that the queued request taken at the moment
+     `IE` was set left the server mid-transfer: it printed the spinner and no
+     `Success!`, and `console-lint` independently read the following prompt as a
+     command-loop prompt rather than a TFTP repaint. **Answerable at the desk** —
+     read the TFTP state machine, find the completion condition, and find where
+     an interrupted transfer stops. Nothing here needs the device.
+
+104. **Who sets `GIMR0` bit 8?** It is 1 at the prompt. Two writers were known
+     (`0x80402FB8`'s `GIMR0 |= 0x100` and `request_IRQ(8,"timer")`) and the call
+     graph between them was never chased. The instruction was frozen with the
+     cell before the reading: go read `0x80402F80`'s callers.
+
+105. **Why is `IRR3` zero?** `0x8040A398` was read as writing source 27's
+     priority. The slot is never written, so either that reading is wrong or the
+     code does not run on this path. Until it is settled the `installs` table's
+     source-27 row claims only that the structure resembles an irqaction.

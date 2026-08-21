@@ -1012,3 +1012,64 @@ document.
   42-byte floor on the request. It requires the escape window to have been
   caught, so it crosses no boundary a UART cable has not, and it is a note entry
   rather than a register row — which is a judgement, not a measurement.
+
+## W08, the close — the write-up draft, six cuts, and a control that was designed to fail — 2026-08-22
+
+### 一句話
+
+> I finished the fourteen-chapter draft, **cut six register rows with written
+> reasons instead of running them**, and closed the last three at the bench with
+> **zero flash writes** — recording all three as `partial`, because each carries
+> a clause its own frozen prediction got wrong. W08 closes **8 / 8, 0
+> outstanding**. The best result of the night was one the device volunteered:
+> **it answered a request that had already timed out**, the instant a twenty-word
+> RAM payload re-enabled interrupts.
+
+### 三個可辯護的點
+
+| 主張 | 證據 | 它證明我會什麼 |
+|---|---|---|
+| **`J`'s network kill is the masked interrupt — at the reception layer, and not at the layer the prediction named.** Two payloads differing in exactly five words: restore the interrupt mask only, and TFTP stays dead on three signals sharing no code; restore the mask *and* the CPU's `IE`, and the loader answers ARP in 0.9 ms on the wire. **It still does not answer TFTP**, so the row is `partial` | `BENCH-LOG.md` `T-99`/`T-100`; `/tmp/w08-c-wire.pcap` (5 frames); `tools/mkramboot.py --irq-restore`, whose simulator refuses a payload that does not return through `ra` | Designing an experiment whose **control is the half predicted to fail**, and then reporting the half that failed. Without B, C is only "I changed something and it got better" |
+| **The loader's TFTP stack is up at its compiled-in `192.168.1.6` before `IPCONFIG` is ever typed**, which corrects a sentence this register had recorded. Witnessed twice, the second time by accident: the loader's MAC is `56:aa:a5:5a:7d:e8` there and `56:0a:01:01:01:e8` after `IPCONFIG 10.1.1.1` — so the middle four bytes are written by `IPCONFIG`'s handler, meaning **the stack was serving with a MAC that could not have come from `IPCONFIG`, because `IPCONFIG` had never run** | `BENCH-LOG.md` `T-97`; `dumps/w08-p918-default-ip.json`; `PROGRESS.md` W08 Day 2 | Noticing that a number I was not measuring had changed, and turning it into a second independent witness instead of an aside. The recorded model had the mechanism right and the timing wrong |
+| **A console rejection from the previous session was reproduced on command, and an instrument accounted for every rejection in the log including one nobody reported.** TAB expands to exactly eight spaces; the `<RealTek>` after a TFTP completion is painted by the `eth0` ISR and does not clear the line buffer; a command typed after it is rejected while the echo shows no leading space at all | `tools/console-lint.py`: 33 prompts (1 TFTP-printed), 3 rejections, **0 unexplained**, exit 0; it reconstructed the buffer the device actually saw, and flagged `\x1b[A\x1b` at offset `0x198` | Building the checker that reads a verbatim log the way the dispatcher does, rather than trusting the operator's account of it — which in this session was incomplete |
+
+### 這週沒證明什麼
+
+- **No second instrument has read this unit's flash, and now it never will under
+  this project.** `P9-5`, `P9-6` and `P9-7` are cut. Every byte-level claim still
+  comes through one path: the loader's own `FLR`, over the device's own UART. Two
+  reads agreeing proves the transfer is stable, not that it is correct. **The
+  JEDEC id has never been read** — `Eon EN25QH32B` rests on the ink on the
+  package, and `flashrom` agreeing on 4096 KiB is not a second source because its
+  database is keyed on that same name.
+- **Open item 97 is not answered, and cutting three rows did not answer it.** The
+  part sits at 1.70 V against a 3.3 V supply across three supplies. Whether that
+  is the board clamping or resistance in the clip path **was never separated**.
+  "We chose not to measure it" and "we found out why" are different sentences and
+  the register says the first one.
+- **No modified image has ever been written to this device.** `P9-10` is cut as a
+  deliberate trade, so `P8-10`'s outbound plain-HTTP upgrade path and `P9-13`'s
+  checksum-only acceptance stay **static readings for good** — a supply-chain
+  class named and never executed. The chain in chapter 10 ends at a flash byte
+  changed by an HTTP request and does not extend to a modified image booting.
+- **`fwrecon compcs` still prints "The device itself would reject this blob"**,
+  and the only test that would have measured it was `P9-6`. That sentence is now
+  a permanent unmeasured claim about device behaviour made by this project's own
+  tool. It is kept by decision and listed rather than quietly left.
+- **Why the loader's TFTP service stops answering is unknown.** With reception
+  restored it replies to ARP and ignores TFTP with the console silent. The
+  candidate — a transfer left incomplete by the queued request taken when `IE`
+  went high — has two agreeing readings behind it and **no measurement**. It is
+  open item 103.
+- **`IRR3` carried a prediction with no refutation condition**, and it read zero
+  against a predicted 3. It is recorded and **not scored**, because a prediction
+  without a written failure condition leaves me holding the power to decide
+  afterwards whether it counted. This time the direction happened to be against
+  me. That is luck, not method.
+- **No wireless test has been run at any point in this project.** Nine rows
+  across `P7-*` are cut. For most of them a US$30 adapter is the whole blocker;
+  for `P7-3`, `P7-6` and `P7-9` it is not, and buying one should not bring them
+  back.
+- **The ten-minute read test on the draft has not been run**, and the draft has
+  not been edited. W09 is the editing week; W08's DoD was content in all fourteen
+  chapters, and that is what was met.

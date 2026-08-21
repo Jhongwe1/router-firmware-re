@@ -229,17 +229,76 @@ command !` bursts at the start of every escape-caught session are
   objdump. Where they disagreed the tool was wrong twice and both are recorded
   below. The `eth0` install has a third source: this unit's own boot log carries
   the console line the code prints one instruction before it enables interrupts.
-* **The code reads as** described. **Nothing here has been sent to the device.**
-  `P9-17`, `P9-18` and `P9-19` are the confirmations, and each has its
-  refutation condition frozen before the next power-on.
-* **Scope of what a bench run would settle**: it would confirm `GIMR0` at the
-  prompt, that `J` zeroes it, whether restoring interrupts revives TFTP, and the
-  leading-whitespace mechanism. It would **not** confirm that the `eth0` ISR is
-  what carries a TFTP packet — that is a call-graph reading with no device
-  observable behind it — nor anything about the auto-burn path, which nothing
-  here sends.
+* **This was measured on 2026-08-22**, and the section below says exactly which
+  sentences the device confirmed, which it refuted, and which are still only a
+  reading. `P9-17`, `P9-18` and `P9-19` all closed **`partial`**.
+* **Still not confirmed, and it was the thing this note most wanted:** that the
+  `eth0` ISR is what carries a *TFTP* packet. The bench showed the ISR carrying
+  an **ARP** packet — request in, reply out, 0.9 ms, on a capture — and the TFTP
+  path staying silent in the same state. The call-graph reading from
+  `0x804023B0` to the TFTP handler still has **no device observable behind it**,
+  and the measurement that was supposed to supply one came back negative.
+* **Nothing here touches the auto-burn path**, which nothing in this note sends.
 
 ---
+
+
+## What the device said, 2026-08-22
+
+Every address below was read at the `<RealTek>` prompt with zero flash writes.
+Record cards `T-96`–`T-100` in [`BENCH-LOG.md`](../BENCH-LOG.md).
+
+| this note said | the device said | |
+|---|---|---|
+| `GIMR0` bit 15 = 1 — `request_IRQ(15,"eth0")` ran | `GIMR0` = `0x00008100` | ✅ |
+| `GIMR0` bit 27 = 0 | 0 | ✅ |
+| `GIMR0` bit 8 — **not predicted**, two possible writers | **1** | 📌 the writer is still unidentified; open item 104 |
+| `IRR1` bits 28–31 = 3, source 15's priority | `0x30050004` | ✅ |
+| `IRR3` bits 12–15 = 3, source 27's priority from `0x8040A398` | `0x00000000` | ❌ **the slot is never written** |
+| the stack is up at the compiled-in `192.168.1.6` before `IPCONFIG` | DATA from `192.168.1.6:2098` | ✅ |
+| `J` zeroes `GIMR0` and clears the five `EnablePHYIf` bits | both, read directly after the jump | ✅ |
+| the tokeniser stores `argv[i]` before testing for a space | leading space → `Unknown command !`, no space → executes | ✅ |
+| `GetLine` expands TAB into exactly eight spaces | eight, three times in one log | ✅ |
+| the `<RealTek>` after `.Success!` is ISR-painted and does not clear the buffer | a command typed after it was rejected, with no leading space in the echo | ✅ |
+| a whitespace-only line is rejected | **silently accepted** — `0x804091C8`'s `blez` | ❌ |
+
+**`IRR3` is the one to read twice.** It carried a prediction and **no refutation
+branch**, so it can be recorded and cannot be scored. Until somebody settles
+whether `0x8040A398` was misread or simply never runs on this path, the
+`installs` table claims only that the structure it found *resembles* an
+irqaction. That is open item 105.
+
+### The interrupt was proved by an event nobody designed
+
+The strongest evidence for *"the receive path is interrupt-driven and `J` masks
+it"* is not in the table. A payload that restored `GIMR0` **and left `IE`
+clear** was jumped to, and TFTP stayed dead. A second payload differing in
+**five words** set `IE` as well — and the instant it did, the console printed
+
+```text
+File Start: 80500000,length=00000000
+**TFTP GET File probe,Size 00000000 Byte
+```
+
+**with no request having been sent.** That was the *first* payload's timed-out
+request, held in the receive path with the interrupt pending and masked, taken
+the moment `IE` went to 1. `0xB8003004` witnessed the same event independently:
+`88000004` before any jump, `88000104` after the first, `88000004` after the
+second.
+
+### And what it did not bring back
+
+TFTP. With `GIMR0` and `IE` both restored, a capture shows the loader answering
+ARP in 0.9 ms and ignoring three TFTP read requests, console silent. So `IE` is
+what packet **reception** was missing — and the service above it does not
+recover. Two readings agree on why, and neither is a measurement: the transfer
+taken at the moment `IE` rose printed its spinner and **no `Success!` line**,
+where a healthy transaction prints two, and `console-lint` independently
+classified the prompt after it as a command-loop prompt rather than a TFTP
+repaint — counting exactly one repaint in the whole log, and it was elsewhere.
+**The transfer started and never finished.** That is a candidate. Open item 103
+is where it goes, and settling it means reading the TFTP state machine, not
+returning to the bench.
 
 ## How the first version of this was wrong
 

@@ -27,6 +27,67 @@ source: the ink on the package.
 I keep this paragraph in the document because deleting it would mean remembering
 that I deleted it.
 
+## Six measurements were cut rather than run, and three kinds of cut are not one kind
+
+Twenty-three of this register's rows were never executed. Six of them were cut in
+the last session, and the ledger keeps three kinds apart on purpose, because
+collapsing them turns *I chose not to* into *I could not* — which is the
+flattering direction and therefore the one to watch.
+
+**Out of scope by consent.** A malformed beacon is a broadcast; it reaches the
+scan path of every device in radio range. That is a different consent situation
+from a cable between two ports, and **no purchase changes it**. Rows cut for this
+reason should not come back even when the equipment exists, and saying so is the
+conclusion rather than an apology for it.
+
+**Blocked on an instrument.** The SPI-clip trio — a second reader for the flash,
+a direct write, and the JEDEC id — stopped because the part measures **1.70 V
+against a 3.3 V supply** through the clip, across three different supplies. A
+read taken at 1.70 V that *looks* correct is worse than one that fails, because
+those rows exist to remove the confound "two instruments disagree about one die"
+and undervoltage manufactures exactly that confound. **These would have produced
+checkable facts**, and their absence is the first section of this chapter rather
+than a footnote.
+
+Whether the 1.70 V is the board clamping the net or resistance in the clip path
+**was never separated**, and the register says so in those words. The reasons say
+*not doing this*, not *cannot, because X*.
+
+**Traded away on purpose.** One row — writing a modified image back to flash —
+was cut *after* its preconditions were met, not before. The write-back path and
+the boot loader's TFTP rescue had both been rehearsed. It was cut because a
+cheaper row had already bought most of what it was for: `J 80500000` handed this
+SoC 156 bytes of code it had never seen, with the payload printing a nonce that
+occurs zero times in the 4 MiB dump, and **no flash byte written**. What the
+reflash adds on top of that is *persistence across a power cycle* — and that is
+the part paid for with the only unit in existence.
+
+The cost of that trade is stated rather than left for the reader to find: the
+chain in chapter 10 ends at a flash byte changed by an HTTP request and does not
+extend to a modified image booting, and the outbound plain-HTTP upgrade path with
+its checksum-only acceptance stays a **static reading for good**. It is a
+supply-chain class named and never executed.
+
+## A claim this project's own tool makes and never measured
+
+When `fwrecon compcs` rejects a blob whose checksum does not verify, it prints:
+
+```
+The device itself would reject this blob.
+```
+
+That is an assertion about **device behaviour**, and the only test that would
+have measured it was the direct-write row above — the one that deliberately
+corrupts the checksum by a computed 178 and watches what the device does with it.
+That row is cut, so the sentence has no measurement behind it and will not get
+one under this project.
+
+It is left in the tool by decision, and listed here instead of quietly kept. A
+tool that says *the device would reject this*, with zero device measurements
+behind it, is the same shape as the fifty-five entries in chapter 12 — and the
+only thing separating a recorded limitation from an instrument bug is whether
+somebody wrote it down before a reader found it.
+
 ## Inferences about other N150RT units are inferences
 
 There is one unit. Every result about *this build* is a result about *this
@@ -121,3 +182,29 @@ differ from the factory baseline in **20 of 343** entries. The measurement read
 
 It is still in the register, as written, with the refutation firing against it.
 **A register whose predictions get edited after the fact predicts nothing.**
+
+## The last measurement of the project refuted its own prediction, and that is where it stops
+
+The final bench session asked whether restoring the boot loader's interrupt state
+brings its TFTP server back after a jump into RAM. The control — restore the
+interrupt mask only — stayed dead, as designed. The full version restored the
+mask and the CPU's interrupt enable, and on the wire the loader answered ARP in
+0.9 ms and **ignored three TFTP read requests**.
+
+So the reading is confirmed one layer *below* where the prediction placed it:
+interrupts are what packet **reception** was missing. And the prediction's own
+success criterion — that TFTP comes back — is **refuted**.
+
+The negative half narrowed the question instead of widening it, which is unusual
+enough to be worth the space: the ARP round trip excludes both candidates the
+register was holding in reserve, leaving the TFTP service's own state, with two
+independent readings agreeing that a transfer started and never completed.
+
+**But that is a candidate and not a conclusion, and this chapter is where the
+difference gets stated.** Nothing measured why the service stops answering. The
+row is recorded `partial`. Two of the other rows closed the same night are
+`partial` as well, each for a clause its own frozen prediction got wrong — and
+recording three confirmations was available, because every main conclusion holds.
+
+**A register that rounds up when the headline survives is a register that decides
+after the fact which half counted.**

@@ -148,6 +148,30 @@ function in the binary.
 > never run. Writing it as twelve-and-zero would have deleted the night's best
 > result in exchange for a better-looking number.
 
+> **Latest (W08 Day 2, 2026-08-22): the router answered a request that had
+> already timed out, the instant a twenty-word payload re-enabled interrupts.**
+> Jumping to code in RAM kills this loader's network, and which of three things
+> `J` does was responsible had been unattributed since 2026-08-22. Two payloads
+> differing in **exactly five words** settled it. The control — restore the
+> interrupt mask only, leave the CPU's `IE` clear — stayed dead on three signals
+> that share no code. The full one printed `**TFTP GET File probe` on the console
+> **with no probe having been sent**: the control's timed-out request had been
+> sitting in the receive path with the interrupt pending and masked, and setting
+> `IE` released it. A register nobody was watching witnessed the same event
+> independently.
+>
+> **And the prediction was still wrong.** It said TFTP would come back; `tshark`
+> shows the loader answering ARP in 0.9 ms and ignoring three TFTP read requests.
+> So interrupts are what packet *reception* was missing — confirmed a layer below
+> where the prediction aimed — and the row is recorded **`partial`**. The
+> negative half is worth more than the positive one: the ARP round trip kills
+> both candidates the register was holding in reserve, leaving one that is
+> narrower, new, and evidenced.
+>
+> **All three of the night's rows are `partial`.** Each has a clause its own
+> frozen prediction got wrong. Recording three confirms was available and would
+> have been deciding after the fact which half counted.
+
 > **Latest (W08 Day 0, 2026-08-20): the boot loader has been printing
 > `chipName: UNKNOWN` since the first boot log this project captured, and the
 > answer was inside the loader.** It carries a table of 32 SPI flash
@@ -636,7 +660,7 @@ that is not backed by a command someone else can re-run.
   - [x] **the `FLW` recovery path rehearsed** — this is G3.5 #5, cited and not restated. Closed 2026-08-17
   - [x] **isolation verified** — exactly two MAC addresses on the segment, eight packets each, no DNS and nothing outbound. The control is that the capture recorded 16 packets at all: an earlier one recorded **zero**, and zero proves nothing until the link is known to deliver
   - [x] **IoC pre-check** — both halves, against criteria written before the check: **the live config differs from this unit's own factory baseline in 4 of 343 entries**, no fifth, and every port the register named is closed
-  - [x] **the prediction ledger is frozen** ← [`test-ledger.md`](test-ledger.md) — **141** registered tests, **127** carrying a written refutation condition, hashed and committed **before any request is served**; W05 closed **27 of 27**, and W08's three newest rows were frozen at the desk and closed at the bench the same night
+  - [x] **the prediction ledger is frozen** ← [`test-ledger.md`](test-ledger.md) — **141** registered tests, **127** carrying a written refutation condition, hashed and committed **before any request is served**; W05 closed **27 of 27**, W08 closed **8 of 8**, and six of W08's rows were frozen at the desk and closed at the bench the same night they were written
   - [x] **the disclosure register is written** ← [`docs/disclosure.md`](docs/disclosure.md) — seventeen rows, what each is worth, and the rule that decides what gets published
 
   > ### ★ Why this gate exists
@@ -760,13 +784,14 @@ that is not backed by a command someone else can re-run.
 
 - [ ] **G5 — published write-up** (W08–W09) — a stranger understands the whole chain in 10 minutes
 - [x] **W07 — systematic bug hunt** (no gate) ✅ **closed 2026-08-19** — 8 categories, not driven by known CVEs. **58 of 58 register rows closed.** The last one, `P5-2`, had been written off as needing an observation channel this device does not offer, and it needed none: two kernel fault messages already sitting in [`BENCH-LOG.md`](BENCH-LOG.md) put `libuClibc` at `0x2aae3000` in `boa` and `system` at `0x2ab08460`, with the four-byte disagreement against qemu-user *predicted* by the MIPS branch-delay-slot rule rather than tolerated ([`notes/mips-ret2libc.md`](notes/mips-ret2libc.md), [`tools/libbase.py`](tools/libbase.py)). It was recorded **`partial`**, not confirmed, because both messages came from one boot and the register's refutation asks for two — scoring a condition that could not have fired is the mistake this same week caught itself making elsewhere. **The device settled it that night**: `/proc/<pid>/maps`, read over a telnet shell four boots later, prints `libuClibc` at `0x2aae3000` in `boa` and `0x2aabe000` in `wscd` — the second of those a value that had been *predicted* from one library's program headers and never observed. `/proc/sys/kernel/randomize_va_space` reads **2**, full randomisation, on a kernel that does not act on it; believing the flag would have closed the row as refuted without one address being read. Three bench visits, 2026-08-18 and the close-out overnight into 2026-08-19: 21 rows closed on the silicon plus 4 upgraded off emulated evidence, then the reset button, the WAN behavioural half, and a route injection the first visit could not deliver. The heaviest result was not on the list: an unauthenticated POST from W05 had written `DHCP_MTU_SIZE=0` to flash, and this unit was unable to obtain a WAN address for two days — through every reboot, and through four bench sessions that had no reason to look. It also overwrote the **factory-default** block, 25 of 343 fields, so the vendor's own recovery path had to be tested rather than assumed; the reset button restores from a hard-coded table instead and brought the device back byte-for-byte to its 2026-08-16 state. Nothing now starts a session without asking the device whether it can still route ([`tools/device-liveness.py`](tools/device-liveness.py), wired into `make doctor`). The deliverable is [`notes/bughunt.md`](notes/bughunt.md), **twenty-four** verdicts each pointing at a file under `reports/`, and a *relatively safe* section the same size as the verdict table. The last two arrived on the closing night: `miniigd` **terminates** on any `NewInternalClient` that `inet_addr()` rejects — one unauthenticated request, recoverable only by power cycle, and *not* an injection, which took a twenty-two-character control with no shell metacharacter in it to establish; and the CVE-2014-8361 command execution the same handler's code shape promises **does not happen on this build**, because the daemon dies first. Three of them are this project's own findings **withdrawn**, and one more turned out to have a CVE against it. The last thing W07 found was not a defect in the firmware: **six committed files, one of them the disclosure register, asserted `52869/tcp open` in the present tense** — sourced to a sweep from 2026-08-16, while the same repository recorded the port **closed** on 2026-08-18 because this project's own unauthenticated POST round had disabled the daemon. Both readings were right when taken and neither sentence carried a date. They all do now — the most recent retraction came from building an instrument that could tell the emulator's behaviour from the firmware's ([`tools/alignfix/`](tools/alignfix/)), not from arguing about a caveat
+- [x] **W08 — write-up draft, and the bench work W07 deferred** (no gate) ✅ **closed 2026-08-22** — the fourteen-chapter draft is written ([`writeup/`](writeup/)) and the register closed **8 of 8, 0 outstanding**. **Six rows were cut rather than run, and the ledger keeps three kinds of cut apart** because collapsing them is how *I chose not to* becomes *I could not*: out of scope by consent (a malformed beacon reaches every device in range, and no purchase lifts that); blocked on an instrument (the part sits at **1.70 V against a 3.3 V supply**, so the SPI clip reads nothing — **these would have produced checkable facts**); and traded away on purpose (the one irreversible reflash, cut *after* its preconditions were met, because `P9-12` already ran 156 bytes of unsigned code of this project's own on the SoC **without writing a flash byte**, and the reflash only adds persistence across a power cycle — paid for with the only unit). **Open item 97 is not answered by any of it**, and the reasons say "not doing this" rather than "cannot, because". The three rows that were run closed at the bench with **zero flash writes**: the loader's TFTP stack proved to be up at its compiled-in address *before* `IPCONFIG` — witnessed twice, once by a MAC that could not have come from `IPCONFIG` because `IPCONFIG` had never run — a console rejection from 2026-08-21 was reproduced on command, and `J`'s network kill was attributed to the masked interrupt at the reception layer and refuted at the TFTP layer. `console-lint` accounted for every rejection in the session log with **0 unexplained**, including one caused by an arrow key that nobody reported
 - [ ] **W10 — close-out, disclosure admin, buffer**
 
 ## What is here
 
 | Path | |
 |---|---|
-| [`writeup/`](writeup/) | **The write-up, fourteen chapters** — the narrative version of everything below, in draft since 2026-08-22. Chapter 5 is the result nobody without one of these routers can obtain; chapter 12 is fifty-four of this project's own instruments being wrong; chapter 14 is what none of it proves. A Traditional Chinese reading guide is [`study/writeup-導讀.md`](study/writeup-導讀.md) |
+| [`writeup/`](writeup/) | **The write-up, fourteen chapters** — the narrative version of everything below, in draft since 2026-08-22. Chapter 5 is the result nobody without one of these routers can obtain; chapter 12 is fifty-five of this project's own instruments being wrong; chapter 14 is what none of it proves. A Traditional Chinese reading guide is [`study/writeup-導讀.md`](study/writeup-導讀.md) |
 | [`REPRODUCE.md`](REPRODUCE.md) | **Start here.** Which claims you can verify with a clone alone, which need an N150RT of your own, and **which are not reproducible by anyone but the author — and why.** Also: the one five-minute check worth running first |
 | [`runsheet.md`](runsheet.md) | **The commands.** Four stations, and a step's number *is* the state the board has to be in (`A2.3` = stopped at `<RealTek>`), so front to back is a correct order to run it in. Per step: what to paste, the **verbatim** output to compare against, a stop condition, and the gotcha that bites there. Physical actions marked. `make ci` verifies every command still resolves (Traditional Chinese) |
 | [`RUNBOOK.md`](RUNBOOK.md) | **Why each step exists**, and how it went wrong the first time. The reference behind the runsheet — it holds the reasoning, the runsheet holds the commands, and neither repeats the other (Traditional Chinese) |

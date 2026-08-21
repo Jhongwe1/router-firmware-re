@@ -1502,8 +1502,47 @@
       ],
       "note": "EB 打入 03E00008 00000000（jr ra; nop）於 0x80540000，DW 驗過，J 80540000 之後主控台印 ---Jump to address=80540000 並回到 <RealTek>，且回來之後 DW/EW 照常工作。J 是 jalr 不是 jr，payload 可返回，不需要電源循環。推翻 runsheet Part B「J 之後沒有軟體的路回去」。",
       "case_freeze_sha256": "31d52c8e590b6a96f1f0cc29a886a21daa3bd009b51302d2d3c8c93ad4375aad"
+    },
+    {
+      "id": "P9-18",
+      "date": "2026-08-22",
+      "verdict": "partial",
+      "evidence_kind": "dynamic",
+      "artefacts": [
+        "BENCH-LOG.md",
+        "runsheet.md",
+        "tools/loader-tftp.py"
+      ],
+      "note": "Three of the four cells hold, one is refuted, and the refuted one has no refutation branch written for it - so it is recorded, not scored. GIMR0 (0xB8003000) = 0x00008100: bit 15 = 1, so request_IRQ(15,\"eth0\") ran and stop conditions 1 and 2 do not fire; bit 27 = 0 as predicted. IRR1 (0xB800300C) = 0x30050004, bits 28-31 = 3, so refutation (c) does not fire and the irq-15-is-eth0 mapping keeps its second source. Reading the whole line rather than the one nibble was free and gave more: source 8 -> priority 4, source 12 -> priority 5, source 15 -> priority 3, while GIMR0 unmasks only 8 and 15. REFUTED: IRR3 (0xB8003014) reads 0x00000000 and the prediction said bits 12-15 = 3, from 0x8040A398 writing source 27's priority. That slot is never written. It is consistent with GIMR0 bit 27 being clear but NOT for the reason the prediction gave, so the installs table's source-27 row is downgraded. THE NO-BET CELL LANDED: bit 8 = 1, so 0x80402FB8's GIMR0 |= 0x100 is on the ethernet-init path. The instruction frozen with that cell was to go read 0x80402F80's callers; that is now a desk question, not an answer. FOURTH CELL CONFIRMED, and it settles the correction the desk made on 2026-08-22: with the escape window taken and IPCONFIG never typed, a TFTP read request to the compiled-in 192.168.1.6 returned DATA opcode 3 from 192.168.1.6:2098, rx_packets 0 -> 2, ip neigh REACHABLE. Refutation (d) does not fire. P9-4's conclusion is untouched; the sentence explaining it stays corrected. UNPLANNED, and it is a second independent witness for that same cell: the loader's MAC at 192.168.1.6 was 56:aa:a5:5a:7d:e8 and became 56:0a:01:01:01:e8 after IPCONFIG 10.1.1.1. 0a 01 01 01 is 10.1.1.1, so the middle four bytes are written by IPCONFIG's handler and not by the stack bring-up - meaning the stack was answering at 192.168.1.6 carrying a MAC that could not have come from IPCONFIG, because IPCONFIG had never run. The recorded model, that the loader synthesises its MAC from its IP, is right about the mechanism and wrong about when. INSTRUMENT DEFECT FOUND IN THE RUNSHEET: A2.9 step 0 does not bring the host interface up, and it was administratively DOWN. Run as written it would have produced a false negative on a cell that can only be measured once per boot.",
+      "case_freeze_sha256": "5f64267a4d4f370e7b45945526d2c6af43f24399e1b86c3dc1b2c4a6ee8978ed"
+    },
+    {
+      "id": "P9-19",
+      "date": "2026-08-22",
+      "verdict": "partial",
+      "evidence_kind": "dynamic",
+      "artefacts": [
+        "BENCH-LOG.md",
+        "runsheet.md",
+        "tools/console-lint.py"
+      ],
+      "note": "Four cells confirmed, one half-refuted, and the instrument accounted for a rejection the operator never reported. 2a CONFIRMED WITH ITS CONTROL IN THE SAME SESSION: ' DW 80540000 2' with one leading space -> Unknown command !; the identical line without the space -> 80540000: A9FDA5F8 40713F77 AB0C8A74 B7566FE0. One variable, one session. The control was initially skipped and had to be asked for: without it, 'rejected because of the space' and 'that command does not work right now' are indistinguishable. 2b SPLIT: the TAB expanded to EXACTLY eight spaces, three times in one log, which is the load-bearing half and is what explains 2026-08-21. But the predicted Unknown command ! did NOT follow - both TAB+Enter cycles returned a silent prompt. The prediction conflated two paths the dispatcher keeps apart: a line of only whitespace takes the silent blez path at 0x804091C8, while whitespace followed by a token gets the complaint. 2c CONFIRMED BYTE-EXACTLY, and it is the reproduction this row exists for: TAB pressed and NOT followed by Enter, a TFTP probe fired from the host, then DW 80540000 2 typed straight after the <RealTek> that appeared - rejected. The log shows no space between <RealTek> and DW on that line, because the echo shows only what was typed after the repaint while the buffer still held the eight spaces from before it. The mechanism and the illusion are in the same four lines. 2d CONFIRMED as the control: one bare Enter returns a silent prompt with no complaint, and the identical line then executes. 2e CONFIRMED: console-lint over the session log reports 33 prompts (1 printed by the TFTP path), 3 rejections, 0 unexplained, exit 0, and reconstructs 2c's real buffer contents as eight spaces followed by DW 80540000 2 - the line the device saw and the screen never showed. IT ALSO CAUGHT A THIRD REJECTION NOBODY REPORTED: control-bytes at offset 0x198, line \\x1b[A\\x1b, an arrow key, in a session whose runsheet preamble forbids them. That is the tool doing the job the operator's account did not do.",
+      "case_freeze_sha256": "04456435dc830bd2451ff8e7e01fd03c57728528a0c12975245a0995399627ba"
+    },
+    {
+      "id": "P9-17",
+      "date": "2026-08-22",
+      "verdict": "partial",
+      "evidence_kind": "dynamic",
+      "artefacts": [
+        "BENCH-LOG.md",
+        "runsheet.md",
+        "tools/mkramboot.py"
+      ],
+      "note": "The control failed as predicted, the mechanism is confirmed one layer BELOW where the prediction placed it, and the prediction's own success criterion is refuted. All five refutation branches were checked. B (GIMR0 restored, IE left clear): the payload ran - DW B8003000 1 read back 00008100 where J clears it to zero - the five PHY bits were restored to ...39, and the probe stayed dead on three signals sharing no code: no TFTP reply in 3 attempts, rx_packets 4 -> 4, ip neigh STALE -> FAILED. Refutation (a) does not fire. C (GIMR0 + IE; only the five words on the second EW line were rewritten, so it is a true single variable): the instant the payload set IE the console printed File Start: 80500000,length=00000000 and **TFTP GET File probe,Size 00000000 Byte WITH NO PROBE HAVING BEEN SENT. That is B's timed-out request, which had been sitting in the receive path with the interrupt pending and masked, being taken the moment IE went to 1. Unplanned second witness for the same thing: 0xB8003004 read 88000004 before any jump, 88000104 after B's jump with IE still clear, and 88000004 again after C's jump. CONFIRMED ON THE WIRE: with a deliberately deleted neighbour entry, tshark shows ARP request -> ARP reply from 56:0a:01:01:01:e8 in 0.9 ms. IE is what packet reception was missing, and restoring GIMR0 alone could never have supplied it. REFUTED: the prediction said DATA comes back. It does not. The same capture shows three TFTP read requests and zero replies, and the console printed nothing during them. THE NEGATIVE HALF IS THE VALUABLE HALF, because it kills both candidates the register was holding in reserve: the switch passes frames in both directions and the stack under TFTP is alive, so neither 'the switch needs more than bit 0' nor 'cache maintenance or the payload disturbed something else' survives. What is left is narrower and new - the TFTP service's own state - and it has evidence rather than a guess behind it: at C's jump the console printed the transfer spinner and then a prompt with NO Success! line, where 2c's healthy transaction printed *TFTP Client Download Success! and .Success!. console-lint independently classified that prompt as a real command-loop prompt rather than a TFTP repaint, and counted exactly one repaint in the whole log. Two readings that share no mechanism agree the transfer started and never completed. THAT IS A CANDIDATE, NOT A CONCLUSION. Refutations (c), (d) and (e) do not fire: J returned to the prompt twice with a TWENTY-word payload, so P9-16's return path holds well beyond the two instructions it was measured at; the console stayed responsive after IE was set, so there was no interrupt storm; and DW 80540000 20 matched mkramboot's listing word for word both times, against known garbage (A9FDA5F8 40713F77 AB0C8A74 B7566FE0) rather than against zeros, so the read-back could have failed. THE PAYLOADS WERE REBUILT AT THE BENCH: step 1 read GIMR0 as 0x00008100 while the desk had predicted 0x8000. The runsheet's rule - use the read-back number, never the desk prediction - is what caught it.",
+      "case_freeze_sha256": "8ea19e67b2f1240a4c6f3464278da346d75f369e05afcd38443e7b89abceef48"
     }
   ],
   "register": "test-cases.toml",
-  "register_freeze_sha256": "b026221b558abb8f7d16c9e3ac965e9fb1859176f71ffdf923a0f8561e4ab26c"
+  "register_freeze_sha256": "7ade245482e61ad14ab273cc12f04d1a9e0ae742cdd31e8b0ce44e8fe93285c7"
 }
