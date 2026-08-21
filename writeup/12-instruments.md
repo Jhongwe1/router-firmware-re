@@ -1,9 +1,9 @@
-# 12. Fifty-five instruments, fifty-five bugs — none caught by a self-check
+# 12. Fifty-six instruments, fifty-six bugs — none caught by a self-check
 
 Writing this chapter does nothing for me except one thing: it is the reason to
 believe the rest of the document.
 
-Fifty-five times, an instrument this project built or relied on was wrong.
+Fifty-six times, an instrument this project built or relied on was wrong.
 Every one is numbered in [`PROGRESS.md`](../PROGRESS.md) at the point it was
 found. **Not one was caught by the instrument's own self-check.** Every single
 one was caught by two things that should have agreed, disagreeing — or by a test
@@ -126,12 +126,13 @@ and they look like a duplicate test, which is the point.
 | 53 | a function-entry rule that walked past a routine ending in `rfe` | **the tool's own refusal** — "0 callers" |
 | 54 | a brand-new check whose regular expression matched nothing, so it passed on every file including the one it was written for | its own guard case, in the same commit |
 | 55 | a packet capture that could not create its output file, printed `0 packets captured`, and **exited 0** — while "nothing is on the wire" was one of the candidate answers to the question being asked | a control: the capture contained zero of **our own outgoing** packets, which were known to have been sent |
+| 56 | a guard case whose premise was *a property of live data* — "this week has rows and no results, so only the new rule can fire". The week closed, the premise died, and the case went **red for a reason unrelated to what it tests**, on the day the thing it guards started working | it went red rather than green, which is the only reason this one was cheap. Re-based on a fixture, with a control |
 
 ---
 
 ## The sentence this chapter exists for
 
-> **Fifty-five instrument bugs. Not one was caught by the instrument's own
+> **Fifty-six instrument bugs. Not one was caught by the instrument's own
 > self-check. Every single one was caught by two things that should have agreed,
 > disagreeing — or by a test written to fail.**
 >
@@ -143,7 +144,7 @@ of them: **most of the engineering in a reverse-engineering project is not
 reverse engineering. It is building the thing that tells you when you are
 wrong.**
 
-> **Where this chapter stops:** fifty-five is the count of bugs *found*. It is a
+> **Where this chapter stops:** fifty-six is the count of bugs *found*. It is a
 > lower bound on the bugs that existed, and it says nothing about the ones still
 > in there. The honest reading of a rising count is not "the instruments are
 > getting better" — it is "the search is getting better", and those are

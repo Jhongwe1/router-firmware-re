@@ -302,7 +302,9 @@ def check_runbook_812(path: Path, errors: list[str], step_ids: list[str],
                     "One of the two is pointing at the wrong half")
 
 
-def check(path: Path, runbook: Path) -> int:
+def check(path: Path, runbook: Path,
+          register: Path | None = None,
+          results_path: Path | None = None) -> int:
     text = path.read_text("utf-8")
     lines = text.splitlines()
     errors: list[str] = []
@@ -641,8 +643,9 @@ def check(path: Path, runbook: Path) -> int:
     #
     # The second direction is the one that matters. The first would pass on an
     # empty mapping.
-    reg = REPO / "test-cases.toml"
-    results = REPO / "reports/test-results.json"
+    reg = register if register is not None else REPO / "test-cases.toml"
+    results = (results_path if results_path is not None
+               else REPO / "reports/test-results.json")
     if reg.is_file() and results.is_file():
         import json as _json
         import tomllib
@@ -776,12 +779,29 @@ def main(argv: list[str]) -> int:
     ap.add_argument("--runbook", default=str(REPO / "RUNBOOK.md"), type=Path,
                     help="the other half of the split; override it to let the "
                          "guard suite prove the §8.12 rules can fail")
+    # The coverage rules below read the register. Pointing them at a
+    # fixture is what keeps the guard suite from expiring: the case that
+    # proves "a scheduled row with no step is reported before it has ever
+    # run" used to key on W08 having live rows and no results, and on
+    # 2026-08-22 W08 closed 8/8 and the case started failing for the wrong
+    # reason. A guard whose premise is a property of live data expires
+    # without anybody deciding to expire it.
+    ap.add_argument("--register", default=None, type=Path,
+                    help="test register to check coverage against; the "
+                         "guard suite points this at a fixture")
+    ap.add_argument("--results", default=None, type=Path,
+                    help="results file naming the rows that have run; "
+                         "the guard suite points this at a fixture")
     args = ap.parse_args(argv[1:])
     for f in (args.runsheet, args.runbook):
         if not f.is_file():
             print(f"no such file: {f}", file=sys.stderr)
             return 2
-    return check(args.runsheet, args.runbook)
+    for f in (args.register, args.results):
+        if f is not None and not f.is_file():
+            print(f"no such file: {f}", file=sys.stderr)
+            return 2
+    return check(args.runsheet, args.runbook, args.register, args.results)
 
 
 if __name__ == "__main__":

@@ -7201,7 +7201,35 @@ outgoing** packets, and those were known to have been sent. `P0-4` recorded the
 same lesson on 2026-08-17 — zero is not evidence until the link is known to
 deliver. Re-run into `/tmp`, five packets, all present.
 
-That is **fifty-five instrument bugs recorded, and the ratio has not moved**: not
+### Instrument bug 56 — a guard that expired on the day the thing it guards worked
+
+Committing the above turned one of `test-check-runsheet.sh`'s 42 cases red. Its
+comment says why it chose its fixture: *"W08 is the fixture for it because it has
+sixteen live rows and zero results, so only the new rule can fire and a pass here
+cannot be the old rule passing by accident."*
+
+**W08 closed 8 / 8 an hour earlier, so the premise died.** `scheduled - executed`
+went empty, the rule under test could no longer fire against any week — every
+week in the register is now closed — and the case failed reporting a *different*
+rule.
+
+Two things make this worth a number rather than a footnote:
+
+* **A guard whose premise is a property of live data expires without anybody
+  deciding to expire it.** Nothing marked it; it simply became untrue.
+* **It expires by going red on the day the project succeeds**, which is the worst
+  available day to read a red test as noise. It went red rather than green, and
+  that is the only reason this one was cheap — the same shape passing silently is
+  instrument bug 12.
+
+Fixed by making it synthetic: `check-runsheet.py` gained `--register` and
+`--results`, the case builds a two-row fixture, and **the flag proves itself** —
+if it were ignored, the fixture's week would not exist in the live register,
+nothing would be unplanned, the checker would exit 0, and the case would report
+"accepted, and it must not be". A control was added beside it: the same fixture
+with the one row exempted must pass. 42 cases became **43**.
+
+That is **fifty-six instrument bugs recorded, and the ratio has not moved**: not
 one was caught by the instrument's own self-check.
 
 ### Two smaller things, recorded rather than chased

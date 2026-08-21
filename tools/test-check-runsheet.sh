@@ -359,18 +359,60 @@ fi
 # Everything above keys on `executed`, so a week that has not started reads as
 # fully covered. That is not hypothetical: on 2026-08-18 W07 had 58 live rows,
 # 2 claimed, 11 exempted and 47 with neither, 32 of them scheduled for a bench
-# visit the same evening. W08 is the fixture for it because it has sixteen live
-# rows and zero results, so only the new rule can fire and a pass here cannot be
-# the old rule passing by accident.
+# visit the same evening.
+#
+# THIS CASE USED TO POINT AT THE LIVE REGISTER, and that was a mistake with a
+# date on it. It read "W08 is the fixture because it has sixteen live rows and
+# zero results, so only the new rule can fire". On 2026-08-22 W08 closed 8 / 8
+# and the premise died: `scheduled - executed` went empty, the older rule fired
+# instead, and the case failed for a reason that had nothing to do with what it
+# tests. **A guard whose premise is a property of live data expires without
+# anybody deciding to expire it** -- and it expires by going red on the day the
+# project succeeds, which is the worst possible day to be reading a red test as
+# noise.
+#
+# So the register is a fixture now. It also proves `--register` is honoured:
+# if the flag were ignored, W99 would not exist in the live register, nothing
+# would be unplanned, the checker would exit 0, and this case would report
+# "accepted, and it must not be".
 write_good
-sed -i 's|## B-W99|## B-W08|' "$RS"
-out="$("$PY" tools/check-runsheet.py "$RS" 2>&1)"; rc=$?
+FIXREG="$TMP/fixture-register.toml"
+FIXRES="$TMP/fixture-results.json"
+cat > "$FIXREG" <<'TOML'
+schema_version = "1"
+
+# Claimed by A1.1 in the fixture runsheet, so the "claims a test the register
+# does not have" rule stays quiet and this case tests one thing.
+[[case]]
+id = "P0-2"
+week = "W99"
+
+# Scheduled for the covered week, never run, not cut, and no step closes it.
+# This is the row the rule exists to find.
+[[case]]
+id = "P9-99"
+week = "W99"
+TOML
+printf '{"schema_version": "1", "results": []}\n' > "$FIXRES"
+out="$("$PY" tools/check-runsheet.py "$RS" --register "$FIXREG" --results "$FIXRES" 2>&1)"; rc=$?
 if [ "$rc" -eq 0 ]; then
   bad "a runsheet covering a week whose rows have no procedure was accepted"
 elif printf '%s' "$out" | grep -qF "scheduled test(s) with no procedure"; then
   ok "a scheduled test with no step is reported before it has ever run"
 else
   bad "the pre-session gap was reported for the wrong reason:"
+  printf '%s\n' "$out" | sed 's/^/          /'
+fi
+
+# The control for the case above: same fixture, same runsheet, with the one
+# unplanned row exempted. If this does not pass, the case above is reporting
+# something other than the row it thinks it is.
+sed -i 's|^## B-W99$|## B-W99\n<!-- no-procedure: P9-99 desk work, no bench step -->|' "$RS"
+out="$("$PY" tools/check-runsheet.py "$RS" --register "$FIXREG" --results "$FIXRES" 2>&1)"; rc=$?
+if [ "$rc" -eq 0 ]; then
+  ok "exempting that one row makes the same fixture pass"
+else
+  bad "the exemption did not clear the pre-session gap:"
   printf '%s\n' "$out" | sed 's/^/          /'
 fi
 
