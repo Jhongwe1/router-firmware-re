@@ -110,18 +110,21 @@ Most of a reverse-engineering repository is assertions. This part is not:
 | `tools/test-check-benchlog.sh` | 13 | the bench-log checker can fail, **and that it sees every card there is** — its first version took one fenced block to be one card and reported "19 record cards, every one with a refutation check" about a file holding thirty |
 | `tools/test-console-write.sh` | 28 | the flash **writer** refuses every range it must never touch — the boot loader the recovery path runs on, and the block holding this unit's MACs and radio calibration — plus a wrong hash, a short file, a misaligned sector, a blank payload, and a dry run that would print the bytes it promised to withhold |
 | `tools/test-bench-probe.sh` | 15 | the network prober refuses a POST that would crash the web server, refuses shell metacharacters, refuses thirteen handlers by name, and **writes its transcript even when the run stops** |
-| `tools/test-console-dump.sh` | 18 | the flash reader parses a real console transcript, ignores the ASCII column that looks like more hex, and cannot emit the one boot-loader command that would be dangerous |
-| `tools/test-loader-unpack.sh` | 7 | the boot-loader unpacker refuses an image with no stream, with two streams, with a truncated stream, and one that decompresses to the wrong thing — plus a positive control |
-| `tools/test-qemu-env.sh` | 5 | the emulator's positive control can fail |
-| `tools/test-check-runsheet.sh` | 29 | the runsheet checker can fail: a flag no tool accepts, a step under the wrong station, an index disagreeing with a heading, **and a command fence in the section that is not allowed to hold one** |
-| `tools/test-flash-tools.sh`, `tools/test-photo-tools.sh` | 4 + 13 | the hardware-side helpers, and photo redaction |
-| `tools/fwrecon` pytest | 110 | the parsers |
+| `tools/test-console-dump.sh` | 23 | the flash reader parses a real console transcript, ignores the ASCII column that looks like more hex, and cannot emit the one boot-loader command that would be dangerous |
+| `tools/test-loader-unpack.sh` | 16 | the boot-loader unpacker refuses an image with no stream, with two streams, with a truncated stream, and one that decompresses to the wrong thing — plus a positive control |
+| `tools/test-qemu-env.sh` | 12 | the emulator's positive control can fail |
+| `tools/test-check-runsheet.sh` | 38 | the runsheet checker can fail: a flag no tool accepts, a step under the wrong station, an index disagreeing with a heading, **and a command fence in the section that is not allowed to hold one** |
+| `tools/test-flash-tools.sh`, `tools/test-photo-tools.sh` | 39 + 13 | the hardware-side helpers, and photo redaction |
+| `tools/fwrecon` pytest | 130 | the parsers |
+| `tools/test-loader-tftp.sh` | 30 | the TFTP client follows the transfer id rather than the port it asked; `put` refuses a rescue transcript that is for another address, that never confirmed the switch, or that is **too old to describe the loader now listening** |
+| `tools/test-mkramboot.sh` | 26 | seven of them put a real bug back into the RAM payload's encoder and require the build to go red — including the off-by-one-word branch offset the tool actually shipped with for an hour |
 
-**166 guard cases across ten suites, plus 110 parser tests, and `make ci` now
-runs all of them** — 322 checks from a clone, with no device. The number is
+**411 guard cases across twenty suites, plus 130 parser tests, and `make ci`
+runs all of them** — **541 checks** from a clone, with no device. The number is
 re-derivable with `make count-checks`, which also states what it counts and what
 it does not; it said 276 for some time while the true figure was 304, because
-nothing could re-derive it.
+nothing could re-derive it. The table above lists the suites worth describing,
+not all twenty — `make count-checks` prints every one.
 
 Until 2026-08-17 it ran 89 of 124: `test-console-dump.sh` (18),
 `test-photo-tools.sh` (13) and `test-flash-tools.sh` (4) were in no CI list at

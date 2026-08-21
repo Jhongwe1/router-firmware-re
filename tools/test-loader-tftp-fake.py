@@ -36,6 +36,10 @@ def main(argv=None) -> int:
     ap.add_argument("--host", default="127.0.0.1")
     ap.add_argument("--serve-bytes", type=int, default=1500,
                     help="how much a read request is answered with")
+    ap.add_argument("--file",
+                    help="serve the contents of this file instead of the generated "
+                         "pattern, so that the --attribute cases have bytes whose "
+                         "position in a stand-in dump is known")
     ap.add_argument("--error", type=int,
                     help="answer every request with this ERROR code instead")
     ap.add_argument("--wrong-block", action="store_true",
@@ -80,7 +84,11 @@ def main(argv=None) -> int:
         return 0
 
     if op == OP_RRQ:
-        data = pattern(args.serve_bytes)
+        if args.file:
+            with open(args.file, "rb") as fh:
+                data = fh.read()
+        else:
+            data = pattern(args.serve_bytes)
         number = 1
         offset = 0
         while True:

@@ -215,6 +215,113 @@ case "$rc:$out" in
 esac
 [ -f "$TMP/uploaded.bin" ] && bad "bytes reached the peer without --yes"
 
+# AUTOBURN is a RAM variable in the loader. A transcript proving it was sent
+# proves it about the boot it was written during, and the first version of this
+# guard accepted one of any age -- which is a guard that cannot fail in the way
+# that matters, with a flash write to the only unit as the cost of being wrong.
+touch -d '3 hours ago' "$TMP/good.json" 2>/dev/null || touch -t "$(date -d '3 hours ago' +%Y%m%d%H%M 2>/dev/null || echo 202001010000)" "$TMP/good.json"
+out="$("$PY" "$TOOL" put --host 127.0.0.1 --port 9 --image "$TMP/img.bin" \
+        --rescue-report "$TMP/good.json" --yes 2>&1)"; rc=$?
+case "$rc:$out" in
+  1:*"RAM state"*) ok "a rescue transcript from an earlier boot is refused on age" ;;
+  *) bad "a three-hour-old transcript was accepted: rc=$rc $out" ;;
+esac
+
+out="$("$PY" "$TOOL" put --host 127.0.0.1 --port 9 --image "$TMP/img.bin" \
+        --rescue-report "$TMP/good.json" --max-rescue-age 0 --yes 2>&1)"; rc=$?
+case "$out" in
+  *"RAM state"*) bad "--max-rescue-age 0 did not disable the age bound" ;;
+  *) ok "--max-rescue-age 0 disables the bound, deliberately and visibly" ;;
+esac
+printf '%s' "$good" > "$TMP/good.json"   # fresh again for the control below
+
+# The loader's WRQ path tests the filename against two constants and, on a
+# match, jumps to the load address the moment the transfer finishes. `J` is
+# kept in a human's hands on purpose; a default filename is not where that
+# decision should be lost.
+for name in nfjrom boot.img my-nfjrom-test; do
+  out="$("$PY" "$TOOL" put --host 127.0.0.1 --port 9 --image "$TMP/img.bin" \
+          --filename "$name" --rescue-report "$TMP/good.json" --yes 2>&1)"; rc=$?
+  case "$rc:$out" in
+    1:*"0x8040D390"*) ok "--filename $name is refused, and the refusal names the flag" ;;
+    *) bad "--filename $name was accepted: rc=$rc $out" ;;
+  esac
+done
+
+out="$("$PY" "$TOOL" put --host 127.0.0.1 --port 9 --image "$TMP/img.bin" \
+        --filename nfjrom --allow-autoexec --rescue-report "$TMP/good.json" 2>&1)"; rc=$?
+case "$out" in
+  *"0x8040D390"*) bad "--allow-autoexec did not permit the name" ;;
+  *"refusing without --yes"*) ok "--allow-autoexec permits it, and --yes is still required" ;;
+  *) bad "--allow-autoexec behaved unexpectedly: rc=$rc $out" ;;
+esac
+
+# The number a human types into `J` afterwards. Without this the only source for
+# it was the same human's memory of what they set LOADADDR to.
+withaddr='{"ip":"127.0.0.1","load_addr":"0x80500000","steps":[{"sent":"AUTOBURN 0","reply":"AutoBurning=0"}]}'
+printf '%s' "$withaddr" > "$TMP/withaddr.json"
+out="$("$PY" "$TOOL" put --host 127.0.0.1 --port 9 --image "$TMP/img.bin" \
+        --rescue-report "$TMP/withaddr.json" --expect-load 81000000 --yes 2>&1)"; rc=$?
+case "$rc:$out" in
+  1:*"cannot tell which"*) ok "an --expect-load that disagrees with the transcript stops it" ;;
+  *) bad "a mismatched load address was accepted: rc=$rc $out" ;;
+esac
+
+out="$("$PY" "$TOOL" put --host 127.0.0.1 --port 9 --image "$TMP/img.bin" \
+        --rescue-report "$TMP/good.json" --expect-load 80500000 --yes 2>&1)"; rc=$?
+case "$rc:$out" in
+  1:*"does not record a load address"*) ok "--expect-load against a transcript that never set one is refused" ;;
+  *) bad "--expect-load passed with no recorded address: rc=$rc $out" ;;
+esac
+
+out="$("$PY" "$TOOL" put --host 127.0.0.1 --port 9 --image "$TMP/img.bin" \
+        --rescue-report "$TMP/withaddr.json" --expect-load 80500000 2>&1)"; rc=$?
+case "$out" in
+  *"which is what J must be given"*) ok "a matching --expect-load is confirmed and named" ;;
+  *) bad "a matching load address was not confirmed: rc=$rc $out" ;;
+esac
+
+echo
+echo "=== attribution: where the served bytes sit in a flash dump ==="
+"$PY" -c '
+import sys
+blob = bytearray(b"\xaa" * 8192)
+blob[0x400:0x400+64] = bytes(range(64))          # occurs exactly once
+blob[0x900:0x900+8]  = b"\x11" * 8               # and again at 0xa00, below
+blob[0xa00:0xa00+8]  = b"\x11" * 8
+open(sys.argv[1], "wb").write(bytes(blob))' "$TMP/haystack.bin"
+
+"$PY" -c 'import sys; open(sys.argv[1],"wb").write(bytes(range(64)))' "$TMP/needle.bin"
+start_fake --file "$TMP/needle.bin"
+out="$("$PY" "$TOOL" get --host 127.0.0.1 --port "$PORT" -o "$TMP/att.bin" \
+        --attribute "$TMP/haystack.bin" 2>&1)"
+case "$out" in
+  *"flash[0x000400 : 0x000440]"*) ok "a transfer present once is located, with its offset" ;;
+  *) bad "attribution did not locate the bytes: $out" ;;
+esac
+case "$out" in
+  *"not a source"*) ok "and it says an offset is not a source" ;;
+  *) bad "attribution stated a source: $out" ;;
+esac
+
+"$PY" -c 'import sys; open(sys.argv[1],"wb").write(b"\x11"*8)' "$TMP/dup.bin"
+start_fake --file "$TMP/dup.bin"
+out="$("$PY" "$TOOL" get --host 127.0.0.1 --port "$PORT" -o "$TMP/att2.bin" \
+        --attribute "$TMP/haystack.bin" 2>&1)"
+case "$out" in
+  *"that is not a location"*) ok "bytes occurring more than once are not called located" ;;
+  *) bad "an ambiguous match was reported as a location: $out" ;;
+esac
+
+"$PY" -c 'import sys; open(sys.argv[1],"wb").write(b"NOT-IN-THE-DUMP-AT-ALL")' "$TMP/absent.bin"
+start_fake --file "$TMP/absent.bin"
+out="$("$PY" "$TOOL" get --host 127.0.0.1 --port "$PORT" -o "$TMP/att3.bin" \
+        --attribute "$TMP/haystack.bin" 2>&1)"
+case "$out" in
+  *"occur NOWHERE"*) ok "bytes absent from the dump are reported as absent, not as an error" ;;
+  *) bad "an absent match was not reported: $out" ;;
+esac
+
 echo
 echo "=== the second control: an upload that must succeed ==="
 start_fake --capture "$TMP/uploaded.bin"

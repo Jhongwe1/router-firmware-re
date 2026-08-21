@@ -31,7 +31,7 @@
 |---|---|---|
 | **第 1 站** | **桌面 —— 不碰裝置** | |
 | `A1.1` | `make doctor`：讓機器自己說它準備好了沒 | — |
-| `A1.2` | 從一份 clone 跑到全部報告，外加 166 個守衛案例 | — |
+| `A1.2` | 從一份 clone 跑到全部報告，外加 411 個守衛案例 | — |
 | `A1.3` | 從 dump 讀出 bootloader 能不能傳 kernel cmdline | `P9-1` |
 | `A1.4` | 用 qemu-user 把這台自己的 binary 跑在 x86 上 | `P3-0` `P3-6` `P0-9` |
 | `A1.5` | 分派表的第二個來源，六個 build 逐一比 | `P8-21` `P5-7` |
@@ -134,21 +134,23 @@
 
 | 層 | 你需要 | 做得到哪幾節 |
 |---|---|---|
-| **T1** | 一份 clone + 網路 | **`A1.1`、`A1.2`、`A4.1`** —— `make ci` 的 **276 個檢查**，一台裝置都不用 |
+| **T1** | 一份 clone + 網路 | **`A1.1`、`A1.2`、`A4.1`** —— `make ci` 的 **541 個檢查**，一台裝置都不用 |
 | **T2** | T1 + 你自己的 N150RT + 一條 CP2102（約 US$3） | 再加 `A1.3`、`A1.4`、第 2 站全部 |
 | **T3** | T2 + USB 網卡 + 隔離網段 | 再加第 3 站全部 |
 
 > **只做 T1 也值得。** T1 能重現的不是這個 repo 的數字，是**這個 repo 的儀器會在
-> 該失敗的時候失敗** —— 166 個守衛案例的存在目的就是證明每一個拒絕是活的，
-> 加上 110 個 fwrecon 測試 = `make ci` 的 276 個檢查。五分鐘，一份 clone。
+> 該失敗的時候失敗** —— 411 個守衛案例的存在目的就是證明每一個拒絕是活的，
+> 加上 130 個 fwrecon 測試 = `make ci` 的 541 個檢查。五分鐘，一份 clone。
 >
 > **數字要能自己重數，否則它會漂移**：`make ci 2>&1 | grep -c '^  ok'` 減掉
-> 最後那一行總結 = 166（2026-08-17 夜），`110 passed` 是 pytest 那一行。
+> 最後那一行總結 = 411（2026-08-21），`130 passed` 是 pytest 那一行。**或者直接跑
+> `make count-checks`，它會逐支列出來並且說明它數什麼、不數什麼。**
 >
 > ✅ **缺口關掉了。** 到 2026-08-17 白天為止有 35 個守衛案例不在 `make ci` 裡
 > —— `test-console-dump.sh`（18）、`test-photo-tools.sh`（13）、
 > `test-flash-tools.sh`（4），三支都不需要硬體。全部接上，加上新的
-> `test-console-write.sh`（28），**十支套件共 166 個，`make ci` 全部跑**。
+> `test-console-write.sh`（28），**當時十支套件共 166 個，`make ci` 全部跑**。
+> 到 2026-08-21 是二十支、411 個。
 > 那是 `PROGRESS` 開放 #33，而它是靠重數發現的，不是靠任何檢查。
 
 ## 一份狀態一個擁有者
@@ -178,7 +180,7 @@
 **進站**：不需要。這一站只要一份 clone；`A1.3` 與 `A1.4` 另外要一份 dump，**但都不用把裝置接起來**。
 **出站**：不需要。這一站一個 byte 都沒動到。
 
-> **這一站是整份文件唯一「只有一台筆電也做得完」的部分**，而 `make ci` 是 276 個檢查。先把它跑綠，再去插線 —— 儀器壞掉的時候，你會希望那件事是在有硬體之前就知道的。
+> **這一站是整份文件唯一「只有一台筆電也做得完」的部分**，而 `make ci` 是 541 個檢查。先把它跑綠，再去插線 —— 儀器壞掉的時候，你會希望那件事是在有硬體之前就知道的。
 
 ### A1.1 開工前：讓機器自己說它準備好了沒（不關登記簿項目）
 
@@ -285,7 +287,7 @@ make ci
   ok   local CI equivalents passed (container build not included)
 ```
 
-**這 166 個守衛案例加上 110 個 fwrecon 測試，存在的目的不是證明工具會動，
+**這 411 個守衛案例加上 130 個 fwrecon 測試，存在的目的不是證明工具會動，
 是證明工具的每一個拒絕是活的。** 例如：
 
 ```bash
@@ -1688,77 +1690,296 @@ COMPCS 0xC000-0x10000              4f721579d2a01875   46f9fc090625707e   DIFF
 
 | 層 | 動到裝置 | 為什麼這一節存在 | 最後驗證 |
 |---|---|---|---|
-| T3 | `probe`/`get` **純讀**；`put` 送 bytes 但 **`AUTOBURN 0` 之下不寫 flash** | [`RUNBOOK` §8.12.45](RUNBOOK.md) | 2026-08-21 |
+| T3 | `probe`/`get` **純讀**；`put` 送 bytes 但 **`AUTOBURN 0` 之下不寫 flash**；`J` 交出控制權 | [`RUNBOOK` §8.12.45](RUNBOOK.md) | 2026-08-21 改寫，**未在機器上執行過** |
 
-**先決條件**：`A2.4` 跑過，而且它的 JSON 留著（`put` 會去解析它）；網路線在 LAN 埠
+**先決條件**：`A2.4` 跑過、**而且是這一次開機跑的**（`put` 會檢查那份 JSON 的年紀，
+理由見下）；網路線在 LAN 埠；`$HOME/fwre-work/w08-ramboot.bin` 已經在桌面上做好
 
 > 🔴 **loader 是 TFTP 伺服器，不是客戶端。** 2026-08-17 `T-09` 送了一個 RRQ 給它，
 > 回來 **516 bytes DATA (opcode 3) from `:2098`**。2026-08-21 曾經照著兩個格式字串
 > （`**TFTP Client Upload...`）把方向讀反、寫進兩個 committed 檔案，隔幾小時被這一行
-> 量測推翻。**回覆從一個新的臨時 port 來，不是從 69 回來** —— 一支照 69 過濾的
-> 客戶端會什麼都收不到，然後報「服務死了」。
+> 量測推翻。**回覆不是從 69 回來** —— 一支照 69 過濾的客戶端會什麼都收不到，
+> 然後報「服務死了」。而 `2098` 也**不是隨機的臨時 port**：它是 loader 裡的常數
+> （`0x80401DE0 li v1,2098`），每完成一次上傳加一。
 
-**先確認服務會回應，一個請求、只收第一塊、不寫檔：**
+> 🔴 **這一節的答案 2026-08-21 在桌面上就從 loader 自己的第二階段讀出來了，
+> 而進站是去驗證它，不是去發現它。** 供應 DATA 的那段程式在 `0x80401ED4`：
+> 位址取 `[0x8040D3A8] + (block-1)*512`，長度取 `[0x8040DD28]`。前者是
+> `LOADADDR` 寫的那個全域（預設值 `0x80500000`，就在 stage 2 的 `.data` 裡）；
+> 後者是 **`FLR` 的第三個參數**寫的（`0x80409A04`）。所以
+> **「`get` 是 `FLR` 的快速通道」只在 `FLR` 的目的位址剛好等於 `LOADADDR` 時成立** ——
+> `FLR` 借給 TFTP 的是**長度**，不是位址。完整的推導與位址在
+> [`notes/loader-tftp-and-commands.md`](notes/loader-tftp-and-commands.md)。
+
+> ❌ **本節之前的版本會失敗三次，而三次的錯誤訊息都指著裝置。** 它寫的是
+> `console-dump.py cmd … FLR 300000 81000000 1000`：參數順序是 `FLW` 的不是 `FLR` 的、
+> `cmd` 不會回答 `(Y)es , (N)o ?`、而且沒有 `--at-prompt`。**這一版一個手打的 `FLR`
+> 都沒有** —— 參數順序由 `tools/console-dump.py` 的 `flr()` 擁有，作業單不再重述它。
+
+**這一節的量測就是下面這張表，四格，每一格的 sha256 都是 2026-08-20 那份
+`flash-n150rt-console-2.bin` 在桌面上算出來的。**
+
+| # | 做完什麼之後 `get` | 預期 bytes | 預期 sha256 | 它證明什麼 |
+|---|---|---|---|---|
+| 1 | 什麼都還沒做（只有 `probe`） | **0** | `e3b0c442…` | 長度取自 `0x8040DD28`，而它在 `.bss`（檔案只到 `0x8040DD10`），開機是 0 |
+| 2 | `FLR` flash `0x010000` → RAM **`0x81000000`** | **4096** | `3c586859c52ba54166f88fc53e7392e5463bca8589e8b029afb422304f329747` | 長度跟著 `FLR` 走（4096），**位址不跟** —— 吐出來的是 `0x80500000` 上 loader 自己搬的 kernel 副本 |
+| 3 | `FLR` flash `0x180000` → RAM **`0x80500000`** | **4096** | `06c9622f6ebbcc09637010e1db59170c3055857bd9087d9f054ece2361816c39` | 目的位址**等於** `LOADADDR` 時，內容才跟著 `FLR` 走 |
+| 4 | `LOADADDR 81000000`（第 2 步的 `w6cg` 還在那裡） | **4096** | `e7335bc08de18174ed3aeae6cbc19578febd9d8eeee690125c0478bfe67c148e` | 供應的位址跟著 `LOADADDR` 走 |
+
+> 🔴 **第 2 格是這一節的主菜。** 它同時給出兩個答案：長度跟著 `FLR`，位址不跟。
+> 而它順便量到一件之前只能推測的事 —— **loader 在讓出 ESC 視窗之前就已經把 kernel
+> 從 flash `0x060010` 搬進 RAM `0x80500000` 了**，否則那 4096 個 byte 不會是這個雜湊。
+
+---
+
+#### 第 0 步 —— 先看 `0x80500000` 上有什麼，這是全節的對照組
 
 ```bash
-./tools/loader-tftp.py probe --host 10.1.1.1 --report "$HOME/fwre-work/dumps/w08-tftp-probe.json"
+python3 -u tools/console-dump.py cmd --at-prompt --port /dev/ttyUSB0 DB 80500000 64
+```
+
+**預期**（`DB` 的長度是**十進位**，所以 64 是 64 個 byte）：
+
+```text
+80500000: 00 00 00 00 00 00 80 21 40 90 60 00 00 00 00 00     .......!@.`.....
+80500010: 00 00 00 00 00 00 00 00 3c 10 80 5f 26 10 10 00     ........<.._&...
+```
+
+> 🔴 **這十六個 byte 是 flash `0x060010` 的前十六個。** 對得上 → loader 已經把
+> kernel 搬進 RAM 了，第 2 格的預期雜湊才成立。對不上（全 `00`、全 `ff`、或別的東西）
+> → **第 2 格改預測**：吐出來的會是那個東西，而不是 `3c586859…`。**先看再說，
+> 不要事後解釋。**
+
+#### 第 1 步 —— 服務活著嗎，以及長度全域是不是 0
+
+```bash
+./tools/loader-tftp.py probe --host 10.1.1.1 \
+        --attribute "$HOME/fwre-work/dumps/flash-n150rt-console-2.bin" \
+        --report "$HOME/fwre-work/dumps/w08-tftp-probe.json"
 ```
 
 **預期**：
 
 ```text
-  ok    DATA opcode 3 from 10.1.1.1:2098, 512 bytes in 1 block
+  ok    DATA opcode 3 from 10.1.1.1:2098, 0 bytes in 1 block
+  ok    sha256 e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+  --    nothing to look for in flash-n150rt-console-2.bin: the transfer was empty
 ```
 
-> ⚠️ **`probe` 有回應只證明服務活著，不證明檔案存在。** 這個 loader **不看檔名** ——
-> `T-09` 用一個不存在的檔名照樣拿到一整塊。
+> ⚠️ **`0 bytes` 在這一步是成功，不是失敗。** 它回了一個 opcode 3 的 DATA 封包，
+> 只是酬載長度 0 —— 那正是 `0x80401F10` 那條 `bne` 在長度為 0 時走的路。
+> **服務活著的判據是「有 DATA 回來」，不是「有 byte 回來」。**
+>
+> ⚠️ **`probe` 有回應也不證明檔案存在。** 這個 loader 在**讀取**路徑上不看檔名 ——
+> `T-09` 用一個不存在的檔名照樣拿到一整塊。**寫入路徑上它看**，見第 5 步。
+>
+> ❌ **如果回來的是 512 bytes 而不是 0**：`.bss` 沒有被清乾淨，或是開機路徑自己
+> 設過長度。這不是壞事，但**第 2 格的「長度跟著 `FLR` 走」就多了一個競爭解釋**，
+> 要用第 3 格（換一個 `FLR` 長度，例如 `0x800`）把它分開。
 
-**開放題 96 —— 這一節真正要答的東西，而且它一次進站就答得完：**
+#### 第 2 步 —— `FLR` 打到**不是** `LOADADDR` 的地方，然後 `get`
 
 ```bash
-./tools/console-dump.py cmd --port /dev/ttyUSB0 FLR 300000 81000000 1000
-./tools/loader-tftp.py get --host 10.1.1.1 -o "$HOME/fwre-work/dumps/w08-tftp-a.bin"
-./tools/console-dump.py cmd --port /dev/ttyUSB0 FLR 000000 81000000 1000
-./tools/loader-tftp.py get --host 10.1.1.1 -o "$HOME/fwre-work/dumps/w08-tftp-b.bin"
-cmp -l "$HOME/fwre-work/dumps/w08-tftp-a.bin" "$HOME/fwre-work/dumps/w08-tftp-b.bin" | wc -l
+python3 -u tools/console-dump.py dump --at-prompt --port /dev/ttyUSB0 \
+        --flash 0x010000 --length 0x1000 --ram 0x81000000 \
+        -o "$HOME/fwre-work/dumps/w08-flr-w6cg.bin"
+./tools/loader-tftp.py get --host 10.1.1.1 --max-bytes 4194304 \
+        --attribute "$HOME/fwre-work/dumps/flash-n150rt-console-2.bin" \
+        -o "$HOME/fwre-work/dumps/w08-tftp-cell2.bin" \
+        --report "$HOME/fwre-work/dumps/w08-tftp-cell2.json"
 ```
 
-**預期 —— 而兩個結果指向相反的答案：**
+**預期** —— `dump` 先跑陽性對照（`FLR` flash `0x000000`，前四個 byte 必須是
+`0b f0 00 04`），然後才是真的那一次：
 
 ```text
-0
+  ==>   control: FLR flash 0x000000 -> RAM, expecting 0b f0 00 04
+  ok    control matched: 0b f0 00 04
+  ==>   FLR flash 0x010000 +0x1000 -> RAM 0x81000000
+  ok    4096 bytes in 9 blocks from 10.1.1.1:2098 in 0.1s
+  ok    sha256 3c586859c52ba54166f88fc53e7392e5463bca8589e8b029afb422304f329747
+  ok    these 4096 bytes are flash[0x060010 : 0x061010] in flash-n150rt-console-2.bin, and occur there exactly once
 ```
 
-> 🔴 **兩份不同 → loader 供應的是 RAM 裡 load address 的內容**，所以 `get` 是
-> `FLR` 輸出的快速通道：4 MiB 從 105 分鐘變成幾秒，而且是**第二條傳輸路徑**
-> （排除掉序列線，排除不掉別的 —— 兩條都經過 SoC 自己的 SPI 控制器）。
-> **兩份相同（`0`）→ 它跟 `FLR` 無關**，自己有一份固定來源，那時 `T-09` 那 516 byte
-> 對上 flash `0x060010` 就要重新解釋。在這一步做完之前，`get` 的來源是**假設**的。
+> 🔴 **注意兩件事同時發生：`get` 回的長度是 `0x1000`（跟著 `FLR`），內容卻是
+> flash `0x060010`（不是 `FLR` 讀的 `0x010000`）。** 這一格單獨就把開放題 96 分乾淨。
+>
+> ⚠️ **九塊，不是八塊。** 4096 = 8 × 512，第 9 塊是一個 **0 byte 的 DATA**，
+> 因為 `0x80401F10` 的判斷是 `block*512 == 長度+512` 才收尾。這是預測，不是巧合。
+>
+> ❌ **如果 `get` 回的是 `06c9622f…` 或 `e7335bc0…`**：位址跟著 `FLR` 走，
+> 靜態讀法錯了。那時直接跳到第 5 步，不要再跑第 3、4 格 —— 它們問的問題已經沒有意義。
 
-**然後才是 `P9-12`：上傳一份這台沒看過的映像，而且一個 flash byte 都不寫。**
+#### 第 3 步 —— `FLR` 打到 `LOADADDR` 上，然後 `get`
 
 ```bash
+python3 -u tools/console-dump.py dump --at-prompt --port /dev/ttyUSB0 \
+        --flash 0x180000 --length 0x1000 --ram 0x80500000 \
+        -o "$HOME/fwre-work/dumps/w08-flr-hsqs.bin"
+./tools/loader-tftp.py get --host 10.1.1.1 --max-bytes 4194304 \
+        --attribute "$HOME/fwre-work/dumps/flash-n150rt-console-2.bin" \
+        -o "$HOME/fwre-work/dumps/w08-tftp-cell3.bin" \
+        --report "$HOME/fwre-work/dumps/w08-tftp-cell3.json"
+```
+
+**預期**：
+
+```text
+  ok    4096 bytes in 9 blocks from 10.1.1.1:2098 in 0.1s
+  ok    sha256 06c9622f6ebbcc09637010e1db59170c3055857bd9087d9f054ece2361816c39
+  ok    these 4096 bytes are flash[0x180000 : 0x181000] in flash-n150rt-console-2.bin, and occur there exactly once
+```
+
+> ⚠️ **這一步把 kernel 的 RAM 副本蓋掉了，而那沒關係** —— 本節結束前不會讓它繼續開機，
+> 而 `J` 的目標會是第 5 步自己上傳的東西。**但這也表示第 0 步只有一次機會。**
+
+#### 第 4 步 —— 換 `LOADADDR`，`FLR` 一次都不再送
+
+```bash
+python3 -u tools/console-dump.py rescue --at-prompt --port /dev/ttyUSB0 \
+        --ip 10.1.1.1 --load-addr 0x81000000 \
+        -o "$HOME/fwre-work/dumps/w08-rescue-81000000.json"
+./tools/loader-tftp.py get --host 10.1.1.1 --max-bytes 4194304 \
+        --attribute "$HOME/fwre-work/dumps/flash-n150rt-console-2.bin" \
+        -o "$HOME/fwre-work/dumps/w08-tftp-cell4.bin" \
+        --report "$HOME/fwre-work/dumps/w08-tftp-cell4.json"
+```
+
+**預期** —— `rescue` 會照順序試候選形式，`LOADADDR` 排在 `AUTOBURN 0` 之後、
+`IPCONFIG` 之前：
+
+```text
+  ok    autoburn is off
+  ==>   LOADADDR 81000000   (where an upload lands, and where a read is served from)
+        'LOADADDR: 81000000' -> Unknown command !
+  ok    the form this loader accepts is 'LOADADDR 81000000'
+        Set TFTP Load Addr 0x81000000
+  ok    the loader reports its TFTP load address as 0x81000000
+  ok    4096 bytes in 9 blocks from 10.1.1.1:2098 in 0.1s
+  ok    sha256 e7335bc08de18174ed3aeae6cbc19578febd9d8eeee690125c0478bfe67c148e
+  ok    these 4096 bytes are flash[0x010000 : 0x011000] in flash-n150rt-console-2.bin, and occur there exactly once
+```
+
+> 🔴 **`LOADADDR` 不能用 `cmd` 送，而那是 2026-08-21 才改的。** 它寫的是
+> `0x8040D3A8`，也就是上傳落在哪裡、讀取從哪裡供應、以及自動執行路徑跳到哪裡 ——
+> 跟 `AUTOBURN` 同一個等級，而 `cmd` 說自己「只讀」。工具會拒絕，並且指名這件事。
+>
+> ⚠️ **`rescue --load-addr` 有三個拒絕**：不是 4 的倍數、不在 KSEG0/KSEG1、
+> 或落在 loader 自己的映像（`0x80400000`–`0x80420000`，56,592 bytes 的第二階段
+> 加它的 `.bss`）。第三個是真的會咬人的那一個：把上傳的東西寫到正在收它的程式上。
+
+#### 第 5 步 —— `P9-12`：上傳一份這台沒看過的映像，然後手打 `J`
+
+**先把 `LOADADDR` 收回來，並且拿到一份這一次開機的 rescue 紀錄：**
+
+```bash
+python3 -u tools/console-dump.py rescue --at-prompt --port /dev/ttyUSB0 \
+        --ip 10.1.1.1 --load-addr 0x80500000 \
+        -o "$HOME/fwre-work/dumps/rescue.json"
 ./tools/loader-tftp.py put --host 10.1.1.1 \
         --image "$HOME/fwre-work/w08-ramboot.bin" \
-        --rescue-report "$HOME/fwre-work/dumps/rescue.json" --yes \
+        --rescue-report "$HOME/fwre-work/dumps/rescue.json" \
+        --expect-load 80500000 --yes \
         --report "$HOME/fwre-work/dumps/w08-tftp-put.json"
 ```
 
 **預期**：
 
 ```text
-  ok    rescue transcript for 10.1.1.1 shows AutoBurning=0
-  ok    ... bytes in ... blocks to 10.1.1.1:2098
+  ok    rescue transcript for 10.1.1.1 shows AutoBurning=0 (0 minutes old)
+  ok    the transcript records the loader's load address as 0x80500000, which is what J must be given
+  ok    148 bytes in 1 blocks to 10.1.1.1:2098 in 0.01s
 ```
 
-> 🔴 **`put` 看不到主控台，所以它去解析 `A2.4` 留下的那份 JSON。**
-> 找不到針對同一個位址的 `AutoBurning=0` 就拒跑 —— 那個開關決定上傳的東西會不會
-> 被寫進 flash，而這支工具沒有任何一條路徑送得出 `AUTOBURN 1`。
+> 🔴 **`put` 現在會檢查那份 JSON 的年紀，而這是 2026-08-21 補的。** `AUTOBURN` 是
+> loader 裡的 RAM 變數（`0x8040D4A0`），斷電就沒；第一版只檢查位址與回應，
+> 所以一份四天前的紀錄照樣過關 —— 一個在唯一要緊的那個面向上**不可能失敗**的守衛，
+> 而猜錯的代價是對唯一一台機器寫 flash。
+>
+> ❌ **不要用 `nfjrom` 或 `boot.img` 當檔名。** loader 的上傳路徑會逐字比對這兩個
+> 名字（`0x80401208` / `0x8040122C`），命中就在傳輸結束的那一刻自己跳進去 ——
+> 沒有 `J`，沒有人在主控台前面。工具預設會拒絕，`--allow-autoexec` 才放行。
 
-> ❌ **`J` 不由工具送，手打在主控台上。** 跳轉是對唯一一台機器的狀態改變。
-> 而 `P9-12` 的凍結反證條件寫得很清楚：**`J` 之後主控台沒有輸出，分不出「跳過去了
-> 但沒東西講話」與「根本沒跳」** —— 所以上傳的映像第一件事就要往 UART 寫一個字元，
-> 否則這一列只能記 `partial`。
+**上傳落地了沒 —— 這是一次逐 byte 的往返，不需要跳轉就成立：**
+
+```bash
+./tools/loader-tftp.py get --host 10.1.1.1 --max-bytes 4194304 \
+        -o "$HOME/fwre-work/dumps/w08-tftp-roundtrip.bin" \
+        --report "$HOME/fwre-work/dumps/w08-tftp-roundtrip.json"
+cmp "$HOME/fwre-work/w08-ramboot.bin" "$HOME/fwre-work/dumps/w08-tftp-roundtrip.bin"
+```
+
+**預期** —— `cmp` 不印任何東西，而 `get` 這一次的來源 port 是 **2099**：
+
+```text
+  ok    148 bytes in 1 blocks from 10.1.1.1:2099 in 0.01s
+```
+
+> 🔴 **`2099` 不是雜訊，是預測。** 每完成一次上傳，`0x8040DD20` 加一
+> （`0x80401AD4`–`0x80401AE4`）。看到 2099 就是那段程式跑過了。
+
+**flash 有沒有被動過 —— 抽樣，而且它是抽樣不是證明：**
+
+```bash
+python3 -u tools/console-dump.py dump --at-prompt --port /dev/ttyUSB0 \
+        --flash 0x060000 --length 0x40 --ram 0x81000000 \
+        -o "$HOME/fwre-work/dumps/w08-post-put-060000.bin"
+cmp <(dd if="$HOME/fwre-work/dumps/flash-n150rt-console-2.bin" bs=1 skip=393216 count=64 2>/dev/null) \
+    "$HOME/fwre-work/dumps/w08-post-put-060000.bin"
+```
+
+> ⚠️ **這一步抽兩點看，它不能證明「沒有寫」。** 真正的論據有兩條，都在上傳之前：
+> 這一次開機的主控台親口回了 `AutoBurning=0`，而靜態上 autoburn 只被讀一次
+> （`0x80401B9C`），`beqz` 一成立就跳過燒錄常式。這裡只是便宜的印證。
+
+**最後才是 `J`，手打，眼睛盯著主控台：**
+
+```bash
+picocom -b 38400 --logfile "$HOME/fwre-work/dumps/w08-j-$(date +%Y%m%d-%H%M).log" /dev/ttyUSB0
+```
+
+在 picocom 裡打（先按一次 Enter 清掉排隊的輸入）：
+
+```text
+J 80500000
+```
+
+**預期** —— loader 自己先印一行，然後才是我們的東西：
+
+```text
+---Jump to address=80500000
+*** N150RT RAMBOOT P9-12 <nonce> ***
+*** N150RT RAMBOOT P9-12 <nonce> ***
+```
+
+> 🔴 **那行 `---Jump to address=` 是 loader 印的（`0x8040B35C`），不是我們印的，
+> 而它正好補上 `P9-12` 凍結反證條件裡的那個洞。** 三種結果要分開記：
+>
+> | 看到 | 記什麼 |
+> |---|---|
+> | `---Jump to address=` **加上** banner 一直重複 | `confirmed` —— 跳了，而且上傳的碼在執行 |
+> | `---Jump to address=` 之後**什麼都沒有** | 跳了但沒講話。**這不是 `partial`，是 payload 的問題** —— banner 在桌面上已經模擬過，所以要查的是 cache 或供電，不是「有沒有跳」 |
+> | 連 `---Jump to address=` 都沒有 | **根本沒跳**。`J` 沒被接受（`Invalid Address(HEX) value.`），或那一行被排隊的輸入吃掉了 |
+>
+> ❌ **`J` 後面一定要帶位址。** 沒帶的話 `0x8040925C` 的 `blez a0` 會直接跳到
+> 一段沒初始化的堆疊。**空的 `J` 是這一節唯一一個真的可能弄壞當下狀態的打法。**
+>
+> ⚠️ **`J` 之後網路就沒了，那是預期的。** 跳轉前 loader 會把交換器五個 port 的
+> `0xBB804104`–`0xBB804114` 各清一個 bit，並且關中斷。**跳完不要再期待 `get` 有反應。**
+>
+> 💡 **`J BFC00000` 是從主控台重開機的方法**（`0x804092D8` 那條 `bne` 走的另一邊：
+> 踢看門狗然後自旋）。這一節不用它，但它比拔電乾淨。
+
+**離開 picocom：`Ctrl-A` 然後 `Ctrl-X`。**
+
+> ❌ **停止條件，四條：**
+> 1. 第 0 步的 `DB` 對不上 flash `0x060010` → **改第 2 格的預期，寫進 `BENCH-LOG.md`，
+>    然後照改後的跑。** 不要一邊跑一邊改解釋。
+> 2. `dump` 的陽性對照沒過（`0b f0 00 04` 對不上）→ **整節停**。`FLR` 這條路本身有問題，
+>    後面四格全部沒有意義。
+> 3. `put` 被拒絕（年紀、位址、檔名任一條）→ **不要加旗標繞過去**，先讀它拒絕的理由。
+> 4. `J` 之後板子沒有回應而且拔電重開也起不來 → 走 `A4.2`。**flash 一個 byte 都沒被寫過，
+>    所以這一條不該發生**；真的發生了，那本身就是這一節最大的發現。
 
 ---
 
@@ -5312,3 +5533,27 @@ boot loader 自己的 `FLR`，所以一個系統性的讀取錯誤對它們三�
 檔名回了 516 byte，而那些 byte 對上 flash `0x060010`。它供應的是 RAM 裡 load address
 的內容，還是它自己有一份固定來源？**兩次 `FLR` 打不同範圍、中間各 `get` 一次就分得
 出來**，而在那之前 `get` 的來源是假設的。先答那一題再上傳，順序寫在 `A2.7` 裡。
+
+## B-W08 增補之三（2026-08-21 桌面第四場，寫在下一次插電之前）
+
+**這一則改的是執行順序，不是上面任何一張表。** `B-W08` 把第 5 站排在第 1 站之後、
+第 2 站之前，那是為了夾子那一場。**夾子那一場已經跑完，而結論是 in-circuit 走不通**
+（2026-08-21 實錄；開放題 97）。所以下一次進站的順序是：
+
+**`A2.1` → `A2.2` → `A2.4` → `A2.7`。中間不插別的，而且不做 `A2.3`、`A2.5`、`A2.6`。**
+
+| 不做 | 理由 |
+|---|---|
+| `A2.3` | 64 KiB 設定區快照。`P0-10` / `P0-5` 早就關了，而它會多花一次 `FLR`，把 `A2.7` 第 1 格「長度全域還是 0」的預測毀掉 |
+| `A2.5` · `A2.6` | 全檔僅有的兩節會寫 flash 的。這一場的整個論點是「一個 byte 都不寫」，同一場做這兩件事，`P9-12` 的 flash 抽樣就沒有意義了 |
+| 第 5 站全部 | in-circuit 讀取不成立，開放題 97 要的兩條路（串電流、或拆下 `U19`）今晚一條都沒有。`P9-5` / `P9-6` / `P9-7` 維持 `⬜` |
+
+> 🔴 **`A2.3` 排除掉是這一則最容易被忽略的一句。** 它平常是每一場的開場，而這一次
+> 跑它會**先設定 TFTP 的長度全域**（`FLR` 的第三個參數寫 `0x8040DD28`），於是
+> `A2.7` 第 1 格的 `probe` 不會回 0 bytes，而那一格就答不了「長度是不是取自那個全域」。
+> **一個平常無害的預備步驟，在這一節裡是汙染源。**
+
+**這一場的額外步驟，`A2.7` 之前先在桌面上做完：** `make ramboot NONCE=<hex>`。
+映像不存在的話 `put` 會停在開啟檔案那一步，而那是進站以後才會發現的事。
+2026-08-21 用的那一份：nonce `4baee517`，148 bytes，
+sha256 `46370ce9537e1573d63c90d4afa7874f3e446b70b0e59c6cfac3fd63e9bb6b92`。

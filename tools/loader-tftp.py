@@ -51,12 +51,24 @@ What this is for
 
 The transfer id, which is why this is not `curl`
 ------------------------------------------------
-TFTP's reply comes from a **fresh ephemeral port**, not from 69 — the bench saw
+TFTP's reply comes from a different port than the request went to — the bench saw
 ``:2098``. Everything after the first packet is addressed to that port. A client
 that filters on 69 sees nothing and reports the service as dead, and a firewall
 rule written for 69 alone does the same. So: the peer **address** is pinned and
 checked on every packet; the peer **port** is learned from the first reply and
 pinned from then on.
+
+This file said "a fresh **ephemeral** port" until 2026-08-21, which was a guess
+dressed as a measurement. 2098 is a **constant in the loader**::
+
+    80401de0  li  v1,2098
+    80401de8  sh  v1,-8928(v0)        ; 0x8040DD20, the source port it answers from
+    80401ad4..80401ae4  lhu/addiu 1/sh ; and it increments after each completed upload
+
+so the second transfer of a session comes from 2099, not from something random.
+Nothing in the client changes — learning the port from the first reply covers
+both — but "ephemeral" would have made a reader expect a number that means
+nothing, and this one means "how many uploads have finished".
 
 How this is allowed to fail
 ---------------------------
@@ -119,6 +131,30 @@ ERROR_NAMES = {
 DEFAULT_MAX_BYTES = 8 * 1024 * 1024
 DEFAULT_TIMEOUT = 3.0
 DEFAULT_RETRIES = 4
+
+#: Filenames this loader's *upload* path tests for by name, at 0x80401208 and
+#: 0x8040122C in the decompressed second stage. A match sets the "run it when
+#: the transfer finishes" flag at 0x8040D390, and `boot.img` additionally forces
+#: the load address at 0x8040D3A8 to 0x80000000::
+#:
+#:     80401208  move  a0,s0            ; the filename out of the WRQ
+#:     80401210  jal   0x80406d7c       ; against "nfjrom"
+#:     80401228  sw    v1,-11376(v0)    ; 0x8040D390 = 1  -> execute on completion
+#:     8040122C  addiu a0,s1,30
+#:     80401234  jal   0x80406c40       ; against "boot.img"
+#:     80401250  lui   v1,0x8000
+#:     80401258  sw    v1,-11352(v0)    ; 0x8040D3A8 = 0x80000000
+#:
+#: So the name is not cosmetic on this loader: two of them turn an upload into
+#: an execution with no console step at all. `J` is kept in a human's hands on
+#: purpose, and a default filename is not where that decision should be lost.
+AUTOEXEC_FILENAMES = ("nfjrom", "boot.img")
+
+#: `AUTOBURN 0` is RAM state in the loader and does not survive a power cycle,
+#: so a transcript proving it was sent proves it about *that* boot. This bounds
+#: how old the evidence may be; it does not establish same-boot, and the tool
+#: says so rather than implying otherwise.
+DEFAULT_MAX_RESCUE_AGE = 3600.0
 
 
 class TftpError(RuntimeError):
@@ -310,6 +346,59 @@ def _report(args, body: dict) -> None:
     print(f"  ok    transcript -> {args.report}")
 
 
+def attribute(data: bytes, dump_path: str) -> dict:
+    """Where, if anywhere, do these bytes sit in a flash dump?
+
+    Open question 96 asks what the loader serves and from where.  The loader's
+    own DATA sender reads ``[0x8040D3A8] + (block-1)*512`` for ``[0x8040DD28]``
+    bytes (0x80401ED4), so what arrives is RAM -- but RAM at the load address is
+    where the loader stages the kernel out of flash before it offers the
+    interrupt window, so a transfer matching flash is exactly what a *staged
+    copy* looks like too.
+
+    This therefore reports **an offset, not a conclusion**.  What separates the
+    two is the FLR step next to it in the runsheet, and the caller is told so.
+
+    Exactly one match, or it says so: a byte string that occurs twice in 4 MiB
+    has not been located, and one that occurs nowhere is a finding rather than
+    an error.
+    """
+    if not data:
+        return {"searched": os.path.basename(dump_path), "result": "empty transfer",
+                "offsets": []}
+    with open(dump_path, "rb") as fh:
+        blob = fh.read()
+    offsets, at = [], 0
+    while len(offsets) < 3:
+        i = blob.find(data, at)
+        if i < 0:
+            break
+        offsets.append(i)
+        at = i + 1
+    return {"searched": os.path.basename(dump_path), "dump_bytes": len(blob),
+            "offsets": offsets, "bytes": len(data)}
+
+
+def report_attribution(att: dict) -> None:
+    offs = att.get("offsets", [])
+    where = att["searched"]
+    if att.get("result") == "empty transfer":
+        print(f"  --    nothing to look for in {where}: the transfer was empty")
+        return
+    if not offs:
+        print(f"  ok    these {att['bytes']} bytes occur NOWHERE in {where}. Whatever is "
+              f"at the load address is not a copy of this part's contents")
+    elif len(offs) == 1:
+        print(f"  ok    these {att['bytes']} bytes are flash[{offs[0]:#08x} : "
+              f"{offs[0] + att['bytes']:#08x}] in {where}, and occur there exactly once")
+        print("        That is an offset, not a source: the loader stages the kernel from "
+              "flash into RAM at the load address before the interrupt window, so a match "
+              "is what both answers look like. The FLR step is what separates them")
+    else:
+        print(f"  --    these bytes occur at {len(offs)}+ offsets in {where} "
+              f"({', '.join(hex(o) for o in offs)}); that is not a location")
+
+
 def cmd_probe(args) -> int:
     host = check_host(args.host)
     sess = Session(host, args.timeout, args.retries, args.verbose, args.port)
@@ -328,13 +417,18 @@ def cmd_probe(args) -> int:
           f"{len(data)} bytes in {blocks} block")
     print(f"  ok    sha256 {digest}")
     print(f"        the filename asked for was {args.filename!r}. This loader "
-          f"ignores it (2026-08-17), so a name that exists nowhere still "
-          f"returns data -- which means a reply here says the service answers, "
-          f"not that the file was found")
+          f"ignores it on the READ path (2026-08-17), so a name that exists "
+          f"nowhere still returns data -- which means a reply here says the "
+          f"service answers, not that the file was found. On the WRITE path it "
+          f"does not ignore it: see AUTOEXEC_FILENAMES")
+    att = None
+    if args.attribute:
+        att = attribute(data, args.attribute)
+        report_attribution(att)
     _report(args, {"op": "probe", "host": host, "tid": sess.tid,
                    "filename": args.filename, "bytes": len(data),
                    "blocks": blocks, "sha256": digest,
-                   "retransmits": sess.retransmits})
+                   "retransmits": sess.retransmits, "attribution": att})
     return 0
 
 
@@ -365,14 +459,19 @@ def cmd_get(args) -> int:
     print("        This is a second TRANSPORT for the same read, not a second "
           "instrument: both this and `FLR`+`DB` reach the die through the SoC's "
           "own SPI controller. It rules out the serial line and nothing else")
+    att = None
+    if args.attribute:
+        att = attribute(data, args.attribute)
+        report_attribution(att)
     _report(args, {"op": "get", "host": host, "tid": sess.tid,
                    "filename": args.filename, "output": args.output,
                    "bytes": len(data), "blocks": blocks, "sha256": digest,
-                   "seconds": round(elapsed, 3), "retransmits": sess.retransmits})
+                   "seconds": round(elapsed, 3), "retransmits": sess.retransmits,
+                   "attribution": att})
     return 0
 
 
-def check_rescue_report(path: str, host: str) -> dict:
+def check_rescue_report(path: str, host: str, max_age: float) -> dict:
     """The evidence `put` requires, because this tool cannot see the console.
 
     `console-dump.py rescue` sends `AUTOBURN 0`, refuses to continue unless the
@@ -380,6 +479,19 @@ def check_rescue_report(path: str, host: str) -> dict:
     the only thing standing between an upload that lands in RAM and an upload
     that is written to flash, so it is parsed here rather than trusted: the
     right host, and the right echo, or nothing is sent.
+
+    Version 1 checked the host and the echo and nothing else, and that is a
+    guard that cannot fail in the way that matters. `AUTOBURN` is a **RAM
+    variable in the loader** -- `runsheet.md` `A2.4` says so in its own header --
+    written at 0x8040D4A0 and read at exactly one place, 0x80401B9C, on the path
+    that decides whether a completed upload is burned. A power cycle clears it.
+    So a transcript from four days ago satisfied every check while saying
+    nothing whatever about the loader now listening, and the consequence of
+    being wrong is a flash write to the only unit there is.
+
+    Bounding the age does not establish same-boot and this does not pretend it
+    does: it converts "any transcript that ever existed" into "one written in
+    the last hour", and the operator is told which of those two it is.
     """
     try:
         with open(path, encoding="utf-8") as fh:
@@ -398,13 +510,61 @@ def check_rescue_report(path: str, host: str) -> dict:
         fail("the rescue transcript does not contain AutoBurning=0, so the state "
              "of the switch that decides whether this upload reaches flash is "
              "unknown. Run `console-dump.py rescue --output ...` first")
+    try:
+        age = time.time() - os.path.getmtime(path)
+    except OSError as e:
+        fail(f"--rescue-report {path}: cannot read its age: {e}")
+        return {}
+    if max_age > 0 and age > max_age:
+        fail(f"the rescue transcript is {age / 60:.0f} minutes old and --max-rescue-age "
+             f"is {max_age / 60:.0f}. AUTOBURN is RAM state in the loader (0x8040D4A0) "
+             f"and a power cycle clears it, so this file says nothing about the loader "
+             f"that is listening now. Re-run `console-dump.py rescue --at-prompt "
+             f"--ip {host} -o {path}` in this session")
+    rep["_age_seconds"] = round(age, 1)
     return rep
 
 
 def cmd_put(args) -> int:
     host = check_host(args.host)
-    rep = check_rescue_report(args.rescue_report, host)
-    print(f"  ok    rescue transcript for {host} shows AutoBurning=0")
+    # Before anything is opened: the name decides whether a human gets to make
+    # the next decision. See AUTOEXEC_FILENAMES.
+    lowered = args.filename.lower()
+    hit = next((n for n in AUTOEXEC_FILENAMES if n in lowered), None)
+    if hit and not args.allow_autoexec:
+        fail(f"--filename {args.filename!r} contains {hit!r}, which this loader's upload "
+             f"path tests for by name (0x80401208 / 0x8040122C). On a match it sets the "
+             f"flag at 0x8040D390 and jumps to the load address the moment the transfer "
+             f"completes -- no `J`, nobody at the console"
+             + (", and 'boot.img' also forces the load address to 0x80000000"
+                if hit == "boot.img" else "")
+             + ". Pick another name, or pass --allow-autoexec having decided to")
+    rep = check_rescue_report(args.rescue_report, host, args.max_rescue_age)
+    print(f"  ok    rescue transcript for {host} shows AutoBurning=0 "
+          f"({rep.get('_age_seconds', 0) / 60:.0f} minutes old)")
+    # Where this lands, and therefore what `J` has to be given. The tool cannot
+    # send `J` and should not; what it can do is refuse to leave the operator
+    # guessing the number.
+    recorded = rep.get("load_addr")
+    if args.expect_load is not None:
+        want = f"{args.expect_load:#010x}"
+        if recorded is None:
+            fail(f"--expect-load {want} was given but the rescue transcript does not "
+                 f"record a load address. Re-run `console-dump.py rescue --load-addr "
+                 f"{args.expect_load:08X} ...` so that the address J will be given comes "
+                 f"from the loader's own echo rather than from memory")
+        if int(recorded, 16) != args.expect_load:
+            fail(f"the loader was told to load at {recorded} and --expect-load says "
+                 f"{want}. One of those is the address J would be given, and this tool "
+                 f"cannot tell which")
+        print(f"  ok    the transcript records the loader's load address as {recorded}, "
+              f"which is what J must be given")
+    elif recorded:
+        print(f"  note  the transcript records load address {recorded}; that is what J "
+              f"must be given afterwards. --expect-load makes that a check")
+    else:
+        print("  note  the transcript does not record a load address, so the number for "
+              "`J` is not on the record. This loader's default is 0x80500000")
     try:
         with open(args.image, "rb") as fh:
             data = fh.read()
@@ -470,16 +630,26 @@ def main(argv=None) -> int:
         sp.add_argument("--report", help="write a JSON transcript here")
         sp.add_argument("--verbose", action="store_true")
 
+    def attribution(sp):
+        sp.add_argument("--attribute", metavar="DUMP",
+                        help="after the transfer, say where these bytes sit in DUMP -- "
+                             "exactly one offset, or it says it could not locate them. "
+                             "An offset, not a source: see open question 96")
+
     pp = sub.add_parser("probe", help="one read request, first block only, "
                                       "nothing written")
     common(pp)
+    attribution(pp)
     pp.add_argument("--filename", default="probe",
-                    help="ignored by this loader; sent anyway (default: probe)")
+                    help="ignored by this loader on the READ path; sent anyway "
+                         "(default: probe)")
     pp.set_defaults(func=cmd_probe)
 
     pg = sub.add_parser("get", help="read the loader's memory to a file")
     common(pg)
-    pg.add_argument("--filename", default="ram", help="ignored by this loader")
+    attribution(pg)
+    pg.add_argument("--filename", default="ram",
+                    help="ignored by this loader on the READ path")
     pg.add_argument("-o", "--output", required=True)
     pg.add_argument("--force", action="store_true",
                     help="overwrite an existing output file")
@@ -489,11 +659,24 @@ def main(argv=None) -> int:
 
     pu = sub.add_parser("put", help="upload an image into the loader's RAM")
     common(pu)
-    pu.add_argument("--filename", default="image", help="ignored by this loader")
+    pu.add_argument("--filename", default="image",
+                    help="NOT ignored on the write path: two names make this loader "
+                         "execute the upload with no console step (default: image)")
+    pu.add_argument("--allow-autoexec", action="store_true",
+                    help=f"permit a filename containing one of {AUTOEXEC_FILENAMES}, "
+                         f"which hands the jump to the loader instead of to a person")
     pu.add_argument("--image", required=True)
     pu.add_argument("--rescue-report", required=True,
                     help="the JSON console-dump.py rescue wrote; it must show "
-                         "AutoBurning=0 for this same host")
+                         "AutoBurning=0 for this same host, recently")
+    pu.add_argument("--max-rescue-age", type=float, default=DEFAULT_MAX_RESCUE_AGE,
+                    help=f"seconds; refuse an older transcript, because AUTOBURN is RAM "
+                         f"state that a power cycle clears (default "
+                         f"{DEFAULT_MAX_RESCUE_AGE:.0f}). 0 disables the bound")
+    pu.add_argument("--expect-load", type=lambda s: int(s, 16), metavar="HEX",
+                    help="the address you are going to give J. Checked against the load "
+                         "address the rescue transcript recorded, so the number is the "
+                         "loader's own echo rather than a memory")
     pu.add_argument("--yes", action="store_true",
                     help="required: this subcommand sends bytes the device acts on")
     pu.set_defaults(func=cmd_put)

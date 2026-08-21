@@ -6058,3 +6058,152 @@ gate in `A5.2` is what closes it.
     series with `VCC` — impossible while the clip's ribbon ends in a fixed header
     — or an out-of-circuit read after `U19` comes off the board. Until then the
     committed claim is only that in-circuit reading does not work here, **not why.**
+
+## W08 Day 1, fourth desk session — the experiment would have run correctly and published the wrong answer — 2026-08-21
+
+**Desk only, no device, nothing connected.** `BENCH-LOG.md` 2026-08-21 桌面第四場
+carries the plan and the thirteen predictions, written before anything is plugged
+in. The session was going to be the write-up of `A2.7`. It became the demolition
+of it.
+
+**Open question 96 was answered from the loader's own second stage, and the
+answer is neither of the two the question offered itself.**
+
+### What the loader serves, and from where
+
+`objdump` over `$FWRE_WORK/stage2.bin` — the LZMA second stage decompressed out
+of flash `0x0012F0`, 17,334 → 56,592 bytes, linked at `0x80400000`. The TFTP read
+path is one function:
+
+| | |
+|---|---|
+| `0x80401ED4` | serves `[0x8040D3A8] + (block-1)*512`, for `[0x8040DD28]` bytes |
+| `0x8040D3A8` | the TFTP load address. **Initialised to `0x80500000`** in `.data` (file offset `0xD3A8`); written by `LOADADDR` (`0x80409988`) and by the `boot.img` upload path (`0x80401258`, forced to `0x80000000`) |
+| `0x8040DD28` | the transfer length. Written by **`FLR`'s third argument** (`0x80409A04`) and by the completion of an upload (`0x80401AB8`). It is in `.bss`, which begins at `0x8040DD10` |
+
+So **`get` is a fast path for `FLR`'s output only when `FLR`'s destination
+happens to equal `LOADADDR`.** What `FLR` lends to TFTP is the *length*, not the
+address. Full derivation, the recovered 17-entry command table, the `J` handler
+and the write path: [`notes/loader-tftp-and-commands.md`](notes/loader-tftp-and-commands.md).
+
+It also explains `T-09` in a way nothing had: the 516 bytes that matched flash
+`0x060010` came from RAM at `0x80500000`, and **nothing in that session put them
+there.** The loader did — which means it stages the `cr6c` payload into RAM
+*before* it offers the ESC window. That is now prediction 1 of the next visit and
+it costs one `DB`.
+
+### `A2.7` was wrong in four ways, and the fourth is the one worth keeping
+
+Three of them would have stopped the section before a byte moved: a hand-typed
+`FLR 300000 81000000 1000` carrying **`FLW`'s argument order**; sent through
+`console-dump.py cmd`, which has no handling for `(Y)es , (N)o ?`; with no
+`--at-prompt`, so a board already sitting at `<RealTek>` would have got 120
+seconds of ESC and then *"nothing came back at all. TX/RX swapped, wrong port, or
+the board never powered on"* — three causes, none of them real. That is the same
+shape as `A5.2` twelve hours earlier: a step that fails, with a message pointing
+somewhere else.
+
+**The fourth would not have failed.** The section's truth table had two outcomes:
+two `get`s differ → the loader serves RAM at the load address; identical → it has
+a fixed source of its own. Both `FLR`s targeted `0x81000000`, which is not the
+load address, so the two files are necessarily identical — **the comparison runs
+correctly, returns `0`, and the section concludes the second thing.**
+
+A correct measurement mapped to the wrong answer is worse than a failed one,
+because nothing about it looks wrong.
+
+**The common cause of the first and the fourth is one rule, already in
+CLAUDE.md**: `FLR`'s argument order has an owner, `tools/console-dump.py`'s
+`flr()`, and the runsheet had copied it out by hand. `tools/check-runsheet.py`'s
+own docstring says it does not check semantics — it validates that every flag
+exists and every subcommand is real, and a reversed positional argument is
+invisible to it, honestly so. The fix is not a new check. **`A2.7` no longer
+contains a hand-typed `FLR` at all**; an `FLR` is now `console-dump.py dump`, and
+the order lives in code.
+
+### The replacement is four cells with a hash each, computed before the visit
+
+Each cell moves exactly one variable, and each expected sha256 was computed from
+`dumps/flash-n150rt-console-2.bin` at the desk:
+
+| after | bytes | sha256 | what it isolates |
+|---|---|---|---|
+| nothing | 0 | `e3b0c442…` | the length global is in `.bss` and starts at 0 |
+| `FLR` `0x010000` → `0x81000000`, len `0x1000` | 4096 | `3c586859…` | length follows `FLR`; **address does not** |
+| `FLR` `0x180000` → `0x80500000`, len `0x1000` | 4096 | `06c9622f…` | content follows `FLR` only at the load address |
+| `LOADADDR 81000000` | 4096 | `e7335bc0…` | the served address follows `LOADADDR` |
+
+**A result landing on none of the four rows refutes the static reading**, which
+the previous design could not do to itself.
+
+### Instrument work
+
+| | |
+|---|---|
+| [`tools/mkramboot.py`](tools/mkramboot.py) | new. Builds the RAM payload `P9-12` needs: ~40 instructions of big-endian MIPS that print a nonced banner to the UART and repeat. UART addresses read out of **the loader's own putchar** at `0x80406B6C`, bounded spin included. Every build **simulates** the encoded words against a stand-in UART and refuses unless the bytes emitted are exactly the banner |
+| [`tools/test-mkramboot.sh`](tools/test-mkramboot.sh) | **26 cases**, seven of which put a real bug back into the encoder and require the build to go red |
+| `tools/loader-tftp.py` | `--attribute` on `probe`/`get` (locate the served bytes in a dump, exactly one offset or it says so); `put` refuses the loader's two auto-execute filenames; `put` bounds the age of the rescue transcript; `--expect-load`. **17 → 30 cases** |
+| `tools/console-dump.py` | `LOADADDR` joins `FORBIDDEN` for `cmd`; `rescue --load-addr` gives it a guarded home and records the loader's echo. **18 → 23 cases** |
+| `Makefile` · `.github/workflows/ci.yml` | `ramboot`, `ramboot-test` added to **both** in the same commit |
+
+**Three of those are guards that could not previously fail in the way that
+mattered.** `put`'s rescue check verified the host and the echo and not the age —
+and `AUTOBURN` is a RAM variable in the loader (`0x8040D4A0`) that a power cycle
+clears, so a transcript from four days earlier passed every check while saying
+nothing about the loader currently listening. The cost of being wrong there is a
+flash write to the only unit.
+
+**And the payload's first version was wrong.** Branch offsets computed against
+`PC+8` — the way the offset is usually described — so every branch landed one
+word early. It assembled, `objdump` disassembled it without complaint, and it
+would have printed the first byte of the banner forty-one times. What caught it
+was the simulator, and what settled the arithmetic was two `beqz` instructions in
+this loader's own putchar rather than a reference.
+
+### Prior art, checked before the finding was written
+
+The loader's upload path tests the filename against `nfjrom` and `boot.img`
+(`0x80401208`, `0x8040122C`) and on a match jumps to the load address the moment
+the transfer completes — no `J`, nobody at the console. `notes/prior-art.md` had
+nothing on the boot loader, so the search went outside it and **came back full**:
+`nfjrom` is Realtek's own MP-image name, `nfjrom.script` appears in rtl819x
+bootcode trees published under the GPL by other vendors, and the recovery flow —
+including the `192.168.1.6` default this build still carries at `0x8040EDC0` — is
+on the OpenWrt wiki. It is recorded because it changes how a *tool* should
+behave, not because the project found it. It is also not a remote defect: the
+loader answers on the network only after `IPCONFIG` is typed at the console.
+
+### Deliberately not done
+
+- **Nothing was sent to the device.** Every claim above is about a program and a
+  binary. `A2.7` is the confirmation and it has not been run.
+- **`A2.3`, `A2.5`, `A2.6` are excluded from the next visit**, and `A2.3` is the
+  one worth naming: it is the usual opening step, and running it would set the
+  TFTP length global before cell 1 could ask whether that global is where the
+  length comes from. A harmless preparatory step is a contaminant in this section.
+- **The auto-execute filenames are not being tested.** `--allow-autoexec` exists
+  and this visit will not use it.
+- **`P9-10` untouched.** It needs `AUTOBURN 1`, and it waits for `P9-12`.
+
+### Open, carried forward
+
+66, 67, 69, 70, 71, 74, 75, 77, 78, 79, 81, 82, 84, 85, 86, 87, 88, 89, 91, 92,
+93, 94, 95, 97 — unchanged.
+
+96. **Answered statically, and it stays open until it is measured.** The
+    mechanism, the addresses and the two globals are in
+    `notes/loader-tftp-and-commands.md`; the confirmation is `runsheet.md`
+    `A2.7`'s four cells, each with a hash computed before the visit. It is listed
+    here rather than struck out because **nothing has been sent to the device**,
+    and this repository's rule is that a static reading is not a measurement.
+    What would close it: any one of the four cells landing on its predicted
+    sha256, with cell 2 being the one that separates address from length.
+
+98. **`FLW`'s command-table `argc` is 4 and `runsheet.md` `A2.5`/`A2.6` send it
+    three arguments.** The table at `0x8040DBC0` records
+    `FLW <dst_ROM_offset><src_RAM_addr><length_Byte> <SPI cnt#>` with `argc = 4`;
+    the bench ran the three-argument form successfully on 2026-08-17, so `argc`
+    is evidently not a hard requirement in the dispatcher. **What the fourth
+    argument does is unknown**, and it sits in the only irreversible section in
+    the runsheet. Answerable at the desk from the handler at `0x80409B6C`, and it
+    should be answered before `A2.5` is run again rather than during it.

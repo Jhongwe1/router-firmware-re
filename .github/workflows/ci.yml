@@ -182,6 +182,14 @@ jobs:
       - name: loader TFTP client — the transfer id, and the upload it must refuse
         run: bash tools/test-loader-tftp.sh
 
+      # Added in the same commit as the tool. Most of these cases are not
+      # refusals: each puts a real bug back into the payload's encoder and
+      # requires the build to fail. The bug that motivated them was in the first
+      # version of the tool — branch offsets computed against PC+8 — and it
+      # assembled, disassembled and looked correct.
+      - name: RAM payload — the seven bugs the build has to reject
+        run: bash tools/test-mkramboot.sh
+
       # And two more that were in `make ci` and not here — the same divergence
       # this job's own header describes, found again on 2026-08-18 and this time
       # in both directions at once: the ledger check was here and not in
