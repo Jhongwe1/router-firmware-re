@@ -459,7 +459,23 @@ def cmd_catch(args) -> int:
 
 # Commands that modify the device.  This tool exists to read; it refuses to be
 # the thing that bricked the only unit that gates G2 and G4.
-FORBIDDEN = ("FLW", "EB", "EW", "AUTOBURN", "J ")
+#
+# LOADADDR joined this list on 2026-08-21, and the reason is not that it writes
+# flash -- it does not.  It writes 0x8040D3A8 in the loader (handler 0x8040996C,
+# `strtoul(argv[0], NULL, 16)`), and that word is read by three things: where a
+# TFTP upload lands, where a TFTP read is served FROM (0x80401EF4), and what the
+# post-upload auto-execute path jumps to.  A command that decides where the next
+# upload is written is in the same class as AUTOBURN, and `cmd` says of itself
+# "this tool only reads".  It has a deliberate home in `rescue` instead.
+FORBIDDEN = ("FLW", "EB", "EW", "AUTOBURN", "LOADADDR", "J ")
+
+# The loader's own text, data and bss, from tools/loader-unpack.py: the second
+# stage is 56,592 bytes linked at 0x80400000, so its bss begins at 0x8040DD10.
+# A load address inside that range overwrites the program that is going to
+# perform the upload.  The bound is rounded up rather than exact, because the
+# stack is above the bss and this file does not know where.
+LOADER_IMAGE = (0x80400000, 0x80420000)
+KSEG = (0x80000000, 0xC0000000)
 
 
 def cmd_cmd(args) -> int:
@@ -505,10 +521,18 @@ def cmd_rescue(args) -> int:
       * it asserts the loader echoed `AutoBurning=0`. If the reply says 1, the
         run stops -- the command did the opposite of what was asked and nothing
         else should be sent.
-      * it never sends LOADADDR, never sends J, and uploads nothing. Entering
-        rescue and confirming its network answers is the whole of what P9-3's
-        frozen refutation asks ("if rescue mode cannot be entered..."), and an
-        upload is not part of that question.
+      * it never sends J, and uploads nothing. Entering rescue and confirming
+        its network answers is the whole of what P9-3's frozen refutation asks
+        ("if rescue mode cannot be entered..."), and an upload is not part of
+        that question.
+      * it sends LOADADDR only when asked to, and then records what the loader
+        echoed. That was "never sends LOADADDR" until 2026-08-21, on the
+        argument that P9-3 does not need it. P9-12 does: `put` lands at the
+        address in 0x8040D3A8 and `J` has to be given the same one, and until
+        this recorded it, the only source for the number a human typed into `J`
+        was the same human's memory. The guard that makes it safe is the same
+        one AUTOBURN has: a narrow range, checked here, and the refusal names
+        what is at the address it refused.
 
     The expected replies are not folklore: they are the format strings recovered
     from the loader's own LZMA second stage by tools/loader-unpack.py --
@@ -522,6 +546,18 @@ def cmd_rescue(args) -> int:
             raise ValueError
     except ValueError:
         fail(f"--ip {args.ip!r} is not a dotted quad")
+
+    if args.load_addr is not None:
+        a = args.load_addr
+        if a % 4:
+            fail(f"--load-addr {a:#x} is not word aligned")
+        if not KSEG[0] <= a < KSEG[1]:
+            fail(f"--load-addr {a:#x} is outside KSEG0/KSEG1 ({KSEG[0]:#x}..{KSEG[1]:#x})")
+        if LOADER_IMAGE[0] <= a < LOADER_IMAGE[1]:
+            fail(f"--load-addr {a:#x} is inside the loader's own image "
+                 f"({LOADER_IMAGE[0]:#x}..{LOADER_IMAGE[1]:#x}: 56,592 bytes of second "
+                 f"stage linked at {LOADER_IMAGE[0]:#x}, then its bss). An upload there "
+                 f"overwrites the program that is receiving it")
 
     con = Console(args.port, args.baud, args.verbose)
     report: dict = {"ip": args.ip, "steps": []}
@@ -563,6 +599,34 @@ def cmd_rescue(args) -> int:
                 "switch is unknown. That is not a state to bring a network up in."
             )
         print("  ok    autoburn is off")
+
+        # Between autoburn and the network on purpose: after IPCONFIG the loader
+        # is answering TFTP, and the address an upload lands at should not be
+        # in flux while it is.
+        if args.load_addr is not None:
+            print(f"  ==>   LOADADDR {args.load_addr:08X}   (where an upload lands, and "
+                  "where a read is served from)")
+            out = ""
+            for form in (f"LOADADDR: {args.load_addr:08X}", f"LOADADDR {args.load_addr:08X}",
+                         f"LOADADDR={args.load_addr:08X}"):
+                out = con.command(form.encode(), args.timeout).decode(errors="replace")
+                report["steps"].append({"sent": form, "reply": out})
+                if "Unknown command" not in out:
+                    print(f"  ok    the form this loader accepts is {form!r}")
+                    break
+                print(f"        {form!r} -> Unknown command !")
+            print(textwrap.indent(out.strip(), "        "))
+            # The loader prints `Set TFTP Load Addr 0x%x` (0x8040B440), so the
+            # echo is the confirmation.  %x is lower case and unpadded, which is
+            # why this compares on the value and not on the string that was sent.
+            if f"{args.load_addr:x}" not in out.lower():
+                raise DumpError(
+                    f"the loader did not echo {args.load_addr:#x}. The address an upload "
+                    "would land at is therefore unknown, and that is not a state to "
+                    "upload in")
+            report["load_addr"] = f"{args.load_addr:#010x}"
+            print(f"  ok    the loader reports its TFTP load address as "
+                  f"{args.load_addr:#010x}")
 
         print(f"  ==>   IPCONFIG {args.ip}")
         out = ""
@@ -810,6 +874,11 @@ def main(argv: list[str] | None = None) -> int:
                         help="P9-3: autoburn OFF, then bring up the loader's IP. "
                              "Uploads nothing, writes no flash")
     pr.add_argument("--ip", required=True, help="the address the loader answers on")
+    pr.add_argument("--load-addr", type=auto_int, metavar="HEX",
+                    help="also set the loader's TFTP load address (0x8040D3A8) and record "
+                         "what it echoed. This is where an upload lands, where a read is "
+                         "served from, and what J must be given. Default on this loader "
+                         "is 0x80500000")
     pr.add_argument("--port", default="/dev/ttyUSB0")
     pr.add_argument("--baud", type=int, default=38400)
     pr.add_argument("--window", type=float, default=120.0)

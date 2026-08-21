@@ -5617,11 +5617,11 @@ the loosened rule is still strictly narrower than "pick the first match".
   an instrument one. "Relatively isolated" is not yet a number: a scan taken
   before transmitting, recording how many BSSIDs are visible and at what RSSI,
   is what would turn it into a precondition that can fail.
-- **`P9-10` / `P9-12`'s loader tooling.** One thing was established at the desk
-  and it changes the design: the loader's strings are **TFTP *Client*** —
-  `**TFTP Client Upload File Size = %X Bytes at %X` and
-  `*TFTP Client Download Success!` — so the work is a TFTP **server** on the WSL
-  side, not an upload client. No tool was written.
+- **`P9-10` / `P9-12`'s loader tooling.** ~~The loader's strings are **TFTP
+  *Client***, so the work is a TFTP **server** on the WSL side.~~ **Struck
+  through: this was wrong, and it was corrected the same day — see
+  § Corrections below and `tools/loader-tftp.py`.** The tool was written after
+  the correction.
 - **The write-up draft.** Chapter 8 only acquired `WLAN_ROOT` today and chapter
   14 is waiting on this week's measurements. Drafting now means redrafting
   within the week, which `plan/W08` §六 forbids for its own reasons.
@@ -5664,3 +5664,895 @@ unchanged.
     advertise a PIN that no enrollee can complete, is unmeasured. **One source:
     this session computed the standard checksum in Python.** The second would be
     the vendor's own validator, if there is one, in `wscd` or `boa`.
+
+## W08 Day 1, second desk session — the loader is the TFTP server, and this repository had measured that four days ago — 2026-08-21
+
+**Desk only, no device.** `BENCH-LOG.md` 2026-08-21 補記 carries the correction
+in the append-only form; this section carries what it changed.
+
+### Instrument bug 49, and it is the one this project is supposed to be immune to
+
+Earlier today two format strings out of the loader's LZMA second stage were read
+as saying the loader is a TFTP *client*::
+
+    **TFTP Client Upload, File Name: %s
+    *TFTP Client Download Success! File Size = %X Bytes
+
+**"Client" names the peer.** The loader is the **server**, and the design
+conclusion drawn from that misreading — "the work is a TFTP server on the WSL
+side" — went into `PROGRESS.md` and `BENCH-LOG.md` and was **pushed**.
+
+**The measurement that settles it was already in this repository, from
+2026-08-17.** `BENCH-LOG.md` `T-09`:
+
+```
+TFTP RRQ(a filename that does not exist) -> 516 bytes DATA (opcode 3) from :2098
+```
+
+A read request was answered with data. The same record card carries two more
+facts that the tool is now built around, and both were filed as open and not
+pursued: **the filename is ignored** — a name that exists nowhere still returned
+a full block — and the 516 bytes were byte-identical to the `cr6c` payload at
+flash `0x060010`.
+
+**Three things about how this happened are worth more than the fix.**
+
+* **It is the repository's own first rule, broken in the week that exists to
+  enforce it.** One source — two format strings — read once, and a design
+  written on top of it. The second source was not missing, was not expensive,
+  and was not somewhere else: it was in the file the same session had appended
+  to four hours earlier.
+* **`console-dump.py` was already printing the answer.** Its `rescue` help text
+  lists what shows the link is live, and the third item is *"a TFTP read request
+  comes back with DATA"*. That sentence describes a server. It was read past.
+* **A wrong claim about protocol direction does not look wrong.** It produces a
+  tool that would have been built, tested, committed and taken to the bench,
+  where it would have sat listening on port 69 while the loader waited to be
+  asked. The failure would have arrived as "the rescue path does not work",
+  three power cycles into a session, pointing at the device.
+
+The one thing that went right: the tool was not written first. The design note
+was written first, and writing it out is what made the claim big enough to check.
+
+### `tools/loader-tftp.py`
+
+A TFTP **client**, three subcommands, and the protocol detail this loader makes
+load-bearing is the transfer id: **the reply comes from a fresh ephemeral port,
+not from 69** (`:2098` when the bench looked). The peer *address* is pinned and
+checked on every datagram; the peer *port* is learned from the first reply and
+pinned from then on. A client that filters on 69 sees nothing and reports the
+service as dead.
+
+| | |
+|---|---|
+| `probe` | one request, first block only, nothing written. Reproduces `T-09` and reports the transfer id |
+| `get` | the fast read path. `FLR` puts flash in RAM and this moves RAM over Ethernet — against **105 minutes** for 4 MiB through `DB` at 38400. **A second transport, not a second instrument**: both reach the die through the SoC's own SPI controller, so it rules out the serial line and rules out nothing else |
+| `put` | `P9-12`. With `AUTOBURN 0` an uploaded image lands in RAM and **no flash byte is written** |
+
+**`put` cannot see the console, so it does not pretend to.** It requires the
+JSON `console-dump.py rescue` writes, **parses it**, and refuses unless it finds
+`AutoBurning=0` for this same host — the switch that decides whether an upload
+is written to flash. A transcript showing `AutoBurning=1`, a transcript that
+never confirmed the switch, and a transcript for a different address are three
+separate refusals with three separate tests. `--yes` is required on top.
+
+**It does not send `J`.** A jump is a state change on the only unit there is and
+it belongs where a person is watching the console.
+
+### Instrument work
+
+| | |
+|---|---|
+| `tools/loader-tftp.py` | new. Refuses: a hostname where an address is required, an existing output file, a gap in the block numbers, an ERROR packet rendered as a short transfer, a transfer with no final short block, a datagram from another address, and every `put` whose rescue transcript does not vouch for it |
+| `tools/test-loader-tftp-fake.py` | new. A stand-in server that can **misbehave** — skip a block, answer with ERROR, never send a short block, drop the first request. A client whose tests only meet a well-behaved peer has no evidence its refusals fire |
+| `tools/test-loader-tftp.sh` | **17 cases**, two of them controls that must *succeed* (a 1500-byte read whose bytes are compared, not just counted; a 1536-byte upload compared byte for byte at the far end) |
+| `Makefile` · `.github/workflows/ci.yml` | added to **both**, in the same commit as the tool. `check-ci-parity.py` confirms 24 scripts in both lists |
+
+**The stand-in answers from a different port by default**, because that is what
+the loader did. Every read case is therefore also evidence that the client
+follows the transfer id rather than the port it asked.
+
+**A `--port` flag exists on the client and it is not for the device.** It is
+there so the whole file can be driven with no hardware attached. A network tool
+that can only be exercised by pulling the power on the only unit there is, is a
+network tool whose first real run happens at the bench.
+
+### Corrections to the plan
+
+- **`PROGRESS.md` W08 Day 1 and `BENCH-LOG.md` 2026-08-21 both said the work
+  here was a TFTP server. Both were wrong and both were pushed.** The PROGRESS
+  sentence is struck through in place and pointed here; `BENCH-LOG.md` is
+  append-only and carries a 補記, which is the third time that file has been
+  corrected by appending rather than editing.
+- **`runsheet.md` `B-W08` lists `P9-10` / `P9-12` as "no tool exists".** Half of
+  that is now false — the transfer tool exists — and the other half is not:
+  nothing has been sent to a loader yet. Recorded here; `B-W08` is append-only.
+
+### Deliberately not done
+
+- **Nothing was sent to the device.** The client has never met the loader. Every
+  claim above about what it will do at the bench is a claim about a program, not
+  about a conversation.
+- **`P9-10` is untouched.** It needs `AUTOBURN 1`, which writes flash, and this
+  tool has no path that sends it. `P9-12` is the non-destructive half and it is
+  the one with a procedure.
+- **`J` is not automated**, and the reason is in the tool's own output rather
+  than only here.
+
+### Open, carried forward
+
+Unchanged, plus:
+
+96. **What does the loader serve, and from where?** `T-09` recorded 516 bytes
+    matching the `cr6c` payload at flash `0x060010`, from a filename that exists
+    nowhere. Whether the loader serves *RAM at the load address* or reads flash
+    itself decides whether `get` is a fast path for `FLR` output or a second
+    reader of the part. **It is answerable in one visit**: `FLR` a range with a
+    distinctive pattern into RAM, then `get`, and see whether the bytes follow
+    the `FLR`. Until that is done, `get` is a transport whose source is assumed.
+## W08 Day 1, third desk session — the probe would have sent the operator to re-seat a clip that was working — 2026-08-21
+
+**Desk only, no device, nothing clipped.** This is the desk half of the clip
+session; `BENCH-LOG.md` 2026-08-21 進站場次 carries the plan and the four
+predictions added before anything was seated. The session was supposed to start
+at `A5.2`. It could not have: `A5.2` as written would have failed on a working
+chip and named three wrong causes.
+
+### Instrument bug 51 — the probe asked flashrom for a verbosity at which the line it parses is not printed
+
+`tools/flash-read.sh probe` runs `flashrom -V` and then greps the log for
+`RDID returned 0x.. 0x.. 0x..`. **flashrom 1.3.0 prints that line only at
+`-VVV`.** Measured against flashrom's own `dummy` programmer, with no clip, no
+router and no CH341A on the bus:
+
+```
+  flags none    RDID lines: 0    identification lines: 1    log bytes: 825
+  flags -V      RDID lines: 0    identification lines: 2    log bytes: 62274
+  flags -VV     RDID lines: 0    identification lines: 2    log bytes: 62321
+  flags -VVV    RDID lines: 6    identification lines: 2    log bytes: 328776
+  flags -VVVV   RDID lines: 6    identification lines: 2    log bytes: 328777
+```
+
+So the chip answers, flashrom matches it, and the tool finds nothing — and then
+reports **`no JEDEC id came back. The chip is not answering.`** followed by three
+candidate causes: the router still powered, pin 1 misaligned, the clip too
+narrow. **All three are wrong**, and the third sends the operator back to
+re-measure a body width that passed as `T-85` the same morning. The stop
+condition frozen in `BENCH-LOG.md` 2026-08-20 §3 says do not retry a third time —
+so the next step would have been to unclip and re-seat **a part that was working
+perfectly**, on the section the whole week's argument rests on.
+
+**And it had two homes.** `tools/flash-write.sh`'s `identify()` carried the
+same two lines. Its consequence is different and worse: it does not misreport,
+it **refuses** — `no JEDEC id came back. Not writing a chip that is silent.` —
+so **every write scheduled for tonight would have been blocked**: `A5.4`'s
+rehearsal, `A5.5`'s five bytes, and `A5.5`'s restore. The session would have
+halted mid-cycle with the clip seated and three power cycles already spent, and
+the stated reason would have named a part that was answering. **A tool that
+fails safe can still cost a whole session, if it points at the wrong thing.**
+
+**The fix is not the flag.** Changing `-V` to `-VVV` leaves the same failure
+waiting for the next time flashrom moves its output. What changed is that the
+tool now **distinguishes the two failures**: if the log contains any flashrom
+identification line, the bus carried a transaction, so what is missing is the
+line, not the answer — and re-seating cannot fix a line. It now prints
+**`DO NOT RE-SEAT THE CLIP`** in that case. `rdid_failure_kind` is that sentence,
+and it is a separate function so that two guard cases can feed it the two logs.
+
+### Instrument bug 50 — four lines that had never printed, and they are the second source `P9-7` exists to obtain
+
+The same file parsed flashrom's identification line with
+`Found [^\n]*flash chip "[^"]+"`. **`[^\n]` inside a POSIX bracket expression is
+not "any character except newline" — it is "neither a backslash nor the letter
+n".** flashrom prints `Found Eon flash chip "EN25QH32" (4096 kB, SPI)`, and
+`Eon` contains an `n`. Verified against the real string: no match; with `.` in
+place of the bracket: match.
+
+**That line has never been printed, and the runsheet's expected output did not
+contain it either**, so nothing would have reported it missing. A parse that
+returns nothing prints nothing.
+
+A second pattern was empty for a different reason: the version regex required
+`flashrom [0-9]`, and Debian and Ubuntu build the package with no version
+string, so this binary says `flashrom unknown on Linux …`. **The probe log is
+the provenance record for a 4 MiB dump that is about to become the second source
+for every byte-level claim in this project, and it recorded no reader.**
+
+### flashrom's table is keyed on the id, and two committed files said the opposite
+
+`RUNBOOK.md` §8.12.41 stated that flashrom's chip database is indexed by model
+name, and therefore is not a second source for the part. `test-cases.toml`
+`P9-7`'s `predict` says the same thing. **It is false**: flashrom matches
+`manufacture_id` and `model_id`, and the name is the *output* of that lookup.
+
+**Settled without reading the source, and without hardware.** Told to emulate
+`W25Q128FV`, flashrom reports `W25Q128.V` — **a different string comes out than
+went in**, which a name-keyed lookup cannot do.
+
+So flashrom's answer is a second source for *which part these three bytes are* —
+not for *what the three bytes say*, which is the same clip on the same bus. That
+is exactly the question `P9-7` asks, whose single source is the silkscreen. **The
+source existed, was already installed, and was being discarded by a typo.**
+
+### `LOG.md` was ten commits behind, and nothing in CI looks at it
+
+`LOG.md` had not been touched since `9a26f4b`. Four sessions were missing: the
+2026-08-19 instrument session (bugs 45 and the kernel-source claim), W08 Day 0,
+W08 Day 1, and W08 Day 1's second desk session. `grep -rn "LOG.md" Makefile
+tools/ .github/workflows/` returns nothing.
+
+**Every other narrative file in this repository has a guard.**
+`check-benchlog.py` pairs `BENCH-LOG.md` headings to `PROGRESS.md` session
+headings with 17 cases; `check-runsheet.py` holds the runsheet to its split;
+`check-reports.py` holds the reports to their inputs. The one file with no guard
+is the one that drifted, and it drifted silently while `make ci` stayed green.
+The four entries were written by hand this session.
+
+### Instrument work
+
+| | |
+|---|---|
+| `tools/flash-read.sh` | four parses of *another program's output* extracted into `parse_chip_name` / `parse_chip_verb` / `parse_flashrom_version` / `parse_rdids`, because that is the class of claim two of them were wrong about. `probe` now runs at `-VVV`; reads are deliberately still quiet, so a 4 MiB read does not drag a spew log behind it |
+| `tools/flash-read.sh` | `rdid_failure_kind` — "the bus is suspect" and "the line was not printed" are different failures with different fixes, and until today both printed the message that says re-seat the clip |
+| `tools/flash-read.sh` | `Found` vs `Assuming` is now reported. A name flashrom was **told** with `-c` is this project's own input read back to it, and calling that a second source is the same error one layer down |
+| `tools/flash-read.sh` | `FLASH_READ_PROGRAMMER`, for tests only: `probe` can be driven against flashrom's `dummy` on any desk. **`read` refuses outright when it is set** — a 4 MiB image of a chip that does not exist must never reach `dumps/MANIFEST.json` |
+| `tools/lib/flashrom-parse.sh` | **new, and it is the actual fix.** Every belief this repository holds about the *text* flashrom prints, in one place, sourced by both tools that drive the clip. **The forbidden regions are deliberately NOT shared** — two independent paths refusing the same two ranges is what makes "this project does not write the boot loader" a property of the project rather than of one script. That is a *policy*, and a duplicated policy is a confirmed one. Another program's output format is a *fact*, and duplicating it is how one wrong belief got two homes |
+| `tools/flash-write.sh` | same two lines, same fix, and the refusal now names which of the two failures it is |
+| `tools/test-flash-tools.sh` | **18 → 39 cases** (`bash tools/test-flash-tools.sh` recounts it). Ten drive the parsers against captured flashrom text; four drive `probe` end to end against a real flashrom via the dummy, including one asserting a **wrong** prediction still fails the probe; seven hold both tools to the shared owner |
+| all three guards | reinstated in a copy of the tree and each watched go red: bug 50 fails the chip-name case, bug 51 fails the end-to-end case, and a re-hardcoded `-V` in `flash-write.sh` fails the divergence case. A guard that has never been seen to fail is instrument bug 12's shape |
+| the divergence guard | **guards tomorrow rather than today.** The defect was not the regular expression; it was that there were two of it. That case fires the moment either tool grows its own probe verbosity or its own copy of the parse |
+
+### Corrections to the plan
+
+- **`RUNBOOK.md` §8.12.41's claim that flashrom's database is name-indexed is
+  wrong and is corrected in place**, with the measurement that settles it. That
+  file owns the argument, so the argument is where the correction goes.
+- **`test-cases.toml` `P9-7`'s `predict` carries the same wrong claim and is
+  *not* edited.** Rewriting a prediction an hour before the measurement, in the
+  direction that improves it, is not different in kind from rewriting it after.
+  The divergence is recorded here and will be recorded on the row's own result.
+- **`runsheet.md` `A5.2`'s expected output was incomplete in a way that hid a
+  defect**: it did not list the chip-name line, so the line's absence looked
+  like the intended output. The expected block now carries every line the tool
+  prints, and the stop conditions carry both failure kinds.
+- **`BENCH-LOG.md` 2026-08-20 §3's stop conditions are unchanged.** What changed
+  is that the tool can now tell the operator which of them applies. That file is
+  append-only and tonight's entry says so rather than editing it.
+
+### Deliberately not done
+
+- **`LOG.md` gets no CI guard.** Proposed and declined by the author this
+  session: `LOG.md` is prose and should not be paced by a checker. Recorded here
+  rather than dropped quietly, because the consequence is real — the next drift
+  will also be invisible to `make ci`, and only a human read will catch it.
+- **Open item 92 is untouched**, for the reason it was written with: the fix is
+  a station argument to `bench-doctor.sh`, that changes which checks run, and it
+  is not being made with a clip in hand. Tonight's two `FAIL`s at station 5 are
+  expected and `A5.1` says which two.
+- **Nothing was clipped and nothing was powered.** Every claim here about
+  flashrom was measured against its `dummy` programmer. **The threshold at which
+  `RDID returned` appears has been measured on one programmer**, and the line
+  comes from flashrom's programmer-independent SPI probe path — the confirmation
+  on the CH341A is prediction 14 in tonight's bench entry, not an assumption
+  being carried forward silently.
+- **The `EN25QH32B` datasheet ordering code is still unread**, as `T-85`
+  recorded. It remains the one available-and-untaken source of a different kind
+  — a document rather than a measurement.
+
+### Open, carried forward
+
+66, 67, 69, 70, 71, 74, 75, 77, 78, 79, 81, 82, 84, 85, 86, 87, 88, 89, 91, 92,
+93, 94, 95, 96 — unchanged.
+## W08 Day 1, the clip session — three supplies, one voltage, and not one byte read — 2026-08-21
+
+**The device was never powered and its flash was never read.** `A5.2`'s `probe`
+did not run, `A5.3` did not run, `A5.4` and `A5.5` did not happen. The reason is
+not time: **the chip never reached operating voltage.** `BENCH-LOG.md`
+2026-08-21 實錄 carries the sequence and every number verbatim; this section
+carries what it changed.
+
+### The result is a negative one, and it has a number attached
+
+Seating the SOIC-8 clip on `U19` takes the **CH341A itself** off the USB bus.
+Reproducible both ways: clip on, the programmer disappears from
+`usbipd list`; clip off, it returns. No USB over-current or power-surge event
+appears in the Windows System log at any point, and **no LED on the router lit
+at any point in the session.**
+
+Three supply configurations were tried, and the number that matters did not move:
+
+| supply | `VCC` measured at the chip |
+|---|---|
+| the CH341A's own 3.3 V rail | **1.70 V** — and the programmer browns out with it |
+| a rear motherboard USB 2.0 port, no hub, no extension | **1.70 V** |
+| an **ESP8266's regulator** injected into the CH341A's 3.3 V rail | **1.7 V**, while the supply side measured **3.3 V** |
+
+The third row is the informative one. It keeps the programmer alive — so the
+CH341A's own supply was one of the causes — and it **still does not raise the
+chip**. Whatever limits this is not the host's USB port and not the programmer's
+regulator.
+
+**The cold resistance and the loaded voltage are not in conflict.** `VCC` to
+`GND` on the unpowered board measures **8 kΩ climbing past 10 kΩ and still
+rising**. A meter's resistance range applies under a volt, which is below the
+threshold where the board's silicon conducts; at 1.7 V it conducts. **It is a
+non-linear load, and an ohmmeter cannot see it.**
+
+### What was measured, and what was not — the distinction is the whole entry
+
+**Measured:** in-circuit reading of `U19` with this CH341A and this clip does not
+work on this board. The chip does not reach operating voltage under any supply
+tried.
+
+**Not measured, and now open item 97:** whether the 1.7 V is the target board
+**clamping** the `VCC` net, or **series resistance** in the clip and ribbon.
+Separating them needs a current measurement or an out-of-circuit read, and
+neither was available: the clip's ribbon terminates in a fixed header, so
+nothing can be inserted in series with `VCC`.
+
+### `probe` was not run, and that was a decision rather than an omission
+
+1.7 V is outside the part's operating range. **A read taken there that looks
+correct is worse than one that fails**, because `A5.3` compares 4,194,304 bytes
+against the `FLR` dump byte for byte — and a handful of bits wrong from
+undervoltage renders as *"two instruments disagree about one die"*, which is
+precisely the confound `P9-5` exists to remove. **A test that manufactures the
+confound it was designed to eliminate is not measuring what it thinks.**
+`runsheet.md` `A5.2` now gates on the voltage before `probe`, and
+`RUNBOOK` §8.12.41 carries the argument.
+
+### The stop conditions frozen before the session did not cover what happened
+
+`BENCH-LOG.md` 2026-08-20 §3 lists four, and **every one of them imagines the
+tool returning a wrong answer**: `A5.1` not passing, `no JEDEC id`, `MORE THAN
+ONE id`, `A5.3` not producing a screened image. What happened is that the tool
+**lost power before it could answer**. No condition fires for that, and the
+operator's default next action — re-seat the clip — is repair applied to a thing
+that is not broken. The gap is recorded in `RUNBOOK` §8.12.41 and the voltage
+gate in `A5.2` is what closes it.
+
+### Corrections to the plan
+
+- **`B-W08`'s cycle table assumed the clip station would produce a read.** Cycles
+  1 through 4 — `A5.3` seat-a/seat-b, `A5.4`, `A5.5`'s write, the reboot
+  verification, `seat-c`, the restore — none of them happened. `B-W08` is
+  append-only and is not edited; this is the record that it did not run.
+- **`A5.2`'s precondition list was incomplete.** It required `A5.1` passing, the
+  router unplugged and pin 1 aligned. It did not require the chip to have
+  operating voltage, because "the clip powers the chip" was assumed rather than
+  checked. It is now a written gate with a number.
+- **Four explanations were offered for the failure during the session and three
+  were refuted by the meter**: the main-rail-loads-it explanation died on the
+  8–10 kΩ cold reading; the inrush-ordering explanation died when clip-first
+  then-power failed identically; the inrush-capacity explanation died on `VCC`
+  still sitting at 1.70 V ten seconds in. The fourth — a clamp — is open item 97
+  and is *not* being written as a conclusion.
+
+### Deliberately not done
+
+- **No register row was recorded.** `P9-5`, `P9-6` and `P9-7` stay `⬜`.
+  `rtcase record` offers `confirmed / na / partial / refuted`, and what was
+  measured tonight is **whether the instrument can reach the part**, not anything
+  about the part. Filing an instrument measurement as a verdict on a device test
+  is a category error, and recording one would freeze predictions on rows that an
+  out-of-circuit read could still close properly. `make todo WEEK=W08` continues
+  to list all three as outstanding, which is true.
+- **`U19` was not desoldered.** It is the definitive answer and it is the only
+  unit; it is a planned session with the right tools, not an improvisation at the
+  end of a long night.
+- **No fourth seating.** Three attempts across three supply configurations gave
+  one number. A fourth repeats an experiment rather than changing a variable, and
+  each attempt back-powers the board through the part's `VCC`.
+
+### Open, carried forward
+
+66, 67, 69, 70, 71, 74, 75, 77, 78, 79, 81, 82, 84, 85, 86, 87, 88, 89, 91, 92,
+93, 94, 95, 96 — unchanged.
+
+97. **Is `U19`'s `VCC` net clamped by the board, or is the drop series resistance
+    in the clip path?** Three supplies of very different capability all leave the
+    chip at ~1.70 V while the supply side holds 3.3 V. A voltage that does not
+    move with supply strength reads as a clamp; a voltage that drops across a
+    path reads as resistance; **this session separated neither.** Two things
+    settle it and both need something not on the desk: a current measurement in
+    series with `VCC` — impossible while the clip's ribbon ends in a fixed header
+    — or an out-of-circuit read after `U19` comes off the board. Until then the
+    committed claim is only that in-circuit reading does not work here, **not why.**
+
+## W08 Day 1, fourth desk session — the experiment would have run correctly and published the wrong answer — 2026-08-21
+
+**Desk only, no device, nothing connected.** `BENCH-LOG.md` 2026-08-21 桌面第四場
+carries the plan and the thirteen predictions, written before anything is plugged
+in. The session was going to be the write-up of `A2.7`. It became the demolition
+of it.
+
+**Open question 96 was answered from the loader's own second stage, and the
+answer is neither of the two the question offered itself.**
+
+### What the loader serves, and from where
+
+`objdump` over `$FWRE_WORK/stage2.bin` — the LZMA second stage decompressed out
+of flash `0x0012F0`, 17,334 → 56,592 bytes, linked at `0x80400000`. The TFTP read
+path is one function:
+
+| | |
+|---|---|
+| `0x80401ED4` | serves `[0x8040D3A8] + (block-1)*512`, for `[0x8040DD28]` bytes |
+| `0x8040D3A8` | the TFTP load address. **Initialised to `0x80500000`** in `.data` (file offset `0xD3A8`); written by `LOADADDR` (`0x80409988`) and by the `boot.img` upload path (`0x80401258`, forced to `0x80000000`) |
+| `0x8040DD28` | the transfer length. Written by **`FLR`'s third argument** (`0x80409A04`) and by the completion of an upload (`0x80401AB8`). It is in `.bss`, which begins at `0x8040DD10` |
+
+So **`get` is a fast path for `FLR`'s output only when `FLR`'s destination
+happens to equal `LOADADDR`.** What `FLR` lends to TFTP is the *length*, not the
+address. Full derivation, the recovered 17-entry command table, the `J` handler
+and the write path: [`notes/loader-tftp-and-commands.md`](notes/loader-tftp-and-commands.md).
+
+It also explains `T-09` in a way nothing had: the 516 bytes that matched flash
+`0x060010` came from RAM at `0x80500000`, and **nothing in that session put them
+there.** The loader did — which means it stages the `cr6c` payload into RAM
+*before* it offers the ESC window. That is now prediction 1 of the next visit and
+it costs one `DB`.
+
+### `A2.7` was wrong in four ways, and the fourth is the one worth keeping
+
+Three of them would have stopped the section before a byte moved: a hand-typed
+`FLR 300000 81000000 1000` carrying **`FLW`'s argument order**; sent through
+`console-dump.py cmd`, which has no handling for `(Y)es , (N)o ?`; with no
+`--at-prompt`, so a board already sitting at `<RealTek>` would have got 120
+seconds of ESC and then *"nothing came back at all. TX/RX swapped, wrong port, or
+the board never powered on"* — three causes, none of them real. That is the same
+shape as `A5.2` twelve hours earlier: a step that fails, with a message pointing
+somewhere else.
+
+**The fourth would not have failed.** The section's truth table had two outcomes:
+two `get`s differ → the loader serves RAM at the load address; identical → it has
+a fixed source of its own. Both `FLR`s targeted `0x81000000`, which is not the
+load address, so the two files are necessarily identical — **the comparison runs
+correctly, returns `0`, and the section concludes the second thing.**
+
+A correct measurement mapped to the wrong answer is worse than a failed one,
+because nothing about it looks wrong.
+
+**The common cause of the first and the fourth is one rule, already in
+CLAUDE.md**: `FLR`'s argument order has an owner, `tools/console-dump.py`'s
+`flr()`, and the runsheet had copied it out by hand. `tools/check-runsheet.py`'s
+own docstring says it does not check semantics — it validates that every flag
+exists and every subcommand is real, and a reversed positional argument is
+invisible to it, honestly so. The fix is not a new check. **`A2.7` no longer
+contains a hand-typed `FLR` at all**; an `FLR` is now `console-dump.py dump`, and
+the order lives in code.
+
+### The replacement is four cells with a hash each, computed before the visit
+
+Each cell moves exactly one variable, and each expected sha256 was computed from
+`dumps/flash-n150rt-console-2.bin` at the desk:
+
+| after | bytes | sha256 | what it isolates |
+|---|---|---|---|
+| nothing | 0 | `e3b0c442…` | the length global is in `.bss` and starts at 0 |
+| `FLR` `0x010000` → `0x81000000`, len `0x1000` | 4096 | `3c586859…` | length follows `FLR`; **address does not** |
+| `FLR` `0x180000` → `0x80500000`, len `0x1000` | 4096 | `06c9622f…` | content follows `FLR` only at the load address |
+| `LOADADDR 81000000` | 4096 | `e7335bc0…` | the served address follows `LOADADDR` |
+
+**A result landing on none of the four rows refutes the static reading**, which
+the previous design could not do to itself.
+
+### Instrument work
+
+| | |
+|---|---|
+| [`tools/mkramboot.py`](tools/mkramboot.py) | new. Builds the RAM payload `P9-12` needs: ~40 instructions of big-endian MIPS that print a nonced banner to the UART and repeat. UART addresses read out of **the loader's own putchar** at `0x80406B6C`, bounded spin included. Every build **simulates** the encoded words against a stand-in UART and refuses unless the bytes emitted are exactly the banner |
+| [`tools/test-mkramboot.sh`](tools/test-mkramboot.sh) | **26 cases**, seven of which put a real bug back into the encoder and require the build to go red |
+| `tools/loader-tftp.py` | `--attribute` on `probe`/`get` (locate the served bytes in a dump, exactly one offset or it says so); `put` refuses the loader's two auto-execute filenames; `put` bounds the age of the rescue transcript; `--expect-load`. **17 → 30 cases** |
+| `tools/console-dump.py` | `LOADADDR` joins `FORBIDDEN` for `cmd`; `rescue --load-addr` gives it a guarded home and records the loader's echo. **18 → 23 cases** |
+| `Makefile` · `.github/workflows/ci.yml` | `ramboot`, `ramboot-test` added to **both** in the same commit |
+
+**Three of those are guards that could not previously fail in the way that
+mattered.** `put`'s rescue check verified the host and the echo and not the age —
+and `AUTOBURN` is a RAM variable in the loader (`0x8040D4A0`) that a power cycle
+clears, so a transcript from four days earlier passed every check while saying
+nothing about the loader currently listening. The cost of being wrong there is a
+flash write to the only unit.
+
+**And the payload's first version was wrong.** Branch offsets computed against
+`PC+8` — the way the offset is usually described — so every branch landed one
+word early. It assembled, `objdump` disassembled it without complaint, and it
+would have printed the first byte of the banner forty-one times. What caught it
+was the simulator, and what settled the arithmetic was two `beqz` instructions in
+this loader's own putchar rather than a reference.
+
+### Prior art, checked before the finding was written
+
+The loader's upload path tests the filename against `nfjrom` and `boot.img`
+(`0x80401208`, `0x8040122C`) and on a match jumps to the load address the moment
+the transfer completes — no `J`, nobody at the console. `notes/prior-art.md` had
+nothing on the boot loader, so the search went outside it and **came back full**:
+`nfjrom` is Realtek's own MP-image name, `nfjrom.script` appears in rtl819x
+bootcode trees published under the GPL by other vendors, and the recovery flow —
+including the `192.168.1.6` default this build still carries at `0x8040EDC0` — is
+on the OpenWrt wiki. It is recorded because it changes how a *tool* should
+behave, not because the project found it. It is also not a remote defect: the
+loader answers on the network only after `IPCONFIG` is typed at the console.
+
+### Deliberately not done
+
+- **Nothing was sent to the device.** Every claim above is about a program and a
+  binary. `A2.7` is the confirmation and it has not been run.
+- **`A2.3`, `A2.5`, `A2.6` are excluded from the next visit**, and `A2.3` is the
+  one worth naming: it is the usual opening step, and running it would set the
+  TFTP length global before cell 1 could ask whether that global is where the
+  length comes from. A harmless preparatory step is a contaminant in this section.
+- **The auto-execute filenames are not being tested.** `--allow-autoexec` exists
+  and this visit will not use it.
+- **`P9-10` untouched.** It needs `AUTOBURN 1`, and it waits for `P9-12`.
+
+### Open, carried forward
+
+66, 67, 69, 70, 71, 74, 75, 77, 78, 79, 81, 82, 84, 85, 86, 87, 88, 89, 91, 92,
+93, 94, 95, 97 — unchanged.
+
+96. **Answered statically, and it stays open until it is measured.** The
+    mechanism, the addresses and the two globals are in
+    `notes/loader-tftp-and-commands.md`; the confirmation is `runsheet.md`
+    `A2.7`'s four cells, each with a hash computed before the visit. It is listed
+    here rather than struck out because **nothing has been sent to the device**,
+    and this repository's rule is that a static reading is not a measurement.
+    What would close it: any one of the four cells landing on its predicted
+    sha256, with cell 2 being the one that separates address from length.
+
+98. **`FLW`'s command-table `argc` is 4 and `runsheet.md` `A2.5`/`A2.6` send it
+    three arguments.** The table at `0x8040DBC0` records
+    `FLW <dst_ROM_offset><src_RAM_addr><length_Byte> <SPI cnt#>` with `argc = 4`;
+    the bench ran the three-argument form successfully on 2026-08-17, so `argc`
+    is evidently not a hard requirement in the dispatcher. **What the fourth
+    argument does is unknown**, and it sits in the only irreversible section in
+    the runsheet. Answerable at the desk from the handler at `0x80409B6C`, and it
+    should be answered before `A2.5` is run again rather than during it.
+
+## W08 Day 1, station 2 — four cells, four predicted hashes, and a payload the simulator certified that the silicon refused — 2026-08-21
+
+**`BENCH-LOG.md` 2026-08-21 第 2 站進站場次 carries what was typed and seen, and
+the 補記 under it corrects this session's own scoreboard.** Two power cycles,
+**zero flash bytes written**, `P9-12` closed `confirmed`.
+
+Eleven of thirteen frozen predictions hit. **One was refuted — prediction 11 —
+and that refutation is the most valuable thing this session produced.** One
+(prediction 12) was simply not run.
+
+### Open question 96 is closed by measurement
+
+Four cells, each moving one variable, each with a sha256 computed at the desk
+from `dumps/flash-n150rt-console-2.bin` before the visit:
+
+| after | bytes | sha256 | predicted? |
+|---|---|---|---|
+| nothing | 0 | `e3b0c442…` | ✅ |
+| `FLR 0x010000` → RAM `0x81000000`, len `0x1000` | 4096 | `3c586859…` | ✅ |
+| `FLR 0x180000` → RAM `0x80500000`, len `0x1000` | 4096 | `06c9622f…` | ✅ |
+| `LOADADDR 81000000`, no `FLR` | 4096 | `e7335bc0…` | ✅ |
+
+**The loader's TFTP read serves `[0x8040D3A8] + (block-1)*512` for
+`[0x8040DD28]` bytes. `LOADADDR` owns the address; `FLR`'s third argument owns
+the length.** So `get` is a fast path for `FLR` output *only* when `FLR`'s
+destination equals `LOADADDR` — which is neither answer the question offered
+itself, and is the opposite of what the section's previous design would have
+concluded.
+
+Three things came free with it:
+
+* **`DB 80500000 64` before anything else returned flash `0x060010` byte for
+  byte.** Nothing this session put it there — the `FLR`s came later. **The
+  loader stages the `cr6c` payload into RAM before it offers the ESC window**;
+  the boot log's `+5.84 Jump to image start=0x80500000` is the jump, not the copy.
+  That also explains `T-09` from 2026-08-17, which had sat unexplained.
+* **`IPCONFIG` does not reset the length global** — cell 4 sent no `FLR` and
+  still served `0x1000` bytes.
+* **Port 2098 is a constant, and it increments per completed upload.** Every
+  reply came from `:2098`; the read after the first `put` came from `:2099`,
+  twice, on two separate boots.
+
+And the `?` command set printed by the device matched the 17-entry table
+recovered from `.data` at `0x8040DBC0` line for line — the static table
+recovery confirmed by the device itself.
+
+### `P9-12` — `confirmed`, and how it nearly wasn't
+
+`J 80500000` handed control to a 156-byte image the device has never seen. The
+loader printed `---Jump to address=80500000` (`0x8040B35C`) and the payload then
+printed `*** N150RT RAMBOOT P9-12 4baee517 ***` repeatedly. **The marker and the
+nonce occur zero times in the 4 MiB dump and zero times in the decompressed
+loader stage 2**, checked before the build rather than after the console.
+
+Zero flash bytes written, argued three ways: `AutoBurning=0` echoed in that same
+boot; autoburn read at exactly one place, `0x80401B9C`, where a `beqz` skips the
+burn routine; and the `cr6c` header plus the boot loader head verified unchanged
+afterwards. The upload was *also* proved to land by a **byte-identical TFTP round
+trip taken before any jump** — which converts "did the upload arrive" from
+unverifiable-without-executing into a `cmp`.
+
+### The result worth more than the row: a model kinder than the device
+
+**The first jump printed `*** N150RT RAM` and nothing more — exactly 16 bytes per
+iteration, 272 times over ten minutes.** 16 is the 16550's transmit FIFO depth.
+
+`andi t2,t2,0x60` sat in the **load delay slot** of `lbu t2,0(t1)`, so it masked
+the *previous* line-status reading, which after the first character is
+permanently non-zero. The wait loop never waited; 41 bytes went out back to back;
+the FIFO took 16 and dropped 25 — with the nonce among them.
+
+`tools/mkramboot.py` simulates every build and had reported *"it emits `*** N150RT
+RAMBOOT P9-12 4baee517 ***` and repeats"*. **It models a core with load
+interlocks. This one has none.**
+
+The second source cost two minutes and was available before the bench:
+**1,474 loads in the loader's own second stage, 646 followed by an explicit
+`nop`, and not one — 0.00% — followed by an instruction that reads what it
+loaded.** That is a compiler honouring an architecturally exposed load delay
+slot. The confirmation was a single-variable experiment: two `nop`s, nothing
+else changed, full banner.
+
+**And the answer was inside the routine being copied.** The loader's putchar has
+a `nop` at `0x80406B88`. Its addresses were copied, its 6540-iteration bound was
+copied, and that instruction was discarded as padding.
+
+This is the third time in one session a model erred in the forgiving direction —
+after the simulator sharing the encoder's constants, and the `PC+8` branch
+offset. The pattern is worth more than any of the three: **a model that is
+kinder than the device certifies exactly the bugs the device will reject.**
+`tools/test-mkramboot.sh` is **26 → 28 cases**; the simulator now refuses any
+instruction that reads a register in the load delay slot, and both slots have a
+reverse-verified case.
+
+### Instrument correction
+
+`tools/bench-doctor.sh` printed *"has carrier (the other end is powered and
+negotiated)"*. It said that on 2026-08-21 with the router unpowered on the desk,
+and on 2026-08-18 with it demonstrably unplugged. `runsheet.md` `A3.1` already
+carried the warning that this rtl8153 asserts carrier into thin air; the doctor
+was contradicting the runsheet. Reworded to report the carrier and name what it
+is not evidence of.
+
+### Deliberately not done
+
+- **`A2.3`, `A2.5`, `A2.6` were skipped**, and `A2.3` on purpose: it is the usual
+  opening step, and its `FLR` would have set the TFTP length global before cell 1
+  could ask whether that global is where the length comes from.
+- **The auto-execute filenames were not tested.** `--allow-autoexec` exists and
+  was not used.
+- **Prediction 12 was not run** — see below.
+
+### Open, carried forward
+
+66, 67, 69, 70, 71, 74, 75, 77, 78, 79, 81, 82, 84, 85, 86, 87, 88, 89, 91, 92,
+93, 94, 95, 97, 98 — unchanged.
+
+96. **Closed.** Answered statically on 2026-08-21 and confirmed the same evening
+    on four pre-registered hashes. Mechanism and addresses:
+    [`notes/loader-tftp-and-commands.md`](notes/loader-tftp-and-commands.md);
+    what was typed and seen: `BENCH-LOG.md` `T-86` / `T-87`.
+
+99. **Does the loader really take the switch ports down on the way out of `J`?**
+    `0x804092F4` clears one bit in each of `0xBB804104`–`0xBB804114` before
+    jumping, and prediction 12 said the network would be dead afterwards. **It
+    was never checked** — after the jump nobody ran `get` or looked at
+    `ip neigh`. That is a planned step skipped in execution, not an inapplicable
+    one, and it costs one command at the next visit.
+
+100. **Is the RTL8196E's load delay slot exposed for *stores* and for the
+     `mfc0`/`mtc0` pair too?** This session established it for loads, from 1,474
+     samples and one silicon experiment. Nothing here says anything about the
+     other classic MIPS-I hazards, and `tools/mkramboot.py`'s simulator models
+     none of them — so the next payload that uses a coprocessor register or
+     depends on store ordering will be certified by a model that has not been
+     checked against this core.
+
+## W08 Day 1, fifth desk session — the fourth argument was answered by the line that was commented out, and the table it came from was transcribed wrong — 2026-08-21
+
+**`BENCH-LOG.md` 2026-08-21 第五場（桌面）carries the plan this session changed
+and the predictions frozen before the next power-on.** Nothing was sent to the
+device. Open #98 is closed statically; three new register rows carry what the
+device would have to say to refute it.
+
+### `FLW`'s fourth argument is never read, and the console's `#1` is a literal
+
+Open #98 asked what `<SPI cnt#>` does. It does nothing. The handler at
+`0x80409B6C` runs three `strtoul`s — `argv[0]`, `argv[1]`, `argv[2]` — and stops.
+Two constants carry the rest:
+
+* `0x80409BE4` `li a2,1` is the `%d` in `Write 0x%x Bytes to SPI flash#%d, …`.
+  The number the console prints is not read from anywhere.
+* `0x80409C14` `move a0,zero` is the chip index handed to the writer at
+  `0x80404FE4`, which multiplies it by 72 to index a descriptor array at
+  `0x8040FBD4` and calls its `+0x38` method. **The loader really is multi-chip
+  capable** — its own auto-burn path uses index 1 at `0x80401848` with a
+  destination offset of 0, which is how an image overrunning chip 0 gets its
+  tail written to the start of chip 1. The interactive `FLW` is the one caller
+  that cannot reach it.
+
+So `runsheet.md` `A2.5`/`A2.6` sending three arguments was never a shortcut that
+happened to work: **three is the only form there is.** A fourth token is
+tokenised, stored in the argv array, and never loaded.
+
+**And the count in the table is not enforced anywhere.** Exactly two
+instructions in the whole image build the table's address — `0x80409170` and
+`0x80409AC4` — and between them they read offsets 0, 8 and 12. Nothing reads
+offset 4. The dispatcher computes `argc = tokens - 1` at `0x804091FC` and passes
+`argv + 1` at `0x8040923C` without comparing either against the row.
+
+**The hazard in that section is the opposite of the one #98 was worried about.**
+`FLW` never checks `argc` at all, and it is one of six handlers that do not —
+`AUTOBURN`, `LOADADDR`, `FLR`, `FLW`, `PHYR`, `PHYW`. The tokeniser at
+`0x80407248` `memset`s its 20 slots to zero every line, so `FLW` with two
+arguments reaches `strtoul(NULL, …)` and dereferences at `0x80406F08`. That
+happens before the `(Y)es, (N)o->` prompt, so it cannot corrupt flash; it costs
+a power cycle. It is now a boxed warning in `A2.5` and deliberately not a test.
+
+### The second source explains every constant, and it is the vendor's own C
+
+`rtl819x/bootcode/boot/monitor/monitor.c` in a published GPL drop carries
+`CmdSFlw`, and its first line is:
+
+```c
+unsigned int cnt2=0;//strtoul((const char*)(argv[3]), (char **)NULL, 16);
+```
+
+**The line that would read the fourth argument is commented out in the vendor's
+source.** `printf(… cnt2+1 …)` is the `1` on the console and
+`spi_flw_image(cnt2, …)` is the `0` in the call — the off-by-one between the two
+literals, explained. The dispatcher's missing check is in the same file, inside
+`#if 0`. So the table's count column is not an unmaintained field; **someone
+switched off the only code that read it**, and it decayed from a specification
+into a comment.
+
+Two further details of this binary match that file and were not looked for until
+the disassembly had already said them: the four `sb zero` at `0x80409248` are
+`memset(argv[0],0,sizeof(argv[0]))`, which the vendor's own Coverity annotation
+flags as a wrong `sizeof`; and `COMMAND_TABLE` in `boot/include/monitor.h` is
+`{cmd, n_arg, func, msg}`.
+
+**That drop is a later SDK for a different SoC.** It is corroboration of *why*,
+never a substitute for this unit's binary, and the note says so where it is used.
+
+### The note it came from was wrong three ways, and none was findable
+
+`notes/loader-tftp-and-commands.md` was written the same day from a hand
+transcription of the table:
+
+1. the record was `{name, help, argc, handler}`; it is `{name, argc, handler,
+   help}`. **Every value in the table was right.** A right table under a wrong
+   sentence reads exactly like a right table under a right one, which is why
+   nothing caught it;
+2. `FLW`'s help string was truncated at `<SPI cnt#>`, dropping the six words that
+   name the field: `: Write offset-data to SPI from RAM`;
+3. `0xB8003000` was called "stop the timer". It is `GIMR0`, the global interrupt
+   mask, and the `mtc0` on the next line is the second half of the same `cli()`.
+
+The note also declared itself "one tool" and then argued about the whole command
+set anyway. **Naming a weakness is not answering it.**
+
+### Instrument work
+
+`tools/loader-unpack.py --commands`, and the report gains a `command_table`
+section beside the chip table it already had.
+
+* **The field order is derived, not supplied.** Each of the four possible record
+  alignments is classified — one column of small integers, one of command-name
+  strings, one of any strings, one of pointers at an `addiu sp,sp,-N` — and
+  exactly one alignment must split cleanly or it refuses. Telling the handler
+  column from the help column is the prologue test; both hold in-range pointers
+  and nothing else separates them. That is the transcription error, mechanised.
+* **The `argv` reading is a CFG walk, not a linear scan**, with intersection
+  merge at joins, o32 caller-saved clobbering across calls, delay slots executed
+  before the transfer, and a computed index reported as computed rather than
+  guessed at. Version 1 was a linear scan and read `IPCONFIG` as touching no
+  `argv` at all — the `argc == 0` arm overwrites `$a1` on a path the load is not
+  on — and `EB` as reading one slot when it reaches `argv[1+n]` through `addu`.
+* **A string reader that walks.** The existing printable-run scanner cannot see
+  this loader's first help line, which holds four tabs; the first version of the
+  decoder refused the real table for that reason and blamed the table.
+* **`tools/test-loader-unpack.sh` 16 → 26 cases**, and seven mutants were run
+  against them. The first round caught four. The three that survived were not
+  tool bugs — **no planted handler exercised those paths**, so a fixture that
+  loads in a delay slot, one that keeps an alias across a call, and one whose
+  two paths disagree about `$a1` were added and all seven now die.
+* **The reverse control is the one that matters.** `no instruction reads offset
+  4` is one hard-coded `False` away from being a lie, so a second fixture whose
+  reader does load `+4` must come back `true`.
+* The two decoders are cross-checked against each other: the command table's
+  recovered load base must equal the chip table's, or both are refused.
+
+Six handlers of seventeen were validated against the vendor source one by one —
+`CmdAuto`, `CmdLoad`, `CmdPHYregW`, `CmdFlr`, `CmdCfn`, `CmdSFlw` — and agreed
+on both axes, which `argv` slots and whether `argc` is tested.
+
+### `J` does three things, so "the network died" attributes nothing
+
+`0x804092AC` masks every interrupt (`GIMR0`), `0x804092B0` clears `IE`,
+`0x804092F4`–`0x80409354` clear `EnablePHYIf` in `PCRP0`–`PCRP4`
+(`0xBB804104`–`0xBB804114`), and only then does it transfer control. **Any one
+of those alone ends a TFTP transfer.** Open #99's planned step — run `get` or
+`ip neigh` after the jump — would have produced "the network is dead" and named
+no cause.
+
+`P9-15` replaces it with a switch: at the prompt, with no jump and interrupts
+untouched, `get` (control) → `DW` the five registers → `EW` bit 0 clear → `get`
+(predict: dead) → `EW` the read-back values → `get` (predict: alive). Single
+variable, reversible, no power cycle. The planned step is not deleted — it
+becomes step 4, run *after* the jump and with the loader still running, which
+upgrades its question from "is the network dead" to "does the interrupt half
+contribute at all".
+
+### `J` is a call, and a committed file says otherwise
+
+`0x80409360` is `jalr s0`, not `jr s0`. `ra` is `0x80409368`, where the handler
+restores `ra` and `s0` and returns into the dispatcher loop. **A payload ending
+in `jr ra` comes back to the `<RealTek>` prompt with no power cycle.**
+
+`runsheet.md` Part B `B-W08 進站實錄` says "`J` 之後沒有軟體的路回去". That
+sentence came from a real observation — `P9-12`'s payload loops forever, and the
+power switch was the only way back — but it is a property of that payload, not
+of `J`. One observation written as a rule whose scope exceeds the observation.
+
+Reading the instruction is not the same as having returned through it, so this is
+`P9-16` rather than a correction: eight bytes, one `J`, does the prompt come
+back. It matters because `P9-10` is a sequence of RAM payloads and each
+avoidable power cycle is the difference between finishing that week in one
+session and not.
+
+### Corrections to the plan
+
+- **`A2.5` is not owed.** `P0-3` was recorded `confirmed` on 2026-08-17 and
+  `A2.6` ran the same night. Running `A2.5` again is a **rehearsal for `P9-10`**,
+  the only irreversible item W08 still owes, and its value is proportional to how
+  soon `P9-10` follows it. `runsheet.md` Part B `B-W08 增補之四` says so at the
+  point where the run order is chosen, because "順便開 A2.5" reads like closing a
+  gap and there is no gap.
+- **`A2.8` must be followed by a power cycle before any other station-2 step.**
+  Its step 3 leaves the loader with interrupts masked, `IE` clear and five PHY
+  interfaces disabled. Not dangerous; not the machine the other sections were
+  written against.
+- The `W08` outstanding count moves **6 → 9**. Three new rows is a real cost and
+  it is paid on purpose: all three are device measurements that will be cited as
+  evidence, and this repository's rule is that a result with no refutation
+  condition written first is inadmissible.
+
+### Deliberately not done
+
+- **`FLW` with fewer than three arguments was not scheduled.** The NULL
+  dereference is legible in the disassembly and in the vendor source; confirming
+  a known crash costs a power cycle and buys a tick.
+- **`tools/mkramboot.py` was not given a `--return` mode.** A returnable payload
+  is worth building once `P9-16` says the return exists — building it first is
+  the same order of operations that produced the truncated banner.
+- **The auto-burn path's chip-1 write was read, not chased.** `0x80401848` is
+  enough to establish that the chip index is live somewhere; what the second
+  chip select is wired to on this board is a hardware question and this unit has
+  one flash.
+- **Nothing was sent to the device.** Every claim above is "the code reads as".
+
+### Open, carried forward
+
+66, 67, 69, 70, 71, 74, 75, 77, 78, 79, 81, 82, 84, 85, 86, 87, 88, 89, 91, 92,
+93, 94, 95, 97, 100 — unchanged.
+
+98. **Closed.** The fourth argument is not read: `0x80409BE4` `li a2,1` is the
+    printed chip number and `0x80409C14` `move a0,zero` is the one passed to the
+    writer; the vendor's own `CmdSFlw` has `//strtoul(argv[3], …)` commented out;
+    and no instruction in the image reads the table's count column. Mechanism,
+    addresses and the three readers:
+    [`notes/loader-tftp-and-commands.md`](notes/loader-tftp-and-commands.md);
+    reasoning: `RUNBOOK.md` §8.12.46. **`P9-14` is the device confirmation and it
+    is not the answer** — it is four cells that would refute the answer, and it
+    writes nothing.
+
+99. **Restated, because the experiment it named could not have answered it.**
+    `J` masks interrupts, clears `IE`, disables five PHY interfaces and replaces
+    the running program; "run `get` after the jump" has four sufficient causes
+    and separates none. Now `P9-15`, a reversible switch at the prompt with no
+    jump, plus the original observation as its step 4.
+
+101. **Is the loader's TFTP polled or interrupt-driven?** `P9-15` step 4c answers
+     it as a side effect: if restoring the five PHY bits after a `J` revives
+     `get` while `GIMR0` is still zero and `IE` still clear, the service cannot be
+     interrupt-driven. Nothing here has looked at where `0x80406728` and the
+     TFTP receive path are called from, and the SDK tree has both an
+     `ethInt_865x.c` and an `irq.c`, so the static answer is not obvious either.

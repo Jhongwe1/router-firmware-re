@@ -12,28 +12,68 @@ function in the binary.
 > G3 ✅ passed 2026-08-11 · G3.5 ✅ · G3.75 ✅ both passed 2026-08-17 ·
 > G4 ✅ passed 2026-08-18, clause 3 split into 3a met / 3b impossible.**
 >
-> **Latest (W08 Day 1, 2026-08-21): half of this device's configuration had
-> never been decoded, and the tool that had found the name table for it printed
-> the table's length and threw the table away.** Thirteen of the 344 entries in
-> the configuration region are *table-valued*; one of them, `WLAN_ROOT`, is
-> **22,044 of the 45,226 decompressed bytes**. All thirteen decode now — six
-> blocks of 3,674 bytes with no remainder, checked against a geometry read out
-> of `libapmib.so`'s own records (`count = total_size / element_size`) rather
-> than inferred from the data it validates.
+> **Latest (W08 Day 1, 2026-08-21, desk): `FLW`'s command table declares four
+> arguments and its handler reads three. The fourth is not a mystery — the line
+> that would parse it is commented out in the vendor's own source, and no
+> instruction in the image reads the count the table declares.**
 >
-> The name table was already in the committed report, as a number:
-> `"runner_up": 133`, printed since W04, and each `WLAN_ROOT` block is 133 TLVs.
-> **Nothing was wrong, nothing disagreed, no figure was absurd** — the recovery
-> had asked "which run is the table" instead of "what are the runs", and a check
-> cannot catch a question nobody posed.
+> `0x80409BE4` `li a2,1` is the `SPI flash#1` the console prints; `0x80409C14`
+> `move a0,zero` is the chip index handed to the writer. Both are literals, and
+> the vendor's `CmdSFlw` explains the off-by-one: `printf(… cnt2+1 …)` over a
+> hard `cnt2 = 0`. The dispatcher's argument-count check is inside `#if 0` in the
+> same file — **so the table's count column is not an unmaintained field, it is a
+> field whose only reader was switched off.** The rest is the failure mode nobody
+> asked about: `FLW` never checks `argc` at all, and it is one of six handlers of
+> seventeen that dereference `argv` without looking at it.
 >
-> What it settles: this build's factory wireless configuration is an **open
-> network** — `ENCRYPT = 0`, `WPA_PSK` and `WSC_PSK` all zero, a fixed SSID,
-> WPS enabled — corroborated by one line the device's own `/bin/flash` printed
-> in W07. And reading across six builds, the two 2020 ones add
-> `WSC_AUTO_LOCK_DOWN` and `IEEE80211W`; the 2018 build on this unit has neither.
-> [`notes/wlan-root.md`](notes/wlan-root.md).
+> The question existed because the table had been **transcribed by hand**, and
+> that transcription was wrong three ways — the record order, a truncated help
+> string, and an interrupt mask read as a timer. It is decoded now:
+> [`tools/loader-unpack.py`](tools/loader-unpack.py) `--commands` derives the
+> field order from the shape of the columns, walks each handler's control flow
+> rather than scanning it linearly, and refuses when it cannot narrow an answer
+> to one. Its guard suite went 16 → 26 cases; seven mutants were run against it
+> and **the first round caught only four** — the three survivors were not tool
+> bugs but paths no planted fixture exercised.
 >
+> ---
+>
+> **Earlier that day, at the bench: the boot loader's TFTP read was traced to one
+> function, four cells were predicted with a hash each before the visit, all four
+> hit — and then a payload this project's own simulator had certified printed
+> sixteen bytes of forty-one on the silicon.**
+>
+> `0x80401ED4` serves `[0x8040D3A8] + (block-1)*512` for `[0x8040DD28]` bytes.
+> `LOADADDR` owns the address; **`FLR`'s third argument owns the length**. So the
+> rescue path's `get` is a fast read of `FLR`'s output *only* when `FLR`'s
+> destination equals the load address — which is neither of the two answers the
+> open question had offered itself, and the opposite of what the runsheet section
+> written four hours earlier would have concluded. That section would have run
+> correctly, returned `0`, and published the wrong answer.
+>
+> `P9-12` closed `confirmed`: `J 80500000` handed control to a 156-byte image the
+> device has never seen, its nonce occurs zero times in the 4 MiB flash dump and
+> zero times in the decompressed loader, and **not one flash byte was written** —
+> argued from the console echo, from autoburn being read at exactly one address,
+> and from a byte-identical TFTP round trip taken *before* the jump.
+>
+> The result worth more than the row is the failure. The first jump printed
+> `*** N150RT RAM` — exactly 16 bytes per iteration, the 16550's FIFO depth —
+> because the payload read a register in the **MIPS-I load delay slot** and
+> [`tools/mkramboot.py`](tools/mkramboot.py)'s simulator models a core *with*
+> interlocks. **A model kinder than the device certifies exactly the bugs the
+> device rejects.** The counter-evidence cost two minutes and was available
+> before the bench: 1,474 loads in the loader's own second stage, 646 followed by
+> an explicit `nop`, and **not one** followed by an instruction reading what it
+> loaded. Confirmed by a single-variable experiment — two `nop`s, nothing else
+> changed, full banner. The simulator now refuses the hazard; both slots have a
+> reverse-verified case.
+>
+> The session's own scoreboard is corrected in [`BENCH-LOG.md`](BENCH-LOG.md) by
+> appending rather than editing: eleven predictions hit, **one refuted**, one
+> never run. Writing it as twelve-and-zero would have deleted the night's best
+> result in exchange for a better-looking number.
+
 > **Latest (W08 Day 0, 2026-08-20): the boot loader has been printing
 > `chipName: UNKNOWN` since the first boot log this project captured, and the
 > answer was inside the loader.** It carries a table of 32 SPI flash
@@ -332,9 +372,18 @@ that is not backed by a command someone else can re-run.
   > - **The UART header is already populated** — W02 requires no soldering at all,
   >   which takes the week's largest irreversible-damage risk off the table.
   > - **Every one of those readings has exactly one source: the ink on the package.**
-  >   `flashrom` agreeing that an `EN25QH32` is 4096 KiB is **not** independent — its
-  >   database is keyed on the same part name. The second-source column is empty on
-  >   purpose, and it is the Day 2–4 work list.
+  >   The second-source column is empty on purpose, and it is the Day 2–4 work list.
+  >
+  >   > **Corrected 2026-08-21.** This bullet used to add that `flashrom` agreeing
+  >   > on 4096 KiB is not independent *"because its database is keyed on the same
+  >   > part name"*. **That is false** — flashrom matches on `manufacture_id` and
+  >   > `model_id`, and the name is the lookup's output rather than its index. Told
+  >   > to emulate `W25Q128FV` it answers `W25Q128.V`: a different string comes out
+  >   > than went in, which a name-keyed lookup cannot do. So flashrom's answer
+  >   > **is** a second source for *which part an id denotes* — though not for
+  >   > *what the id bytes are*, which is the same clip on the same bus. The same
+  >   > wrong sentence stood in `RUNBOOK` §8.12.41 and in `P9-7`'s registered
+  >   > prediction; the RUNBOOK is corrected, the prediction is deliberately not.
   >
   > ### ★ What W02 Day 2–3 turned up
   >
@@ -394,8 +443,19 @@ that is not backed by a command someone else can re-run.
   > boot loader's `FLR`, so a systematically wrong `FLR` would be invisible to
   > every one of them. That column stays empty on purpose.
   >
-  > 📌 **The instrument now exists, is verified, and has still not been used**
-  > (2026-08-20). The CH341A that W02 measured as an un-modded 5 V board has been
+  > 🛑 **The instrument was used on 2026-08-21 and could not reach the part.**
+  > Seating the SOIC-8 clip on `U19` takes the **CH341A itself** off the USB bus,
+  > and the chip measures **1.70 V** under three different supplies — including an
+  > external regulator that held a healthy 3.3 V on its own side. **In-circuit
+  > reading does not work on this board.** Whether that is the board clamping the
+  > `VCC` net or resistance in the clip path is **open item 97**, and the committed
+  > claim is only the first half. **Nothing was read and nothing was written**; the
+  > router was never powered. `BENCH-LOG.md` 2026-08-21 實錄 carries every number.
+  > The column above therefore stays empty, now for a measured reason rather than
+  > for want of an instrument.
+  >
+  > 📌 **The instrument exists and is verified** (2026-08-20). The CH341A that W02
+  > measured as an un-modded 5 V board has been
   > re-worked — 5 V feed cut on the back, 3.3 V jumpered into that pin — and the
   > mod is confirmed **at two points in the circuit**: all eight socket pins read
   > 3.3 V (the effect, and `DO` was the 5 V board's worst pin, held 1.7 V above
@@ -502,7 +562,7 @@ that is not backed by a command someone else can re-run.
   - [x] **the `FLW` recovery path rehearsed** — this is G3.5 #5, cited and not restated. Closed 2026-08-17
   - [x] **isolation verified** — exactly two MAC addresses on the segment, eight packets each, no DNS and nothing outbound. The control is that the capture recorded 16 packets at all: an earlier one recorded **zero**, and zero proves nothing until the link is known to deliver
   - [x] **IoC pre-check** — both halves, against criteria written before the check: **the live config differs from this unit's own factory baseline in 4 of 343 entries**, no fifth, and every port the register named is closed
-  - [x] **the prediction ledger is frozen** ← [`test-ledger.md`](test-ledger.md) — **134** registered tests, **117** carrying a written refutation condition, hashed and committed **before any request is served**; W05 closed **27 of 27**
+  - [x] **the prediction ledger is frozen** ← [`test-ledger.md`](test-ledger.md) — **138** registered tests, **124** carrying a written refutation condition, hashed and committed **before any request is served**; W05 closed **27 of 27**
   - [x] **the disclosure register is written** ← [`docs/disclosure.md`](docs/disclosure.md) — seventeen rows, what each is worth, and the rule that decides what gets published
 
   > ### ★ Why this gate exists
@@ -630,7 +690,7 @@ that is not backed by a command someone else can re-run.
 | [`poc/`](poc/) | **The reproductions** — two public CVE chains with the requests, the flash-byte evidence, and one file that deliberately carries **no request at all** because what it describes has not been reported to anyone. `run.sh` runs against a device or against an emulated copy, and says which step failed |
 | [`docs/report-draft.md`](docs/report-draft.md) | **The report that has not been sent** — what would go to TWCERT/CC, what is attached and what is not, and the one step that is blocking it |
 | [`docs/disclosure.md`](docs/disclosure.md) | **The disclosure register** — what might be new, what state it is in, and the rule separating a finding from a reproduction from tradecraft. Two entries were **withdrawn** on 2026-08-17, one of them by prior art that a by-handler search found in a single query |
-| [`test-ledger.md`](test-ledger.md) | **The test register, generated** — 135 tests with their predictions frozen before the first request, what would refute each, and what nine items were cut and why (Traditional Chinese) |
+| [`test-ledger.md`](test-ledger.md) | **The test register, generated** — 138 tests with their predictions frozen before the first request, what would refute each, and what nine items were cut and why (Traditional Chinese) |
 | [`notes/attack-surface.md`](notes/attack-surface.md) | Where to look, ranked |
 | [`notes/ghidra-triage.md`](notes/ghidra-triage.md) | Which functions to open first, and why — with the three W01 calls W03 overturned |
 | [`notes/dispatch-table.md`](notes/dispatch-table.md) | `root_form[]` recovered: every `/boafrm/` route in both builds, and what changed between them |

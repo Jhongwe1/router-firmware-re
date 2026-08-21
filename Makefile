@@ -10,6 +10,7 @@ EX        := $(FWRE_WORK)/extracted
 VENV      := $(FWRE_WORK)/venv
 PY        := $(VENV)/bin/python
 REPORTS   := reports
+DUMPS     := $(FWRE_WORK)/dumps
 
 V1_LABEL  := N150RT V2.1.2-B20150825
 V2_LABEL  := N150RT V3.4.0-B20201030
@@ -24,7 +25,7 @@ UNIT_DUMP  := $(FWRE_WORK)/dumps/flash-n150rt-console-1.bin
 .DEFAULT_GOAL := help
 .PHONY: help setup verify fetch unpack venv test lint recon recon-unit diff check-reports \
         rtcase rtcase-test todo ledger check-ledger shellcheck ci clean-work qemu-env qemu-test probe-test \
-        loader-test loader-report doctor check-runsheet runsheet-test \
+        loader-test loader-report tftp-test ramboot ramboot-test doctor check-runsheet runsheet-test \
         dump-test flash-tools-test photo-test write-test failopen-test alignfix-test check-benchlog benchlog-test config-diff-test count-checks liveness liveness-test dhcp-test mipsref-reports \
         libbase-test libbase-report check-ci-parity ci-parity-test upnp-soap-test
 
@@ -187,6 +188,27 @@ probe-test: ## Prove the bench prober's refusals fire (needs no device)
 loader-test: ## Prove the boot-loader unpacker's refusals fire (needs no dump)
 	bash tools/test-loader-unpack.sh
 
+# The client that talks to the boot loader's rescue service. It can only be
+# driven against the real thing by pulling the unit's power and stopping it at
+# <RealTek>, so the whole of it runs here against a stand-in server instead --
+# including the one protocol detail this loader makes load-bearing, that the
+# reply comes from a fresh port and not from 69.
+tftp-test: ## Prove the loader TFTP client's refusals fire (needs no device)
+	bash tools/test-loader-tftp.sh
+
+# The payload P9-12 needs, and the reason it is a tool rather than a file: the
+# row's frozen refutation condition says a jump with no console output cannot be
+# told from no jump at all, so the image has to speak. The suite next to it is
+# mostly not refusals -- it is seven cases that put a real bug back into the
+# encoder and require the build to go red, because a build check that cannot
+# fail would certify a program that prints nothing.
+ramboot: ## Build the RAM payload for P9-12 (NONCE=... required)
+	@test -n "$(NONCE)" || { echo "  usage: make ramboot NONCE=<hex> [OUT=...]"; exit 1; }
+	python3 tools/mkramboot.py --nonce $(NONCE) --print-disassembly --check-absent $(DUMPS)/flash-n150rt-console-2.bin -o $(if $(OUT),$(OUT),$(FWRE_WORK)/w08-ramboot.bin) --report $(DUMPS)/w08-ramboot.json
+
+ramboot-test: ## Prove the RAM payload builder's checks fire (needs no device)
+	bash tools/test-mkramboot.sh
+
 # The three suites below were written before `ci` existed as a single list and
 # were never added to it -- 35 cases, none needing hardware, recorded as
 # PROGRESS open #33 when the totals were recounted on 2026-08-17. The largest of
@@ -303,7 +325,7 @@ loader-report: ## Unpack the boot loader's LZMA stage 2 (needs the flash dump)
 # `rtcase-test` is in here and not optional. It is the only thing proving the
 # register gate can fail; without it `make rtcase` going green means nothing,
 # which is the exact shape of instrument bug 12.
-ci: lint test shellcheck check-reports check-runsheet check-benchlog benchlog-test rtcase rtcase-test check-ledger check-ci-parity ci-parity-test qemu-test probe-test loader-test runsheet-test dump-test flash-tools-test photo-test write-test failopen-test alignfix-test config-diff-test liveness-test dhcp-test libbase-test upnp-soap-test ## Everything CI checks, except the container build
+ci: lint test shellcheck check-reports check-runsheet check-benchlog benchlog-test rtcase rtcase-test check-ledger check-ci-parity ci-parity-test qemu-test probe-test loader-test tftp-test ramboot-test runsheet-test dump-test flash-tools-test photo-test write-test failopen-test alignfix-test config-diff-test liveness-test dhcp-test libbase-test upnp-soap-test ## Everything CI checks, except the container build
 	@echo "  ok   local CI equivalents passed (container build not included)"
 
 diff: venv ## Diff the two builds

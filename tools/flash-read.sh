@@ -61,6 +61,12 @@
 #   FWRE_WORK  artefact root. Defaults to ~/fwre-work. Raw dumps NEVER go in the
 #              repository: they are vendor firmware, and they carry this unit's
 #              MACs, PSK and admin credentials. See dumps/README.md.
+#   FLASH_READ_PROGRAMMER
+#              For testing only. Points `probe` at another flashrom programmer
+#              so the parsing of flashrom's output can be exercised with no
+#              hardware (tools/test-flash-tools.sh uses dummy:emulate=...).
+#              `read` refuses to run when it is set: a dump of a chip that does
+#              not exist must never reach dumps/MANIFEST.json.
 #
 set -euo pipefail
 
@@ -68,7 +74,18 @@ REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 WORK="${FWRE_WORK:-$HOME/fwre-work}"
 DEST="$WORK/dumps"
 MANIFEST="$REPO/dumps/MANIFEST.json"
-PROGRAMMER="ch341a_spi"
+# Overridable for ONE purpose: driving probe() against flashrom's `dummy`
+# programmer, so that the parsing of flashrom's output -- four separate claims
+# about another program's text, two of which were wrong on 2026-08-21 and
+# printed nothing rather than failing -- is exercised on any desk, with no
+# clip, no router and no CH341A. tools/test-flash-tools.sh does exactly that.
+#
+# It does NOT make reads overridable. A dummy read is 4 MiB of a chip that does
+# not exist, and the one thing that must never happen is one of those being
+# recorded in dumps/MANIFEST.json as a read of this unit. cmd_read refuses
+# outright when this is not the real programmer; see the guard there.
+PROGRAMMER="${FLASH_READ_PROGRAMMER:-ch341a_spi}"
+REAL_PROGRAMMER="ch341a_spi"
 
 c_ok()   { printf '\033[32m  ok  \033[0m %s\n' "$*"; }
 c_run()  { printf '\033[36m ==>  \033[0m %s\n' "$*"; }
@@ -100,6 +117,12 @@ preflight() {
   need sha256sum "coreutils"
   mkdir -p "$DEST"
 
+  if [ "$PROGRAMMER" != "$REAL_PROGRAMMER" ]; then
+    c_warn "PROGRAMMER is '$PROGRAMMER', not $REAL_PROGRAMMER."
+    c_warn "     Nothing below this line says anything about U19 on this unit."
+    return 0
+  fi
+
   if command -v lsusb >/dev/null; then
     if lsusb | grep -qi '1a86:5512'; then
       c_ok "CH341A present on the USB bus (1a86:5512)"
@@ -116,12 +139,20 @@ preflight() {
   fi
 }
 
+# Everything this file believes about the TEXT flashrom prints lives in one
+# place, shared with tools/flash-write.sh -- because on 2026-08-21 the same
+# wrong belief was found in both copies at once. The refusals are NOT shared;
+# see the header of that file for why the two are different in kind.
+# shellcheck source=tools/lib/flashrom-parse.sh
+. "$REPO/tools/lib/flashrom-parse.sh"
+
 # ---------------------------------------------------------------------------
 # probe: identify the part from what the silicon reports, not from its package
 # ---------------------------------------------------------------------------
 PROBE_LOG=""
 JEDEC_ID=""
 CHIP_NAME=""
+CHIP_VERB=""
 FLASHROM_VER=""
 
 probe() {
@@ -131,26 +162,45 @@ probe() {
   PROBE_LOG="$DEST/flash-probe-$stamp.log"
 
   c_run "probing (no read, no write)"
+  # The verbosity is not a taste. `RDID returned ...` is printed only at -VVV by
+  # flashrom 1.3.0, and asking for -V produced a log with no ids in it at all --
+  # which this function then reported as "the chip is not answering". The
+  # measurement and the constant are in tools/lib/flashrom-parse.sh; the reason
+  # it matters is RUNBOOK 8.12.41. Instrument bug 51.
+  #
+  # Only the probe is this loud. cmd_read passes (-r) with no -V at all, so a
+  # 4 MiB read does not drag a spew log along behind it.
+  #
   # A failed probe is informative, so capture the log either way.
-  flashrom_ro -V >"$PROBE_LOG" 2>&1 || true
+  flashrom_ro "$FLASHROM_PROBE_V" >"$PROBE_LOG" 2>&1 || true
 
-  FLASHROM_VER="$(grep -m1 -oE 'flashrom [0-9][^ ,]*' "$PROBE_LOG" || true)"
-  CHIP_NAME="$(grep -m1 -oE 'Found [^\n]*flash chip "[^"]+"' "$PROBE_LOG" \
-               | sed -E 's/.*"([^"]+)".*/\1/' || true)"
+  FLASHROM_VER="$(parse_flashrom_version "$PROBE_LOG")"
+  CHIP_NAME="$(parse_chip_name "$PROBE_LOG")"
+  CHIP_VERB="$(parse_chip_verb "$PROBE_LOG")"
 
-  # RDID is re-issued for every candidate in flashrom's table, so a healthy
-  # probe prints the same three bytes dozens of times. More than one distinct
-  # value means the bus is unstable - that is a contact problem, not a finding.
   local ids
-  ids="$(grep -oE 'RDID returned 0x[0-9a-f]{2} 0x[0-9a-f]{2} 0x[0-9a-f]{2}' "$PROBE_LOG" \
-         | sed -E 's/RDID returned 0x([0-9a-f]{2}) 0x([0-9a-f]{2}) 0x([0-9a-f]{2})/\1\2\3/' \
-         | sort -u || true)"
+  ids="$(parse_rdids "$PROBE_LOG")"
 
   if [ -z "$ids" ]; then
-    c_err "no JEDEC id came back. The chip is not answering."
-    c_err "  - router unplugged? the clip cannot power the whole board reliably"
-    c_err "  - pin 1 of the clip on pin 1 of U19? (the dot on the package)"
-    c_err "  - SOP-8 comes in 150 mil and 208 mil; the kit clip is often narrow"
+    case "$(rdid_failure_kind "$PROBE_LOG")" in
+      not-printed)
+        c_err "flashrom identified a part but this log has no RDID line in it."
+        c_err "  DO NOT RE-SEAT THE CLIP. The bus worked: flashrom matched a"
+        c_err "  chip over it. What failed is the reading of the log, not the"
+        c_err "  reading of the chip."
+        c_err "  flashrom 1.3.0 prints that line only at -VVV (measured"
+        c_err "  2026-08-21). Check that this script still passes -VVV, and"
+        c_err "  that the format has not moved:"
+        c_err "      grep -i rdid $PROBE_LOG"
+        ;;
+      *)
+        c_err "no JEDEC id came back, and flashrom did not identify anything"
+        c_err "either - so the bus itself is the suspect."
+        c_err "  - router unplugged? the clip cannot power the whole board reliably"
+        c_err "  - pin 1 of the clip on pin 1 of U19? (the dot on the package)"
+        c_err "  - SOP-8 comes in 150 mil and 208 mil; the kit clip is often narrow"
+        ;;
+    esac
     c_err "log: $PROBE_LOG"
     return 1
   fi
@@ -164,8 +214,34 @@ probe() {
 
   JEDEC_ID="$ids"
   c_ok "JEDEC id  0x$JEDEC_ID   (manufacturer 0x${JEDEC_ID:0:2}, device 0x${JEDEC_ID:2:4})"
-  [ -n "$CHIP_NAME" ]    && c_ok "flashrom calls it: $CHIP_NAME"
-  [ -n "$FLASHROM_VER" ] && c_ok "$FLASHROM_VER"
+  case "$CHIP_VERB" in
+    Found)
+      c_ok "flashrom calls it: $CHIP_NAME"
+      c_ok "     its table is keyed on the JEDEC id, not on the name printed on"
+      c_ok "     the package - so this is a second source for WHICH part this is,"
+      c_ok "     and not a second source for what the three bytes say"
+      ;;
+    Assuming)
+      c_warn "flashrom was TOLD the name \"$CHIP_NAME\" with -c. That is this"
+      c_warn "     project's own input read back to it, not a source. Re-run"
+      c_warn "     probe without --chip if you want flashrom's own answer."
+      ;;
+    *)
+      c_warn "flashrom did not name the part: no identification line in the log."
+      c_warn "     Either its table has no row for this id - which is itself a"
+      c_warn "     result - or the output format moved. Read $PROBE_LOG before"
+      c_warn "     assuming the first one."
+      ;;
+  esac
+  if grep -q 'Multiple flash chip definitions match' "$PROBE_LOG" 2>/dev/null; then
+    c_warn "flashrom says MORE THAN ONE of its definitions matches this id."
+    c_warn "     The name above is the first one it listed, not a decision."
+  fi
+  if [ -n "$FLASHROM_VER" ]; then
+    c_ok "reader: $FLASHROM_VER"
+  else
+    c_warn "the log carries no flashrom banner - this dump has no named reader"
+  fi
 
   # The third RDID byte is log2(bytes) by convention for this class of part.
   # Convention, not standard - which is why it is reported, not asserted.
@@ -284,6 +360,12 @@ cmd_read() {
       *) die "unknown option: $1" ;;
     esac
   done
+
+  # The override exists for probe(). A read produces a 4 MiB file that gets a
+  # sha256, a MANIFEST entry and a place in this project's evidence chain, and
+  # there is no phrasing of "it was only a test" that survives that.
+  [ "$PROGRAMMER" = "$REAL_PROGRAMMER" ] || die \
+    "FLASH_READ_PROGRAMMER is set to '$PROGRAMMER'. That is for probing only - a read taken through it would be a dump of a chip that does not exist."
 
   preflight
 

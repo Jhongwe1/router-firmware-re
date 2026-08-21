@@ -1458,6 +1458,17 @@
       ],
       "note": "預測的前提不成立，而反證條件本身無法評估——照 2026-08-19 給 `P5-2` 的同一種處理，登記簿的凍結條件不改，結果照條件的字面去記，不足之處寫在這裡。登記簿寫「出廠 PSK 已經在 COMPDS 裡解出來了」。把 `WLAN_ROOT`（22,044 byte，佔解壓設定的一半，今天之前從未被解過）解開之後，六個無線介面區塊每一個的 `ENCRYPT`(0x0019) 都是 0，`WPA_PSK`(0x001e) 與 `WSC_PSK`(0x0115) 65 byte 全零，WEP 四把鑰匙也全零，`SSID` 是固定的 `TOTOLINK N150RT`（沒有每台不同的尾碼）。**這台出廠是一個開放網路，沒有 PSK 可以推導**，所以「推導公式算出來的值與 COMPDS 裡的不同」連比對的對象都不存在。第二來源是裝置自己的 `/bin/flash`：`dumps/w07-enc.txt` 只有一行 `ENCRYPT=0`，與靜態解碼一致。順帶：WPS 是開的（`WSC_DISABLE`=0、`WSC_METHOD`=3、`WSC_REGISTRAR_ENABLED`=1），而 2020 那兩個 build 的無線 MIB 表多了 `WSC_AUTO_LOCK_DOWN` 與 `IEEE80211W`，這一版兩者都沒有。範圍：這是一份靜態解碼加上裝置自己 MIB 讀取工具的一行輸出，說的是出廠映像裡有什麼，**不是**現在空中在傳什麼——本專案至今沒有收過任何一個 802.11 frame。",
       "case_freeze_sha256": "48ab20d274f3f0c4f3edd0d4796dbe7b66bd8eee381d279e3c0c9dfc5e5f22e2"
+    },
+    {
+      "id": "P9-12",
+      "date": "2026-08-21",
+      "verdict": "confirmed",
+      "evidence_kind": "dynamic",
+      "artefacts": [
+        "dumps/MANIFEST.json"
+      ],
+      "note": "J 80500000 handed control to a 156-byte image the device has never seen: the loader printed ---Jump to address=80500000 (0x8040B35C) and the payload then printed *** N150RT RAMBOOT P9-12 4baee517 *** repeatedly. The nonce and the marker occur zero times in the 4 MiB flash dump and zero times in the decompressed loader stage 2, checked before the build. Zero flash bytes written: AutoBurning=0 echoed in this same boot, autoburn read at exactly one place (0x80401B9C) where beqz skips the burn routine, and the cr6c header plus the boot loader head verified unchanged afterwards. The upload was also proved to land by a byte-identical TFTP round trip before any jump. First attempt truncated at 16 bytes per iteration (the 16550 FIFO depth) because the payload read a register in the MIPS-I load delay slot; fixed and re-run as a single-variable experiment.",
+      "case_freeze_sha256": "40c5855c6c90806845aaae08d59efa4237d71ea97fbce02177744acaf5052505"
     }
   ],
   "register": "test-cases.toml",

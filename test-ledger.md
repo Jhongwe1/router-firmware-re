@@ -51,13 +51,13 @@ W05 週計畫原本要另外建一份 `notes/prediction-scorecard.md`（12 條�
 
 | | |
 |---|---|
-| 登記項目 | **135**（排入 118，砍掉 17） |
-| 已寫反證條件（凍結） | **121** / 118 |
-| 已執行 | **111** |
-| 其中以真機動態證據收掉 | **75** |
+| 登記項目 | **138**（排入 121，砍掉 17） |
+| 已寫反證條件（凍結） | **124** / 121 |
+| 已執行 | **112** |
+| 其中以真機動態證據收掉 | **76** |
 | 其中以模擬環境執行收掉（**不是矽上**） | **20** |
-| 判定成立 / 判定不成立 | **64** / **18** |
-| 凍結雜湊 | `90181162481334794e2ef19a52f66ee9c22bfee70cd0659a2490f79768011d9e` |
+| 判定成立 / 判定不成立 | **65** / **18** |
+| 凍結雜湊 | `b026221b558abb8f7d16c9e3ac965e9fb1859176f71ffdf923a0f8561e4ab26c` |
 
 ## 排程：哪一週要打掉哪些
 
@@ -71,7 +71,7 @@ W05 週計畫原本要另外建一份 `notes/prediction-scorecard.md`（12 條�
 | **W05** | Phase 0, 1, 2, 3, 6, 9 | 27 / 27 | `▰▰▰▰▰▰▰▰▰▰` |
 | **W06** | Phase 0, 2, 3, 4, 5, 10 | 20 / 20 | `▰▰▰▰▰▰▰▰▰▰` |
 | **W07** | Phase 1, 2, 3, 4, 5, 6, 8, 9, 10 | 58 / 58 | `▰▰▰▰▰▰▰▰▰▰` |
-| **W08** | Phase 7, 9 | 1 / 8 | `▰▱▱▱▱▱▱▱▱▱` |
+| **W08** | Phase 7, 9 | 2 / 11 | `▰▰▱▱▱▱▱▱▱▱` |
 
 ## 圖例
 
@@ -814,10 +814,13 @@ W05 週計畫原本要另外建一份 `notes/prediction-scorecard.md`（12 條�
 | **P9-7** | 讀 JEDEC ID（flash 型號的第二來源） | 12.4 | ★★☆☆☆ | 🟨 | W08 | ⬜ | — |
 | P9-9 | Reset 按鈕行為 | 12.6 | ★★★★★ | 🟥 | W07 | ✅ 第 2 次 Re-recorded: the previous run of this record lost four spans to shell command substitution (backticks in a double-quoted argument). Same measurement, complete text. The amended prediction held on all three clauses, and the amendment was frozen before the button was pressed (freeze ef7ab66d -> ea8cf733, commit b88b932). Clause 1: the reset restored the configuration from a hard-coded table, NOT from the DEFAULT_SETTING region that this project's own W05 POST round had corrupted. Measured with one unauthenticated GET /config.dat before and after. Before: 7510 bytes, DHCP_MTU_SIZE=0, UPNP_ENABLED=0, ALG_SIP_ENABLED=0, SSH_ENABLED=0, and 20 of 343 named fields off the 2026-08-16 baseline. After: 7490 bytes, sha256 e09cbf8428aa15944ed75939e79820c5..., which is byte-for-byte the 7490-byte COMPCS region of the 2026-08-16 flash dump, and 0 of 343 named fields differ. That matters because COMPDS itself was damaged: the 2026-08-18 station-2 snapshot decodes 25 of 343 factory-default fields off the pristine read, DHCP_MTU_SIZE 1500->0 among them, and COMPDS against COMPCS was 0/343 - so the register's ORIGINAL prediction, that reset copies COMPDS over COMPCS, had no discriminating power on this device today and was replaced before the button. The mechanism the new prediction named was read statically beforehand: /bin/reload (PID 291 in the previous session's ps) polls /proc/load_default and runs 'flash default-sw', while /bin/flash's own usage text separates 'default -- write all flash parameters from hard code' from 'reset -- reset current setting to default'. The button takes the former. Clause 2, the cell this row is really about: H601 UNCHANGED. 'flash allhw' after the reset returns HW_NIC0_ADDR, HW_NIC1_ADDR, four WLAN addresses and every TX power calibration table intact and non-zero, and HW_NIC0_ADDR matches both the ARP reply on the wire and the raw bytes at flash 0x006000 in seven snapshots spanning 2026-08-16 to 2026-08-18. Refutation branch (b) did not fire. Clause 3: eth1 came up MTU:1500 (it had been MTU:0 for two days) and transmitted, and with the cable in the WAN port the device completed a full DISCOVER/OFFER/REQUEST/ACK - the third independent verification of P8-19's chain, and the only one that changed nothing by hand. NOT done: the byte-level H601 comparison from a second station-2 dump, and the state of COMPDS after the reset. Both need the boot loader console and the session ended before that; the seven-snapshot 'before' baseline does not go stale, so the comparison is still available. Corrected in the same session: runsheet A3.24's own H601 command dumped 0x3F0000, which is erased flash (0 non-FF bytes in 4096, against 4093 at 0x006000), so the one step that section called unskippable was comparing 0xFF against 0xFF - a control that could not fail, sitting on this row's only real question. | [BENCH-LOG.md](BENCH-LOG.md) · [device-liveness.py](tools/device-liveness.py) · [compcs-unit-2018.json](reports/compcs-unit-2018.json) |
 | P9-10 | 改造韌體回刷 / implant | 12.7 | ★★★☆☆ | 🟨 | W08 | ⬜ | — |
-| P9-12 | 換自製 flash / tftpboot RAM kernel（HW-b/c） | 12.8 | ★★★☆☆ | 🟦 | W08 | ⬜ | — |
+| P9-12 | 換自製 flash / tftpboot RAM kernel（HW-b/c） | 12.8 | ★★★☆☆ | 🟦 | W08 | ✅ J 80500000 handed control to a 156-byte image the device has never seen: the loader printed ---Jump to address=80500000 (0x8040B35C) and the payload then printed *** N150RT RAMBOOT P9-12 4baee517 *** repeatedly. The nonce and the marker occur zero times in the 4 MiB flash dump and zero times in the decompressed loader stage 2, checked before the build. Zero flash bytes written: AutoBurning=0 echoed in this same boot, autoburn read at exactly one place (0x80401B9C) where beqz skips the burn routine, and the cr6c header plus the boot loader head verified unchanged afterwards. The upload was also proved to land by a byte-identical TFTP round trip before any jump. First attempt truncated at 16 bytes per iteration (the 16550 FIFO depth) because the payload read a register in the MIPS-I load delay slot; fixed and re-run as a single-variable experiment. | [MANIFEST.json](dumps/MANIFEST.json) |
 | **P9-13** | 韌體映像驗收檢查：這個 build 實際驗哪幾個欄位（純靜態，不回刷） | 12.7 | ★★★★☆ | 🟦 | W07 | 🟥 Checksum only, and the addresses are in the note. UpgradeByData @0x00460798 (1608 bytes) is the whole acceptance path and it does exactly three things: memcmp against the four-byte section tags cr6c/w6cg/r6cr at 0x004608cc, 0x00460924, 0x0046097c; a checksum, FUN_00460600 called at 0x00460a98 for cr6c and r6cr and FUN_00460690 at 0x00460aec for w6cg; and a strncmp at 0x00460a04 against a model string the caller supplies. Both checksums are additive with no key - FUN_00460600 sums big-endian halfwords and requires 0, FUN_00460690 sums bytes and requires 0 with a length cap of 0x800000. No signature, no hw_version, no anti-rollback: strings over the whole binary finds no signature/RSA/pubkey/pem/hw_version match, and the listing has no room for one. Read at instruction level with BoaListing, not from the decompiler. The model string form_formUpload passes at 0x0044f4dc is the literal TOTOLINK-N150RT-V2.1.0 while this unit reports TOTOLINK-CX-N150RT-V2.1.6-B20171121.1002, and nothing compares the two - the accepted label is an older, published version string. | [firmware-upgrade-path.md](notes/firmware-upgrade-path.md) · [ghidra-xref-unit-2018-upgrade.json](reports/ghidra-xref-unit-2018-upgrade.json) |
+| **P9-14** | `FLW` 的第四個參數（`<SPI cnt#>`）：指令表說 4，handler 讀 3 | 12.3 | ★★★★★ | 🟦 | W08 | ⬜ | — |
+| **P9-15** | `J` 之後網路死掉的歸因：五個 port 的 PHY enable bit 是不是充分原因 | 12.8 | ★★★★☆ | 🟦 | W08 | ⬜ | — |
+| **P9-16** | `J` 是呼叫不是跳轉：一個以 `jr ra` 結尾的 payload 會回到提示字元 | 12.8 | ★★★★★ | 🟦 | W08 | ⬜ | — |
 
-<details><summary>Phase 9 的預測與反證條件（11/11 項已凍結）</summary>
+<details><summary>Phase 9 的預測與反證條件（14/14 項已凍結）</summary>
 
 **P9-1 — UART 攔 bootloader → init=/bin/sh**
 
@@ -884,6 +887,24 @@ W05 週計畫原本要另外建一份 `notes/prediction-scorecard.md`（12 條�
 
 - 預測：`P9-10` 改期到 W08 之後，留在 W07 的是它不可逆之前的那一半，而那一半本身就是 plan Day 6 的交付物：升級路徑到底檢查什麼。W01 的 `P0-7` 已經從兩個廠商映像還原出 `IMG_HEADER_T`（`tools/fwrecon/src/fwrecon/rtlimage.py`），欄位裡有 `hdr_chksum` 與 `chksum`。預期這個 build **只驗 checksum、不驗簽章、也不驗 `hw_version` 的 anti-rollback** —— 但「幾乎確定沒有簽章」不是結論，**要指到那個比對的位址，或者指出檢查應該在的位置而它不在**。同一個問題要對兩條回刷管道各答一次：web 的升級 handler，以及 boot loader 的 `AUTOBURN` 路徑，因為它們是兩份程式碼
 - **反證：讀出來發現有簽章驗證或 `hw_version` 比對 → `P9-10` 的 W08 計畫要整個重寫，而那比「沒有簽章」有意思得多。或兩條管道的檢查嚴格程度不同 → 那本身是發現：較鬆的那條就是實際的攻擊面，而它可能不是大家會去看的那條**
+
+**P9-14 — `FLW` 的第四個參數（`<SPI cnt#>`）：指令表說 4，handler 讀 3**
+
+- ⚠️ **零寫入。四格全部在 `(Y)es, (N)o->` 答 `N`；訊息在那個提示之前就印出來了，所以這一項不需要動到 flash**
+- 預測：指令表 `0x8040DBC0` 第 11 項宣告 `argc = 4`，而 handler `0x80409B6C` 只解析 `argv[0..2]`：三次 `strtoul(base 16)`（`0x80409B8C` / `0x80409BA0` / `0x80409BB4`），之後沒有第四次。訊息裡的 `SPI flash#%d` 由 `0x80409BE4` 的 `li a2,1` 提供 —— **是常數，不是參數**；而真正的寫入呼叫 `0x80409C20` 的第一個參數是 `0x80409C14` 的 `move a0,zero`，也是常數，兩者差一是 SDK 原始碼裡 `printf(... cnt2+1 ...)` 折疊出來的。所以：`FLW 3F0000 80530000 8` 與 `FLW 3F0000 80530000 8 5` 與 `FLW 3F0000 80530000 8 0` 三者印出的那一行**逐字相同**，都是 `flash#1`。第四格 `FLW 3F0000 80530000 8 DEADBEEF` 同樣相同。四格都答 `N`，`Abort!` 之後 flash 一個 byte 都沒動。
+- **反證：（a）任何一格的 `flash#` 數字隨第四個參數改變 → 靜態讀法錯了，`li a2,1` 不是那個 `%d` 的來源，回去讀 printf 的 o32 vararg 配置（`a1`/`a2`/`a3` + `16(sp)`/`20(sp)`/`24(sp)`），不要用試錯法逼出答案。（b）送四個參數時 loader 印出參數數量不符之類的訊息 → dispatcher 有一條這份反組譯沒看到的 argc 檢查路徑，而 `tools/loader-unpack.py --commands` 報告的 `declared_argc_is_read_by_the_dispatcher: false` 就是錯的，那個工具要先修好再談別的。（c）三個參數的那一格與 2026-08-17 逐字紀錄的訊息不同 → 先懷疑我這一次打的位址不一樣，不要先懷疑韌體。**
+
+**P9-15 — `J` 之後網路死掉的歸因：五個 port 的 PHY enable bit 是不是充分原因**
+
+- ⚠️ **只寫暫存器，不寫 flash，斷電即還原。原值一定要先用 `DW` 讀出來抄下來，寫回去的是抄下來的值不是記憶裡的**
+- 預測：`J` 的 handler 在跳之前做三件事，任何一件都足以讓網路死掉：`0x804092AC` 把 `0xB8003000`（SDK 的 `GIMR0`）清零遮掉全部中斷、`0x804092B0`–`0x804092C0` 清掉 CP0 status 的 IE、`0x804092F4`–`0x80409354` 把 `0xBB804104` / `4108` / `410C` / `4110` / `4114` 各自的 bit 0 用 `and` `-2` 清掉（SDK 的 `PCRP0`–`PCRP4` 與 `EnablePHYIf`）。上一場「跳完之後跑一次 `get`」的設計因此**無法歸因**。這一項改成不跳轉：停在 `<RealTek>`，`get` 成功（對照）→ `DW` 讀出五個原值 → `EW` 把五個的 bit 0 清掉 → **`get` 逾時** → `EW` 把原值寫回 → **`get` 又成功**。中斷全程沒有動過，所以成立的話，那五個 bit 單獨就是充分原因。
+- **反證：（a）清掉之後 `get` 仍然成功 → 那五個 bit 不是這條網路存活的必要條件，`J` 之後網路死掉必須另外歸因（中斷、或 loader 已被 payload 取代），而 `notes/loader-tftp-and-commands.md` 裡「the five switch ports down」那一行要改寫成它實際證明得到的東西。（b）寫回原值之後 `get` 沒有恢復 → 這個開關在這台上不可逆，之後任何一場都不准再碰它，而 `J` 的副作用比目前寫的重；同時要先排除是 loader 的 ARP 快取而不是 PHY。（c）`DW` 讀回來的五個值有任何一個 bit 0 本來就是 0 → 前提錯了，這五個 register 不是我以為的那五個，停手回去讀。**
+
+**P9-16 — `J` 是呼叫不是跳轉：一個以 `jr ra` 結尾的 payload 會回到提示字元**
+
+- ⚠️ **零寫入。payload 只有兩個指令，用 `EB` 打進 RAM，不經過 TFTP，也不經過 flash**
+- 預測：`0x80409360` 是 `jalr s0` 而不是 `jr s0`，所以 `ra` 被設成 `0x80409368`；handler 在那裡從堆疊還原 `ra` 與 `s0` 之後 `jr ra`，回到 dispatcher 的迴圈。因此一個內容只有 `jr ra; nop`（`03 e0 00 08 00 00 00 00`）的 8-byte payload 被 `J` 過去之後，主控台會印 `---Jump to address=…` 然後**回到 `<RealTek>` 提示字元**，不需要重開機。上一場為了從 `P9-12` 的 payload 回到 loader 燒掉一次電源循環，而 `runsheet.md` Part B 的 `B-W08 進站實錄` 寫的是「`J` 之後沒有軟體的路回去」—— 這一項就是去推翻那句話。回到提示字元之後，`get` 應該是死的（`P9-15` 的那五個 bit 已經被 `J` 自己清掉了），而把原值寫回去之後如果 `get` 復活，`J` 的網路副作用就與中斷無關。
+- **反證：（a）主控台沒有回到提示字元 → `jalr` 的讀法對而回程被別的東西擋住（cache 維護之後的狀態，或 `cli()` 讓 `GetLine` 收不到字元），那時「payload 可返回」在這台上不成立，`P9-10` 的 payload 一律要當成單程，而這比讀對了更值得記。（b）回到了提示字元但之後每一個指令都失常 → 回程存在但 loader 的狀態被破壞了，同樣不能拿來省電源循環。（c）`EB` 打進去的兩個 word 用 `DW` 讀回來不是 `03e00008` / `00000000` → 先修 `EB` 的用法，不要跳。**
 
 </details>
 

@@ -76,6 +76,15 @@ c_warn() { printf '\033[33m warn \033[0m %s\n' "$*"; }
 c_err()  { printf '\033[31m FAIL \033[0m %s\n' "$*" >&2; }
 die()    { c_err "$*"; exit 1; }
 
+# The same one owner for flashrom's output format that flash-read.sh uses. This
+# file had its own copy until 2026-08-21, with the same defect: it asked for -V
+# and looked for a line printed only at -VVV, so `identify` found no id and
+# refused EVERY write with "not writing a chip that is silent" -- on a chip that
+# was answering. It fails safe, which is right, and it names the wrong cause,
+# which is what makes it expensive: the operator unclips a working part.
+# shellcheck source=tools/lib/flashrom-parse.sh
+. "$REPO/tools/lib/flashrom-parse.sh"
+
 if [ -f "$REPO/tools/lib/require-linux-workspace.sh" ]; then
   # shellcheck source=tools/lib/require-linux-workspace.sh
   . "$REPO/tools/lib/require-linux-workspace.sh"
@@ -191,11 +200,16 @@ identify() {
   local expect="$1" log ids
   log="$DEST/write-probe-$(date -u +%Y%m%dT%H%M%SZ).log"
   c_run "probing before anything is written"
-  flashrom_rw -V >"$log" 2>&1 || true
-  ids="$(grep -oE 'RDID returned 0x[0-9a-f]{2} 0x[0-9a-f]{2} 0x[0-9a-f]{2}' "$log" \
-         | sed -E 's/.*0x([0-9a-f]{2}) 0x([0-9a-f]{2}) 0x([0-9a-f]{2})/\1\2\3/' \
-         | sort -u || true)"
-  [ -n "$ids" ] || die "no JEDEC id came back. Not writing a chip that is silent. log: $log"
+  flashrom_rw "$FLASHROM_PROBE_V" >"$log" 2>&1 || true
+  ids="$(parse_rdids "$log")"
+  if [ -z "$ids" ]; then
+    case "$(rdid_failure_kind "$log")" in
+      not-printed)
+        die "flashrom identified a part but this log has no RDID line in it. NOTHING WAS WRITTEN, and DO NOT RE-SEAT THE CLIP: the bus carried a transaction, so what is missing is the line, not the answer. flashrom 1.3.0 prints it only at -VVV. Check: grep -i rdid $log" ;;
+      *)
+        die "no JEDEC id came back and flashrom identified nothing either, so the bus itself is the suspect. Not writing a chip that is silent. log: $log" ;;
+    esac
+  fi
   [ "$(printf '%s\n' "$ids" | wc -l)" -eq 1 ] \
     || die "the chip returned more than one id across probes - unstable contact. log: $log"
   JEDEC_ID="$ids"

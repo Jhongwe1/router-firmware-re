@@ -189,6 +189,42 @@ else
   ok "the string 'AUTOBURN: 1' does not exist anywhere in the tool"
 fi
 
+# LOADADDR joined FORBIDDEN on 2026-08-21 and got a narrow home here, for the
+# same reason AUTOBURN did: refusing outright pushes the operator to type it
+# into picocom, and 0x8040D3A8 decides where the next upload lands, where a read
+# is served from, and what the auto-execute path jumps to.
+out="$("$PY" tools/console-dump.py cmd LOADADDR 81000000 2>&1)"
+case "$out" in
+  *"refusing to send"*) ok "cmd refuses LOADADDR: it is loader state, and cmd only reads" ;;
+  *) bad "cmd was willing to send LOADADDR: $out" ;;
+esac
+
+out="$("$PY" tools/console-dump.py rescue --ip 10.1.1.1 --load-addr 0x80410000 2>&1)"
+case "$out" in
+  *"loader's own image"*) ok "rescue refuses a load address inside the loader's own image" ;;
+  *) bad "an upload address inside the loader was accepted: $out" ;;
+esac
+
+out="$("$PY" tools/console-dump.py rescue --ip 10.1.1.1 --load-addr 0x00300000 2>&1)"
+case "$out" in
+  *"outside KSEG"*) ok "rescue refuses a load address outside KSEG0/KSEG1" ;;
+  *) bad "an unmapped load address was accepted: $out" ;;
+esac
+
+out="$("$PY" tools/console-dump.py rescue --ip 10.1.1.1 --load-addr 0x80500002 2>&1)"
+case "$out" in
+  *"word aligned"*) ok "rescue refuses a load address that is not word aligned" ;;
+  *) bad "a misaligned load address was accepted: $out" ;;
+esac
+
+# And, as with AUTOBURN, the source must contain no way to send the value that
+# hands the jump to the loader instead of to a person.
+if grep -qE '"(nfjrom|boot\.img)"' tools/console-dump.py; then
+  bad "this tool can name one of the loader's auto-execute filenames"
+else
+  ok "no auto-execute filename appears in this tool at all"
+fi
+
 # And the reply assertions, which are what make a silent no-op impossible.
 for needle in 'AutoBurning=1' 'AutoBurning=0' 'Sending nothing further'; do
   if grep -q "$needle" tools/console-dump.py; then
