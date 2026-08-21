@@ -11,7 +11,7 @@
 | **W05** | Dynamic analysis, upper half | — (DoD) | ✅ **DoD 5 of 5, 27 / 27 register rows** — 2026-08-17 |
 | **W06** | PoC reproduction | **G4** | ✅ **passed 5 of 5** — 2026-08-18, clause 3 split into 3a met / 3b impossible by construction; **20 / 20 register rows** |
 | **W07** | Systematic bug hunt | — (DoD) | ✅ **58 / 58 register rows, DoD 5 of 6** — 2026-08-19; the six-build differential harness was never built and `notes/bughunt.md` says so |
-| **W08** | Write-up draft, plus the bench work W07 deferred | — (DoD) | 🚧 **in progress** — **5 / 14 register rows**; the fourteen-chapter draft is written; six rows are blocked on an instrument that does not exist or on a bench visit, each with its reason in the register |
+| **W08** | Write-up draft, plus the bench work W07 deferred | — (DoD) | 🚧 **in progress** — the fourteen-chapter draft is written ([`writeup/`](writeup/), 2026-08-22); **5 / 14 register rows**, with **9 outstanding**: three frozen this session for the next bench visit, six blocked on an instrument that does not exist or on a visit, each with its reason in the register |
 | W09 | Write-up publication | G5 | |
 | W10 | Buffer / disclosure / close-out | — | |
 
@@ -6875,6 +6875,37 @@ dispatcher runs `strupr` (`0x80407040`) on `argv[0]` before comparing, so **the
 seventeen commands are case-insensitive**. `help` fails because the table's entry
 is `?`.
 
+### Instrument bugs 52 through 54
+
+**52 — a census that matched a shape and answered the opposite question.** The
+`sti` search above. It is an instrument bug rather than a reading error because
+the search *was* the instrument: it produced a claim about the whole image
+("nothing sets IE") from a scan whose failure mode is invisible to any test —
+you can only look for the shapes you can think of. Caught by replacing the
+question, not by looking harder. Guarded by two fixtures differing in one bit of
+one immediate.
+
+**53 — a function-entry rule that walked past a routine ending in `rfe`.** The
+first version located entries by scanning back for `jr ra` and taking the word
+after its delay slot. The routine before `enable_irq` ends in `rfe`, so the scan
+overran and reported an entry nothing calls. **Caught by the tool's own
+refusal** — "the GIMR0 bit-setter has 0 callers" — which is the only reason it
+did not become a confident wrong answer somewhere else in the image. A function
+entry is an address a `jal` names, and this image names all of them.
+
+**54 — a new check that was vacuous, and its own guard case found it.** The
+stop-condition count check went in with a regular expression requiring a space
+before `條`. The runsheet writes `停止條件，五條：` with no space, so the check
+matched nothing and passed on every file including the one it was written for.
+The guard case written in the same commit is what failed. **A check with nothing
+to work on reports success**, which is instrument bug 12's shape and the fourth
+time this project has recorded it.
+
+That is **fifty-four instrument bugs recorded**, and the ratio has not moved:
+none was caught by the instrument's own self-check. 52 was caught by changing
+the question, 53 by a refusal that had been written to fire on exactly that
+shape of nonsense, and 54 by a test written in the same commit as the code.
+
 ### A pointer at a rule that does not exist
 
 `A2.8` step 4 ends with *"see stop condition 5 below"* and **`A2.8` has no
@@ -6920,6 +6951,36 @@ many items, and a "第 N 條" reference must resolve. Four guard cases.
   the note and not opened as a register row.
 - **`A2.5`, `A2.6`, `A2.7`, `A2.8`, station 5**: nothing this session changes any
   of them. Station 5 is still blocked on open #97.
+
+### The write-up draft — fourteen chapters, all with content
+
+W08's definition of done in `plan/W08` is the fourteen-chapter draft, and it is
+written: [`writeup/`](writeup/), one file per chapter, English, with a
+Traditional Chinese reading guide in
+[`study/writeup-導讀.md`](study/writeup-導讀.md) that carries the *design* —
+what each chapter is for and where a hostile reader would push — rather than the
+content.
+
+Three decisions worth recording, because each was a choice between two things
+that both looked reasonable:
+
+* **The title is not "From SPI Flash to Root Shell".** That sells the result,
+  and the result is the least rare thing here: an end-of-life device, publicly
+  disclosed defects. *The Build Nobody Had* sells the **corpus** — a build on no
+  download page, sitting in the middle of the vendor's five-year remediation —
+  and that is the part nobody can repeat without buying one of these routers and
+  reading its flash.
+* **Chapter 12 is fifty-four instrument bugs, not ten.** The week plan said ten,
+  written when the count was ten. It is fifty-four, three of them from this
+  session, and the ratio has not moved: none was caught by the instrument's own
+  self-check.
+* **Chapter 14 is written from `study/weekly-results.md`'s "did not prove"
+  columns**, which means it is assembled from sentences written *at the time*
+  rather than remembered afterwards. The first item in it is that no second
+  instrument has ever read this unit's flash.
+
+**What the draft is not**: edited. It is a first pass and W09 is the editing
+week. The ten-minute read test in the week plan has not been run.
 
 ### Open, carried forward
 

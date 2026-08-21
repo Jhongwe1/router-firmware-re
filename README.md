@@ -748,6 +748,7 @@ that is not backed by a command someone else can re-run.
 
 | Path | |
 |---|---|
+| [`writeup/`](writeup/) | **The write-up, fourteen chapters** — the narrative version of everything below, in draft since 2026-08-22. Chapter 5 is the result nobody without one of these routers can obtain; chapter 12 is fifty-four of this project's own instruments being wrong; chapter 14 is what none of it proves. A Traditional Chinese reading guide is [`study/writeup-導讀.md`](study/writeup-導讀.md) |
 | [`REPRODUCE.md`](REPRODUCE.md) | **Start here.** Which claims you can verify with a clone alone, which need an N150RT of your own, and **which are not reproducible by anyone but the author — and why.** Also: the one five-minute check worth running first |
 | [`runsheet.md`](runsheet.md) | **The commands.** Four stations, and a step's number *is* the state the board has to be in (`A2.3` = stopped at `<RealTek>`), so front to back is a correct order to run it in. Per step: what to paste, the **verbatim** output to compare against, a stop condition, and the gotcha that bites there. Physical actions marked. `make ci` verifies every command still resolves (Traditional Chinese) |
 | [`RUNBOOK.md`](RUNBOOK.md) | **Why each step exists**, and how it went wrong the first time. The reference behind the runsheet — it holds the reasoning, the runsheet holds the commands, and neither repeats the other (Traditional Chinese) |
