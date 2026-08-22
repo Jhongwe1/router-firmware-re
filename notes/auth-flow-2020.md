@@ -132,9 +132,11 @@ parameters that reach `system()` unfiltered
 This is stated as carefully as it deserves: it is a static reading of three
 `strstr` calls and one dispatcher, it has not been executed, and it is exactly
 the kind of claim this project has been wrong about before. It is **not** in any
-CVE for this device. If it survives dynamic testing in W05/W06 it goes to
-TWCERT/CC before it goes anywhere else, per the disclosure position in the
-README — and nothing about it will be published until then.
+CVE for this device. **The reporting sentence that stood here until 2026-08-23 —
+that it would go to TWCERT/CC first — no longer applies**: nothing is reported to
+anyone now, and `docs/disclosure.md` §"The decision of 2026-08-23" owns that. It
+remains a static reading either way, and a static reading is not published as a
+finding.
 
 ## `GET /config.dat` is still outside the gate
 

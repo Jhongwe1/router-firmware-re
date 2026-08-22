@@ -218,10 +218,15 @@ reader undefended.
   that exists, no dynamic tick for a static reading, and no editing a prediction
   after a result was recorded against it. `tools/test-rtcase.sh` proves each
   refusal fires; both run in `make ci`.
-- **Findings are published, reproductions follow the disclosure state,
-  tradecraft is not published at all.** Naming a defect and its address is
-  research; a copy-pasteable request for something unreported is not.
-  `docs/disclosure.md` holds the register and the current state of each item.
+- **Findings and reproductions are published; tradecraft is not published at
+  all.** Changed 2026-08-23: the middle clause used to be *"reproductions follow
+  the disclosure state"*, and it was dropped when the author decided to report
+  nothing and publish everything. **The argument is specific to these builds** —
+  they already carry public unauthenticated root and public unauthenticated
+  plaintext credentials, so nothing published adds a capability — and it is in
+  `docs/disclosure.md` §"The decision of 2026-08-23" **with the four things it
+  does not cover**. Do not restate the argument elsewhere; cite that section.
+  **Tradecraft did not move and is not open for discussion.**
 - **Every week closes with a `study/weekly-results.md` entry** — the one-line
   version, three defensible claims each with its evidence and what it
   demonstrates, and **what that week did not prove**. The last of those three is

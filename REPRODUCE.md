@@ -318,9 +318,12 @@ the same scan is shown, in the same run, to find seventeen things that are there
 
 This studies a device the author owns, on an isolated segment, to trace
 **already-publicly-disclosed** vulnerabilities to the responsible function.
-Findings and their addresses are published; reproductions follow the state in
-[`docs/disclosure.md`](docs/disclosure.md); post-exploitation tradecraft is not
-published at all, and the nine items cut for that reason are listed with their
-reasons in [`test-ledger.md`](test-ledger.md).
+Findings, their addresses **and their reproductions** are published;
+post-exploitation tradecraft is not published at all, and the nine items cut for
+that reason are listed with their reasons in
+[`test-ledger.md`](test-ledger.md). Two of the reproductions in `poc/` are for
+defects **reported to nobody** — that was decided on 2026-08-23 and the argument,
+including what it does not cover, is
+[`docs/disclosure.md`](docs/disclosure.md) §"The decision of 2026-08-23".
 
 **Do not point any of this at hardware that is not yours.**

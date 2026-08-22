@@ -612,8 +612,10 @@ that is not backed by a command someone else can re-run.
   > powered the device on and found it runs **neither of them**, so none of this is
   > yet known to describe the hardware on the bench. The 2020 substring bypass in
   > particular is a reading of three
-  > `strstr` calls that has never been executed; it goes to TWCERT/CC if and only
-  > if W05/W06 demonstrates it.
+  > `strstr` calls that has never been executed. *(The clause that stood here —
+  > "it goes to TWCERT/CC if and only if W05/W06 demonstrates it" — was retired
+  > on 2026-08-23 along with the rest of the reporting policy. It is still an
+  > unexecuted static reading, which is the part that mattered.)*
 
 - [x] **G3.5 — every `boa` claim names the binary it was measured on** (W04-2) ✅ **passed 2026-08-17** ← [PROGRESS.md](PROGRESS.md#w04-2--2026-08-16)
   - [x] `root_form[]` + sink census for all three builds, each carrying its input's SHA-256
@@ -805,14 +807,15 @@ that is not backed by a command someone else can re-run.
 | [`notes/dump-vs-official.md`](notes/dump-vs-official.md) | **The 4 MiB dump against the two published images** — a five-year vendor remediation caught mid-step, and what four layers of verification do and do not prove |
 | [`notes/prior-art.md`](notes/prior-art.md) | Who disclosed what, when — and which claims survive contact with these images |
 | [`notes/cve-status.md`](notes/cve-status.md) | **Per-CVE, against the build this unit runs** — five located in its own binary, two refuted by it, and two published endpoint names that exist in no dispatch table |
-| [`poc/`](poc/) | **The reproductions** — two public CVE chains with the requests, the flash-byte evidence, and one file that deliberately carries **no request at all** because what it describes has not been reported to anyone. `run.sh` runs against a device or against an emulated copy, and says which step failed |
-| [`docs/report-draft.md`](docs/report-draft.md) | **The report that has not been sent** — what would go to TWCERT/CC, what is attached and what is not, and the one step that is blocking it |
-| [`docs/disclosure.md`](docs/disclosure.md) | **The disclosure register** — what might be new, what state it is in, and the rule separating a finding from a reproduction from tradecraft. Two entries were **withdrawn** on 2026-08-17, one of them by prior art that a by-handler search found in a single query |
+| [`poc/`](poc/) | **The reproductions** — two public CVE chains with the requests, the flash-byte evidence, and since 2026-08-23 the three unreported ones as well, each with its controls and with what an attacker already had without it. `run.sh` runs the two public chains only, against a device or an emulated copy, and says which step failed |
+| [`docs/report-draft.md`](docs/report-draft.md) · [`-2`](docs/report-draft-2.md) | **Two reports that were never sent, kept as written.** The first names as its strongest item a defect that turned out to be **CVE-2018-13315**, published 2018 — found by the one-query search the draft itself said had not been run. The second lists two blocking conditions that had both been cleared on the day it was written and stayed marked *"not done"* for five days |
+| [`docs/disclosure.md`](docs/disclosure.md) | **The disclosure register** — what might be new, what state each item is in, and **the decision of 2026-08-23 to report nothing and publish everything, with the four things that argument does not cover.** Two entries were withdrawn on 2026-08-17 and a third lost its larger half to an eight-year-old CVE on 2026-08-23, each time to a by-handler search of a single query |
 | [`test-ledger.md`](test-ledger.md) | **The test register, generated** — 141 tests with their predictions frozen before the first request, what would refute each, and what **23** items were cut, why, and what would bring each one back (Traditional Chinese) |
 | [`notes/attack-surface.md`](notes/attack-surface.md) | Where to look, ranked |
 | [`notes/ghidra-triage.md`](notes/ghidra-triage.md) | Which functions to open first, and why — with the three W01 calls W03 overturned |
 | [`notes/dispatch-table.md`](notes/dispatch-table.md) | `root_form[]` recovered: every `/boafrm/` route in both builds, and what changed between them |
 | [`notes/auth-flow.md`](notes/auth-flow.md) | **How Boa decides you are allowed in** — the substring gate, the IP-as-session model, the uninitialised credential compare |
+| [`notes/password-page-credentials.md`](notes/password-page-credentials.md) | **The page inlines the plaintext credentials** — the current-password check runs in the browser, so the server sends it the secret; only one of the three builds does it, and it still changes nothing an attacker could do |
 | [`notes/sink-inventory.md`](notes/sink-inventory.md) | Every `system`/`strcpy`/`sprintf` call site, ranked — and how the first version of the census was wrong |
 | [`notes/auth-flow-2020.md`](notes/auth-flow-2020.md) | **The 2020 rewrite** — what it fixed, what it kept, and the 401 that is never sent |
 | [`notes/auth-flow-2018.md`](notes/auth-flow-2018.md) | **The gate on the build this unit runs** — a third answer, and the command handler that is only in this build |
@@ -896,7 +899,19 @@ correctness requirement here and not a preference.
 - The focus is **understanding publicly disclosed issues**, not producing
   weaponised exploits.
 - I do **not** test third-party, production, or ISP-owned devices.
-- **Coordinated disclosure:** anything genuinely new goes to **TWCERT/CC** before
-  any public discussion.
+- **Disclosure: full, and not coordinated.** Decided 2026-08-23, argued with its
+  limits in [`docs/disclosure.md`](docs/disclosure.md). Findings **and their
+  reproductions** are published here; nothing was reported to a coordinator or to
+  the vendor. The short reason is that on these builds an attacker already has
+  public unauthenticated root — CVE-2024-51228, whose public proof of concept
+  names this exact build string — and public unauthenticated plaintext
+  credentials via `GET /config.dat`, CVE-2019-19822/19823, still unfixed in a
+  2020 build. Nothing published here adds a capability against these devices.
+  **This replaces an earlier promise to report to TWCERT/CC first**, which stood
+  in this file until 2026-08-23 and was never acted on; the register records the
+  change, the argument, and what that argument does *not* cover.
+- **Tradecraft is still not published**, and that line did not move: no
+  persistence, no anti-forensics, no lateral movement, no credential harvesting
+  on a live host.
 - Vendor firmware is **not redistributed** here — only the provenance and hashes
   needed to obtain and verify identical copies.

@@ -1,5 +1,24 @@
 # Report draft — TWCERT/CC
 
+> ## ⛔ Never sent, and never will be — closed 2026-08-23
+>
+> **Kept as written, because a draft that was wrong is more useful than a draft
+> that was deleted.** Two things closed it, and only the second was a decision:
+>
+> 1. **Finding A is `CVE-2018-13315`**, published 2018-07-03 against the sibling
+>    A3002RU — same handler, same mechanism, eight years earlier, found by a
+>    one-query by-handler search this draft's own blocking step demanded and
+>    which was never run. This draft calls A the strongest of its three items.
+>    It was the one that was not ours.
+> 2. **Nothing is being reported to anyone**, and the reproductions are published
+>    instead — `docs/disclosure.md` §"The decision of 2026-08-23". A, B and C are
+>    now in [`poc/04-auth-takeover.md`](../poc/04-auth-takeover.md) with their
+>    requests and their controls.
+>
+> Read what follows as a record of what this project believed on 2026-08-17,
+> including the timeline entry that says the by-handler search *"has not yet been
+> run for A, B and C"* — which is the sentence that turned out to matter.
+
 **Status: drafted 2026-08-17, NOT sent. The 90-day clock has not started.**
 
 This file is the report's *structure and content*. It deliberately does **not**

@@ -148,9 +148,22 @@ drafted it as the CVE-2014-8361 injection and then refuted itself with a
 control.
 
 Three of this project's own findings were **withdrawn** after being written up,
-and one turned out to have a CVE against it already. One item in the disclosure
-register has had **no prior-art search**, so it is not reportable and has not
-been reported. *"Nobody published it"* is a claim that needs a search behind it.
+and **two** turned out to have a CVE against them already — `D-1` to Cisco
+Talos's 2023 report, and the unauthenticated administrator password change to
+**CVE-2018-13315**, published in 2018 against a sibling model, naming the same
+handler and the same mechanism. The second was found on 2026-08-23 by the
+one-query by-handler search this project's own procedure had required since
+2026-08-17 and had not run, on a finding that was by then written into a report
+draft as its strongest item.
+
+That is the same failure twice, and the honest description of it is not *"the
+search was skipped"* but **"a confirmed prediction feels like an ending"**. Both
+times the measurement had succeeded on the hardware first, and a result that
+survives its own refutation condition does not feel like something that still
+needs checking against the literature.
+
+*"Nobody published it"* is a claim that needs a search behind it, and this
+project has now made it wrongly twice.
 
 ## The SoC core is not identified
 

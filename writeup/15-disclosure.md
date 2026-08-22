@@ -2,22 +2,42 @@
 
 ## Disclosure
 
-This device is **end of life and no longer vendor-supported**. Every defect this
-document *locates* is already public; what is new here is the location, the
-build it applies to, and — in one case — a disagreement with a published score.
+This unit is **end of life and no longer vendor-supported**. Almost every defect
+this document *locates* is already public; what is new is the location, the build
+it applies to, and — in one case — a disagreement with a published score. Two
+items are not public, and they are named as such below.
 
-The register is [`docs/disclosure.md`](../docs/disclosure.md), and it carries a
-per-item state rather than a blanket policy. Three rules decide what appears
-here:
+**Nothing here was reported to anyone, and everything is published, including
+the reproductions.** That was decided on 2026-08-23, and it replaced a policy —
+stated in `README.md` until that date — of reporting anything new to TWCERT/CC
+first. The register is [`docs/disclosure.md`](../docs/disclosure.md); its
+§"The decision of 2026-08-23" carries the argument **and the four things the
+argument does not cover**, which is the half worth reading.
+
+The one-line version, and it is checkable rather than rhetorical: on these builds
+an unauthenticated attacker on the LAN already has **root** — CVE-2024-51228,
+whose public proof of concept names this exact build string — and already has the
+**plaintext administrator credentials** from one `GET /config.dat`,
+CVE-2019-19822 and CVE-2019-19823, unfixed in a build dated nine months after
+full disclosure. Every reproduction published here is reachable from either. It
+adds mechanism, not capability.
+
+Two rules decide what appears, down from three:
 
 1. **Findings are published.** Naming a defect and its address is research.
-2. **Reproductions follow the disclosure state of the item.** A copy-pasteable
-   request for something already fully disclosed is a reproduction; the same
-   request for something unreported is not, and does not appear.
-3. **Tradecraft is not published at all**, in either case.
+2. **Tradecraft is not published at all** — no persistence, no anti-forensics, no
+   lateral movement, no credential harvesting on a live host. That line did not
+   move on 2026-08-23 and is the one rule this project has never argued with.
 
-One item in the register has had **no prior-art search**. It is therefore not
-reportable, has not been reported, and is not in this document as a finding.
+The rule that went was *"reproductions follow the disclosure state of the item"*.
+It ran the project for six days, it cost `poc/04` its content for that whole
+period, and it was dropped on an argument rather than forgotten.
+
+**Two of this project's own claims were retired by prior art found after they
+were written up** — `D-1` by Cisco Talos in 2023, and the unauthenticated
+password change by **CVE-2018-13315** in 2018, which a one-query by-handler
+search would have refused at any point in the preceding six days. Both are in
+[`prior-art.md`](../notes/prior-art.md) with the query that should have run.
 
 **CVE-2024-51228** is the one place this project has something to say back to the
 public record. NVD scores it `PR:H` — privileges required, high — for 6.8

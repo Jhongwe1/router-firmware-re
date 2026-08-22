@@ -556,28 +556,162 @@ discovery.
 
 ---
 
-## Not searched yet — three items, and this section exists because of §"How this note failed"
+## ~~Not searched yet — three items~~ — **this section was stale on the day it was written**
 
-**2026-08-18.** Three findings from W07 Day 2 are candidates for being this
-project's own, and **none has had the by-handler search**. Listing them here
-rather than only in `docs/disclosure.md` is the change §"How this note failed"
-promised: the gap that let CVE-2024-51228 go unfound for two weeks was that this
-file had no 2024 entries and nothing recorded that it had not looked.
+**Struck 2026-08-23.** It listed `D-15`, `D-17` and `D-12` as unsearched, and
+§"the searches ran" — **a hundred lines above it, in this same file, written the
+same day** — records all three as searched with their results. Both halves were
+committed on 2026-08-18 and contradicted each other for five days.
 
-| finding | register | what to search, and it is not the product name |
-|---|---|---|
-| A second credential pair compared against never-written stack, matched by empty fields | `P2-9` · `D-15` | `boa` + "uninitialised"/"uninitialized stack" + authentication; Realtek rtl819x SDK + Basic auth bypass; the `process_header_end` symbol; and **`Boa 0.94.14rc21` on its own** — the 2023 search in §"a published bypass against this exact Boa version" found one that did not apply, and the next one might |
-| A 16-byte append past a 256-byte buffer in `dnsspoof` | `P6-10` · `D-17` | the binary name is generic and collides with the well-known dsniff tool, so search the *behaviour*: Realtek captive-portal DNS responder, `wan_disconnect`, `StartDnsSpoof` |
-| Plain-HTTP firmware fetch on an unauthenticated trigger, with additive-checksum-only image validation | `P8-10` + `P9-13` · `D-12` | `sl.totolink.software`; `batchRemoteUpgrade`; `submit_rfw_upgrade`; TOTOLINK + firmware update + MITM |
+Kept rather than deleted, because the failure is the point: this is the file
+whose entire job is to stop a claim being made without a search behind it, and
+**it could not keep its own two sections in agreement for one day.** No tool
+reads it. `tools/check-runsheet.py` reads the runsheet, `tools/rtcase.py` reads
+the register, and nothing at all reads this file or `docs/disclosure.md` — the
+same blind spot as instrument bug 22, now with three instances.
 
-**A fourth is already known not to be ours.** `miniigd`'s SOAP `system()` site
-(`D-16`) is almost certainly **CVE-2014-8361** — CISA KEV, a Mirai payload since
-2015. It is listed under the CVE table above, not here.
+What it should have said is that **`D-4` and `D-11` were the unsearched ones**,
+and the section named neither. That cost is priced in §2026-08-23 below.
 
-**The rule this section is enforcing**: a search by *product* returned nothing
-for `D-1` and a search by *handler* returned Cisco Talos on the first page. Until
-each row above has had the second kind, none of them is described as new, in this
-repository or anywhere else.
+---
+
+## 2026-08-23 — the by-handler search that should have run first, and the CVE it found
+
+**One query overturned the largest claim in `docs/report-draft.md`.**
+
+### `D-4`'s A half is CVE-2018-13315, published 2018-07
+
+NVD, verbatim:
+
+> *"Incorrect access control in **formPasswordSetup** in TOTOLINK A3002RU version
+> 1.0.8 allows malicious users to change the admin user's password via an
+> **unauthenticated POST request**."*
+
+CVSS 3.0 **9.8 CRITICAL**, `AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H`, CWE-20.
+Confirmed against **four independent sources** — NVD, Vulmon, CXSecurity, and
+GitHub Advisory `GHSA-vw86-c7px-f6g6` — because a search-engine summary is a
+summariser and this claim retires a finding.
+
+The reference behind it is Independent Security Evaluators (Joshua Meyer),
+2018-07, whose own title for the defect is **"Missing Server-side Validation of
+Current Password During Password Change"**. That is, word for word, the sentence
+`P10-3` had been writing since 2026-08-17: *the form carries `Cusername` /
+`Cpassword` for the current credentials and the handler does not check them.*
+
+| | |
+|---|---|
+| same handler name | `formPasswordSetup` |
+| same mechanism | current-password fields present, never validated server-side |
+| different model | A3002RU 1.0.8 — **a sibling in the same `-CX-` SDK generation**, and one of the six CVE-2024-51228 names |
+| how far apart | **eight years**, and it is on NVD under the handler's own name |
+
+**This is `D-1` for the second time, and the second one is worse.** `D-1` needed
+a Cisco Talos advisory to find. This one needed the handler name and one query.
+Both times the search was skipped because the measurement had already succeeded
+and the work felt finished — **a confirmed prediction feels like an ending.**
+
+### ISE's twelve, in full, because five of them touch rows in this register
+
+| CVE | what it names |
+|---|---|
+| CVE-2018-13306 | `formDlna` / `ftpUser` — command injection |
+| CVE-2018-13307 | **`fromNtp`** / `ntpServerIp2` — command injection; *"certain payloads cause the device to become permanently inoperable"* |
+| CVE-2018-13309 | `password.htm` — XSS via the user's **password** |
+| CVE-2018-13310 | `password.htm` — XSS via the user's **username** |
+| CVE-2018-13311 | `formDlna` / `sambaUser` — command injection |
+| CVE-2018-13312 | `notice_gen.htm` — XSS |
+| CVE-2018-13314 | `formAliasIp` / **`ipAddr`** — command injection |
+| **CVE-2018-13315** | **`formPasswordSetup` — unauthenticated password change** |
+| CVE-2018-13316 | `formAliasIp` / **`subnet`** — command injection |
+| CVE-2018-13317 | `password.htm` — **plaintext password disclosure by GET** |
+
+Four consequences, and none of them is about `D-4`:
+
+1. **`D-1`'s withdrawal was right and its stated reason was too harsh on the
+   instrument.** 13314 and 13316 put `ipAddr` and `subnet` into `system()` in
+   this SDK — on `formAliasIp`. `BoaGate` R2 matched a real sink family and
+   attached it to the wrong handler, which is a different bug from inventing one.
+2. **13309, 13310 and 13317 are all `password.htm`, and all three exist because
+   that page carries the credentials.** That is what
+   [`password-page-credentials.md`](password-page-credentials.md) reads out of
+   this unit's own rootfs, and the sibling's CVE set is the second source for it.
+3. **13317 bounds `D-15`'s impact.** On A3002RU the page was readable
+   unauthenticated outright; on this build it is gated and `D-15` is what opens
+   it. So the *page contents* are published prior art and the *route* is not.
+4. **`fromNtp` is a third dispatch-table ghost** (`D-5`), beside `formWlwds` and
+   `fromStaticDHCP`. Two of the three differ from a real handler by two
+   transposed letters. These advisories look written from the HTML forms rather
+   than from `root_form[]`.
+
+### `D-11` — searched, mechanism not found, class saturated
+
+Searched by handler (`formSchedule`, `formNewSchedule`), by effect (boa dead and
+not respawning), and by shape (missing parameter rather than overlong value).
+
+* **Nearest published item:** a D-Link **DWR-M960** report against
+  `/boafrm/formNewSchedule` — same SDK, near-identical handler name, `boa`
+  crashes and the device is unreachable afterwards. **Its trigger is an overlong
+  `submit-url` through an unchecked `strcpy`.** `D-11`'s request is legal, short,
+  and carries `submit-url` as its only field.
+* CVE-2018-13307 also reaches *"permanently inoperable"*, again by injection.
+* The 2025 TOTOLINK series is a dozen `submit-url` overflows across `formWsc`,
+  `formWlwds`, `formVlan`, `formDdns`, `formPortFw` and others.
+
+**So the mechanism is unpublished and the effect is ordinary.** A denial of
+service on a device carrying a public unauthenticated root RCE is the weaker of
+the two things an attacker already has.
+
+### `D-15` — four more angles, still nothing
+
+Beyond the 2026-08-18 four: `Boa 0.94.14rc21` alone again, `process_header_end`
+with uninitialised stack, rtl819x + Basic auth bypass, and the SDK source by
+symbol (`admin_name`, `MIB_SUPER_NAME`). Everything returned was **CVE-2007-4915
+/ the Metasploit `intersil_pass_reset` module** — Intersil-extended Boa, a
+**long username overwriting** the stored password. Same function, same feature,
+**opposite direction**: that is one write too many, this is one write missing.
+Talos's fifteen rtl819x reports still contain no authentication defect of any
+kind.
+
+**`D-15` is the only candidate in this register that has now survived eight
+search angles across two days.** It is still not called *new*: the SDK source
+carrying it has been public the whole time.
+
+### `D-18` — the behaviour is eight years old, only the mechanism is ours
+
+ISE, on the sibling, 2018: *"the server doesn't send session tokens — as long as
+someone has signed in recently (approximately 5 minutes), any request sent to
+the router will be considered authenticated."*
+
+Against the reading in [`auth-session-ip.md`](auth-session-ip.md): keyed on the
+client IP, expiring against `beforeuptime` at `0x004899dc`, which has exactly one
+reference in the binary and it is the read — hence 601 seconds and then never
+again. ~5 minutes observed, 601 seconds derived. Same feature, and **the
+observation predates this project by eight years.**
+
+> ⚠️ **Single-sourced, and flagged rather than absorbed.** That quotation comes
+> from a search-engine summary. `blog.securityevaluators.com` did not answer
+> three fetch attempts, `web.archive.org` is unreachable from this toolchain, and
+> the author could not open the post either. **Nothing downstream may cite this
+> as established** until someone reads the post. It is recorded because a lead
+> nobody wrote down is how CVE-2024-51228 stayed missing for two weeks.
+
+### What actually found these, and it is not what the procedure says
+
+`docs/disclosure.md` step 2 says *search by handler, not by product*. True, and
+insufficient. **The query that found CVE-2018-13315 named the handler AND the
+effect** — *unauthenticated password change* — where the handler alone returns
+the 2019 and 2025 command-injection material and buries a 2018 access-control
+row. The effect is the part a CVE description is written in; the handler is the
+part the binary is written in. **A search needs one of each.**
+
+### How this note failed, second entry
+
+The 2026-08-16 version of this file failed by having no 2024 entries and no
+record that it had not looked. This version failed differently and worse: it
+**had** a section for recording what had not been searched, that section named
+the wrong three items, and the two items it should have named were the two about
+to be put in a report. A register that exists and is wrong outranks a register
+that is missing, because the second one at least does not reassure anyone.
 
 ## Sources
 
@@ -591,3 +725,13 @@ repository or anywhere else.
 - The 2025 series against this model — <https://nvd.nist.gov/vuln/detail/CVE-2025-4462> and neighbours
 - CVE-2024-51228 — <https://nvd.nist.gov/vuln/detail/CVE-2024-51228>
 - yckuo-sdc, TOTOLINK Boa API vulnerabilities — <https://github.com/yckuo-sdc/totolink-boa-api-vulnerabilities>
+
+Added 2026-08-23:
+
+- **CVE-2018-13315**, `formPasswordSetup` unauthenticated password change — <https://nvd.nist.gov/vuln/detail/CVE-2018-13315>, and the same text at <https://vulmon.com/vulnerabilitydetails?qid=CVE-2018-13315> and GitHub Advisory `GHSA-vw86-c7px-f6g6`
+- The A3002RU 2018 set, CVE-2018-13306 … 13317, in one table — <https://cxsecurity.com/cveproduct/18859/39210/a_33__30__30__32_ru_firmware>
+- Joshua Meyer / Independent Security Evaluators, *New Vulnerabilities in TOTOLINK A3002RU*, 2018-07 — <https://blog.securityevaluators.com/new-vulnerabilities-in-totolink-a3002ru-d6f42a081154> ⚠️ **cited but not read**: three fetch attempts returned nothing and the archive is unreachable from here. See `D-18`
+- D-Link DWR-M960 `/boafrm/formNewSchedule` `submit-url` overflow, the nearest published thing to `D-11` — <https://github.com/LX-66-LX/cve-new/issues/26>
+- Cisco Talos, fifteen vulnerabilities in the Realtek rtl819x Jungle SDK, roundup — <https://blog.talosintelligence.com/vulnerability-roundup-july-10-2024/>
+- CVE-2007-4915 / `intersil_pass_reset`, the opposite-direction Boa credential defect — <https://www.rapid7.com/db/modules/auxiliary/admin/http/intersil_pass_reset/>
+- The rtl819x `boa` / `apmib` source in a vendor GPL drop — <https://github.com/Saturn49/wecb/blob/master/rtl819x/users/boa/apmib/apmib.h>

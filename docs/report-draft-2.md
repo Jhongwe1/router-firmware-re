@@ -1,5 +1,28 @@
 # Report draft 2 — the authentication bypass
 
+> ## ⛔ Never sent, and never will be — closed 2026-08-23
+>
+> **Both of this draft's blocking conditions were cleared on the day it was
+> written, and this file did not say so for five days.** The prior-art search ran
+> four ways on 2026-08-18 and found nothing; the device confirmation ran the same
+> evening at 19:44 (`BENCH-LOG.md` `T-43`, six requests, no power cycle) and the
+> finding held, with two extra requests the register had not asked for that are
+> what make it decisive. The timeline table below still says both are *"not
+> done"*. **That staleness is the reason the author read this finding as
+> unimportant on 2026-08-23** — the file said it was not ready, so it was not
+> reconsidered.
+>
+> A second thing this draft understated: its impact section says the finding adds
+> *"reading: pages, and what they contain"* and never says what they contain.
+> They contain the plaintext administrator credentials —
+> [`password-page-credentials.md`](../notes/password-page-credentials.md) — which
+> **also** turns out to change nothing, because `GET /config.dat` has handed over
+> the same two values unauthenticated since 2019.
+>
+> Closed by decision: nothing is reported, and the reproduction is published in
+> [`poc/05-auth-bypass.md`](../poc/05-auth-bypass.md) instead.
+> `docs/disclosure.md` §"The decision of 2026-08-23".
+
 **Status: drafted 2026-08-18, NOT sent. Not sendable yet, and for two reasons
 rather than one.**
 

@@ -194,8 +194,10 @@ What that is worth is not decidable from a static image:
 
 Whether a reachable request sequence leaves the right bytes there is a
 **dynamic** question. It is recorded here as a candidate, not a finding, and
-belongs to W05/W06. It has not been reported to anyone and will not be until it
-is either demonstrated or disproved.
+belongs to W05/W06. **It has not been reported to anyone and now never will be**
+— nothing is, since 2026-08-23; `docs/disclosure.md` §"The decision of
+2026-08-23" carries that and its limits. What has not changed is that a candidate
+is not a finding until it is demonstrated or disproved.
 
 ## One more thing in the 401 path
 

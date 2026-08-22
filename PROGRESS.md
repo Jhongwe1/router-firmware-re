@@ -7309,3 +7309,189 @@ to measure it is not the same as finding out.
      priority. The slot is never written, so either that reading is wrong or the
      code does not run on this path. Until it is settled the `installs` table's
      source-27 row claims only that the structure resembles an irqaction.
+
+## W08 Day 3, desk — one query retired the largest claim in the report drafts, and the disclosure policy went with it — 2026-08-23
+
+Desk-only. The device was not powered, the clip was not touched, nothing was
+measured. What changed is what this project believes about work it had already
+finished, and what it does with it.
+
+The session started as *"remind me what we were going to send"* and ended with
+**nothing being sent, ever, and everything being published instead.**
+
+### `CVE-2018-13315` — the second time a by-handler search retired a finding
+
+`docs/report-draft.md`'s finding **A** — an unauthenticated POST changes the
+administrator password because `formPasswordSetup` carries `Cusername` /
+`Cpassword` for the current credentials and never checks them — **is
+CVE-2018-13315**, published 2018-07-03 against the sibling TOTOLINK A3002RU
+1.0.8, CVSS 9.8, CWE-20. Independent Security Evaluators' own title for it is
+*"Missing Server-side Validation of Current Password During Password Change"*,
+which is the sentence this project had been writing for six days.
+
+Four independent sources, because a search summary is a summariser and this
+claim retires a finding: NVD, Vulmon, CXSecurity's product table, and GitHub
+Advisory `GHSA-vw86-c7px-f6g6`.
+
+**This is `D-1` a second time and the second one is worse.** `D-1` needed a Cisco
+Talos advisory. This one is on NVD, under the handler's own name, and the
+draft's own timeline entry from 2026-08-17 says in as many words that the
+by-handler search *"has not yet been run for A, B and C"*. It stayed not-run for
+six days across four sessions.
+
+The mechanism of the failure is not laziness and calling it that would waste it.
+**A confirmed prediction feels like an ending.** `P10-3` was measured on the
+hardware against a refutation condition frozen beforehand, it held at the first
+attempt, and a result that survives its own refutation does not feel like
+something that still needs checking against the literature. Both misses have that
+shape.
+
+One method result worth keeping: the query that found it named **the handler and
+the effect** — `formPasswordSetup` + *unauthenticated password change*. The
+handler alone returns the 2019 and 2025 command-injection material and buries a
+2018 access-control row. The effect is the vocabulary a CVE description is
+written in; the handler is the vocabulary the binary is written in. `disclosure.md`
+step 2 says *search by handler, not by product*, and that is true and
+insufficient.
+
+### The decision: nothing is reported, everything is published
+
+Decided by the author. **Nothing goes to TWCERT/CC, to the vendor, or to anyone
+else, and the reproductions are published in `poc/` instead.** `README.md`
+promised the opposite until today and was changed in the same commit, because a
+promise nobody intends to keep is worse than no promise.
+
+The argument is in `docs/disclosure.md` §"The decision of 2026-08-23" and it is
+checkable rather than rhetorical: on these builds an unauthenticated attacker on
+the LAN already has **root** (CVE-2024-51228, public PoC naming this exact build
+string) and already has the **plaintext credentials** (`GET /config.dat`,
+CVE-2019-19822/19823, one request, no bypass, unfixed in a build dated nine
+months after full disclosure). Every reproduction published today is reachable
+from either, item by item, in a table. **It adds mechanism, not capability.**
+
+The vendor half: ISE reported twelve CVEs against the sibling in 2018 across
+three emails and record no response to any of them. One of those twelve is what
+retired finding A today, still present eight years later.
+
+**Tradecraft did not move.** No persistence, no anti-forensics, no lateral
+movement, no credential harvesting. That line has never been argued with here.
+
+### The four things that argument does not cover, written into the register
+
+Because this is the half that will be attacked, and it should be attacked:
+
+1. The affected window is **2015 → 2018 present, 2020 absent** — not "one
+   end-of-life unit". It is whatever ships a 2015–2018-era `boa`, and **one such
+   device has been measured.**
+2. **Five of the six `-CX-` models CVE-2024-51228 names are untested here.** The
+   argument assumes CVE-2019-19822 reaches them too. That is likely from the SDK
+   lineage and it is an assumption about hardware nobody here has touched.
+3. **`N300RT` is not end-of-life** — CVE-2025-34319 names firmware prior to
+   `V3.4.0-B20250430`, so that model was still receiving builds in 2025 while
+   CVE-2024-51228 names its 2017 and 2019 builds. *"The device is EOL"* is true
+   of this unit and is **not** a statement about the affected set. It was nearly
+   used as one.
+4. Every claim is **LAN-side**, in this unit's shipped configuration.
+
+### `password.htm` hands out the credentials, and it changes nothing
+
+`/password.htm` inlines the plaintext administrator username **and** password
+into two JavaScript variables, by server-side SSI, and the client-side
+comparison against them is the *entire* current-password check — which is the
+other half of CVE-2018-13315's story. Read out of this unit's own rootfs template
+and confirmed in a rendered 5,332-byte response.
+
+Across the three builds it is the **2018 build alone** that both carries the
+`D-15` credential pair and puts the password in the page it unlocks: 2015 has the
+pair but inlines only the username, 2020 has neither.
+
+**And it is not an escalation.** Those two values have been one unauthenticated
+`GET /config.dat` away since 2019. The first draft of the note said *"credential
+disclosure leading to full takeover"* and was written before asking what the
+attacker already had — the same error, in the opposite direction, as the draft
+sentence that made the finding look unimportant. → `notes/password-page-credentials.md`
+
+### Two files that disagreed with themselves, and no tool reads either
+
+- **`notes/prior-art.md`** carried a section headed *"Not searched yet — three
+  items"* naming `D-15`, `D-17`, `D-12` — while the section a hundred lines above
+  it, committed the same day, records all three as searched with results. It also
+  omitted the two items that genuinely had not been searched, `D-4` and `D-11`,
+  which were the two about to go into a report.
+- **`docs/report-draft-2.md`** listed two blocking conditions that had both been
+  cleared on the day it was written — the prior-art search four ways, and the
+  device confirmation at 19:44 the same evening. The file still said *"not done"*
+  five days later, **and that is why the finding was read as unimportant today**:
+  the file said it was not ready, so it was not reconsidered.
+
+Both are the shape of instrument bug 22 — a checker's blind spot holding the bug
+it was written for — except there is no checker at all. `check-runsheet.py` reads
+the runsheet, `rtcase.py` reads the register, and **nothing reads
+`docs/disclosure.md` or `notes/prior-art.md`.** That is now three instances.
+
+### Corrections
+
+| Said | Actually |
+|---|---|
+| `docs/report-draft.md`, finding **A**: this project's own, and the strongest of the three | **CVE-2018-13315**, published 2018-07-03, sibling model, same handler, same mechanism |
+| `docs/disclosure.md` `D-1`: *"`BoaGate` R2 mis-classified an `sprintf` site as a `system()` site"* | The withdrawal stands, the reason is too harsh. **CVE-2018-13314 / 13316 put `ipAddr` and `subnet` into `system()` on `formAliasIp`** — R2 matched a real sink family and attached it to the wrong handler, which is a different and more fixable bug than inventing one |
+| `docs/disclosure.md` `D-15`: *"(c) still outstanding: confirmation on the device"* | Done **2026-08-18 19:44**, `BENCH-LOG.md` `T-43`. The row carried it as outstanding for five days |
+| `docs/report-draft-2.md`: prior-art search *"not done"*, hardware confirmation *"not done"* | Both done 2026-08-18, the day the draft was written |
+| `docs/report-draft-2.md`: the finding adds *"reading: pages, and what they contain"* | True and it never says what they contain: the plaintext credentials. Also true: that changes nothing, and the draft could not say so either |
+| `writeup/14-limits.md` and `15-disclosure.md`: *"one item has had no prior-art search"*, *"one turned out to have a CVE against it already"* | Three items were unsearched (`D-4`, `D-11`, `D-19`) and **two** had CVEs. Both counts corrected; both files had been published-facing with the wrong number since 2026-08-22 |
+| `README.md`: *"anything genuinely new goes to TWCERT/CC before any public discussion"* | Replaced 2026-08-23. Nothing was ever reported and nothing will be |
+| `docs/disclosure.md` `D-19`: `NOT SEARCHED` | Searched today. Everything returned is CVE-2014-8361's **command injection** on the same parameter; nothing describes the daemon terminating. The most likely reading — a variant of the 2014 defect that fails closed — is a hypothesis and is labelled one |
+
+### Deliberately not done
+
+- **The device was not touched.** Nothing today needed it and nothing today
+  produced a reason to power it.
+- **`run.sh` was not extended to the two newly published items.** A script that
+  fires an authentication bypass is a different artefact from one that reproduces
+  a documented CVE, and no gate here asks for it.
+- **`runsheet.md` `A3.11.2` was not redacted, and now never needs to be.** The
+  governance defect it created — a complete request for an unreported defect
+  sitting in a committed file — was resolved by the item turning out to be
+  CVE-2018-13315 and by the policy change, in that order. **That is luck, not
+  process**, and it does not retire open #70.
+- **The ISE post was not read.** Three fetch attempts returned nothing and the
+  archive is unreachable from this toolchain; the author could not open it
+  either. `D-18`'s prior-art claim is recorded as single-sourced and unverified
+  rather than dropped or absorbed. → open #108.
+
+### Open, carried forward
+
+66, 67, 69, 70, 71, 74, 75, 77, 78, 79, 81, 82, 84, 85, 86, 87, 88, 89, 91, 92,
+93, 94, 95, 97, 100, 103, 104, 105 — unchanged. **#70 in particular is
+unchanged and is now the most expensive one on the list**: *nothing makes a
+finding consult `notes/prior-art.md` before it is written*. It has now cost two
+findings and one report draft.
+
+106. **Where did `$FWRE_WORK/dumps/w05-password-page.html` come from?** It is
+     named in no committed file — not `BENCH-LOG.md`, not the runsheet, not any
+     note. Device or emulator, and which run, is unrecorded; the byte count is
+     the only thing tying it to `T-43`. `notes/password-page-credentials.md`
+     leans on the rootfs template for this reason and uses the rendered file as
+     corroboration only. **Closes with one capture** at the next visit: re-run
+     `A3.13`'s bypass with the body saved and `cmp` it.
+
+107. **Why 5,322 against 5,332?** The same page measured ten bytes shorter with
+     the stored password emptied (`P10-4`) than with credentials set (`T-43`).
+     The page inlines both values, so the length tracking the credentials is
+     expected; **the arithmetic does not come out** — two five-character values
+     emptied is five bytes, not ten, and the username was also rewritten in that
+     run. Not usable as evidence until it reconciles.
+
+108. **What else is in the ISE post?** It is the reference behind twelve 2018
+     CVEs on the sibling model, and the one paragraph reachable through a search
+     summary already bears on `D-18`. Two of its twelve touch `password.htm`
+     and one is the CVE that retired finding A today, so the rest is the highest
+     prior-art yield left unread. `blog.securityevaluators.com` did not answer
+     and `web.archive.org` is blocked from this toolchain.
+
+109. **Do the other five `-CX-` models carry the second credential pair?** The
+     whole "nothing published here adds a capability" argument leans on
+     CVE-2019-19822 reaching them, which is an inference from SDK lineage. One
+     of the five, `N300RT`, was still receiving firmware in 2025. **Answerable
+     without hardware** if any of their images can be obtained: the pair is a
+     static read of one function.
