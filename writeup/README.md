@@ -1,6 +1,6 @@
 # The Build Nobody Had
 
-*Reading a vendor's five-year fix off the chip — and what sixty broken
+*Reading a vendor's five-year fix off the chip — and what sixty-one broken
 instruments taught me about my own results*
 
 **Draft.** Every chapter has content; the prose is a first pass and W09 is the
@@ -20,7 +20,7 @@ builds side by side shows the vendor deleting the backdoor binary **two and a
 half years before** removing the uid 0 account it shipped with; reading three
 more, from two sibling models, shows that the removal was **per product** and
 not a decision taken on a date. Along the way
-sixty of my own instruments were wrong, and **not one was caught by its own
+sixty-one of my own instruments were wrong, and **not one was caught by its own
 self-check**.
 
 ---
@@ -40,7 +40,7 @@ self-check**.
 | **9** | [Making it move: a real flash as `/dev/mtdblock0`](09-emulation.md) | and a widely repeated reason for "you cannot emulate this" that is wrong |
 | **10** | [The chain: five links, five layers of evidence](10-chain.md) | 🏆 ending at the bytes that changed on the flash |
 | **11** | [Beyond the CVEs](11-bughunt.md) | twenty-four verdicts, three of them my own findings withdrawn |
-| **12** | [Sixty instruments, sixty bugs](12-instruments.md) | 🏆 the chapter that costs me the most and buys the most |
+| **12** | [Sixty-one instruments, sixty-one bugs](12-instruments.md) | 🏆 the chapter that costs me the most and buys the most |
 | **13** | [If I were building this router — a gate, not an opinion](13-gate.md) | it runs; the 2020 build still fails it |
 | **14** | [What this does not prove](14-limits.md) | the chapter that should be uncomfortable to read |
 | — | [Disclosure · References · Thanks](15-disclosure.md) | |

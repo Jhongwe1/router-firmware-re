@@ -14,7 +14,7 @@ nothing, in the order it happened.
 So if you want to find out where this project is wrong, start here rather than
 in [`writeup/`](../writeup/). `PROGRESS.md` ends most sessions with a
 `Corrections` block. [`writeup/12`](../writeup/12-instruments.md) lists
-sixty of my own broken instruments. **That is the design, not an accident,
+sixty-one of my own broken instruments. **That is the design, not an accident,
 and it is the reason this directory is not in `.gitignore`.**
 
 ## What is in each file

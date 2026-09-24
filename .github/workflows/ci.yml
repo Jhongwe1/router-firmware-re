@@ -157,6 +157,13 @@ jobs:
       # so a suite that grows moves the prose instead of reddening the build.
       - name: numbers — the front door agrees with what generates it
         run: python3 tools/check-numbers.py
+      # This step exists because the one above went green here and red on a
+      # runner with the repository unchanged: no pytest in this job meant
+      # count-checks.sh returned 468 against 626, and the checker called
+      # fourteen correct numbers stale. It now refuses to judge a recount it
+      # could not complete, and these cases are what hold it to that.
+      - name: number checker — prove it can fail, and that it skips what it cannot measure
+        run: bash tools/test-check-numbers.sh
 
       # W07 fixed six files that asserted `52869/tcp open` in the present tense
       # and did not sweep the rest; eight files still said "No device has been

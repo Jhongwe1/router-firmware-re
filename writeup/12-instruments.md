@@ -1,9 +1,9 @@
-# 12. Sixty instruments, sixty bugs — none caught by a self-check
+# 12. Sixty-one instruments, sixty-one bugs — none caught by a self-check
 
 Writing this chapter does nothing for me except one thing: it is the reason to
 believe the rest of the document.
 
-Sixty times, an instrument this project built or relied on was wrong.
+Sixty-one times, an instrument this project built or relied on was wrong.
 Every one is numbered in [`PROGRESS.md`](../journal/PROGRESS.md) at the point it was
 found. **Not one was caught by the instrument's own self-check.** Every single
 one was caught by two things that should have agreed, disagreeing — or by a test
@@ -109,7 +109,11 @@ and they look like a duplicate test, which is the point.
 were being written to hold the repository's own documents to account. The first
 reported **21 broken links**; 18 of them were the checker. The second reported
 **18 stale numbers**; 13 of them were the checker. The third's own guard suite
-reported **6 failures out of 13** against a checker that was working correctly.
+reported **6 failures out of 13** against a checker that was working correctly. And
+the numbers checker, once fixed and green here, went red on the GitHub runner and
+called **fourteen correct numbers stale** — because it was asserting a recount the
+runner could not complete, and `count-checks.sh` scored a suite it could not run as
+**zero checks** rather than as *unmeasured*.
 
 What makes them worth a section is not the count, it is the **direction**. The
 other fifty-six skew hard the other way: a census returning 1 instead of 589, a
@@ -117,7 +121,7 @@ freeze check hashing an empty list, a capture printing `0 packets captured` and
 exiting 0, a regular expression matching nothing and therefore passing on every
 file. Those are all *silent passes* — instruments that said nothing was there.
 
-All four **invented work**. And an instrument that invents work is worse
+All five **invented work**. And an instrument that invents work is worse
 than one that hides it, for a reason that has nothing to do with the instrument:
 a false alarm gets obeyed. The first response to *"this anchor is broken"* is to
 go and fix the anchor, and fourteen correct links were one keystroke from being
@@ -143,6 +147,14 @@ No defect in the thing under test produces that pattern — a broken checker fai
 both halves or neither. A result that splits exactly along the *suite's own*
 structure is a statement about the suite. (`set -o pipefail` and a command whose
 job is to exit non-zero: the pipeline returns the checker's status, not grep's.)
+
+The fifth is the one with teeth, because **nothing local could have caught it.**
+The repository was byte-identical on both machines; the disagreement was between
+the machines. It is this chapter's own rule arriving from a direction it had not
+been stated in: *a tool reporting `0` is making a claim* — and `count-checks.sh`
+had been making that claim, in a shell default (`${n:-0}`) written months earlier,
+every time a dependency was missing. It only became visible when something finally
+**compared two environments**, which is the same move as comparing two builds.
 
 ---
 
@@ -172,6 +184,7 @@ job is to exit non-zero: the pipeline returns the checker's status, not grep's.)
 | 55 | a packet capture that could not create its output file, printed `0 packets captured`, and **exited 0** — while "nothing is on the wire" was one of the candidate answers to the question being asked | a control: the capture contained zero of **our own outgoing** packets, which were known to have been sent |
 | 57 | a heading-anchor slugger that collapsed **runs** of whitespace to one hyphen. Removing punctuation leaves its gap behind, so `codes — a` anchors as `codes--a`; fourteen correct links were reported broken | the headings themselves — the "broken" anchors were what GitHub actually renders |
 | 58 | the same checker blanked inline code **before** slugging, so `### 7.4 \`J2\` and the power switch` lost the `J2`. GitHub slugs the *rendered* heading | four more correct links, in the same run as 57 |
+| 61 | the numbers checker asserting an **environment-dependent** recount. `count-checks.sh` turned a suite it could not run into `0` checks, so a GitHub runner with no pytest totalled **468** against this workstation's **626**, and fourteen correct numbers were reported stale — **local green, remote red, repository unchanged** | the remote run, on the push that opened the pull request. Nothing local could have: the bug *is* the difference between the two machines |
 | 60 | a **guard suite** whose `must_catch` helper piped the checker into `grep` under `set -o pipefail`. The checker's whole job is to exit 1, so the pipeline inherited that status and **every case that was supposed to catch something reported a false failure** — 6 of 13, on a checker that was working | the cases that were supposed to *pass* passed, so "the checker is broken" did not fit the evidence |
 | 59 | a numbers checker that read prose grammar for totals. English gives `141 registered tests` and `Three registered tests are frozen against it` the same shape, so **13 of its first 18 findings were its own** | reading all eighteen before believing any of them |
 | 56 | a guard case whose premise was *a property of live data* — "this week has rows and no results, so only the new rule can fire". The week closed, the premise died, and the case went **red for a reason unrelated to what it tests**, on the day the thing it guards started working | it went red rather than green, which is the only reason this one was cheap. Re-based on a fixture, with a control |
@@ -180,19 +193,19 @@ job is to exit non-zero: the pipeline returns the checker's status, not grep's.)
 
 ## The sentence this chapter exists for
 
-> **Sixty instrument bugs. Not one was caught by the instrument's own
+> **Sixty-one instrument bugs. Not one was caught by the instrument's own
 > self-check. Every single one was caught by two things that should have agreed,
 > disagreeing — or by a test written to fail.**
 >
 > **A check that never fires never fails.**
 
-The corollary is the operational one, and it is why this project has 496 guard
-cases across twenty-three suites plus 130 parser tests, and why `make ci` runs all
+The corollary is the operational one, and it is why this project has 508 guard
+cases across twenty-four suites plus 130 parser tests, and why `make ci` runs all
 of them: **most of the engineering in a reverse-engineering project is not
 reverse engineering. It is building the thing that tells you when you are
 wrong.**
 
-> **Where this chapter stops:** sixty is the count of bugs *found*. It is a
+> **Where this chapter stops:** sixty-one is the count of bugs *found*. It is a
 > lower bound on the bugs that existed, and it says nothing about the ones still
 > in there. The honest reading of a rising count is not "the instruments are
 > getting better" — it is "the search is getting better", and those are
