@@ -11,7 +11,7 @@
 | **W05** | Dynamic analysis, upper half | — (DoD) | ✅ **DoD 5 of 5, 27 / 27 register rows** — 2026-08-17 |
 | **W06** | PoC reproduction | **G4** | ✅ **passed 5 of 5** — 2026-08-18, clause 3 split into 3a met / 3b impossible by construction; **20 / 20 register rows** |
 | **W07** | Systematic bug hunt | — (DoD) | ✅ **58 / 58 register rows, DoD 5 of 6** — 2026-08-19; the six-build differential harness was never built and `notes/bughunt.md` says so |
-| **W08** | Write-up draft, plus the bench work W07 deferred | — (DoD) | ✅ **DoD met, 8 / 8 register rows, 0 outstanding** — 2026-08-22. The fourteen-chapter draft is written ([`writeup/`](writeup/)); six rows were **cut with reasons** rather than run, and the last three were frozen at the desk and closed at the bench the same night — **all three `partial`**, because each carries a clause its own prediction got wrong |
+| **W08** | Write-up draft, plus the bench work W07 deferred | — (DoD) | ✅ **DoD met, 8 / 8 register rows, 0 outstanding** — 2026-08-22. The fourteen-chapter draft is written ([`writeup/`](../writeup/)); six rows were **cut with reasons** rather than run, and the last three were frozen at the desk and closed at the bench the same night — **all three `partial`**, because each carries a clause its own prediction got wrong |
 | W09 | Write-up publication | G5 | |
 | W10 | Buffer / disclosure / close-out | — | |
 
@@ -61,7 +61,7 @@ Verified by `make verify` (Linux) and `tools\setup\setup-windows.ps1 verify`
 | 6 | Web binary | `/bin/boa`, `Boa/0.94.14rc21`, running as root |
 | 7 | Config storage | `libapmib.so` → `COMPCS` → `/web/config.dat` |
 
-Full working: [`notes/anatomy-n150rt.md`](notes/anatomy-n150rt.md)
+Full working: [`notes/anatomy-n150rt.md`](../notes/anatomy-n150rt.md)
 
 ### Delivered beyond the plan
 
@@ -187,11 +187,11 @@ decompiler raised three warnings on this function.
   absent from it. Whether the replacement repeats the substring mistake is
   **not yet known** and is W04's first task.
 
-Working: [`notes/dispatch-table.md`](notes/dispatch-table.md) ·
-[`notes/auth-flow.md`](notes/auth-flow.md) ·
-[`notes/formSysCmd-analysis.md`](notes/formSysCmd-analysis.md) ·
-[`notes/sink-inventory.md`](notes/sink-inventory.md) ·
-[`notes/skt-analysis.md`](notes/skt-analysis.md)
+Working: [`notes/dispatch-table.md`](../notes/dispatch-table.md) ·
+[`notes/auth-flow.md`](../notes/auth-flow.md) ·
+[`notes/formSysCmd-analysis.md`](../notes/formSysCmd-analysis.md) ·
+[`notes/sink-inventory.md`](../notes/sink-inventory.md) ·
+[`notes/skt-analysis.md`](../notes/skt-analysis.md)
 
 ### W01 claims that W03 overturned
 
@@ -225,7 +225,7 @@ Working: [`notes/dispatch-table.md`](notes/dispatch-table.md) ·
 
 | Item | Plan slot | Why |
 |---|---|---|
-| Ghidra GUI screenshots (3 were asked for) | Day 4 | Replaced by [`BoaListing.java`](ghidra/scripts/BoaListing.java), which emits the same listing as diffable, greppable text with resolved call targets and string literals. A screenshot cannot be re-checked by a reader or regenerated after a Ghidra upgrade. |
+| Ghidra GUI screenshots (3 were asked for) | Day 4 | Replaced by [`BoaListing.java`](../ghidra/scripts/BoaListing.java), which emits the same listing as diffable, greppable text with resolved call targets and string literals. A screenshot cannot be re-checked by a reader or regenerated after a Ghidra upgrade. |
 | Committing the decompiled C corpus | — | Decompiler output is a derivative of the vendor binary; committing all of it redistributes the firmware by another route, against this project's stated position. `ghidra/decomp/` is gitignored; excerpts are quoted in the notes with commentary. |
 | Tracing `execl` argument vectors in six handlers | Day 5 | Real work, not a quick check — `execl` needs no shell, so each one needs its argv built and read. Listed in `sink-inventory.md` §3 for W04. |
 | Reading `libapmib.so` | — | On the path of every finding this week and completely unread. W04. |
@@ -244,7 +244,7 @@ closed in the opposite direction to what W03 expected.
 | 1 | CVE-2019-19824 / `formSysCmd`: the `system()` line and why it is reachable | ✅ as a **negative result** — the handler is in neither dispatch table. W04 dates it: V2.1.2 ships **after** the last build Pierre Kim reports as vulnerable, so this reads as the vendor's fix, not a build flag |
 | 2 | CVE-2019-19822 / `config.dat`: why no auth check runs | ✅ **both builds**. 2015: the gate runs only for URIs containing `htm`. 2020: only for `.htm`, `.asp` or POST — `GET /config.dat` is outside both |
 | 3 | Backdoor account (CVE-2015-9550/9551): where the credentials are | ✅ `/etc/passwd` → `/var/passwd`, written at boot by `/bin/sysconf` from `passwd.org`. **`onlime_r` / `12345`, uid 0**, hash byte-identical to Pierre Kim's published one |
-| 4 | `auth-flow.md` complete | ✅ for both builds — [`auth-flow.md`](notes/auth-flow.md) + [`auth-flow-2020.md`](notes/auth-flow-2020.md) |
+| 4 | `auth-flow.md` complete | ✅ for both builds — [`auth-flow.md`](../notes/auth-flow.md) + [`auth-flow-2020.md`](../notes/auth-flow-2020.md) |
 | 5 | ≥ 1 CVE-2025 root-caused | ✅ **twelve of the fourteen**, and they turn out to be **three** defects |
 
 ### The findings
@@ -270,7 +270,7 @@ the parameter is *absent*, the handler runs `strcpy(p, "/status.htm")` into the
 accessor's default return value — the `""` literal in `.rodata`, which lives in
 an `R E` segment. As the code reads, that is a one-request unauthenticated crash
 of the web server on the 2015 build.
-→ [`submit-url-overflow.md`](notes/submit-url-overflow.md)
+→ [`submit-url-overflow.md`](../notes/submit-url-overflow.md)
 
 **3. The 2020 build fixed W03's hole and kept the technique that caused it.**
 Every POST now enters the gate, so the 59-handlers finding **is repaired** — that
@@ -280,20 +280,20 @@ redirect, `translate_uri` allows a POST when `strstr(uri, "boafrm")` matches, an
 `handleForm` finds its route with `strstr(uri, "/boafrm/")`. Three unanchored
 substring tests on one string. And `GET /config.dat` is still outside the gate
 entirely, in a build dated nine months after full disclosure.
-→ [`auth-flow-2020.md`](notes/auth-flow-2020.md)
+→ [`auth-flow-2020.md`](../notes/auth-flow-2020.md)
 
 **4. Every MIB id in this project now has a name.** `libapmib.so` carries a
 413-record table; `0xb6` is `USER_NAME`, `0xb7` is `USER_PASSWORD`. `config.dat`
 is a `COMPCS`-magic compressed TLV dump of that table — CVE-2019-19823 located
 rather than cited. The 2020 table has **no `AUTHG_*` entries at all**,
 independently confirming from a second file what Boa's string table implied.
-→ [`mib-and-config-dat.md`](notes/mib-and-config-dat.md)
+→ [`mib-and-config-dat.md`](../notes/mib-and-config-dat.md)
 
 **5. Two shipped private keys, found while looking for something else.**
 `/etc/privateKey.key` (V3.4.0, 2048-bit RSA, certificate **expired 2014**, CN
 `192.168.1.254` — a Realtek sample key) and `/etc/dropbear_rsa_host_key`
 (V2.1.2). Identical on every unit of the model. No CVE against this device.
-→ [`credentials.md`](notes/credentials.md)
+→ [`credentials.md`](../notes/credentials.md)
 
 ### W01 and W03 claims that W04 overturned
 
@@ -316,10 +316,10 @@ own self-check, all by comparing the two builds against each other.
 
 | | |
 |---|---|
-| [`BoaXref.java`](ghidra/scripts/BoaXref.java) | callers, callees, strings, data-reference direction, bounded reverse reachability. Exists because W03 had to write "the selector returned nothing, which is a tooling result and not an answer" |
-| [`BoaArgTrace.java`](ghidra/scripts/BoaArgTrace.java) | per-argument provenance from the decompiler's SSA form: literal, stack slot with frame offset, global, or **request parameter by name** |
-| [`BoaPlt.java`](ghidra/scripts/BoaPlt.java) | the single place that knows how a call reaches libc in an `sstrip`'d binary. Extracted after the PLT bug W03 fixed in `BoaSinks` reappeared in a re-implementation |
-| [`fwrecon mib`](tools/fwrecon/src/fwrecon/mibtable.py) | recovers the APMIB id/name table. 12 new tests, all of them about making it fail |
+| [`BoaXref.java`](../ghidra/scripts/BoaXref.java) | callers, callees, strings, data-reference direction, bounded reverse reachability. Exists because W03 had to write "the selector returned nothing, which is a tooling result and not an answer" |
+| [`BoaArgTrace.java`](../ghidra/scripts/BoaArgTrace.java) | per-argument provenance from the decompiler's SSA form: literal, stack slot with frame offset, global, or **request parameter by name** |
+| [`BoaPlt.java`](../ghidra/scripts/BoaPlt.java) | the single place that knows how a call reaches libc in an `sstrip`'d binary. Extracted after the PLT bug W03 fixed in `BoaSinks` reappeared in a re-implementation |
+| [`fwrecon mib`](../tools/fwrecon/src/fwrecon/mibtable.py) | recovers the APMIB id/name table. 12 new tests, all of them about making it fail |
 
 The `BoaArgTrace` failures, in order: two copies of one resolver that drifted
 (1 tainted site out of 304, against three W03 had already found by hand); an
@@ -327,7 +327,7 @@ The `BoaArgTrace` failures, in order: two copies of one resolver that drifted
 (86 tainted sites in 2015 versus **0** in 2020, `self_check: consistent`
 throughout); and the `sstrip`'d-PLT bug again (`strcpy`: 151 sites in 2015, 0 in
 2020). **A check that never fires never fails.** Written up in full at the end of
-[`submit-url-overflow.md`](notes/submit-url-overflow.md).
+[`submit-url-overflow.md`](../notes/submit-url-overflow.md).
 
 ### Deliberately not done in W04
 
@@ -343,7 +343,7 @@ throughout); and the `sstrip`'d-PLT bug again (`strcpy`: 151 sites in 2015, 0 in
 
 1. Which firmware build is on my unit — only a flash dump decides (W02). W02 Day 1
    adds a **prediction** from the board's date codes: around 2018, i.e. neither image
-   analysed here. See [`hardware-inspection.md`](notes/hardware-inspection.md#6-date-codes--a-prediction-written-before-the-dump).
+   analysed here. See [`hardware-inspection.md`](../notes/hardware-inspection.md#6-date-codes--a-prediction-written-before-the-dump).
 2. ~~Real flash part and size~~ → **answered in W02: Eon EN25QH32B, 32 Mbit = 4 MiB.**
 3. Fetch **V2.1.1-B20150708** and recover its `root_form[]`. One command settles
    whether `formSysCmd`'s absence from V2.1.2 is the vendor's fix or a build flag.
@@ -370,8 +370,8 @@ to it closed. G2 was worked out of order, the same way W03 was.
 |---|---|---|
 | 1 | a live bootlog, **or** a recorded fallback | ✅ captured at 38400 over a **measured** pin-out, and decoded a second time off the same wire by a logic analyser — the two transcripts byte-identical |
 | 2 | SPI dump + hash verification, **or** the vendor-firmware main path | ✅ **two** full 4 MiB reads, 105 min each, **zero chunk retries**, staged through **different RAM addresses**. `sha256 a800059a…` both times, recomputed independently of the tool that wrote them; `cmp` finds zero differing bytes |
-| 3 | dump vs vendor image compared, **or** the reason recorded | ✅ [`dump-vs-official.md`](notes/dump-vs-official.md) — and the comparison turned up a **five-year, three-step vendor remediation** that neither published image can show |
-| 4 | PCB photograph, annotated | ✅ [`notes/img/`](notes/img/) — rendered from a committed JSON spec, MAC and serial painted out with coordinates recorded |
+| 3 | dump vs vendor image compared, **or** the reason recorded | ✅ [`dump-vs-official.md`](../notes/dump-vs-official.md) — and the comparison turned up a **five-year, three-step vendor remediation** that neither published image can show |
+| 4 | PCB photograph, annotated | ✅ [`notes/img/`](../notes/img/) — rendered from a committed JSON spec, MAC and serial painted out with coordinates recorded |
 
 Achieved in the strong form of every clause, not the fallback form — and it took the
 programmer being measured and set aside, not used.
@@ -403,7 +403,7 @@ no soldering anywhere — which removes the week's largest irreversible-damage r
 before it can be taken.
 
 Full working, including the second source each reading is still waiting on:
-[`notes/hardware-inspection.md`](notes/hardware-inspection.md)
+[`notes/hardware-inspection.md`](../notes/hardware-inspection.md)
 
 ### W01's flash derivation, confirmed by silicon
 
@@ -421,7 +421,7 @@ claim about the physical world, and the physical world agreed.
 
 | Plan said | The board says |
 |---|---|
-| SoC **RTL8196C** | **RTL8196E.** Commonly documented with a different core (RLX5281, against the C's Lexra RLX4181), which bears directly on W01's "MIPS-I" reading — falsifiable test in [`hardware-inspection.md`](notes/hardware-inspection.md#2-soc--rtl8196e-and-what-that-does-to-w01s-mips-i) §2 |
+| SoC **RTL8196C** | **RTL8196E.** Commonly documented with a different core (RLX5281, against the C's Lexra RLX4181), which bears directly on W01's "MIPS-I" reading — falsifiable test in [`hardware-inspection.md`](../notes/hardware-inspection.md#2-soc--rtl8196e-and-what-that-does-to-w01s-mips-i) §2 |
 | **2 MB** SPI NOR | **4 MiB** — and W01 had already shown 2 MB impossible from the firmware alone |
 | **16 MB** RAM | **32 MiB fitted.** *Fitted* is not *usable*; the kernel banner decides the second number, and the two are recorded separately |
 | Wi-Fi **RTL8188RE** | **RTL8188ER** |
@@ -442,15 +442,15 @@ table should say so rather than imply a check that did not happen.
 
 ### G2 checkbox 4 met: the annotated PCB photograph
 
-Photographs are in [`notes/img/`](notes/img/), and getting them there took two new
+Photographs are in [`notes/img/`](../notes/img/), and getting them there took two new
 instruments — because the alternative was an image editor, which produces a file
 nobody can check, diff, or regenerate. That is the same objection W03 raised against
 Ghidra screenshots, and it gets the same answer.
 
 | | |
 |---|---|
-| [`tools/redact-photo.py`](tools/redact-photo.py) | Paints out the unit's MAC barcode and serial QR. Solid fill, never blur — a blur is a reversible transform on a known font. Drops EXIF, which carries GPS and a device id that survive every *visual* redaction. Verifies its own work by reading the written file back off disk |
-| [`tools/annotate-photo.py`](tools/annotate-photo.py) | Renders the callouts from [`notes/img/pcb-top-annotations.json`](notes/img/pcb-top-annotations.json), so a moved box appears in `git diff` as a changed number. The legend is drawn in a strip *below* the frame, never over it, so no annotation can hide the evidence it describes |
+| [`tools/redact-photo.py`](../tools/redact-photo.py) | Paints out the unit's MAC barcode and serial QR. Solid fill, never blur — a blur is a reversible transform on a known font. Drops EXIF, which carries GPS and a device id that survive every *visual* redaction. Verifies its own work by reading the written file back off disk |
+| [`tools/annotate-photo.py`](../tools/annotate-photo.py) | Renders the callouts from [`notes/img/pcb-top-annotations.json`](../notes/img/pcb-top-annotations.json), so a moved box appears in `git diff` as a changed number. The legend is drawn in a strip *below* the frame, never over it, so no annotation can hide the evidence it describes |
 
 **Both were wrong on the first run, and neither noticed.**
 
@@ -495,7 +495,7 @@ dead, voltage with it live — except RX, which is inferred by elimination and h
 never been driven. **The baud was measured, not tried:** narrowest pulse 26 µs,
 and a second pulse at exactly 52 µs proves 26 is one bit and not two. The nearest
 wrong answer, 19200, has a 52.08 µs bit time.
-→ [`uart-pinout.md`](notes/uart-pinout.md)
+→ [`uart-pinout.md`](../notes/uart-pinout.md)
 
 **There is no shell on the console.** Sending `\r` gets perfect echo and nothing
 else — that is the tty line discipline, which echoes whether or not a process is
@@ -531,7 +531,7 @@ Those claims are not wrong; the repository has always named its images. **They d
 not cover this device**, and anything demonstrated against this hardware in
 W05/W06 tests a third binary. That makes the flash dump worth more than a
 checkbox.
-→ [`uart-findings.md`](notes/uart-findings.md)
+→ [`uart-findings.md`](../notes/uart-findings.md)
 
 #### RTL8196E: a third source, and the dissenter disqualified
 
@@ -571,7 +571,7 @@ rather than XZ like 2020, and smaller than either.
 reads `0x80AD1C00`; byte-reversed that is 1,879,424 against a `bytes_used` of
 1,876,033 — the same relationship, on a build made by someone else on another day.
 **Three builds carry it.**
-→ [`flash-layout.md`](notes/flash-layout.md)
+→ [`flash-layout.md`](../notes/flash-layout.md)
 
 #### The config region located — this unblocks W04
 
@@ -686,10 +686,10 @@ executed. The pin accepts input and the board acts on it.
 
 | | |
 |---|---|
-| [`tools/console-dump.py`](tools/console-dump.py) | `FLR`+`DB` driven over the console with a positive control, per-chunk validation, automatic re-read, sampled second-pass verification, and **no output file unless every chunk validated**. Serial on stdlib `termios` only |
-| [`tools/flash-read.sh`](tools/flash-read.sh) | the CH341A path for when the programmer works: read-only by construction, JEDEC id checked against a written-down prediction, screening for the ways a clip lies |
-| [`fwrecon flashdump`](tools/fwrecon/src/fwrecon/flashdump.py) | checks a raw image against expectations recorded **before it existed** — W01's derived burn addresses and the 2026-08-15 console windows. Per-unit secret regions are reported by digest and never printed. 11 tests |
-| [`tools/test-console-dump.sh`](tools/test-console-dump.sh) · [`tools/test-flash-tools.sh`](tools/test-flash-tools.sh) | guard suites that need no hardware |
+| [`tools/console-dump.py`](../tools/console-dump.py) | `FLR`+`DB` driven over the console with a positive control, per-chunk validation, automatic re-read, sampled second-pass verification, and **no output file unless every chunk validated**. Serial on stdlib `termios` only |
+| [`tools/flash-read.sh`](../tools/flash-read.sh) | the CH341A path for when the programmer works: read-only by construction, JEDEC id checked against a written-down prediction, screening for the ways a clip lies |
+| [`fwrecon flashdump`](../tools/fwrecon/src/fwrecon/flashdump.py) | checks a raw image against expectations recorded **before it existed** — W01's derived burn addresses and the 2026-08-15 console windows. Per-unit secret regions are reported by digest and never printed. 11 tests |
+| [`tools/test-console-dump.sh`](../tools/test-console-dump.sh) · [`tools/test-flash-tools.sh`](../tools/test-flash-tools.sh) | guard suites that need no hardware |
 
 **7. The interrupt technique poisons its own next command.** Catching the boot
 loader means *streaming* ESC, because the window is a second wide. The loader
@@ -768,9 +768,9 @@ says `boa: server built Jan 10 2018 at 14:57:54`. V2.1.2's is 522,556 and
 V3.4.0's is 404,904. **The most-analysed binary in this repository is still not
 this one** — but it is now extracted, hashed, and available to be read.
 
-→ [`dump-vs-official.md`](notes/dump-vs-official.md) ·
-[`reports/flashdump-unit-2018.json`](reports/flashdump-unit-2018.json) ·
-[`reports/n150rt-unit-2018.md`](reports/n150rt-unit-2018.md)
+→ [`dump-vs-official.md`](../notes/dump-vs-official.md) ·
+[`reports/flashdump-unit-2018.json`](../reports/flashdump-unit-2018.json) ·
+[`reports/n150rt-unit-2018.md`](../reports/n150rt-unit-2018.md)
 
 > ⚠️ **A second independent instrument still has not read this chip.** The
 > 2026-08-15 windows used the same `FLR`+`DB` path, so agreeing with them is
@@ -792,7 +792,7 @@ this one** — but it is now extracted, hashed, and available to be read.
 | `LWL`/`LWR`/`SWL`/`SWR` census in `/bin/boa` | Needs a Ghidra mnemonic histogram that does not exist yet. Recorded as a hypothesis, not claimed as a result |
 | Looking up the MAC's OUI | Moot: the flash's `H601` block confirmed the barcode is the MAC directly, without anyone having to handle the value against a public database |
 | Running the device on a network | Nothing has been connected to any port. W05's problem |
-| **`notes/hardware-chapter.md`** — the plan's Day 5 deliverable | It would be a fifth copy of material that already exists in [`hardware-inspection.md`](notes/hardware-inspection.md), [`uart-pinout.md`](notes/uart-pinout.md), [`uart-findings.md`](notes/uart-findings.md), [`flash-layout.md`](notes/flash-layout.md) and [`dump-vs-official.md`](notes/dump-vs-official.md) — and a summary written now goes stale the moment W05 touches the hardware again. **A writeup chapter is W08's job**, and it should be written from the notes rather than alongside them. Recorded as a decision so a later session finds one instead of an oversight |
+| **`notes/hardware-chapter.md`** — the plan's Day 5 deliverable | It would be a fifth copy of material that already exists in [`hardware-inspection.md`](../notes/hardware-inspection.md), [`uart-pinout.md`](../notes/uart-pinout.md), [`uart-findings.md`](../notes/uart-findings.md), [`flash-layout.md`](../notes/flash-layout.md) and [`dump-vs-official.md`](../notes/dump-vs-official.md) — and a summary written now goes stale the moment W05 touches the hardware again. **A writeup chapter is W08's job**, and it should be written from the notes rather than alongside them. Recorded as a decision so a later session finds one instead of an oversight |
 | Extracting and decoding the config region | The plan's Day 5 asked for `strings` over a config partition it expected at `0x1F0000` on a 2 MB part. The real one is `COMPCS` at `0x00C000`, it is compressed, and it is now in hand — but decoding it is W04's deferred item, not a G2 box |
 
 ### Open, carried forward
@@ -840,8 +840,8 @@ this repository described two images this device has never executed.
 | # | Required | Result |
 |---|---|---|
 | 1 | `root_form[]` + sink census for every build, each carrying its input's SHA-256 | ✅ three builds, `tools/check-reports.py` green |
-| 2 | `notes/auth-flow-2018.md`, key branch confirmed at instruction level | ✅ [`auth-flow-2018.md`](notes/auth-flow-2018.md) — the decompiler raised three warnings, so every branch was read from `BoaListing` output first |
-| 3 | `COMPDS` decoded, `TELNET_ENABLED`/`SSH_ENABLED` answered with a second source | ✅ [`compcs-decode.md`](notes/compcs-decode.md) — `TELNET_ENABLED = 0`, confirmed by the code that reads it |
+| 2 | `notes/auth-flow-2018.md`, key branch confirmed at instruction level | ✅ [`auth-flow-2018.md`](../notes/auth-flow-2018.md) — the decompiler raised three warnings, so every branch was read from `BoaListing` output first |
+| 3 | `COMPDS` decoded, `TELNET_ENABLED`/`SSH_ENABLED` answered with a second source | ✅ [`compcs-decode.md`](../notes/compcs-decode.md) — `TELNET_ENABLED = 0`, confirmed by the code that reads it |
 | 4 | G4's target chosen **from evidence** | ✅ `POST /boafrm/formSysCmd`, `sysCmd` → `system()`, and the gate does not run on that URI |
 | 5 | Recovery path rehearsed — `FLW` write → read-back → erase | ❌ **not done.** Hardware. See *Deliberately not done* |
 
@@ -888,7 +888,7 @@ if (*cmd != '\0') {
 > derivation from the binary of a claim disclosed in 2024**, not a discovery.
 > `notes/prior-art.md` had no 2024 entries at all; that gap, and the change that
 > follows from it, are recorded in
-> [`prior-art.md`](notes/prior-art.md#2024--cve-2024-51228-and-the-gap-that-let-it-be-missed).
+> [`prior-art.md`](../notes/prior-art.md#2024--cve-2024-51228-and-the-gap-that-let-it-be-missed).
 >
 > **What survives as this project's own contribution is narrower and checkable:**
 > NVD scores it `AV:A/AC:L/**PR:H**/UI:N/S:U/C:H/I:H/A:H` = 6.8 MEDIUM, while
@@ -961,7 +961,7 @@ daemon to start.
 
 ### A build gate, and the control that caught it being broken
 
-[`BoaGate.java`](ghidra/scripts/BoaGate.java) — R1 unbounded write from a request
+[`BoaGate.java`](../ghidra/scripts/BoaGate.java) — R1 unbounded write from a request
 parameter, R2 request parameter reaching `system()`/`popen()`, R3 request
 parameter into a fixed-size global.
 
@@ -981,7 +981,7 @@ in **all three** builds, which appears in none of W04's findings.
 
 ### The `lwl` census, and why "none" would have proved nothing
 
-[`BoaMnemonics.java`](ghidra/scripts/BoaMnemonics.java) emits three numbers, not
+[`BoaMnemonics.java`](../ghidra/scripts/BoaMnemonics.java) emits three numbers, not
 one.
 
 | | 2.1.2 | unit-2018 | 3.4.0 | 2018 busybox |
@@ -1020,11 +1020,11 @@ from — the finding above supplies one.
 
 | | |
 |---|---|
-| [`BoaMnemonics.java`](ghidra/scripts/BoaMnemonics.java) | mnemonic histogram, coprocessor-2/3 census, undecoded-byte count. Ships the *reading* alongside the number because the number points the wrong way half the time |
-| [`BoaGate.java`](ghidra/scripts/BoaGate.java) | three rules as a build gate, with a positive control that fails the run if a build known to be defective produces fewer than N findings |
-| [`fwrecon compcs`](tools/fwrecon/src/fwrecon/compcs.py) | the config decoder W04 deferred. 18 tests, most of them about making it fail |
-| [`fwrecon web`](tools/fwrecon/src/fwrecon/webbundle.py) | the `w6cg` bundle parser W01 left open. No checksum and no entry count exist in the format, so the check is structural: every stride is `64 + length`, and the walk either lands on the last byte or it does not. `exact` on all three builds; a test moves the length field to a plausible wrong offset and asserts it derails |
-| [`tools/zipprefix.py`](tools/zipprefix.py) | truncated-archive recovery that refuses to write an unverified payload, and does not launder the exit code when `--allow-partial` permits the write |
+| [`BoaMnemonics.java`](../ghidra/scripts/BoaMnemonics.java) | mnemonic histogram, coprocessor-2/3 census, undecoded-byte count. Ships the *reading* alongside the number because the number points the wrong way half the time |
+| [`BoaGate.java`](../ghidra/scripts/BoaGate.java) | three rules as a build gate, with a positive control that fails the run if a build known to be defective produces fewer than N findings |
+| [`fwrecon compcs`](../tools/fwrecon/src/fwrecon/compcs.py) | the config decoder W04 deferred. 18 tests, most of them about making it fail |
+| [`fwrecon web`](../tools/fwrecon/src/fwrecon/webbundle.py) | the `w6cg` bundle parser W01 left open. No checksum and no entry count exist in the format, so the check is structural: every stride is `64 + length`, and the walk either lands on the last byte or it does not. `exact` on all three builds; a test moves the length field to a plausible wrong offset and asserts it derails |
+| [`tools/zipprefix.py`](../tools/zipprefix.py) | truncated-archive recovery that refuses to write an unverified payload, and does not launder the exit code when `--allow-partial` permits the write |
 
 **10. `BoaArgTrace` counted its unmeasured rows without naming them.** The report
 said "3 rows are unmeasured" and gave no way to find them, so in practice the
@@ -1092,7 +1092,7 @@ repair is one commit and the habit is not.
 
 0. **Re-download the published V2.1.6. The success criterion is written down in
    advance: `CRC-32 == 0xd20c0622`**, read out of the archive's own local file
-   header, and [`tools/zipprefix.py`](tools/zipprefix.py) fails non-zero until it
+   header, and [`tools/zipprefix.py`](../tools/zipprefix.py) fails non-zero until it
    matches. Obtained in a browser on 2026-08-16 and **the download is 40.3%
    complete** — 1,390,332 bytes of a declared 3,447,222, no central directory,
    `unzip` rejects it outright, which reads as *corrupt* and means *truncated*.
@@ -1101,7 +1101,7 @@ repair is one commit and the habit is not.
    986,114/986,114, the latter's inner LZMA reaching `eof` at 3,374,608 bytes.
    Only the rootfs is cut, so what is missing is `/etc/version` and `boa` and
    nothing else. Procedure in [`RUNBOOK.md` §8.8.4](RUNBOOK.md), provenance in
-   [`firmware/SOURCES.json`](firmware/SOURCES.json).
+   [`firmware/SOURCES.json`](../firmware/SOURCES.json).
 
 1. ~~**Is the published V2.1.6 this build?**~~ → **answered: no.** The published
    image is `TOTOLINK-N150RT-V2.1.6-**B20160516**.1233.web`; this unit runs
@@ -1131,7 +1131,7 @@ repair is one commit and the habit is not.
    hardware in W02. **The ceiling is unchanged: TOTOLINK signs nothing**, so this
    raises the cost of a forgery from renaming a file to rebuilding a kernel, and
    no further. Full working in
-   [`dump-vs-official.md` §2.1](notes/dump-vs-official.md).
+   [`dump-vs-official.md` §2.1](../notes/dump-vs-official.md).
 
    What is still established only weakly:
 
@@ -1158,7 +1158,7 @@ repair is one commit and the habit is not.
 
 2. **CVE-2024-51228 was missed for two weeks by a survey that had the build
    string in hand.** The literature review is now fixed
-   ([`prior-art.md`](notes/prior-art.md#2024--cve-2024-51228-and-the-gap-that-let-it-be-missed)),
+   ([`prior-art.md`](../notes/prior-art.md#2024--cve-2024-51228-and-the-gap-that-let-it-be-missed)),
    but the open item is the CVSS discrepancy: NVD scores `PR:H`, the original
    researcher says "without credentials", and the binary agrees with the
    researcher. **Settling it is a G4 deliverable**, and it is worth nothing until
@@ -1192,10 +1192,10 @@ repair is one commit and the habit is not.
    explained.** `syscmd.htm` ships in 2015 and 2016 (byte-identical) while
    `formSysCmd` is absent from `root_form[]`; in 2018 the page is gone and the
    route is registered at `0x004838a8`
-   ([`w6cg-web-ui.md`](notes/w6cg-web-ui.md), entry lists in
-   [`webbundle-2.1.2.json`](reports/webbundle-2.1.2.json),
-   [`webbundle-2.1.6-b20160516.json`](reports/webbundle-2.1.6-b20160516.json),
-   [`webbundle-unit-2018.json`](reports/webbundle-unit-2018.json)).
+   ([`w6cg-web-ui.md`](../notes/w6cg-web-ui.md), entry lists in
+   [`webbundle-2.1.2.json`](../reports/webbundle-2.1.2.json),
+   [`webbundle-2.1.6-b20160516.json`](../reports/webbundle-2.1.6-b20160516.json),
+   [`webbundle-unit-2018.json`](../reports/webbundle-unit-2018.json)).
    The 2015 state is explained — a
    partial fix answering Pierre Kim's disclosure, of a piece with `#skt&` and
    `onlime_r`. **The 2018 state is not: something put the route back three years
@@ -1221,7 +1221,7 @@ no mechanism for recording what each one predicted before it ran.
 | 2 | isolation verified — two MACs on the segment, WAN on a fake upstream | ❌ needs the bench |
 | 3 | IoC pre-check — live config against this unit's own factory baseline, plus the ports known botnets leave behind | ❌ needs the device. **Criterion written in advance: the difference stays at 4 of 344 entries** |
 | 4 | the prediction ledger frozen before any request | ✅ [`test-ledger.md`](test-ledger.md) — 130 tests, 102 with a written refutation condition, freeze `69c342dc…`, schedule `d68ace7d…` |
-| 5 | the disclosure register written | ✅ [`docs/disclosure.md`](docs/disclosure.md) — eight candidates, and the rule that decides what is publishable |
+| 5 | the disclosure register written | ✅ [`docs/disclosure.md`](../docs/disclosure.md) — eight candidates, and the rule that decides what is publishable |
 
 > ⚠️ **G3.75 is not passed.** Box 3 in particular is not a formality: this model
 > is named in public botnet tooling, and a unit that is already someone else's
@@ -1260,8 +1260,8 @@ the start of a week, and `CLAUDE.md` now says so in those words.
 
 ### The instrument
 
-[`tools/rtcase.py`](tools/rtcase.py) — the register is
-[`test-cases.toml`](test-cases.toml), the ledger is generated from
+[`tools/rtcase.py`](../tools/rtcase.py) — the register is
+[`test-cases.toml`](../test-cases.toml), the ledger is generated from
 it, and `rtcase check` is a CI gate. What it refuses:
 
 | refusal | why it exists |
@@ -1278,7 +1278,7 @@ shows it as two deliberate lines. This is not tamper-proofing — the author hol
 the key. It is the difference between a change that is visible and one that is
 not.
 
-**And the gate is proved able to fail.** [`tools/test-rtcase.sh`](tools/test-rtcase.sh)
+**And the gate is proved able to fail.** [`tools/test-rtcase.sh`](../tools/test-rtcase.sh)
 drives 22 cases: one control that must pass, and 21 that must be rejected *and
 rejected for the stated reason* — checking the exit code alone would let a case
 pass on an unrelated failure. `make ci` runs both, and so does CI. Writing that
@@ -1292,7 +1292,7 @@ disappearing from it. Grouped:
 
 | | |
 |---|---|
-| **post-exploitation tradecraft** — the 60-second rule, credential harvesting on a live host, lateral movement / DNS / WAN-management changes, anti-forensics, weaken-to-persist | None produces a checkable fact about this device. The credentials they would collect are **already decoded from flash** ([`compcs-decode.md`](notes/compcs-decode.md)); collecting them again on a live shell learns nothing and produces a copy that should not exist. Anti-forensics and weaken-to-persist exist to make a compromised device read as a badly configured one — the opposite of what a write-up is for |
+| **post-exploitation tradecraft** — the 60-second rule, credential harvesting on a live host, lateral movement / DNS / WAN-management changes, anti-forensics, weaken-to-persist | None produces a checkable fact about this device. The credentials they would collect are **already decoded from flash** ([`compcs-decode.md`](../notes/compcs-decode.md)); collecting them again on a live shell learns nothing and produces a copy that should not exist. Anti-forensics and weaken-to-persist exist to make a compromised device read as a badly configured one — the opposite of what a write-up is for |
 | **downgrading the unit to reinstall the 2015 backdoor** | Irreversible, and its purpose is to put a known backdoor back into a device that no longer has it. The property it would demonstrate — no firmware signature, no anti-rollback — is already established statically, and reflashing does not make it truer |
 | **social engineering an administrator into handing over the device** | The target is a person, not the device. There is no administrator in this lab, so in this environment the test is not falsifiable at all |
 | **evil twin, and broadcast wireless DoS** | Both radiate into third-party equipment by construction. Targeted wireless work against this unit's own SSID and this lab's own client stays in, with the constraint written on the case |
@@ -1310,12 +1310,12 @@ down what would refute them.
 
 1. **The boot-script survey of configuration values reaching a shell exists in
    no committed artefact.** `rcS` was reviewed
-   ([`skt-analysis.md`](notes/skt-analysis.md),
-   [`credentials.md`](notes/credentials.md)), but the `/bin/*.sh` interpolation
+   ([`skt-analysis.md`](../notes/skt-analysis.md),
+   [`credentials.md`](../notes/credentials.md)), but the `/bin/*.sh` interpolation
    census that the persistence line depends on was never written up. Recorded as
    a **partial** result rather than a pass, which is what the ledger is for.
 2. **"This unit has no `nc` and no `tftp`" is not established.** The 55-binary
-   inventory in [`n150rt-unit-2018.json`](reports/n150rt-unit-2018.json) counts
+   inventory in [`n150rt-unit-2018.json`](../reports/n150rt-unit-2018.json) counts
    ELF files; busybox applets are symlinks and would not appear in it. The claim
    may well be true — it is now a *prediction*, with a refutation naming exactly
    what a hit would mean.
@@ -1333,8 +1333,8 @@ down what would refute them.
    **`UPNP_ENABLED` is `1`**, in the live config and in the factory default. So
    the expectation flips to *UPnP is listening*, and CVE-2014-8361,
    CVE-2021-35392 and CVE-2021-35393 come back onto the W07 list. Corrected at
-   source in [`attack-surface.md`](notes/attack-surface.md) and
-   [`cve-status.md`](notes/cve-status.md).
+   source in [`attack-surface.md`](../notes/attack-surface.md) and
+   [`cve-status.md`](../notes/cve-status.md).
 
    Three things worth separating here. **The instrument was not wrong** —
    `fwrecon` says "disabled only by commenting out their init line", which is
@@ -1363,7 +1363,7 @@ recorded after the observation is not a prediction.
 | **G3.75 boxes 1–3** | Hardware, console, and a person. They run as W05's first session, in one seating, exactly as decided on 2026-08-16 for G3.5 #5 |
 | **Refutation conditions for 21 of the scheduled cases** | Mostly Phase 6–8, which run in W07. Writing a refutation for a test whose preconditions are unknown produces a sentence, not a condition. `rtcase check` will not accept a result for any of them, and the ledger prints the list per phase, so the gap cannot go quiet |
 | **`poc/`** | G4's deliverable, and it stays absent until something has been demonstrated. An empty directory with a plan in it reads as work done |
-| **Reporting anything to TWCERT/CC** | Unchanged. Everything is still static. [`docs/disclosure.md`](docs/disclosure.md) now records what the queue would contain and what has to happen first |
+| **Reporting anything to TWCERT/CC** | Unchanged. Everything is still static. [`docs/disclosure.md`](../docs/disclosure.md) now records what the queue would contain and what has to happen first |
 
 ### Open, carried forward
 
@@ -1432,8 +1432,8 @@ ask about, in *Open, carried forward* #17.
 |---|---|---|
 | 1 | a prediction scorecard committed **before** testing, then scored | ✅ frozen in W05 Day 0; **27 of 27 scored** — 16 confirmed, 5 refuted, 6 partial |
 | 2 | one dynamic path standing up | ✅ **two**: the device on an isolated segment, and the emulator |
-| 3 | [`notes/emulation-2018.md`](notes/emulation-2018.md) — what was faked and whether it distorts | ✅ |
-| 4 | [`notes/oracle-design.md`](notes/oracle-design.md), ≥ 1 oracle rehearsed under emulation | ✅ **four of five** |
+| 3 | [`notes/emulation-2018.md`](../notes/emulation-2018.md) — what was faked and whether it distorts | ✅ |
+| 4 | [`notes/oracle-design.md`](../notes/oracle-design.md), ≥ 1 oracle rehearsed under emulation | ✅ **four of five** |
 | 5 | W06's target with its three conditions | ✅ **all three.** (b) closed in the afternoon: an unauthenticated `POST /boafrm/formSysCmd` carrying only `submit-url` answers `302 -> status.htm` in 10 ms. **Nothing was injected, and the handler's own guard proves nothing ran** — W04-2's decompilation shows `if (*cmd != '\0')` around the `system()` call, and `sysCmd` was absent |
 
 **The register reads 27, not 31.** Four cases scheduled W05 were ones this
@@ -1474,7 +1474,7 @@ own binaries.**
 
 | | |
 |---|---|
-| `fwrecon web` | `flash extr /web` — the device's own extractor — writes **143 files** and every one's SHA-256 matches [`webbundle-unit-2018.json`](reports/webbundle-unit-2018.json). The format has no checksum and no entry count, so until today the parser's only check was structural |
+| `fwrecon web` | `flash extr /web` — the device's own extractor — writes **143 files** and every one's SHA-256 matches [`webbundle-unit-2018.json`](../reports/webbundle-unit-2018.json). The format has no checksum and no entry count, so until today the parser's only check was structural |
 | `fwrecon compcs` | `flash all` emits 2,317 MIB lines; 316 names appear in both. **249 identical**, 66 explained by exactly four rendering rules *by a script that exits non-zero if any difference is left over*, **1 unexplained** |
 
 Not one of the 66 is a disagreement about a **value**. Two of the four rules are
@@ -1596,10 +1596,10 @@ been read** — and it is recorded as a lead, not a result.
 
 | | |
 |---|---|
-| [`tools/qemu-env.sh`](tools/qemu-env.sh) | builds the chroot from this unit's rootfs and its own flash image, with a **positive control of three known values** and a `diff` that checks the `H601` checksum still balances. Every set-up step is copied from `rcS` or from `sysconf`'s own string table, and the file says which |
-| [`tools/test-qemu-env.sh`](tools/test-qemu-env.sh) | 14 cases. Five need neither root nor the dump and run in CI |
-| [`tools/bench-probe.py`](tools/bench-probe.py) | the network round. Refuses a POST to `/boafrm/*` without `submit-url`, refuses shell metacharacters, re-runs its control every 10–20 requests, and takes the endpoint list from the committed Ghidra report rather than from a hardcoded copy |
-| [`tools/test-bench-probe.sh`](tools/test-bench-probe.sh) | 8 cases, including a real HTTP server as the control |
+| [`tools/qemu-env.sh`](../tools/qemu-env.sh) | builds the chroot from this unit's rootfs and its own flash image, with a **positive control of three known values** and a `diff` that checks the `H601` checksum still balances. Every set-up step is copied from `rcS` or from `sysconf`'s own string table, and the file says which |
+| [`tools/test-qemu-env.sh`](../tools/test-qemu-env.sh) | 14 cases. Five need neither root nor the dump and run in CI |
+| [`tools/bench-probe.py`](../tools/bench-probe.py) | the network round. Refuses a POST to `/boafrm/*` without `submit-url`, refuses shell metacharacters, re-runs its control every 10–20 requests, and takes the endpoint list from the committed Ghidra report rather than from a hardcoded copy |
+| [`tools/test-bench-probe.sh`](../tools/test-bench-probe.sh) | 8 cases, including a real HTTP server as the control |
 | `rtcase` `emulated` | a third evidence grade. **🟪, and it never renders as ✅.** `test-rtcase.sh` goes 22 → 27 cases, three of them about exactly that |
 
 ### Instrument bugs 13 through 17
@@ -1964,20 +1964,20 @@ Done.` — and at **`0x0012F0` there is an LZMA-alone stream, 17,334 bytes in an
 56,592 out**, holding the command interpreter, the TFTP client, the SPI chip
 table and the whole help text.
 
-[`tools/loader-unpack.py`](tools/loader-unpack.py) recovers it and **refuses to
+[`tools/loader-unpack.py`](../tools/loader-unpack.py) recovers it and **refuses to
 write a report** unless exactly one stream is found in the region, the declared
 output size matches, the help banner is present, and all seventeen commands the
 console's own `?` prints are found by the same scan that reports absences. That
 last one is the whole design: this report's headline result *is* an absence.
 
 It also traces `chipName: UNKNOWN`, which
-[`notes/uart-findings.md`](notes/uart-findings.md) recorded as explicitly
+[`notes/uart-findings.md`](../notes/uart-findings.md) recorded as explicitly
 unconfirmed. **One of its three halves now holds and two still do not.** The
 loader's chip table carries Eon parts only as `F` and `Q` families — no `QH` —
 and `UNKNOWN` is the table's last entry. The *fallback behaviour* is a claim
 about code and this is a string scan; and **which** chip it failed to identify
 is still unknown, because the JEDEC ID has never been read
-([`notes/hardware-inspection.md`](notes/hardware-inspection.md) still lists it
+([`notes/hardware-inspection.md`](../notes/hardware-inspection.md) still lists it
 as outstanding). The silkscreen remains the only source for the part number.
 
 ### `P9-1` — refuted, and refuted without spending a boot cycle
@@ -2024,7 +2024,7 @@ exercised.
 ### `P1-12` — 38.76 s, and the margin is the finding
 
 From the first console character to the first HTTP 200, measured by
-[`tools/coldboot-timing.sh`](tools/coldboot-timing.sh) with both halves stamped
+[`tools/coldboot-timing.sh`](../tools/coldboot-timing.sh) with both halves stamped
 by one clock. `boa: starting server pid=350, port 80` lands at **+32.50 s and
 the first 200 at +38.76 s** — six and a quarter seconds during which the server
 has announced itself and answers nobody.
@@ -2067,7 +2067,7 @@ reason is one line: **the exemption and the file lookup read the same normalised
 path.** `/password.htm?x=status.htm` stays `302` because the query is not part
 of it; `/password.htm;status.htm` becomes `404` because it *is* exempt and there
 is no such file. X-3 does not stand — for that reason, not the recorded one.
-Full working in [`notes/auth-flow-2018.md`](notes/auth-flow-2018.md).
+Full working in [`notes/auth-flow-2018.md`](../notes/auth-flow-2018.md).
 
 ### `P1-4` — partial, and it took the web server down twice
 
@@ -2159,12 +2159,12 @@ power lost mid-cycle costs the whole 4 KiB, not eight bytes.
 
 | | |
 |---|---|
-| [`tools/loader-unpack.py`](tools/loader-unpack.py) | unpacks the loader's LZMA stage 2 from a flash dump. Refuses on: no stream, more than one stream, a size that does not match, a missing help banner, or any of the seventeen commands not found. `tools/test-loader-unpack.sh`, 7 cases, needs no dump |
+| [`tools/loader-unpack.py`](../tools/loader-unpack.py) | unpacks the loader's LZMA stage 2 from a flash dump. Refuses on: no stream, more than one stream, a size that does not match, a missing help banner, or any of the seventeen commands not found. `tools/test-loader-unpack.sh`, 7 cases, needs no dump |
 | `console-dump.py rescue` | the one write this reader is allowed to make. It can emit **only** `AUTOBURN 0` — no flag turns it on and the string does not exist in the file — and it asserts the reply before touching the network |
 | `bench-probe` refusal list | thirteen handlers refused **by name with a reason each**, the skipped names recorded in the transcript's first record, overridable only by a second flag that is also recorded |
 | `bench-probe writes` | answers `P3-13` with GET, so no handler runs. Its classifier is reported as the proxy it is — splitting on "reaches a process-spawning sink" calls `formPasswordSetup` quiet — so it also probes the three endpoints the test's own text names, and refuses to run if the table lacks them |
 | `rtcase` `[schedule].sha256` | a week may move and may not move quietly. `rescheduled_from` + reason + date required, hash re-declared in the same commit. `test-rtcase.sh` 27 to 33 cases |
-| [`tools/coldboot-timing.sh`](tools/coldboot-timing.sh) | one power cycle feeding `P1-12`, `P9-1`'s dynamic half and a timestamped boot log, both clocks the same clock |
+| [`tools/coldboot-timing.sh`](../tools/coldboot-timing.sh) | one power cycle feeding `P1-12`, `P9-1`'s dynamic half and a timestamped boot log, both clocks the same clock |
 
 ### Instrument bugs 18 through 21
 
@@ -2241,7 +2241,7 @@ W04-2's list stands except #20, answered above. From the morning: #16, #17
     `formWlanRedirect2` resolves to no function at all: the string is in
     `.rodata`, nothing references it, and the device answers it exactly like an
     absent name. Every count derived from 57 / 59 / 49 since W03 can stand.
-    [`reports/ghidra-xref-unit-2018-redirects.json`](reports/ghidra-xref-unit-2018-redirects.json)
+    [`reports/ghidra-xref-unit-2018-redirects.json`](../reports/ghidra-xref-unit-2018-redirects.json)
     — whose `self_check` reads `SUSPECT` **by design**, because two selectors
     resolved to nothing and one of them is the negative control.
 27. **The boot loader's TFTP serves memory to a read request for any name.**
@@ -2532,10 +2532,10 @@ distinct naming beside the silicon ID's `8196E` and the Ethernet driver's
 
 | | |
 |---|---|
-| [`tools/console-write.py`](tools/console-write.py) | The flash **writer**, which did not exist this morning although `runsheet.md` A2.6 had specified it. An allow-list of two ranges — the drill sector and the config region — so the boot loader and `H601` are unreachable by construction. Positive control before every run, staged RAM read back before every `FLW`, and the written range read into a third address afterwards |
-| [`tools/test-console-write.sh`](tools/test-console-write.sh) | 28 cases. First run: 19 passed, 6 failed, and all six were real |
+| [`tools/console-write.py`](../tools/console-write.py) | The flash **writer**, which did not exist this morning although `runsheet.md` A2.6 had specified it. An allow-list of two ranges — the drill sector and the config region — so the boot loader and `H601` are unreachable by construction. Positive control before every run, staged RAM read back before every `FLW`, and the written range read into a third address afterwards |
+| [`tools/test-console-write.sh`](../tools/test-console-write.sh) | 28 cases. First run: 19 passed, 6 failed, and all six were real |
 | `qemu-env.sh serve` / `stop` | Stands `boa` up and **refuses to report it up** unless a gated page redirects *and* an exempt page is served. `stop` uses a pidfile, because `pkill -f` matches the calling shell's own command line and kills it |
-| [`poc/run.sh`](poc/run.sh) | Two modes, preconditions that name the failing step, an RFC 1918 check, a banner check, and a refusal to start without `--i-own-this-device` |
+| [`poc/run.sh`](../poc/run.sh) | Two modes, preconditions that name the failing step, an RFC 1918 check, a banner check, and a refusal to start without `--i-own-this-device` |
 | `rtcase` schedule hash | now covers the reschedule **reason**, not just `(id, week)` |
 
 ### Instrument bugs 23 through 27
@@ -2647,7 +2647,7 @@ because of the *freeze*. It came out of a handler census rather than a question
 somebody wrote down first, so no prediction was ever frozen for it, and
 `rtcase record` correctly refuses a case with no pre-written refutation
 condition. The same is true of the Boa `HEAD`-method test, which is recorded only
-in [`notes/prior-art.md`](notes/prior-art.md).
+in [`notes/prior-art.md`](../notes/prior-art.md).
 
 So:
 
@@ -2708,7 +2708,7 @@ Initialize AP MIB failed!
 which is `P0-11`'s prediction — frozen and committed before the environment
 existed — down to the string. 82.9 % of the image is reconstructed from the
 download; three regions are synthesised with zeroed payloads and **no byte comes
-from any physical unit**. [`reports/mkflash-2.1.2.json`](reports/mkflash-2.1.2.json)
+from any physical unit**. [`reports/mkflash-2.1.2.json`](../reports/mkflash-2.1.2.json)
 names every range and its origin.
 
 `libapmib` states its own requirement when it refuses the next check —
@@ -2775,9 +2775,9 @@ user-mode emulation does not provide.
 
 | | |
 |---|---|
-| [`tools/mkflash.py`](tools/mkflash.py) | Builds a flash image from a published container and emits a provenance map — every range labelled `published-image`, `overlay` (mandatory origin string, sha256) or blank `0xFF`. Refuses overlapping sections, an overlay colliding with the image, a section below the `0x010000` floor, and a magic that is not where the section table said it would be |
-| [`tools/mkhwsetting.py`](tools/mkhwsetting.py) | A structurally valid, content-free `H601`. `--verify-format-against` re-derives the header from a real dump and compares **structure only** — no payload byte is read, printed or compared, because that region is per-unit |
-| [`tools/mkcompds.py`](tools/mkcompds.py) + `fwrecon.compcs.lzss_encode` | The encoder this project has never had. `P8-12` has been parked as "blocked, `fwrecon` has no encoder" since the register was written, and it is no longer blocked. Every region is round-tripped through the vendor's **own** decoder before it is written |
+| [`tools/mkflash.py`](../tools/mkflash.py) | Builds a flash image from a published container and emits a provenance map — every range labelled `published-image`, `overlay` (mandatory origin string, sha256) or blank `0xFF`. Refuses overlapping sections, an overlay colliding with the image, a section below the `0x010000` floor, and a magic that is not where the section table said it would be |
+| [`tools/mkhwsetting.py`](../tools/mkhwsetting.py) | A structurally valid, content-free `H601`. `--verify-format-against` re-derives the header from a real dump and compares **structure only** — no payload byte is read, printed or compared, because that region is per-unit |
+| [`tools/mkcompds.py`](../tools/mkcompds.py) + `fwrecon.compcs.lzss_encode` | The encoder this project has never had. `P8-12` has been parked as "blocked, `fwrecon` has no encoder" since the register was written, and it is no longer blocked. Every region is round-tripped through the vendor's **own** decoder before it is written |
 | `qemu-env.sh --profile` | Two environments: `unit-2018` unchanged and re-verified, `v2.1.2` new. A profile must declare where its flash came from and a control that can fail; the new one refuses to `check` at all until its controls are measured |
 | `qemu-env.sh mkflash` | The whole L2 build as one deterministic command with its sha256 pinned, so "anyone can do this" is checkable rather than asserted |
 
@@ -2905,7 +2905,7 @@ a grep would miss it.
 
 **W04-2 already found the interesting one by hand** — `syscmd.htm` posts to
 `formSysCmd`, which V2.1.2's dispatch table does not contain
-([`notes/w6cg-web-ui.md`](notes/w6cg-web-ui.md), *"the form the vendor shipped
+([`notes/w6cg-web-ui.md`](../notes/w6cg-web-ui.md), *"the form the vendor shipped
 posts to a 404"*). What is new is that it is **a pattern rather than an oddity**:
 ten pages across the two builds post to handlers that do not exist, and the 2015
 UI shipped a page for a handler that only appears in 2018.
@@ -3029,7 +3029,7 @@ single tool — turns out to have a sibling: no claim from a single *run*.
 | Firing the 39 at the device | Each crash costs a power cycle. A *sample* chosen from the list is the right bench task, and this session was ended before hardware on purpose |
 | The differential harness across five builds | `mkflash` makes it possible now: a V3.4.0 profile is a few lines. It is W07 Day 2 and it wants a clean session |
 | `bughunt.md` | The week's DoD document. Its judgement column is worth writing once the bench results exist, not before |
-| Everything needing RF or an SPI programmer | `P7-*` and `P9-5`…`P9-12`. Rescheduled to W08 with the instrument named against each — see [`docs/lab-inventory.md`](docs/lab-inventory.md) |
+| Everything needing RF or an SPI programmer | `P7-*` and `P9-5`…`P9-12`. Rescheduled to W08 with the instrument named against each — see [`docs/lab-inventory.md`](../docs/lab-inventory.md) |
 
 ### Open, carried forward
 
@@ -3118,7 +3118,7 @@ W03 saw the same shape in V2.1.2 at `sp+0x40` / `sp+0x60` and correctly refused
 to call it a finding. What was wrong was not the caution: the candidate then sat
 for weeks while an environment able to fire it was built for an unrelated
 purpose, and nobody pointed it here.
-→ [`uninit-credential-pair.md`](notes/uninit-credential-pair.md)
+→ [`uninit-credential-pair.md`](../notes/uninit-credential-pair.md)
 
 ### The firmware upgrade path checks a 16-bit sum, and the trigger is outside the gate
 
@@ -3136,7 +3136,7 @@ over **plain HTTP**. The same job is inside `boa`: `FUN_0044f7b4`, reached from
 `submit_rfw_upgrade` and calls `CheckRFW` with the hard-coded host
 `sl.totolink.software`. `POST /boafrm/formSaveConfig` does not enter the gate on
 this build.
-→ [`firmware-upgrade-path.md`](notes/firmware-upgrade-path.md)
+→ [`firmware-upgrade-path.md`](../notes/firmware-upgrade-path.md)
 
 ### `check_host` is correct code that nothing calls
 
@@ -3153,7 +3153,7 @@ Separately: the client's `Host` is copied verbatim into the gate's redirect
 `Location`, an unauthenticated open redirect on every gated path. **It is not
 XSS** — both sinks encode, URL-encoding in the header and HTML entities in the
 body — and saying so is the point.
-→ [`host-header-and-redirect.md`](notes/host-header-and-redirect.md)
+→ [`host-header-and-redirect.md`](../notes/host-header-and-redirect.md)
 
 ### The three unread binaries, and one was not what four weeks of notes assumed
 
@@ -3167,7 +3167,7 @@ Also corrected: this `miniigd`'s SOAP control endpoint is
 `/upnp/control/WANIPConnection`. The working notes carried `miniupnpd`'s
 `/upnp/control/WANIPConn1`; a bench probe of the documented path would have
 returned a clean negative with the port open the whole time.
-→ [`three-unread-binaries.md`](notes/three-unread-binaries.md)
+→ [`three-unread-binaries.md`](../notes/three-unread-binaries.md)
 
 ### The XSS five are one omission, and the escaper is already in the binary
 
@@ -3186,7 +3186,7 @@ factor of six.
 And the plan's method for this could not have worked: `dhcptbl.htm` contains no
 field, only `<% dhcpClientList(); %>`. The value is written by a C function, so
 grepping 146 template files would have returned nothing and proved nothing.
-→ [`xss-escaping.md`](notes/xss-escaping.md)
+→ [`xss-escaping.md`](../notes/xss-escaping.md)
 
 ### `P8-24` — the boot script turns telnet on when both settings regions are invalid
 
@@ -3214,7 +3214,7 @@ not found` — `flash`'s own error text run as a command.
 **It flips `P8-12`**, which records the config-upload chain as blocked on this
 project having no `COMPCS` encoder. This path does not want a valid blob; it
 wants an invalid `COMPDS`, and invalid bytes need no encoder.
-→ [`config-failopen.md`](notes/config-failopen.md)
+→ [`config-failopen.md`](../notes/config-failopen.md)
 
 ### `P8-8` and `P8-18` refuted, `P10-7` refuted, and each for a different reason
 
@@ -3385,7 +3385,7 @@ Two more things fell out of reading the source, and neither was being looked for
 > wording stays "authenticates", never "as an administrator" — and what the empty
 > pair actually buys is that the **entire** authorisation block does not run.
 
-→ [`uninit-credential-pair.md`](notes/uninit-credential-pair.md) §3, §4
+→ [`uninit-credential-pair.md`](../notes/uninit-credential-pair.md) §3, §4
 
 ### The gate has a third arm, it is keyed on the client's IP, and it dies 601 seconds after boot
 
@@ -3424,7 +3424,7 @@ of uptime, a gated page is served to whichever address logged in last, with no
 credentials on the request. **The emulator cannot reach it** — `sysinfo()` under
 `qemu-user` returns the host's uptime — so it needs `A3.2`, the only station that
 owns the clock.
-→ [`auth-session-ip.md`](notes/auth-session-ip.md), `docs/disclosure.md` `D-18`
+→ [`auth-session-ip.md`](../notes/auth-session-ip.md), `docs/disclosure.md` `D-18`
 
 ### `P4-7`'s thirty-nine deaths were the emulator
 
@@ -3478,8 +3478,8 @@ finding, it **sharpened it by a factor of thirty-nine**. That is the third of th
 project's own results to be overturned, and the first overturned by building an
 instrument that could tell the emulator from the firmware rather than by arguing
 about a caveat the report already carried.
-→ [`emulation-2018.md`](notes/emulation-2018.md) §7a ·
-[`reports/handler-sweep-unit-2018-alignfix.json`](reports/handler-sweep-unit-2018-alignfix.json)
+→ [`emulation-2018.md`](../notes/emulation-2018.md) §7a ·
+[`reports/handler-sweep-unit-2018-alignfix.json`](../reports/handler-sweep-unit-2018-alignfix.json)
 
 ### Prior art: three searched, one matched, and the method that found the most was new
 
@@ -3636,7 +3636,7 @@ measured and none of it is recorded; the bench block has not started.
 
 | Next | Needs the device? | Note |
 |---|---|---|
-| **1. ~~Finish the `--alignfix` sweep~~** | ❌ | **Done, at the end of the session.** 58 probed, 58 restarts, **0 failed, 57 survived, one died: `formSchedule`.** All three controls held and `env_intact_after_sweep` is true, so no probe left state behind — which is bug 41's fix proving itself. The emulated candidate list for `D-11` is now **one handler instead of thirty-nine**, and it is computed rather than chosen. → [`reports/handler-sweep-unit-2018-alignfix.json`](reports/handler-sweep-unit-2018-alignfix.json) |
+| **1. ~~Finish the `--alignfix` sweep~~** | ❌ | **Done, at the end of the session.** 58 probed, 58 restarts, **0 failed, 57 survived, one died: `formSchedule`.** All three controls held and `env_intact_after_sweep` is true, so no probe left state behind — which is bug 41's fix proving itself. The emulated candidate list for `D-11` is now **one handler instead of thirty-nine**, and it is computed rather than chosen. → [`reports/handler-sweep-unit-2018-alignfix.json`](../reports/handler-sweep-unit-2018-alignfix.json) |
 | **2. Record the desk block** | ❌ | `P1-9`, the `P3-8`…`P3-12` static halves, `P5-3`, `P5-7`, `P5-6`, then the `P4` / `P5` chain. `P4-7` now has a second, better result to record against it |
 | **3. Freeze the bench predictions** | ❌ | Three are new as of today, and one — the 601-second window — has no runsheet step at all. **This gates the visit** |
 | **4. The bench visit** | ✅ | 32 rows, station order per `runsheet.md` Part B `B-W07`, `P9-9` last |
@@ -3685,7 +3685,7 @@ handlers drawn from 47 had roughly one chance in four each. And the fifth,
 > transferable sentence is not "the earlier test was sloppy". It is: **a
 > refutation inherits the coverage of whatever produced it, and three
 > hand-picked handlers is a coverage nobody wrote down.**
-→ [`notes/absent-parameter-strcpy.md`](notes/absent-parameter-strcpy.md)
+→ [`notes/absent-parameter-strcpy.md`](../notes/absent-parameter-strcpy.md)
 
 ### And one that is a different defect entirely
 
@@ -3964,9 +3964,9 @@ and the second reboots the guest — the answer is unambiguous.
 Same registers saved, same order, frame one word larger on the older build. The
 `unit-2018` column reproduces yesterday's numbers exactly from a separate run, so
 this is also a replication of the measurement it is being compared against.
-→ [`reports/crash-triage-v2.1.2-wsc.json`](reports/crash-triage-v2.1.2-wsc.json),
-[`reports/crash-triage-v2.1.2-wsc-cyclic.json`](reports/crash-triage-v2.1.2-wsc-cyclic.json),
-[`reports/crash-triage-unit-2018-wsc-cyclic.json`](reports/crash-triage-unit-2018-wsc-cyclic.json)
+→ [`reports/crash-triage-v2.1.2-wsc.json`](../reports/crash-triage-v2.1.2-wsc.json),
+[`reports/crash-triage-v2.1.2-wsc-cyclic.json`](../reports/crash-triage-v2.1.2-wsc-cyclic.json),
+[`reports/crash-triage-unit-2018-wsc-cyclic.json`](../reports/crash-triage-unit-2018-wsc-cyclic.json)
 
 **The absent-parameter class is wider on the published image: seven handlers, not
 five.** Same instruction, same verdict, different address — `0x00476418`, in
@@ -3975,7 +3975,7 @@ of the three handlers W06 hand-picked to test the class and found clean.** They
 were clean; W06 measured the 2017 build. The refutation inherited the coverage of
 its handler sample *and* of its build, and widening the first was never going to
 show the second.
-→ [`reports/crash-triage-v2.1.2.json`](reports/crash-triage-v2.1.2.json)
+→ [`reports/crash-triage-v2.1.2.json`](../reports/crash-triage-v2.1.2.json)
 
 ### Open #64: the answer was in this repository, in two files, since W04
 
@@ -4769,9 +4769,9 @@ not offer. It needed no channel. Two kernel fault messages were already in
 ```
 
 Neither names a library. Turning one into a load base is
-[`tools/libbase.py`](tools/libbase.py); the reasoning and the addresses are
-[`notes/mips-ret2libc.md`](notes/mips-ret2libc.md); the report is
-[`reports/libbase-unit-2018.json`](reports/libbase-unit-2018.json).
+[`tools/libbase.py`](../tools/libbase.py); the reasoning and the addresses are
+[`notes/mips-ret2libc.md`](../notes/mips-ret2libc.md); the report is
+[`reports/libbase-unit-2018.json`](../reports/libbase-unit-2018.json).
 
 **`boa`'s `epc` is `strcpy+0x18`, which puts `libuClibc` at `0x2aae3000`, and
 `system` at `0x2ab08460`.** The four bytes between that and qemu-user's own `pc`
@@ -4848,7 +4848,7 @@ step reads "it is the fourth time these two lists have diverged."
 RUNBOOK 10.21 made it a rule. A rule broken five times is a reminder, and this
 repository's answer to a broken reminder is already on the record —
 `tools/check-benchlog.py` replaced one. So:
-[`tools/check-ci-parity.py`](tools/check-ci-parity.py) compares which `tools/`
+[`tools/check-ci-parity.py`](../tools/check-ci-parity.py) compares which `tools/`
 scripts each file runs, in **both** directions, with one-sided entries recorded
 as decisions in a `DELIBERATE` table rather than tolerated silently. It fired on
 its first run and named all three. 13 guard cases, and two of them exist because
@@ -5220,7 +5220,7 @@ zero — the same treatment the seventeen-command control already had, for the
 same reason.
 
 Full note, including the funnel and what else the table gave up:
-[`notes/loader-chip-table.md`](notes/loader-chip-table.md).
+[`notes/loader-chip-table.md`](../notes/loader-chip-table.md).
 
 **What this does for the bench is the point.** `P9-7`'s prediction was frozen on
 2026-08-18 as "the packaging text is one source, the JEDEC id is the second".
@@ -5510,7 +5510,7 @@ the rest. All thirteen decode now, 37 of 37 counting the nested ones, 2,991
 nested entries, both regions `consistent`.
 
 Full note, including the six blocks, the cross-build read and how the first
-version was wrong twice: [`notes/wlan-root.md`](notes/wlan-root.md).
+version was wrong twice: [`notes/wlan-root.md`](../notes/wlan-root.md).
 `P7-7`'s row is in `test-cases.toml`; this section does not restate it.
 
 **What made the gap invisible is worth more than the gap.**
@@ -5644,7 +5644,7 @@ the loosened rule is still strictly narrower than "pick the first match".
 66, 67, 69, 70, 71, 74, 75, 77, 78, 79, 81, 82, 84, 85, 86, 87, 88, 92, 93 —
 unchanged.
 
-**90 is closed** — `WLAN_ROOT` is decoded, [`notes/wlan-root.md`](notes/wlan-root.md).
+**90 is closed** — `WLAN_ROOT` is decoded, [`notes/wlan-root.md`](../notes/wlan-root.md).
 
 89. **Which flash descriptor does `FLW` use when the lookup fails?** Unchanged,
     and now with a recorded decision attached: the cheapest instrument that
@@ -6097,7 +6097,7 @@ path is one function:
 So **`get` is a fast path for `FLR`'s output only when `FLR`'s destination
 happens to equal `LOADADDR`.** What `FLR` lends to TFTP is the *length*, not the
 address. Full derivation, the recovered 17-entry command table, the `J` handler
-and the write path: [`notes/loader-tftp-and-commands.md`](notes/loader-tftp-and-commands.md).
+and the write path: [`notes/loader-tftp-and-commands.md`](../notes/loader-tftp-and-commands.md).
 
 It also explains `T-09` in a way nothing had: the 516 bytes that matched flash
 `0x060010` came from RAM at `0x80500000`, and **nothing in that session put them
@@ -6153,8 +6153,8 @@ the previous design could not do to itself.
 
 | | |
 |---|---|
-| [`tools/mkramboot.py`](tools/mkramboot.py) | new. Builds the RAM payload `P9-12` needs: ~40 instructions of big-endian MIPS that print a nonced banner to the UART and repeat. UART addresses read out of **the loader's own putchar** at `0x80406B6C`, bounded spin included. Every build **simulates** the encoded words against a stand-in UART and refuses unless the bytes emitted are exactly the banner |
-| [`tools/test-mkramboot.sh`](tools/test-mkramboot.sh) | **26 cases**, seven of which put a real bug back into the encoder and require the build to go red |
+| [`tools/mkramboot.py`](../tools/mkramboot.py) | new. Builds the RAM payload `P9-12` needs: ~40 instructions of big-endian MIPS that print a nonced banner to the UART and repeat. UART addresses read out of **the loader's own putchar** at `0x80406B6C`, bounded spin included. Every build **simulates** the encoded words against a stand-in UART and refuses unless the bytes emitted are exactly the banner |
+| [`tools/test-mkramboot.sh`](../tools/test-mkramboot.sh) | **26 cases**, seven of which put a real bug back into the encoder and require the build to go red |
 | `tools/loader-tftp.py` | `--attribute` on `probe`/`get` (locate the served bytes in a dump, exactly one offset or it says so); `put` refuses the loader's two auto-execute filenames; `put` bounds the age of the rescue transcript; `--expect-load`. **17 → 30 cases** |
 | `tools/console-dump.py` | `LOADADDR` joins `FORBIDDEN` for `cmd`; `rescue --load-addr` gives it a guarded home and records the loader's echo. **18 → 23 cases** |
 | `Makefile` · `.github/workflows/ci.yml` | `ramboot`, `ramboot-test` added to **both** in the same commit |
@@ -6340,7 +6340,7 @@ is not evidence of.
 
 96. **Closed.** Answered statically on 2026-08-21 and confirmed the same evening
     on four pre-registered hashes. Mechanism and addresses:
-    [`notes/loader-tftp-and-commands.md`](notes/loader-tftp-and-commands.md);
+    [`notes/loader-tftp-and-commands.md`](../notes/loader-tftp-and-commands.md);
     what was typed and seen: `BENCH-LOG.md` `T-86` / `T-87`.
 
 99. **Does the loader really take the switch ports down on the way out of `J`?**
@@ -6552,7 +6552,7 @@ session and not.
     writer; the vendor's own `CmdSFlw` has `//strtoul(argv[3], …)` commented out;
     and no instruction in the image reads the table's count column. Mechanism,
     addresses and the three readers:
-    [`notes/loader-tftp-and-commands.md`](notes/loader-tftp-and-commands.md);
+    [`notes/loader-tftp-and-commands.md`](../notes/loader-tftp-and-commands.md);
     reasoning: `RUNBOOK.md` §8.12.46. **`P9-14` is the device confirmation and it
     is not the answer** — it is four cells that would refute the answer, and it
     writes nothing.
@@ -6772,7 +6772,7 @@ sent to the device.**
 Open questions **101** and **102** are both closed. They turned out to be the
 same question from two sides — *what runs the loader's network, and what does
 the command prompt do while it waits?* — and one reading settles both. The
-working is [`notes/loader-interrupts-and-console.md`](notes/loader-interrupts-and-console.md);
+working is [`notes/loader-interrupts-and-console.md`](../notes/loader-interrupts-and-console.md);
 the reasoning is `RUNBOOK.md` §8.12.47.
 
 ### 101 — the loader's TFTP is interrupt-driven
@@ -6955,9 +6955,9 @@ many items, and a "第 N 條" reference must resolve. Four guard cases.
 ### The write-up draft — fourteen chapters, all with content
 
 W08's definition of done in `plan/W08` is the fourteen-chapter draft, and it is
-written: [`writeup/`](writeup/), one file per chapter, English, with a
+written: [`writeup/`](../writeup/), one file per chapter, English, with a
 Traditional Chinese reading guide in
-[`study/writeup-導讀.md`](study/writeup-導讀.md) that carries the *design* —
+[`study/writeup-導讀.md`](../study/writeup-導讀.md) that carries the *design* —
 what each chapter is for and where a hostile reader would push — rather than the
 content.
 
@@ -6992,7 +6992,7 @@ week. The ten-minute read test in the week plan has not been run.
      a command loop whose character source (`0x80406BBC`) touches only the two
      UART registers. Mechanism, addresses and the near-miss that nearly
      published the opposite:
-     [`notes/loader-interrupts-and-console.md`](notes/loader-interrupts-and-console.md);
+     [`notes/loader-interrupts-and-console.md`](../notes/loader-interrupts-and-console.md);
      reasoning: `RUNBOOK.md` §8.12.47. **`P9-17` is the device confirmation and
      it is not the answer** — it is a two-step ladder that can refute it.
 
@@ -7495,3 +7495,217 @@ findings and one report draft.
      of the five, `N300RT`, was still receiving firmware in 2025. **Answerable
      without hardware** if any of their images can be obtained: the pair is a
      static read of one function.
+
+## W09 — the publication week, run as one desk session: three checkers written to hold this repository to account, and 31 of their first 39 findings were their own — 2026-09-25
+
+Desk-only. The device was not powered, the clip was not touched, nothing was
+measured. W09 is the publication week and its deliverable is a front door, so
+this session's work is structural — except that following one number into the
+write-up turned up the worst content defect this project has shipped.
+
+### The instruments came first, deliberately
+
+Six files had to move into `journal/` and 1,038 relative links had to survive
+it. **Building the instrument that can see a broken link before moving anything**
+is the same rule as measuring before fixing, and it paid immediately.
+
+`tools/check-links.py` makes exactly one decision that matters: **it asks git,
+not the file system.** `README.md` linked to `plan/` for eleven weeks, in the
+one sentence the entire gate board rests on — *"the acceptance criteria from the
+week plans in `plan/` — copied, not invented after the fact"* — and `plan/` is
+gitignored. On GitHub it was a 404. On every machine that could have noticed it
+was a directory that exists. **The file system and the repository disagreed, and
+only one of them is what a reader gets.**
+
+`tools/check-numbers.py` re-derives each front-door number from the thing that
+owns it. It exists because `tools/count-checks.sh` diagnosed this failure in its
+own header in August — *"a number on the front door that nobody can re-derive is
+worth less than no number"* — **and was then never wired into anything.** The
+front page said **592** where a recount said **593**, and **130 registered
+tests** where the register held **141**, on the same page that said 141 a
+hundred and forty lines further down.
+
+`count-checks.sh`'s stated reason for staying out of CI was half right: pinning
+the total to a constant would go red every time a suite grew. Asserting that
+**the prose equals the recount** goes red only when the prose is stale. The
+distinction is between checking a value and checking an agreement.
+
+### Instrument bugs 57, 58 and 59 — and they are a different shape from the other 56
+
+`check-links.py`'s first run reported **21 broken links. 18 were the checker.**
+
+- **57** — the slug function collapsed *runs* of whitespace to one hyphen.
+  Removing punctuation leaves the gap behind, so `codes — a` anchors as
+  `codes--a`. Fourteen correct links reported broken.
+- **58** — the same checker blanked inline code *before* slugging, so
+  `### 7.4 \`J2\` and the power switch` lost the `J2`. GitHub slugs the
+  **rendered** heading. Four more.
+
+`check-numbers.py`'s first version scanned prose for `N tests`, `N checks`,
+`N items cut`. It reported **18 disagreements; 13 were the checker.**
+
+- **59** — English gives a total and a subset the same grammar.
+  *"141 registered tests"* and *"Three registered tests are frozen against it"*
+  are indistinguishable to a pattern, and both are correct sentences. Rewritten
+  as a **table of claim sites**: file, sentence shape, owning generator. The
+  price is that a new total in a new sentence is invisible until someone adds
+  it; the purchase is that **a claim site that stops matching is itself a
+  failure**, so coverage cannot silently narrow the way instrument bug 12 did.
+
+**The direction is the finding.** The other fifty-six skew hard toward *silent
+passes* — a census returning 1 instead of 589, a freeze check hashing an empty
+list, a capture printing `0 packets captured` and exiting 0, a regular
+expression matching nothing and therefore passing on every file. These three all
+**invented work**, and an instrument that invents work is worse than one that
+hides it, for a reason that has nothing to do with the instrument: **a false
+alarm gets obeyed.** The first response to *"this anchor is broken"* is to go
+and fix the anchor. Fourteen correct links were one keystroke from being
+"fixed" into fourteen broken ones. A silent pass leaves the evidence intact; a
+false alarm is an instruction to destroy it.
+
+What caught all three is embarrassingly cheap: **read every finding before
+acting on the first one.** Eighteen anchor failures sharing one shape — every
+one spanning an em dash, a slash or a comma — is not eighteen defects in the
+corpus. It is one defect in the reader. `writeup/12` now carries this as a fifth
+worked section, because it sharpens the chapter's own rule: *no claim from a
+single tool* has a corollary, which is that **a tool's first run is a claim too,
+and the shape of its findings is evidence about the tool.**
+
+### Following one number into `writeup/02-corpus.md`
+
+The README draft said *six builds*; `writeup/02-corpus.md` was titled *Five
+builds*. Chasing the disagreement found three defects in the chapter whose
+entire job is to say which image supports which claim:
+
+1. **A row for `V4.1.5cu`.** That string appears in **exactly one file in this
+   repository: that chapter.** No `SOURCES.json` entry, no manifest row, no
+   report, no other document. It was never obtained and never analysed.
+2. **Three images that *were* analysed were missing** — two N300RT and one
+   N200RE — while chapter 7's per-product finding depends on all three.
+3. **The chapter contradicted its own count** inside four hundred words: a table
+   of five that includes this unit's dump, then a section calling the dump *"the
+   sixth image"*.
+
+The true corpus is **six downloadable images plus this unit's dump**, of which
+**six `boa` binaries were read side by side**
+(`reports/formtable-scan-six-builds.json`); the seventh image was downloaded
+incomplete and contributes its `w6cg` bundle only, which `SOURCES.json` has said
+all along.
+
+### And then `writeup/07-across.md`, which is worse
+
+Its `root_form[]` row read **`57 | 58 | 57`**. The correct row is
+**`59 | 57 | 49`** — every one of the three wrong, and wrong *in a shape*:
+near-identical counts with this unit one entry above its neighbours. The real
+numbers say the 2020 build **dropped ten routes**, a visible narrowing of the
+attack surface and the most interesting cell in the table. **The fabricated
+symmetry hid it.**
+
+The correct numbers were never in doubt and never hidden —
+`notes/three-way-read.md:107` carries `59 | 57 | 49` from W04-2,
+`notes/dispatch-table.md` has 59 and 49 by address, and the three report files
+say so themselves. **The chapter did not disagree with the evidence. It
+disagreed with this repository's own notes, and nothing was comparing the two.**
+
+Every other row in that table checks out against `reports/` — the gate row
+`5 | 6 | 8` is exactly `findings_by_rule.R2` in the three gate reports — which
+makes the one wrong row worse rather than better. **A table where everything is
+checkable and one cell was not checked is a table that has taught its reader to
+stop checking.**
+
+Its title also claimed five builds, chapter 13 inherited the same number for a
+gate that ran on three, and the six-build scan — the strongest cross-build
+result this project has — **was cited nowhere in the write-up at all**, despite
+being the thing that corrects chapter 7's own generalisation.
+
+### Structure
+
+- **Six files moved to `journal/`**: `PROGRESS.md`, `LOG.md`, `BENCH-LOG.md`,
+  `RUNBOOK.md`, `runsheet.md`, `test-ledger.md`. The repository root is now five
+  tracked files. `journal/README.md` states why an audit trail is published at
+  all, which is the difference between *auditability* and *hoarding* and is
+  entirely a matter of whether anyone says which one it is.
+  `test-cases.toml` stayed at the root: it is machine-readable source that
+  `make ledger` and CI consume, not a journal.
+- **326 links rewritten** by script, in two passes — inbound to the moved files,
+  then outbound from them — each pass verified by `check-links.py` rather than
+  by eye. Six tool path constants and 96 artefact paths in
+  `reports/test-results.json` followed.
+- **`LICENSE`** (MIT) added. `tools/fwrecon/pyproject.toml` had declared MIT
+  since W01 with no such file, which is a self-contradiction in a repository
+  whose pitch is that two documents never disagree.
+- **`CLAUDE.md` untracked**, with `docs/how-this-was-built.md` added in the same
+  commit. It is an agent configuration file, the same category as
+  `.vscode/settings.json`; the note says what was collaborative, what was not,
+  and that the rule is *the tools can be collaborative, the conclusions cannot*.
+- **`docs/gates.md`** generated by `tools/extract-gates.py` from the private week
+  plans, with `make check-gates` proving the two still agree. It replaces the
+  `plan/` 404 with something better than the link was: **the first commit of
+  `PROGRESS.md`, `b085444`, 2026-08-07, already carries the whole G0–G5
+  assignment** — nine days before the hardware arrived and datable from this
+  repository's own history rather than from a directory nobody else can see.
+- **README rebuilt.** 127 lines before the first `<details>`, down from 362
+  before the first section heading. The nine reverse-chronological "Latest"
+  blockquotes are **deleted, not moved**: `PROGRESS.md` already carried those
+  sessions at higher density, so the README had been a second owner of that
+  state. The gate board is kept and collapsed, as W09's plan directs.
+- **CI now runs on `w*` branches**, not `main` alone.
+
+### Corrections
+
+| claim | correction |
+|---|---|
+| External review: *"`main` is dead — 5 commits, 2026-08-07, 110 commits behind"* | **False, and it was false on the day it was written.** `origin/main` carries 23 merged PRs, 276 files, last merged 2026-08-21 — the day *before* the review. What is stale is the **local** `main` ref, never fast-forwarded in this working copy. The review read `git log main` in the working directory and reported it as GitHub's state. The real gap was **7 commits**, not 110 |
+| External review: *"`D-19` is marked `NOT SEARCHED`"* | Searched 2026-08-23, `docs/disclosure.md:155`, the day after the review. Nothing matched; published, not reported |
+| External review: *"`study/writeup-導讀.md` is untracked, 404"* | Tracked. Most likely a CJK filename that the reviewer's check did not resolve |
+| `plan/W09` assumes the repository must be created — *"`git init` / `git remote add`"* | It has existed and been public since W01. W09's actual job is a front door, which is what the plan's own first table says |
+| `make todo WEEK=W09` | **"no week W09 in the register."** W09 schedules no tests, because it measures nothing. The closure list for a publication week is its gate, not its register rows — worth stating because every week since W05 has had one |
+| `writeup/02-corpus.md` — *"Five builds"*, incl. `V4.1.5cu` | Seven images, six `boa` binaries read across; `V4.1.5cu` does not exist |
+| `writeup/07-across.md` — `root_form[]` `57 \| 58 \| 57` | `59 \| 57 \| 49`, per `notes/three-way-read.md`, `notes/dispatch-table.md` and the three reports |
+| `writeup/07-across.md` and `13-gate.md` — *"five builds"* | Three. `reports/` holds three gate reports and three per-build formtable reports |
+| `REPRODUCE.md` — *"130 tests"*, *"592 checks"*; README — *"592 checks"* | 141 and 613. Both now checked by `tools/check-numbers.py` at 36 claim sites |
+
+### Open, carried forward
+
+66, 67, 69, 70, 71, 74, 75, 77, 78, 79, 81, 82, 84, 85, 86, 87, 88, 89, 91, 92,
+93, 94, 95, 97, 100, 103, 104, 105, 106, 107, 108, 109 — unchanged. **#70 is
+still the most expensive one on the list** and today added a second instance of
+its shape: nothing makes a *number* consult the report it came from, in the same
+way nothing makes a *finding* consult `notes/prior-art.md`.
+
+110. **Nothing compares a measurement quoted in `writeup/` against the report it
+     came from.** `57 | 58 | 57` fell through exactly this gap, and so did the
+     `V4.1.5cu` row and the three missing images.
+     `tools/check-numbers.py` covers **front-door totals** with a named owner;
+     it does not and cannot cover a single measured value cited mid-chapter.
+     **Answerable at the desk**, and the shape is probably the same claim-site
+     table: a chapter cell, the report key it must equal. The reason to write it
+     is not the one cell — it is that a table where every other cell *is*
+     checkable is the most persuasive place for a wrong one to sit.
+
+### W10 — what it owes
+
+W10 is the buffer week and it has no gate. The list is short on purpose; a
+buffer week that acquires a scope is not a buffer week.
+
+1. **Clause 1b of G5 — a stranger.** The one clause this project cannot
+   self-certify. It needs a person who has not seen the repository, ten minutes,
+   and three questions afterwards: *what is the device, what was found, and how
+   would you check it.* Everything else about the front door is already measured
+   and every one of those measurements is a proxy.
+2. **Open item 110 — the checker for a measurement quoted mid-chapter.**
+   `57 | 58 | 57` was in **two** chapters, not one, and chapter 6 named the very
+   reports that contradict it in the sentence above the table. The shape is
+   probably the claim-site table again: a chapter cell, the report key and JSON
+   path it must equal. Cheap, and it is the only one of these that removes a
+   class rather than an instance.
+3. **Eleven chapters have not been audited against `reports/`.** Four were, and
+   four defects came out. That ratio is the argument for (2) and it is also the
+   reason not to do the remaining eleven by hand.
+4. **Open items 106 and 107** still need one bench capture between them — the
+   `A3.13` body, saved rather than measured. Unchanged, still cheap, still needs
+   a session that is going to the bench anyway.
+5. **Nothing else.** In particular: no new CVE, no new tool, and no new chapter.
+   The W09 plan's own stop-loss says *"想再多做一個 CVE → 停"*, and the honest
+   state of this project is that its weakest point is no longer what it found —
+   it is that one person has read it.

@@ -10,10 +10,11 @@ contains the substring `htm`.** `.dat` is not specially unprotected. Nothing
 without `htm` in its path is protected at all — which includes `/config.dat`,
 `/ca.cer`, and every one of the 59 `/boafrm/form*` endpoints.
 
-> **Scope of everything below.** These are static results read out of firmware
-> images. No device has been powered on — the hardware has not arrived (W02).
-> Nothing here has been confirmed against a live HTTP server, and the last
-> section says exactly what would confirm it.
+> **Scope of everything below.** Static results read out of the published **V2.1.2**
+> and **V3.4.0** images. **This unit runs neither**, it has been powered and serving
+> since 2026-08-15, and the equivalent read on its resident build is
+> [`auth-flow-2018.md`](auth-flow-2018.md). Nothing *in this file* has been confirmed
+> against a live HTTP server, and the last section says exactly what would confirm it.
 
 ## The request path
 

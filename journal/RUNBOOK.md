@@ -76,7 +76,7 @@ WSL = Windows Subsystem for Linux，讓你在 Windows 裡跑一個真的 Linux�
 
 **逆向 Linux 韌體必須在 Linux 上做。** 韌體裡有符號連結（symlink）、有 Unix 權限位元，Windows 的檔案系統存不下這些東西 —— 存不下就等於**資料會悄悄消失，而且不會報錯**。這個專案最重要的一個發現（`/web/config.dat` 是個符號連結）在 Windows 上解包會直接看不到。
 
-詳見 [`docs/workspace-layout.md`](docs/workspace-layout.md)。
+詳見 [`docs/workspace-layout.md`](../docs/workspace-layout.md)。
 
 ---
 
@@ -317,10 +317,10 @@ make fetch
 
 **這會做什麼：**
 
-1. 讀 [`firmware/SOURCES.json`](firmware/SOURCES.json) —— 裡面寫著要抓哪兩個檔、從哪抓、雜湊值應該是多少
+1. 讀 [`firmware/SOURCES.json`](../firmware/SOURCES.json) —— 裡面寫著要抓哪兩個檔、從哪抓、雜湊值應該是多少
 2. 下載到 `~/fwre-work/firmware/`（**不是**在專案資料夾裡，見下方說明）
 3. 逐一比對 **檔案大小 / MD5 / SHA-1 / SHA-256**
-4. 把實際結果寫進 [`firmware/MANIFEST.json`](firmware/MANIFEST.json)
+4. 把實際結果寫進 [`firmware/MANIFEST.json`](../firmware/MANIFEST.json)
 
 **應該看到：**
 
@@ -431,7 +431,7 @@ cat -n ~/fwre-work/extracted/v2.1.2/squashfs-root/etc/init.d/rcS | sed -n '105,1
    111	
 ```
 
-**第 110 行前面那個 `#` 就是本專案最有意思的發現之一。** `skt` 是 2015 年被公開的後門程式，廠商的「修補」方式是**把啟動那行註解掉**，但 `/bin/skt` 這個檔案還好好地留在韌體裡。詳見 [`notes/prior-art.md`](notes/prior-art.md)。
+**第 110 行前面那個 `#` 就是本專案最有意思的發現之一。** `skt` 是 2015 年被公開的後門程式，廠商的「修補」方式是**把啟動那行註解掉**，但 `/bin/skt` 這個檔案還好好地留在韌體裡。詳見 [`notes/prior-art.md`](../notes/prior-art.md)。
 
 ---
 
@@ -441,7 +441,7 @@ cat -n ~/fwre-work/extracted/v2.1.2/squashfs-root/etc/init.d/rcS | sed -n '105,1
 make recon
 ```
 
-**這會做什麼：** 對兩個版本各產生 JSON + Markdown 報告，再做一份版本差異對照，全部寫進 [`reports/`](reports/)。
+**這會做什麼：** 對兩個版本各產生 JSON + Markdown 報告，再做一份版本差異對照，全部寫進 [`reports/`](../reports/)。
 
 ⏱ 約 10 秒。
 
@@ -593,9 +593,9 @@ INFO  BoaSinks.java> BoaSinks: 1686 call sites across 21 sinks, 432 named functi
 wsl -d Ubuntu-24.04 bash -c "cd /mnt/c/Users/Key20/Desktop/router && jq -r '.tables[] | select(.role==\"root_form\") | .entries[] | \"\(.handler) \(.name)\"' reports/ghidra-formtable-2.1.2.json | head -20"
 ```
 
-完整的「該看哪些函式、為什麼」整理在 [`notes/ghidra-triage.md`](notes/ghidra-triage.md);
-結論在 [`notes/dispatch-table.md`](notes/dispatch-table.md) 和
-[`notes/auth-flow.md`](notes/auth-flow.md)。
+完整的「該看哪些函式、為什麼」整理在 [`notes/ghidra-triage.md`](../notes/ghidra-triage.md);
+結論在 [`notes/dispatch-table.md`](../notes/dispatch-table.md) 和
+[`notes/auth-flow.md`](../notes/auth-flow.md)。
 
 ### 打開圖形介面自己看
 
@@ -655,7 +655,7 @@ wsl -d Ubuntu-24.04 bash -c "cd /mnt/c/Users/Key20/Desktop/router && jq -r '.tab
 ```
 
 **這四行就是本週的結論**：URI 裡沒有 `htm` 三個字，授權檢查整段被跳過。
-完整說明在 [`notes/auth-flow.md`](notes/auth-flow.md)。
+完整說明在 [`notes/auth-flow.md`](../notes/auth-flow.md)。
 
 > 用純文字而不是截圖，是因為截圖沒辦法 diff、沒辦法 grep、Ghidra 升版之後也沒辦法重新產生。
 
@@ -706,7 +706,7 @@ G2 的第四格交付物就是**標註過的 PCB 照片**，而**原廠狀態只
 > 但世界上沒有 `EN25OH32B`。**這種事不要靠瞇眼睛決定** —— Day 4 讓 `flashrom` 讀
 > 晶片自己回報的 JEDEC ID，那才是證據。
 
-完整判讀和每一條的第二來源：[`notes/hardware-inspection.md`](notes/hardware-inspection.md)。
+完整判讀和每一條的第二來源：[`notes/hardware-inspection.md`](../notes/hardware-inspection.md)。
 
 ### 8.6.4 確認 flashrom 認得這顆 flash
 
@@ -801,7 +801,7 @@ USB-TTL / CH341A / 邏輯分析儀插上去之後，這張表會多出對應的�
 
 - **bootlog** 會印出 MAC，而且照 W04 找到的 `flash set HW_WLAN0_WSC_PIN %s` 來看，
   很可能連 **WPS PIN** 一起印；
-- **flash dump 的 config 分割區**裡全部都有 —— 這也是 [`.gitignore`](.gitignore)
+- **flash dump 的 config 分割區**裡全部都有 —— 這也是 [`.gitignore`](../.gitignore)
   一開始就把 `dumps/*` 擋在 repo 外面的原因之一。
 
 **一條規則，三個地方：從「我這一台」讀出來的東西一律遮掉，只發表對「這個型號」
@@ -843,7 +843,7 @@ $PY tools/annotate-photo.py notes/img/pcb-top-annotations.json \
 > ⚠️ **工具能證明框裡是純黑，證明不了框在對的位置。**
 > **那一關是人工的，三張都要親眼看過。**
 
-完整座標紀錄、檔名規則、產生方式：[`notes/img/README.md`](notes/img/README.md)。
+完整座標紀錄、檔名規則、產生方式：[`notes/img/README.md`](../notes/img/README.md)。
 
 ---
 
@@ -938,7 +938,7 @@ timeout 90 cat /dev/ttyUSB0 > ~/fwre-work/dumps/uart-boot.log
 **先讓它跑起來，然後才開板子電源。** 開機訊息只跑一次。
 
 實測 1903 bytes / 69 行，`Booting` 出現 **1 次**（所以不是 boot loop）。
-內容分析在 [`notes/uart-findings.md`](notes/uart-findings.md)。
+內容分析在 [`notes/uart-findings.md`](../notes/uart-findings.md)。
 
 ### 8.7.5 這台的 console 沒有 shell
 
@@ -1029,7 +1029,7 @@ Flash Read Successed!
 >
 > **對策：每次 `FLR` 之前先 `DB` 同一塊 RAM 當對照組。** 內容沒變就是 FLR 沒生效。
 
-實際讀出來的 flash 版面在 [`notes/flash-layout.md`](notes/flash-layout.md)。
+實際讀出來的 flash 版面在 [`notes/flash-layout.md`](../notes/flash-layout.md)。
 
 ---
 
@@ -1171,7 +1171,7 @@ expected one of ['COMPCS', 'COMPDS', 'COMPHS']
 >
 > **要看的兩個新欄位**：`table_entries_decoded` 必須等於 `table_entries`，
 > 而 `check-reports.py` 現在會擋下不相等的報告 ——「這一區解好了」不再是一句沒人查
-> 的話。原理與六個區塊的意義寫在 [`notes/wlan-root.md`](notes/wlan-root.md)。
+> 的話。原理與六個區塊的意義寫在 [`notes/wlan-root.md`](../notes/wlan-root.md)。
 
 `--disclosure protect` 會把 per-unit 識別碼換成 sha256。今天的決定是 `open`，
 但**機制留著，而且有一個會失敗的測試守著它** —— 改的是政策，不是能力，下一台
@@ -1901,12 +1901,12 @@ sudo bash tools/qemu-env.sh diff
 
 上面那一行 `sh -c` 的字串，就是 `boa` 的 `sprintf` 會組出來的東西。
 輸出落在 docroot（oracle 0），flash 上被改掉的三個 byte 是 oracle 4。
-完整設計在 [`notes/oracle-design.md`](notes/oracle-design.md)。
+完整設計在 [`notes/oracle-design.md`](../notes/oracle-design.md)。
 
 > **`boa` 本身在這裡起不來** —— 它在 `libapmib.so+0x27dc` 的一個**未對齊半字存取**
 > 上吃 SIGBUS，而真機的 kernel 會靜靜幫它修好。這不是韌體的缺陷也不是指令集問題
 > （那條指令是 opcode `0x29`，標準 MIPS I，手算編碼對過原始 bytes）。
-> 經過在 [`notes/emulation-2018.md` §4](notes/emulation-2018.md)。
+> 經過在 [`notes/emulation-2018.md` §4](../notes/emulation-2018.md)。
 
 ### 8.11.5 登記簿多了第三種證據等級
 
@@ -2204,7 +2204,7 @@ DISCOVER 同時索取這三個，而哪一個它真的照做是問題本身；�
 > |---|---|
 > | 確切要打什麼、會看到什麼、什麼時候該停 | **[`runsheet.md`](runsheet.md)** |
 > | 這一步為什麼存在、上次是怎麼壞的 | **本節** |
-> | 我能重現到哪裡（三層） | [`REPRODUCE.md`](REPRODUCE.md) |
+> | 我能重現到哪裡（三層） | [`REPRODUCE.md`](../REPRODUCE.md) |
 > | 那一天實際發生了什麼 | [`BENCH-LOG.md`](BENCH-LOG.md) |
 >
 > **`tools/check-runsheet.py` 對本節驗兩件事：§8.12 底下一個 `bash` /
@@ -2423,7 +2423,7 @@ flash 真的跑起來了 —— 記成 `static` 低估了（有東西執行了�
 
 **per-unit 識別碼（MAC、SSID、`config.dat` 內容、射頻校準）不進 repo** ——
 跟 W02 把 PCB 條碼塗掉是同一條規則，而擁有者是
-[`docs/disclosure.md`](docs/disclosure.md)。原始 transcript 留在 `$FWRE_WORK/dumps/`。
+[`docs/disclosure.md`](../docs/disclosure.md)。原始 transcript 留在 `$FWRE_WORK/dumps/`。
 
 ---
 
@@ -3917,7 +3917,7 @@ RAM 裡 load address 的內容；兩份相同 → 它自己有一份固定來源
 只改 `LOADADDR`。**而四格的預期 sha256 全部在進站之前從 8/16 那份 dump 算出來**，
 所以這一節不是去看「有沒有變化」，是去看「落在哪一格」——**落不上任何一格，靜態讀法
 就是錯的**，而那比原本的設計有價值得多。完整推導在
-[`notes/loader-tftp-and-commands.md`](notes/loader-tftp-and-commands.md)。
+[`notes/loader-tftp-and-commands.md`](../notes/loader-tftp-and-commands.md)。
 
 #### 三個守衛，各自守著一件到 2026-08-21 為止沒有人守的事
 
@@ -4345,7 +4345,7 @@ powershell -ExecutionPolicy Bypass -File tools\setup\setup-windows.ps1 verify   
 
 ### G1 — 能不能口述韌體的七個要素
 
-**闔上電腦，大聲回答。** 答不出來就再讀一次 [`notes/anatomy-n150rt.md`](notes/anatomy-n150rt.md)。
+**闔上電腦，大聲回答。** 答不出來就再讀一次 [`notes/anatomy-n150rt.md`](../notes/anatomy-n150rt.md)。
 
 | # | 問題 | 答案 |
 |---|---|---|
@@ -5057,7 +5057,7 @@ cd FirmAE && ./install.sh      # 30–60 分鐘
 |---|---|---|
 | 2026-08-07 | W01 | 初版。涵蓋環境建置、韌體取得、解包、`fwrecon` 報告、Ghidra headless 分析，以及 W01 實際踩到的 13 個坑。 |
 | 2026-08-07 | W01 收工 | 新增 §12.5：W02 / W05 開工前要補裝的東西（usbipd、UART 3.3V 警告、qemu chroot 先於 FirmAE）。這三項 W01 刻意沒做，理由記在 `PROGRESS.md`。 |
-| 2026-08-07 | W01 收工 | 新增 [`study/QA.md`](study/QA.md) 自我檢核題庫（39 題）。之後每週的問題都往那裡累積。 |
+| 2026-08-07 | W01 收工 | 新增 [`study/QA.md`](../study/QA.md) 自我檢核題庫（39 題）。之後每週的問題都往那裡累積。 |
 | 2026-08-10 | W03 | §8 改寫：`import.ps1`（匯入+分析）與 `analyze.ps1`（跑腳本）拆開，並加上 `-Label` 為什麼要當資料夾用的說明 —— W01 的寫法會讓第二次匯入無聲蓋掉第一次。 |
 | 2026-08-10 | W03 | 新增 §8.5 Part 5：用 `BoaDecompile` 匯出 C、用 `BoaListing` 讀組語，以及「反編譯器出警告時不能信它」的操作方式。 |
 | 2026-08-10 | W03 | §12 速查表補上 W03 的四支腳本。`study/QA.md` 增至 60 題。 |
@@ -5106,16 +5106,16 @@ cd FirmAE && ./install.sh      # 30–60 分鐘
 
 | 文件 | 內容 |
 |---|---|
-| [`README.md`](README.md) | 專案總覽與主要發現 |
+| [`README.md`](../README.md) | 專案總覽與主要發現 |
 | [`PROGRESS.md`](PROGRESS.md) | 每週關卡進度 |
 | [`LOG.md`](LOG.md) | 逐日工作紀錄，**包含所有走錯的路** |
-| [`notes/anatomy-n150rt.md`](notes/anatomy-n150rt.md) | 韌體結構完整解剖 |
-| [`notes/prior-art.md`](notes/prior-art.md) | 前人研究：誰在什麼時候發現了什麼 |
-| [`notes/attack-surface.md`](notes/attack-surface.md) | 攻擊面地圖 |
-| [`notes/ghidra-triage.md`](notes/ghidra-triage.md) | Ghidra 裡該先看哪些函式 |
-| [`notes/dispatch-table.md`](notes/dispatch-table.md) | **`root_form[]` 全表** —— 兩個版本的每一個 `/boafrm/` 路由 |
-| [`notes/auth-flow.md`](notes/auth-flow.md) | **Boa 怎麼決定你可不可以進來** —— W03 最重要的一份 |
-| [`notes/sink-inventory.md`](notes/sink-inventory.md) | 危險函式呼叫點清單，依可利用性排序 |
-| [`notes/formSysCmd-analysis.md`](notes/formSysCmd-analysis.md) | 那個不存在的 CVE 端點，以及三條線索為什麼都指錯方向 |
-| [`notes/skt-analysis.md`](notes/skt-analysis.md) | 2015 後門完整拆解：port、暗號、和它存在的那一行 `iptables` |
-| [`study/QA.md`](study/QA.md) | **自我檢核題庫** —— 每一條主張配一個「想推翻它的人會怎麼問」，答案是折疊的 |
+| [`notes/anatomy-n150rt.md`](../notes/anatomy-n150rt.md) | 韌體結構完整解剖 |
+| [`notes/prior-art.md`](../notes/prior-art.md) | 前人研究：誰在什麼時候發現了什麼 |
+| [`notes/attack-surface.md`](../notes/attack-surface.md) | 攻擊面地圖 |
+| [`notes/ghidra-triage.md`](../notes/ghidra-triage.md) | Ghidra 裡該先看哪些函式 |
+| [`notes/dispatch-table.md`](../notes/dispatch-table.md) | **`root_form[]` 全表** —— 兩個版本的每一個 `/boafrm/` 路由 |
+| [`notes/auth-flow.md`](../notes/auth-flow.md) | **Boa 怎麼決定你可不可以進來** —— W03 最重要的一份 |
+| [`notes/sink-inventory.md`](../notes/sink-inventory.md) | 危險函式呼叫點清單，依可利用性排序 |
+| [`notes/formSysCmd-analysis.md`](../notes/formSysCmd-analysis.md) | 那個不存在的 CVE 端點，以及三條線索為什麼都指錯方向 |
+| [`notes/skt-analysis.md`](../notes/skt-analysis.md) | 2015 後門完整拆解：port、暗號、和它存在的那一行 `iptables` |
+| [`study/QA.md`](../study/QA.md) | **自我檢核題庫** —— 每一條主張配一個「想推翻它的人會怎麼問」，答案是折疊的 |

@@ -295,7 +295,7 @@ because of it. `PROGRESS.md` open item 93.
 """
 
 [ledger]
-output = "test-ledger.md"
+output = "journal/test-ledger.md"
 title = "測試登記簿 — W05–W08 的逐項預測、反證條件與結果"
 
 preamble = '''

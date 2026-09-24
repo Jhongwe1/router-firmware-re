@@ -87,7 +87,8 @@ defect — but a default filename is not where the decision to execute an image
 should live, and a device that has been in the field for eight years is a device
 whose recovery path is now the most attractive thing on it.
 
-> **Where this chapter stops:** three rules, run on five builds, on the `boa`
+> **Where this chapter stops:** three rules, run on the three builds that have a
+> gate report in `reports/` — 2015, this unit's 2018, and 2020 — on the `boa`
 > binary. It is not a security review of the firmware — the kernel, the radio
 > driver and the UPnP daemon are outside it, and the daemon is where chapter 11
 > found its most serious defect. A gate that scores one binary and calls the

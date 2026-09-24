@@ -142,6 +142,47 @@ check-benchlog: ## Every bench record card carries a refutation condition, and e
 benchlog-test: ## Prove the bench-log checker can fail (17 cases)
 	bash tools/test-check-benchlog.sh
 
+# A link to `plan/` sat in README.md for eleven weeks. `plan/` is gitignored, so
+# it was a 404 on GitHub and fine on every machine that could have noticed - and
+# the sentence it was in is the one the whole gate board rests on. The checker
+# asks git, not the file system, because that is the only place the two differ.
+check-links: ## Every relative link in a committed .md resolves to a committed file
+	python3 tools/check-links.py
+
+links-test: ## Prove the link checker can fail (20 cases)
+	bash tools/test-check-links.sh
+
+# count-checks.sh diagnosed this in its own header and was never wired in, with
+# a reason that was half right: asserting a *constant* would go red every time a
+# suite grew. Asserting that the prose equals the recount goes red only when the
+# prose is stale. The run costs one full pass of the guard suites, which is why
+# the total is computed once here and handed to the checker.
+# No arguments: the checker runs count-checks.sh itself and parses both the
+# total and the pytest row out of one table. The first version of this target
+# computed the pytest count in a second subshell with bare `python3`, which has
+# no pytest on this workstation -- count-checks.sh uses the venv interpreter when
+# there is one. It passed an empty string and argparse rejected it, so the target
+# failed with a usage message rather than a finding. One producer, one run.
+check-numbers: ## Front-door numbers agree with the generators that own them
+	python3 tools/check-numbers.py
+
+# W07 found six committed files asserting `52869/tcp open` in the present tense,
+# fixed the six, and did not sweep the corpus. Six weeks later eight files still
+# said `No device has been powered on` about a device that had been serving since
+# 2026-08-15. A sentence that was true when written and is false now looks
+# identical to one that was always false, unless something is holding a list.
+check-expired: ## No published file asserts something that stopped being true
+	python3 tools/check-expired.py
+
+expired-test: ## Prove the expired-assertion checker can fail (13 cases)
+	bash tools/test-check-expired.sh
+
+gates: ## Regenerate docs/gates.md from the (private) week plans
+	python3 tools/extract-gates.py
+
+check-gates: ## docs/gates.md still matches the week plans it was lifted from
+	python3 tools/extract-gates.py --check
+
 rtcase: ## G3.75: the test register is frozen and every result carries evidence
 	python3 tools/rtcase.py check
 
@@ -151,7 +192,7 @@ todo: ## What this week still owes: `make todo WEEK=W05`
 rtcase-test: ## Prove the register gate can actually fail (34 cases)
 	bash tools/test-rtcase.sh
 
-ledger: ## Regenerate test-ledger.md from the register + results
+ledger: ## Regenerate journal/test-ledger.md from the register + results
 	python3 tools/rtcase.py render
 	python3 tools/rtcase.py check
 
@@ -165,8 +206,8 @@ ledger: ## Regenerate test-ledger.md from the register + results
 # had already committed.
 check-ledger: ## The generated ledger matches the register it comes from
 	@python3 tools/rtcase.py render
-	@git diff --exit-code -- test-ledger.md \
-	  || { echo "test-ledger.md was out of date and has just been regenerated."; \
+	@git diff --exit-code -- journal/test-ledger.md \
+	  || { echo "journal/test-ledger.md was out of date and has just been regenerated."; \
 	       echo "Commit it in the same commit as the result that changed it."; \
 	       exit 1; }
 
@@ -337,7 +378,7 @@ loader-report: ## Unpack the boot loader's LZMA stage 2 (needs the flash dump)
 # `rtcase-test` is in here and not optional. It is the only thing proving the
 # register gate can fail; without it `make rtcase` going green means nothing,
 # which is the exact shape of instrument bug 12.
-ci: lint test shellcheck check-reports check-runsheet check-benchlog benchlog-test rtcase rtcase-test check-ledger check-ci-parity ci-parity-test qemu-test probe-test loader-test tftp-test ramboot-test console-lint-test runsheet-test dump-test flash-tools-test photo-test write-test failopen-test alignfix-test config-diff-test liveness-test dhcp-test libbase-test upnp-soap-test ## Everything CI checks, except the container build
+ci: lint test shellcheck check-reports check-runsheet check-benchlog benchlog-test check-links links-test check-numbers check-expired expired-test check-gates rtcase rtcase-test check-ledger check-ci-parity ci-parity-test qemu-test probe-test loader-test tftp-test ramboot-test console-lint-test runsheet-test dump-test flash-tools-test photo-test write-test failopen-test alignfix-test config-diff-test liveness-test dhcp-test libbase-test upnp-soap-test ## Everything CI checks, except the container build
 	@echo "  ok   local CI equivalents passed (container build not included)"
 
 diff: venv ## Diff the two builds

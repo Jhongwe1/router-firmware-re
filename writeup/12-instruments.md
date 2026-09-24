@@ -1,15 +1,16 @@
-# 12. Fifty-six instruments, fifty-six bugs — none caught by a self-check
+# 12. Sixty instruments, sixty bugs — none caught by a self-check
 
 Writing this chapter does nothing for me except one thing: it is the reason to
 believe the rest of the document.
 
-Fifty-six times, an instrument this project built or relied on was wrong.
-Every one is numbered in [`PROGRESS.md`](../PROGRESS.md) at the point it was
+Sixty times, an instrument this project built or relied on was wrong.
+Every one is numbered in [`PROGRESS.md`](../journal/PROGRESS.md) at the point it was
 found. **Not one was caught by the instrument's own self-check.** Every single
 one was caught by two things that should have agreed, disagreeing — or by a test
 written to fail.
 
-Four are worth telling properly.
+Four are worth telling properly, and a fifth section covers three that arrived
+together and pointed at something the other fifty-six had hidden.
 
 ---
 
@@ -102,6 +103,49 @@ and they look like a duplicate test, which is the point.
 
 ---
 
+## 5. Three in one hour, all wrong in the same direction
+
+2026-09-25, the publication week, and nothing was being measured — three checkers
+were being written to hold the repository's own documents to account. The first
+reported **21 broken links**; 18 of them were the checker. The second reported
+**18 stale numbers**; 13 of them were the checker. The third's own guard suite
+reported **6 failures out of 13** against a checker that was working correctly.
+
+What makes them worth a section is not the count, it is the **direction**. The
+other fifty-six skew hard the other way: a census returning 1 instead of 589, a
+freeze check hashing an empty list, a capture printing `0 packets captured` and
+exiting 0, a regular expression matching nothing and therefore passing on every
+file. Those are all *silent passes* — instruments that said nothing was there.
+
+All four **invented work**. And an instrument that invents work is worse
+than one that hides it, for a reason that has nothing to do with the instrument:
+a false alarm gets obeyed. The first response to *"this anchor is broken"* is to
+go and fix the anchor, and fourteen correct links were one keystroke from being
+"fixed" into fourteen broken ones. A silent pass leaves the evidence intact; a
+false alarm is an instruction to destroy it.
+
+The thing that caught all three is the same thing, and it is embarrassingly
+cheap: **before acting on the first finding, read all of them.** Eighteen
+anchor failures sharing one shape — every single one spanning an em dash, a
+slash or a comma — is not eighteen mistakes in the corpus. It is one mistake in
+the reader. A single finding hides that; the distribution does not.
+
+So the rule this chapter has been making, *no claim from a single tool*, has a
+corollary it had not stated: **a tool's first run is a claim too, and its shape
+is evidence about the tool.** The right question after a new checker's first
+report is not "which of these do I fix" but "do these look like eighteen
+independent defects".
+
+The fourth one sharpens it once more, because it is the *guard suite* that was
+wrong rather than the checker. Its shape gave it away in one line: **every case
+that was supposed to pass, passed; every case that was supposed to catch something, failed.**
+No defect in the thing under test produces that pattern — a broken checker fails
+both halves or neither. A result that splits exactly along the *suite's own*
+structure is a statement about the suite. (`set -o pipefail` and a command whose
+job is to exit non-zero: the pipeline returns the checker's status, not grep's.)
+
+---
+
 ## The whole list, in one table
 
 | # | what was wrong | what caught it |
@@ -126,25 +170,29 @@ and they look like a duplicate test, which is the point.
 | 53 | a function-entry rule that walked past a routine ending in `rfe` | **the tool's own refusal** — "0 callers" |
 | 54 | a brand-new check whose regular expression matched nothing, so it passed on every file including the one it was written for | its own guard case, in the same commit |
 | 55 | a packet capture that could not create its output file, printed `0 packets captured`, and **exited 0** — while "nothing is on the wire" was one of the candidate answers to the question being asked | a control: the capture contained zero of **our own outgoing** packets, which were known to have been sent |
+| 57 | a heading-anchor slugger that collapsed **runs** of whitespace to one hyphen. Removing punctuation leaves its gap behind, so `codes — a` anchors as `codes--a`; fourteen correct links were reported broken | the headings themselves — the "broken" anchors were what GitHub actually renders |
+| 58 | the same checker blanked inline code **before** slugging, so `### 7.4 \`J2\` and the power switch` lost the `J2`. GitHub slugs the *rendered* heading | four more correct links, in the same run as 57 |
+| 60 | a **guard suite** whose `must_catch` helper piped the checker into `grep` under `set -o pipefail`. The checker's whole job is to exit 1, so the pipeline inherited that status and **every case that was supposed to catch something reported a false failure** — 6 of 13, on a checker that was working | the cases that were supposed to *pass* passed, so "the checker is broken" did not fit the evidence |
+| 59 | a numbers checker that read prose grammar for totals. English gives `141 registered tests` and `Three registered tests are frozen against it` the same shape, so **13 of its first 18 findings were its own** | reading all eighteen before believing any of them |
 | 56 | a guard case whose premise was *a property of live data* — "this week has rows and no results, so only the new rule can fire". The week closed, the premise died, and the case went **red for a reason unrelated to what it tests**, on the day the thing it guards started working | it went red rather than green, which is the only reason this one was cheap. Re-based on a fixture, with a control |
 
 ---
 
 ## The sentence this chapter exists for
 
-> **Fifty-six instrument bugs. Not one was caught by the instrument's own
+> **Sixty instrument bugs. Not one was caught by the instrument's own
 > self-check. Every single one was caught by two things that should have agreed,
 > disagreeing — or by a test written to fail.**
 >
 > **A check that never fires never fails.**
 
-The corollary is the operational one, and it is why this project has 462 guard
-cases across twenty-one suites plus 130 parser tests, and why `make ci` runs all
+The corollary is the operational one, and it is why this project has 496 guard
+cases across twenty-three suites plus 130 parser tests, and why `make ci` runs all
 of them: **most of the engineering in a reverse-engineering project is not
 reverse engineering. It is building the thing that tells you when you are
 wrong.**
 
-> **Where this chapter stops:** fifty-six is the count of bugs *found*. It is a
+> **Where this chapter stops:** sixty is the count of bugs *found*. It is a
 > lower bound on the bugs that existed, and it says nothing about the ones still
 > in there. The honest reading of a rising count is not "the instruments are
 > getting better" — it is "the search is getting better", and those are

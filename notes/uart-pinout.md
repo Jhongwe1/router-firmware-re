@@ -140,7 +140,7 @@ returns `Unknown command !`):
 >
 > Write → read back → erase, at `0x3F0000` (erased in the whole tail from
 > `0x350000`, so nothing reads it). Verbatim transcript in
-> [`RUNBOOK.md` §8.9.1](../RUNBOOK.md); it closed G3.5's fifth box.
+> [`RUNBOOK.md` §8.9.1](../journal/RUNBOOK.md); it closed G3.5's fifth box.
 >
 > **Three things the command set alone does not tell you:**
 >
@@ -156,7 +156,7 @@ returns `Unknown command !`):
 >    written region *does* return it to `FF`. On NOR flash a program can only
 >    clear bits, so `FLW` must be erasing for itself — which points at a
 >    read-modify-erase-program cycle over the whole 4 KiB sector. Not settled;
->    `PROGRESS.md` open #17 and [`RUNBOOK.md` §8.9.3](../RUNBOOK.md) have the one
+>    `PROGRESS.md` open #17 and [`RUNBOOK.md` §8.9.3](../journal/RUNBOOK.md) have the one
 >    command triple that decides it.
 
 **`FLR` + `DB` is a complete flash read path that needs no SOIC-8 clip** — the

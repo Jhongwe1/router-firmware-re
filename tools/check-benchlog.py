@@ -47,7 +47,7 @@ import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
-DEFAULT = REPO / "BENCH-LOG.md"
+DEFAULT = REPO / "journal" / "BENCH-LOG.md"
 
 CARD_START = re.compile(r"^T-\d+[A-Za-z]?\s")
 VERDICTS = ("✅", "❌", "🔶", "⚠️")

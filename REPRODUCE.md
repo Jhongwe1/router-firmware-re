@@ -5,7 +5,7 @@ than read about it.**
 
 This page says which claims you can verify, with what, and — the part most
 repositories leave out — **which ones you cannot verify at all, and why.**
-The commands themselves are in [`runsheet.md`](runsheet.md), one section per
+The commands themselves are in [`runsheet.md`](journal/runsheet.md), one section per
 step, each with its expected output and its stop conditions.
 
 ---
@@ -14,7 +14,7 @@ step, each with its expected output and its stop conditions.
 
 | tier | what you need | what you can check | roughly |
 |---|---|---|---|
-| **T1** | this clone and an internet connection | the two **published** firmware images, every report derived from them, and **592 checks that prove this project's own instruments can fail** (`make count-checks` re-derives that number and prints the table it comes from) | 30 min, most of it downloads |
+| **T1** | this clone and an internet connection | the two **published** firmware images, every report derived from them, and **626 checks that prove this project's own instruments can fail** (`make count-checks` re-derives that number and prints the table it comes from) | 30 min, most of it downloads |
 | **T2** | T1 **+ your own N150RT + a CP2102 serial adapter** (about US$3) | your unit's flash, its own boot loader, its own `boa`, the emulator — the same *procedures*, on *your* bytes | an afternoon |
 | **T3** | T2 **+ a USB Ethernet adapter + a segment you are willing to isolate** | the network behaviour: the authorisation gate, the endpoint census, the timing | a second afternoon |
 | **T-none** | — | **the specific byte-level results this repository reports** | not reproducible by anyone but the author, and the reason is below |
@@ -52,14 +52,14 @@ claim was measured on, which is what makes this split possible at all.
   the `w6cg` web bundle walk that has **no checksum and no entry count** — so
   "the strides consumed the archive exactly" is the only evidence the layout was
   read correctly.
-- The test register: 130 tests, their predictions, their refutation conditions,
+- The test register: 141 tests, their predictions, their refutation conditions,
   and the two hashes that make an edit to either show up in a diff.
 - **And the thing actually worth your time:** that this project's instruments
   refuse what they claim to refuse.
 
 ### The commands
 
-[`runsheet.md` `A1.2`](runsheet.md). In short:
+[`runsheet.md` `A1.2`](journal/runsheet.md). In short:
 
 ```bash
 make doctor TIER=1     # every prerequisite, each failure naming its own fix
@@ -67,7 +67,7 @@ make setup             # the Linux-side toolchain
 make fetch             # the two published images, hash-verified
 make unpack            # carve and extract
 make recon             # every report a downloadable image supports
-make ci                # ← the 592 checks
+make ci                # ← the 626 checks
 make count-checks      # ← where that number comes from, per suite
 ```
 
@@ -120,8 +120,8 @@ Most of a reverse-engineering repository is assertions. This part is not:
 | `tools/test-mkramboot.sh` | 42 | ten of them put a real bug back into the RAM payload's encoder and require the build to go red — including the off-by-one-word branch offset the tool actually shipped with for an hour, and a payload that no longer returns through `ra` |
 | `tools/test-console-lint.sh` | 13 | seven fire on a console log carrying exactly one failure mechanism; the rest hold the reader to staying **silent** on a clean session and to saying `unexplained` when a rejection matches none of its rules |
 
-**462 guard cases across twenty-one suites, plus 130 parser tests, and `make ci`
-runs all of them** — **592 checks** from a clone, with no device. The number is
+**496 guard cases across twenty-three suites, plus 130 parser tests, and `make ci`
+runs all of them** — **626 checks** from a clone, with no device. The number is
 re-derivable with `make count-checks`, which also states what it counts and what
 it does not; it said 276 for some time while the true figure was 304, because
 nothing could re-derive it, and this file quoted 322 and 543 in three places on
@@ -215,7 +215,7 @@ over the serial console — no SOIC-8 clip, no desoldering, and nothing written.
 
 ### The commands
 
-[`runsheet.md`](runsheet.md) `A1.1` → `A1.3` → `A1.4` → then 第 2 站 in order
+[`runsheet.md`](journal/runsheet.md) `A1.1` → `A1.3` → `A1.4` → then 第 2 站 in order
 (`A2.1` → `A2.3`), plus:
 
 ```bash
@@ -265,7 +265,7 @@ one people skip:
 
 ### The commands
 
-**[`runsheet.md`](runsheet.md) 第 3 站, front to back** — `A3.1` → `A3.8`. The
+**[`runsheet.md`](journal/runsheet.md) 第 3 站, front to back** — `A3.1` → `A3.8`. The
 station numbering is the point: the leading digit is the state the board has to
 be in, so reading the station in order *is* a correct order to run it in.
 
@@ -305,11 +305,11 @@ the same scan is shown, in the same run, to find seventeen things that are there
 
 | you want | read |
 |---|---|
-| the exact commands, with expected output | [`runsheet.md`](runsheet.md) |
-| why a step exists, and what went wrong the first time | [`RUNBOOK.md`](RUNBOOK.md) |
-| what this project claims, and what would refute each claim | [`test-ledger.md`](test-ledger.md) |
-| what actually happened on a given day, verbatim | [`BENCH-LOG.md`](BENCH-LOG.md) |
-| the gates, the weeks, and the open questions | [`PROGRESS.md`](PROGRESS.md) |
+| the exact commands, with expected output | [`runsheet.md`](journal/runsheet.md) |
+| why a step exists, and what went wrong the first time | [`RUNBOOK.md`](journal/RUNBOOK.md) |
+| what this project claims, and what would refute each claim | [`test-ledger.md`](journal/test-ledger.md) |
+| what actually happened on a given day, verbatim | [`BENCH-LOG.md`](journal/BENCH-LOG.md) |
+| the gates, the weeks, and the open questions | [`PROGRESS.md`](journal/PROGRESS.md) |
 | what is published and what is held back | [`docs/disclosure.md`](docs/disclosure.md) |
 | hostile questions and the answers | [`study/QA.md`](study/QA.md) |
 | what each week did **not** prove | [`study/weekly-results.md`](study/weekly-results.md) |
@@ -321,7 +321,7 @@ This studies a device the author owns, on an isolated segment, to trace
 Findings, their addresses **and their reproductions** are published;
 post-exploitation tradecraft is not published at all, and the nine items cut for
 that reason are listed with their reasons in
-[`test-ledger.md`](test-ledger.md). Two of the reproductions in `poc/` are for
+[`test-ledger.md`](journal/test-ledger.md). Two of the reproductions in `poc/` are for
 defects **reported to nobody** — that was decided on 2026-08-23 and the argument,
 including what it does not cover, is
 [`docs/disclosure.md`](docs/disclosure.md) §"The decision of 2026-08-23".

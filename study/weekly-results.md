@@ -227,9 +227,9 @@
 
 | 主張 | 證據 | 它證明我會什麼 |
 |---|---|---|
-| **一條跨四層、每一環都能單獨指出來的證據鏈** —— HTTP 回應 → flash 位移 `0xC000` → `fwrecon compcs` 解出 `USER_PASSWORD` 明文 → **那組明文直接通過 HTTP Basic 認證**,開啟其餘 68 個被擋頁面。而且它**順手關掉 W02 開放 #11**(「沒有第二個儀器讀過這顆 flash」),因為兩條讀取路徑不共用程式碼 | `sha256 e09cbf84…` 兩邊相同;[`BENCH-LOG.md` R4](../BENCH-LOG.md) | **知道一個「已知漏洞」和一條「自己走完的鏈」差在哪**。CVE-2019-19822 誰都能引用;能指著同一組 bytes 說「這是我用兩個不同儀器分別讀到的」不行 |
-| **四條預測被自己事先寫下的條件反證** —— 豁免字串注入十二種全部失敗(`X-3` 不成立)、session 模型根本不存在(不是反組譯指到的那個全域)、`check_host` 不在授權路徑上、docroot 不等於出貨的 143 檔 | [`test-ledger.md`](../test-ledger.md);22/31 已評分,14 成立 / 4 反證 / 4 部分 | **把「我猜對了幾條」變成一個實驗結果**。反證的那四條每一條都指向一個具體的推理缺陷,而且**是被測試前凍結的那句話反證的** —— 事後才寫的條件證明不了任何東西 |
-| **兩個「自報身分對不上」的發現,而且兩個都改變別人怎麼找這台機器** —— UPnP daemon 送 `Server: miniupnpd/1.4`,但 rootfs 裡只有 `/bin/miniigd`、**沒有 `mini_upnpd` 這個 binary**,而那個 banner 字串就在 `miniigd` 自己的字串表裡;`/etc/version` 有 `CX`,`boa` 和線上的 `status.htm` 沒有,**而 CVE-2024-51228 索引用的是有 `CX` 的那個** | [`BENCH-LOG.md` R3 / R8](../BENCH-LOG.md);三個來源逐一比對 | **知道識別字串本身就是一個攻擊面/研究面的問題**。第一個換掉整組適用的 CVE;第二個解釋了為什麼這個專案自己花了兩週才找到那個 CVE,而且它可以推廣到任何遠端指紋這個型號的人 |
+| **一條跨四層、每一環都能單獨指出來的證據鏈** —— HTTP 回應 → flash 位移 `0xC000` → `fwrecon compcs` 解出 `USER_PASSWORD` 明文 → **那組明文直接通過 HTTP Basic 認證**,開啟其餘 68 個被擋頁面。而且它**順手關掉 W02 開放 #11**(「沒有第二個儀器讀過這顆 flash」),因為兩條讀取路徑不共用程式碼 | `sha256 e09cbf84…` 兩邊相同;[`BENCH-LOG.md` R4](../journal/BENCH-LOG.md) | **知道一個「已知漏洞」和一條「自己走完的鏈」差在哪**。CVE-2019-19822 誰都能引用;能指著同一組 bytes 說「這是我用兩個不同儀器分別讀到的」不行 |
+| **四條預測被自己事先寫下的條件反證** —— 豁免字串注入十二種全部失敗(`X-3` 不成立)、session 模型根本不存在(不是反組譯指到的那個全域)、`check_host` 不在授權路徑上、docroot 不等於出貨的 143 檔 | [`test-ledger.md`](../journal/test-ledger.md);22/31 已評分,14 成立 / 4 反證 / 4 部分 | **把「我猜對了幾條」變成一個實驗結果**。反證的那四條每一條都指向一個具體的推理缺陷,而且**是被測試前凍結的那句話反證的** —— 事後才寫的條件證明不了任何東西 |
+| **兩個「自報身分對不上」的發現,而且兩個都改變別人怎麼找這台機器** —— UPnP daemon 送 `Server: miniupnpd/1.4`,但 rootfs 裡只有 `/bin/miniigd`、**沒有 `mini_upnpd` 這個 binary**,而那個 banner 字串就在 `miniigd` 自己的字串表裡;`/etc/version` 有 `CX`,`boa` 和線上的 `status.htm` 沒有,**而 CVE-2024-51228 索引用的是有 `CX` 的那個** | [`BENCH-LOG.md` R3 / R8](../journal/BENCH-LOG.md);三個來源逐一比對 | **知道識別字串本身就是一個攻擊面/研究面的問題**。第一個換掉整組適用的 CVE;第二個解釋了為什麼這個專案自己花了兩週才找到那個 CVE,而且它可以推廣到任何遠端指紋這個型號的人 |
 
 ### 這週沒證明什麼
 
@@ -327,9 +327,9 @@ kernel 自己的介面計數器是 `RX: 0 packets / TX: 12`。**送得出去、�
 
 | 主張 | 證據 | 它證明我會什麼 |
 |---|---|---|
-| **一個靜態讀法被拿去做出可否證的預測,而且預測命中了它沒看過的資料** —— 76 個出貨頁面全對,外加四個合成路徑、三個「閘門點名但沒出貨」的檔名、以及 `/boafrm/formLogin.htm` 這個第 57 個端點。而**它不是繞過**,理由比「試了沒用」精確:豁免比對和開檔用的是同一個正規化路徑,所以任何裝飾到足以取得豁免的路徑,伺服器都開不到 | [`notes/auth-flow-2018.md`](../notes/auth-flow-2018.md);[`BENCH-LOG.md`](../BENCH-LOG.md) 2026-08-17 下午 | **知道「測試失敗」是關於測試的證據,不是關於機制的證據**。早上那個錯誤是拿一個失敗的利用嘗試去推翻一份正確的反組譯,而分辨這兩件事是這一行最常出錯的地方 |
+| **一個靜態讀法被拿去做出可否證的預測,而且預測命中了它沒看過的資料** —— 76 個出貨頁面全對,外加四個合成路徑、三個「閘門點名但沒出貨」的檔名、以及 `/boafrm/formLogin.htm` 這個第 57 個端點。而**它不是繞過**,理由比「試了沒用」精確:豁免比對和開檔用的是同一個正規化路徑,所以任何裝飾到足以取得豁免的路徑,伺服器都開不到 | [`notes/auth-flow-2018.md`](../notes/auth-flow-2018.md);[`BENCH-LOG.md`](../journal/BENCH-LOG.md) 2026-08-17 下午 | **知道「測試失敗」是關於測試的證據,不是關於機制的證據**。早上那個錯誤是拿一個失敗的利用嘗試去推翻一份正確的反組譯,而分辨這兩件事是這一行最常出錯的地方 |
 | **一個開機循環都沒燒就反證掉 `P9-1`,靠的是把 bootloader 從 flash 裡解壓出來** —— 整顆 4 MiB 裡 `grep FLR` 找不到東西,因為指令直譯器是 `0x0012F0` 起的一段 LZMA(17,334 → 56,592)。13 個 cmdline 形狀的針 0 命中,而**同一次掃描被證明找得到 `?` 印的全部 17 個指令**;工具在找不齊時拒絕出報告 | [`tools/loader-unpack.py`](../tools/loader-unpack.py) + `tools/test-loader-unpack.sh` 7 案;[`reports/bootloader-unit-2018.json`](../reports/bootloader-unit-2018.json) | **知道「找不到」什麼時候是證據、什麼時候是自己沒找對地方**。一個宣稱「這裡沒有 X」的報告,如果不能在同一次執行裡證明自己找得到已知存在的東西,那個宣稱值零 |
-| **一輪未認證的 POST 把裝置唯一的 web server 弄掉了,而它同時把出廠預設區覆蓋成現行設定** —— 前後各一份 64 KiB 快照,逐欄位歸因:`H601` 未動,`COMPCS` 動 19 欄,`COMPDS` 動 23 欄(同樣那 19 個**加上原本區分兩者的 4 個**,而且每一個都移到 `COMPCS` 的值)。所以在這個 build 上,「恢復原廠設定」還原的是最後被寫進去的那一份 | [`BENCH-LOG.md`](../BENCH-LOG.md) T-14;`config-region-20260817-{1102-pre,post}.bin` | **知道「我改了什麼」和「我能證明是我改的」差在哪**。歸因需要的對照組是免費的:掃描前那份快照與 8/16 的完整 dump 逐 byte 相同,而那期間這台開過機、跑過完整 GET 輪、登入成功過 —— **所以開機和讀取不改設定區,這是量出來的,不是假設的** |
+| **一輪未認證的 POST 把裝置唯一的 web server 弄掉了,而它同時把出廠預設區覆蓋成現行設定** —— 前後各一份 64 KiB 快照,逐欄位歸因:`H601` 未動,`COMPCS` 動 19 欄,`COMPDS` 動 23 欄(同樣那 19 個**加上原本區分兩者的 4 個**,而且每一個都移到 `COMPCS` 的值)。所以在這個 build 上,「恢復原廠設定」還原的是最後被寫進去的那一份 | [`BENCH-LOG.md`](../journal/BENCH-LOG.md) T-14;`config-region-20260817-{1102-pre,post}.bin` | **知道「我改了什麼」和「我能證明是我改的」差在哪**。歸因需要的對照組是免費的:掃描前那份快照與 8/16 的完整 dump 逐 byte 相同,而那期間這台開過機、跑過完整 GET 輪、登入成功過 —— **所以開機和讀取不改設定區,這是量出來的,不是假設的** |
 
 ### 這週沒證明什麼
 
@@ -1073,3 +1073,61 @@ document.
 - **The ten-minute read test on the draft has not been run**, and the draft has
   not been edited. W09 is the editing week; W08's DoD was content in all fourteen
   chapters, and that is what was met.
+
+## W09 — publication: a front door, three new checkers, and four chapters that disagreed with my own notes — 2026-09-25
+
+### 一句話
+
+> I spent the publication week writing three instruments to hold this repository's
+> own documents to account, **and 31 of their first 39 findings were the
+> instruments themselves** — all four new bugs wrong in the same direction, which
+> is a direction the previous fifty-six were not. Following one of the surviving
+> findings — *six builds* in three notes against *five builds* in the write-up —
+> turned up the worst content defect this project has shipped: the provenance
+> chapter carried a row for **an image that exists in exactly one file in this
+> repository, namely that chapter**, and the cross-build chapter's `root_form[]`
+> row was wrong in all three columns, **in the direction that made the builds look
+> alike**. Neither disagreed with the evidence. Both disagreed with my own notes,
+> and nothing was comparing the two.
+
+### 三個可辯護的點
+
+| 主張 | 證據 | 它展示了什麼 |
+|---|---|---|
+| **The `plan/` 404 was not a broken link, it was a checker that asked the wrong system.** `README.md` rested its entire gate-board credibility on *"go and look at the standard, it was written first"* and sent the reader to a gitignored directory. It survived eleven weeks because **`plan/` exists** — `ls` finds it, every editor opens it, and any check built on `os.path.exists` passes. [`tools/check-links.py`](../tools/check-links.py) asks `git ls-files` instead, which is the only place the file system and the repository disagree | `tools/check-links.py` · `tools/test-check-links.sh` (20 cases, including the on-disk-but-untracked case as its own) · 1,251 links now resolve | Knowing that the reader's view and the author's view of a repository are different systems, and testing the reader's |
+| **A number on the front door was replaced by an agreement, not a constant.** `count-checks.sh` diagnosed this drift in its own header in August and was never wired in, for a reason that was half right — pinning the total would redden the build every time a suite grew. [`tools/check-numbers.py`](../tools/check-numbers.py) asserts that the prose equals the recount, which goes red only when the prose is stale. Its first version scanned prose grammar and **13 of its 18 findings were its own**, because English gives *"141 registered tests"* and *"Three registered tests are frozen against it"* the same shape; rewritten as a claim-site table where **a site that stops matching is itself a failure** | `tools/check-numbers.py`, 36 claim sites · the drift it caught: 592→613→626 checks, 130→141 tests, 21→23 suites | Choosing a checkable invariant over a checkable value, and preferring declared coverage to the appearance of universal coverage |
+| **The write-up's numbers were checked against the reports and four of them were wrong** — `V4.1.5cu` (an image with no `SOURCES.json` entry, no manifest row, no report, and no second mention anywhere), three analysed images missing from the provenance table, `root_form[] 57 \| 58 \| 57` where the reports say `59 \| 57 \| 49`, and `<the nine offsets>` left as a literal placeholder in chapter 10's key evidence block. Every **other** row in that table checks out against `reports/` — the gate row `5 \| 6 \| 8` is exactly `findings_by_rule.R2` in the three gate reports | `writeup/02-corpus.md`, `07-across.md`, `10-chain.md`, each with its own correction section · `notes/three-way-read.md:107` had the right numbers from W04-2 | Auditing my own flagship document against its sources rather than re-reading it, and publishing the result in the document itself |
+
+### 這週沒證明什麼
+
+- **That a stranger understands this in ten minutes.** G5 clause 1 is split for
+  this reason and clause 1b is **not ticked**. Everything measurable about the
+  front door is measured — 127 lines before the first fold, 1,251 resolving
+  links, 36 agreeing numbers, four index files where there were none — and every
+  one of those is a **proxy**. The difference between *a stranger could* and *a
+  stranger did* is a person, and there has not been one. This is deliberately
+  the same treatment G4 clause 3b got.
+
+- **That the remaining chapters are right.** Four were audited against
+  `reports/` because one number disagreed. **Eleven were not.** The audit that
+  found `57 | 58 | 57` was not a systematic pass; it was one thread pulled, and
+  it happened to unravel. Open item 110 exists because **nothing compares a
+  measurement quoted in `writeup/` against the report it came from**, and
+  `check-numbers.py` deliberately does not — it covers front-door *totals* with
+  a named owner, not a single measured value cited mid-chapter. The honest
+  reading of four defects found in four chapters examined is **not** "the rest
+  are fine".
+
+- **That the instrument bugs are slowing down.** Four in one desk session, on a
+  day that measured nothing, is the highest rate this project has recorded. The
+  flattering reading is that the instruments are getting worse; the accurate one
+  is that **this was the first week the instruments were pointed at the
+  repository rather than at the router**, and a new target always yields. Sixty
+  is a lower bound on bugs that existed, not a count of bugs that exist.
+
+- **That the identifier decision is right.** The bench host's NIC MAC stays in
+  38 places, argued in `docs/disclosure.md` under a fourth category the
+  publication rule never named. The argument is that a MAC on an isolated lab
+  segment identifies nothing reachable — and it is an argument, not a
+  measurement. What changed this week is only that it is now made **on purpose**
+  rather than by a rule whose wording was narrower than its own reason.

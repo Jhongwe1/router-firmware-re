@@ -751,7 +751,7 @@ def check(path: Path, runbook: Path,
     # fixture-based case fail for the same unrelated reason. The guard suite
     # exercises this half by passing the real runsheet with a doctored
     # `--runbook`.
-    if path.resolve() == (REPO / "runsheet.md").resolve():
+    if path.resolve() == (REPO / "journal" / "runsheet.md").resolve():
         check_runbook_812(runbook, errors, [s for s, _, _ in steps], why)
 
     # ---- report --------------------------------------------------------
@@ -774,9 +774,9 @@ def main(argv: list[str]) -> int:
             s.reconfigure(encoding="utf-8", errors="replace")
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("runsheet", nargs="?", default=str(REPO / "runsheet.md"),
+    ap.add_argument("runsheet", nargs="?", default=str(REPO / "journal" / "runsheet.md"),
                     type=Path)
-    ap.add_argument("--runbook", default=str(REPO / "RUNBOOK.md"), type=Path,
+    ap.add_argument("--runbook", default=str(REPO / "journal" / "RUNBOOK.md"), type=Path,
                     help="the other half of the split; override it to let the "
                          "guard suite prove the §8.12 rules can fail")
     # The coverage rules below read the register. Pointing them at a

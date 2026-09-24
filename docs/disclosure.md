@@ -16,7 +16,7 @@ Three categories, and the line between them is the thing to argue with:
 |---|---|---|
 | **Finding** | "this handler takes this parameter into `system()`, at this address, in this binary" | **yes.** That is the research, and stating it is how anyone else can check it |
 | **Reproduction** | a procedure that produces the effect, with a request that can be copied | **yes, since 2026-08-23.** The rule until that date was *only once the issue is public* — for a CVE disclosed in 2024 a `poc/` directory is a reproduction of published work, for something unreported it is a zero-day recipe. What changed is not the reasoning but a fact that had never been checked against it; §"The decision of 2026-08-23" carries it, and the argument is specific to these builds rather than general |
-| **Tradecraft** | persistence, anti-forensics, lateral movement, credential harvesting on a live host | **no.** No gate in this project asks for it, it produces no checkable fact about this device, and `README.md` scopes it out. Nine such items are listed with their reasons in [`test-ledger.md`](../test-ledger.md) |
+| **Tradecraft** | persistence, anti-forensics, lateral movement, credential harvesting on a live host | **no.** No gate in this project asks for it, it produces no checkable fact about this device, and `README.md` scopes it out. Nine such items are listed with their reasons in [`test-ledger.md`](../journal/test-ledger.md) |
 
 The rule was one sentence: *findings are published, reproductions follow the
 disclosure state, tradecraft is not published at all.* **The middle clause was
@@ -33,6 +33,54 @@ than after it.
 **Tradecraft did not move.** Nothing here publishes persistence,
 anti-forensics, lateral movement or credential harvesting on a live host, and no
 gate in this project asks for any of it.
+
+### A fourth category, named 2026-09-25: identifiers
+
+The three categories above are about *what the research says*. There is a fourth
+thing a repository publishes without meaning to — **identifiers of physical
+things** — and until W09's pre-publication sweep it had a rule in only one place,
+[`notes/img/README.md`](../notes/img/README.md):
+
+> Anything read off **this specific unit** is redacted before it is committed.
+
+That covers the board photographs, the serial number, the barcode label and this
+unit's MAC addresses, and it is why the flash dump is not published: `H601` holds
+those MACs and the radio calibration, and together they identify one physical
+device.
+
+**The sweep found an identifier the wording does not cover and the reasoning
+does.** The bench host's USB Ethernet adapter appears by MAC — and inside its
+own interface name, `enx…` — thirty-eight times: nine in `BENCH-LOG.md`, two in
+`PROGRESS.md`, twenty-one in `runsheet.md`, six in `study/`. It is not "read off
+this unit". It is read off the machine sitting next to it.
+
+**It stays, and here is the argument to attack.**
+
+1. **The rule's purpose is the device under test.** A router's MAC plus a flash
+   image correlates a specific deployed device with a specific vulnerability
+   write-up. A USB Ethernet adapter's MAC, on an isolated segment with no
+   route off it, correlates nothing: it is not reachable, not advertised, and
+   not in any registry that maps it to a person.
+2. **`runsheet.md` has to stay literally runnable.** The interface name *is*
+   the MAC on a modern predictable-naming scheme, so redacting it turns every
+   `ip link set …` line in twenty-one places into a command that does not work,
+   in the one document typed at a bench with a device powered on.
+3. **`BENCH-LOG.md` is append-only and is not normalised, ever.** Retroactively
+   editing the file whose whole value is that it was not edited, in order to
+   satisfy a filter, would cost more than the identifier does.
+
+**What is conceded:** the wording of the rule was narrower than its own reason,
+and nobody noticed for six weeks because nothing was looking. The narrow wording
+is being kept **deliberately** rather than by default, which is the only part of
+this that was actually missing. If the reasoning in (1) is wrong — if a MAC on a
+lab segment does identify a person in a way this note has not thought of — then
+the answer is to redact `study/` and `PROGRESS.md`, leave `runsheet.md` and
+`BENCH-LOG.md`, and say so here. It is not to pretend the question did not come
+up.
+
+The synthetic MACs in the register (`56:0a:01:01:01:e8`, `56:aa:a5:5a:7d:e8`,
+`00:11:22:33:44:55`, `aa:bb:cc:dd:ee:ff`) are locally administered or textbook
+fixtures and identify nothing.
 
 ## The decision of 2026-08-23 — nothing is reported, everything is published
 
@@ -62,7 +110,7 @@ one unauthenticated GET away, publicly, since 2019.** `GET /config.dat` returns
 ([`poc/01-config-disclosure.md`](../poc/01-config-disclosure.md)); `USER_NAME`
 and `USER_PASSWORD` are plaintext inside it
 ([`compcs-decode.md`](../notes/compcs-decode.md)). CVE-2019-19822 and
-CVE-2019-19823, public 2019-12, and [`LOG.md`](../LOG.md) records the first still
+CVE-2019-19823, public 2019-12, and [`LOG.md`](../journal/LOG.md) records the first still
 present in a build dated 2020-10-30 — nine months after full disclosure.
 
 **3. Therefore no reproduction in this repository adds a capability against
@@ -118,7 +166,7 @@ flattering direction:
 | `D-15`, `D-19`, and everything else still `held` | **a policy choice** | They could have been reported. They were not, for the argument above |
 
 **None of these is "blocked on an instrument."** Every item in this register that
-was blocked on equipment is in [`test-ledger.md`](../test-ledger.md)'s cut list
+was blocked on equipment is in [`test-ledger.md`](../journal/test-ledger.md)'s cut list
 with its own reason, and none of them is here.
 
 ## Status of the candidate originals
@@ -141,7 +189,7 @@ been wrong once.
 | **D-6** | CVE-2024-51228 is scored `PR:H`; it requires no credentials at all | **demonstrated on the device 2026-08-17** — [`poc/02-command-injection.md`](../poc/02-command-injection.md) | yes | ✅ **publishable now, and published** | `P3-3` fired: a POST carrying no `Authorization` header made the router send ICMP echo **requests** to the bench host, and returned `cat /etc/version` through the document root. **And the same request WITH valid credentials behaves identically**, which is what rules out "something else was carried in" — an unauthenticated success on its own does not. If `PR:N` is right the base score is **8.8 HIGH** rather than 6.8 MEDIUM. The vulnerability itself has been public since 2024-11-27, so nothing is embargoed and the reproduction ships in `poc/`. This is a correction to a public record and it goes to the CNA, not to TWCERT/CC |
 | **D-7** | `wan_disconnect` invokes a DNS-spoofing helper that is present in this rootfs | [`n150rt-unit-2018.json`](../reports/n150rt-unit-2018.json) | yes — `notes/` | **not a finding yet** | Register `P6-10`. Currently a behaviour nobody has looked at, not a defect |
 | **D-8** | ~~Three unread areas: the remote-upgrade helper's outbound connections, the upload handler's `filename` field, two shipped factory private keys~~ | inventory only | yes | ⚙️ **two of three resolved 2026-08-18** | Register `P8-10`, `P8-18`, `P10-7`. The upload `filename` came back **empty** — `FUN_0044f360` returns an offset and never copies the value (`P8-18` refuted, [`firmware-upgrade-path.md`](../notes/firmware-upgrade-path.md)), and the remote-upgrade helper came back **loaded**, which is now **D-12**. `P10-7` also closed the same day and also empty: this unit ships **one** factory key, `/etc/dropbear_rsa_host_key`, and **no SSH daemon at all** — no `dropbear`, no `sshd` — while `sysconf` still installs the key to `/var/dropbear` on every boot. `P6-11` measured port 22 closed, which is the same answer from the other side. It remains a shipped-identical-key item for other models that *do* run dropbear, which is `P8-21`'s question and not this unit's. So: three unread areas, one of them worth the reading, and the row could not have told you which |
-| **D-9** | An unauthenticated, **well-formed** POST carrying only `submit-url` holds the device's single-process web server for 4.7–9.7 s; about forty-five in sequence stop it answering entirely, and nothing respawns it | measured twice on the device, [`BENCH-LOG.md`](../BENCH-LOG.md) 2026-08-17 afternoon; per-request `elapsed_ms` in the transcripts | yes — the numbers are in `PROGRESS.md` and `BENCH-LOG.md` | **held, and deliberately unclassified** | Distinct from **D-2**: that one omits `submit-url` and writes into a read-only literal. This one is a legal request. Three things are unmeasured and all three change what it is — whether *one* request suffices, how long a single stall lasts, and whether prior art already covers it. Register: none yet; it came out of `P1-4` |
+| **D-9** | An unauthenticated, **well-formed** POST carrying only `submit-url` holds the device's single-process web server for 4.7–9.7 s; about forty-five in sequence stop it answering entirely, and nothing respawns it | measured twice on the device, [`BENCH-LOG.md`](../journal/BENCH-LOG.md) 2026-08-17 afternoon; per-request `elapsed_ms` in the transcripts | yes — the numbers are in `PROGRESS.md` and `BENCH-LOG.md` | **held, and deliberately unclassified** | Distinct from **D-2**: that one omits `submit-url` and writes into a read-only literal. This one is a legal request. Three things are unmeasured and all three change what it is — whether *one* request suffices, how long a single stall lasts, and whether prior art already covers it. Register: none yet; it came out of `P1-4` |
 | **D-10** | An unauthenticated configuration write also overwrites the **factory-default** region: `COMPDS` moved in the same 19 fields as `COMPCS` plus the four that had distinguished them, each to `COMPCS`'s value. So "restore factory defaults" would restore whatever was last written | 64 KiB snapshots either side, attributed field by field; `libapmib`'s own checksum passes on both regions | yes — `PROGRESS.md` W05 close-out | **held** | The impact claim depends on `P9-9` (does reset actually restore from `COMPDS`), which is scheduled W07 and is destructive. Until that runs, the mechanism is measured and the *consequence* is inference. Also answers W04-2 open #20 — what persists `COMPCS` |
 
 | **D-11** | **A single unauthenticated, well-formed POST to one form handler removes the web server until the device is power-cycled.** No payload, no overlong parameter, no credentials | measured on the device 2026-08-17 with a control: three POSTs of the same shape to a different handler immediately before it were all served normally, then one to the handler in question returned nothing at all and the listening socket was gone 30 s later, while ICMP to the device stayed at 1.6 ms | the numbers and the mechanism are in `PROGRESS.md`; **the handler name is not published here** | ✅ **published 2026-08-23, deliberately not reported** | Distinct from **D-9** (a legal POST *stalls* the single-process server 4.7–9.7 s, and roughly forty-five in sequence stop it) and from the withdrawn **D-2**. This is **one** request and the effect is permanent, because `rcS` starts `boa` once and nothing respawns it. It also revises W05's own reading of its data: that session attributed the outage to *volume*. Whether the W05 transcript shows this same handler is a re-reading of that record, not something 2026-08-17 measured. No register row yet — it came out of a handler census, not a planned test. **The handler is `formSchedule` and it is named here from 2026-08-23**, with the request, in [`poc/04-auth-takeover.md`](../poc/04-auth-takeover.md); the `--alignfix` emulated sweep had independently reduced 39 candidates to that one. **Prior art searched 2026-08-23, by handler and by behaviour: the mechanism was not found, and the class is saturated.** The nearest published item is a D-Link DWR-M960 report against `/boafrm/formNewSchedule` — the same SDK, a near-identical handler name, `boa` dead and not self-healing — but its trigger is an overlong `submit-url` through an unchecked `strcpy`, where this one is a *legal* request whose only field is `submit-url` and whose `webpage` parameter is absent. CVE-2018-13307 (`fromNtp`/`ntpServerIp2`) also reports *"certain payloads cause the device to become permanently inoperable"*, again via injection rather than a well-formed request. **So the mechanism is unpublished and the effect is ordinary.** That is why this row is *traded away on purpose* rather than reported: on a device carrying a public unauthenticated root RCE, a denial of service is strictly the weaker finding |

@@ -164,7 +164,7 @@ Ten cases assert *this must be rejected, and for this reason*; three assert *thi
 must succeed*. **Both halves are load-bearing.** The reject-only half of this suite
 once reported 5/5 passing while every invocation was dying on `import PIL` — a guard
 suite without a control can go green with the whole system broken. Written up in
-[`LOG.md`](../../LOG.md) and [`study/QA.md`](../../study/QA.md) §9.12.
+[`LOG.md`](../../journal/LOG.md) and [`study/QA.md`](../../study/QA.md) §9.12.
 
 ## Conventions
 

@@ -148,5 +148,5 @@ writes no core.
 
 Tradecraft, unchanged and not affected by the 2026-08-23 decision: no
 persistence, no anti-forensics, no lateral movement, no credential harvesting on
-a live host. Nine such items are in [`test-ledger.md`](../test-ledger.md) with
+a live host. Nine such items are in [`test-ledger.md`](../journal/test-ledger.md) with
 their reasons, and no gate in this project asks for any of them.

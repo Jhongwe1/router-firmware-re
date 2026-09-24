@@ -138,7 +138,7 @@ There is no central directory, so `unzip` rejects the file outright — which
 reads as *corrupt* and means *truncated*, two different things. Deflate is a
 stream, so the prefix still decompresses:
 [`tools/zipprefix.py`](../tools/zipprefix.py), procedure in
-[`RUNBOOK.md` §8.8.4](../RUNBOOK.md).
+[`RUNBOOK.md` §8.8.4](../journal/RUNBOOK.md).
 
 **What the prefix actually contains is more than "section lengths".** Two of the
 three sections are byte-complete; only the rootfs is cut:

@@ -4,6 +4,36 @@ Boa 0.94.14rc21, running as root, with the vendor's handlers bolted on. Two
 structures decide everything: the table that maps a URL to a function, and the
 three-line test that decides whether to ask for a password.
 
+The whole life of a request, on this unit's build — every address read at
+instruction level in
+[`notes/auth-flow-2018.md`](../notes/auth-flow-2018.md), against
+`sha256 19fe29d7…`, 485,012 bytes, `boa: server built Jan 10 2018`:
+
+```mermaid
+flowchart TD
+    A["HTTP request<br/>boa accept"] --> B["process_header_end<br/>0x0040bb1c"]
+    B --> C["uri = req + 0x8d4<br/>set at 0x0040bb68"]
+    C --> D{"strstr(uri, '.htm')<br/>0x0040be90<br/>strstr(uri, '.asp')<br/>0x0040beac"}
+    D -->|"neither<br/>beq at 0x0040beb8"| G["translate_uri<br/>0x004041cc"]
+    D -->|"either"| E["apmib_get(0xb6) USER_NAME 0x0040bcd8<br/>apmib_get(0xb7) USER_PASSWORD 0x0040bcf8<br/>credential compare"]
+    E -->|fail| F["send_r_unauthorized<br/>0x0040c088"]
+    E -->|pass| G
+    G --> H["handleForm 0x004127f4<br/>strstr(req + 0x8d4, '/boafrm/')"]
+    H --> I["linear search of root_form<br/>0x00483758 · 57 entries"]
+    I --> J["handler<br/>e.g. formSysCmd 0x004838a8"]
+    J --> K["websGetVar / apmib_get<br/>→ sink"]
+    style D fill:#8957e5,color:#fff
+    style G fill:#1f6feb,color:#fff
+    style K fill:#da3633,color:#fff
+```
+
+**The purple node is the whole defect and the blue node is why it matters.**
+Authorisation is decided by two unanchored substring tests on the URI, and
+*failing* them is the path that skips the check — so the arrow marked *neither*
+goes straight to normal processing. Every `/boafrm/form*` URI takes it, because
+none of them contains `.htm` or `.asp`.
+
+
 ## Recovering `root_form[]` without the leaked header
 
 The dispatch table is an array of `{name, handler}` pairs. Leaked Realtek SDK
@@ -22,18 +52,28 @@ emits JSON; the result for each build carries the SHA-256 of the binary it read.
 The counts, all three builds, from
 [`reports/ghidra-formtable-*.json`](../reports/):
 
-| build | `root_form[]` entries |
-|---|---|
-| V2.1.2 (2015) | 57 |
-| this unit (2018) | 58 — including `formSysCmd` at `0x004838a8` |
-| V3.4.0 (2020) | 57 |
+| build | table address | `root_form[]` entries |
+|---|---|---|
+| V2.1.2 (2015) | `0x00488720` | **59** |
+| this unit (2018) | `0x00483758` | **57** — including `formSysCmd` at `0x004838a8` |
+| V3.4.0 (2020) | `0x004715c0` | **49** |
 
 `grep -aoc formSysCmd` on the three raw binaries gives **0 / 1 / 0**.
+
+Two things in that table are worth more than the handler:
+
+**The 2020 build dropped ten routes.** 59 → 57 → 49 is a visible narrowing of
+the attack surface across five years, and it is the largest single change in the
+whole comparison. It is not a fix for anything in particular; it is fewer
+handlers.
 
 **Absent → present → absent is a build-time option, not a vendor fix.** W04 had
 recorded the string's absence from the published images as the vendor repairing
 CVE-2019-19824; a fix does not reappear two and a half years later. That reading
 is withdrawn, and the withdrawal is in the record next to the original.
+**Chapter 7 narrows it further**: read across six binaries rather than three,
+`formSysCmd` is still present in an N300RT build from **2019**, so the removal is
+per product and not a decision taken on a date.
 
 ## The gate, and why the advisory understates it
 
@@ -102,3 +142,26 @@ tool.
 > for `GET` against the 76 shipped `.htm` pages. The POST half of the surface is
 > chapter 10's; the 2015 and 2020 readings in the table are static, from images
 > this device has never run.
+
+## How the first version of this chapter was wrong
+
+The table above read **57 / 58 / 57**. The reports say **59 / 57 / 49**, and
+this chapter names those reports — `reports/ghidra-formtable-*.json` — in the
+sentence immediately above the table. It cited its own source and then disagreed
+with it.
+
+The shape of the wrong numbers is the part worth keeping: near-identical counts
+with this unit one entry *above* its neighbours, which reads as *"the three
+builds are much the same and mine has one extra"*. That is a comfortable
+sentence and it is the opposite of what the data says. The real figures show the
+2020 build shedding **ten** routes, which was the most interesting fact in the
+table and was invisible for as long as the symmetry held.
+
+Chapter 7 carried the identical wrong row, so this was not a typo — it was one
+transcription reused. Found 2026-09-25, during the publication week, by chasing
+a different disagreement entirely (*five builds* versus *six builds*), and the
+correct values had been sitting in
+[`notes/three-way-read.md`](../notes/three-way-read.md) and
+[`notes/dispatch-table.md`](../notes/dispatch-table.md) since W04-2.
+**Nothing in `make ci` compares a number in a chapter against the report the
+chapter names**, which is open item 110 and is not fixed by this correction.

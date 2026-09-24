@@ -246,7 +246,7 @@ command !` bursts at the start of every escape-caught session are
 ## What the device said, 2026-08-22
 
 Every address below was read at the `<RealTek>` prompt with zero flash writes.
-Record cards `T-96`–`T-100` in [`BENCH-LOG.md`](../BENCH-LOG.md).
+Record cards `T-96`–`T-100` in [`BENCH-LOG.md`](../journal/BENCH-LOG.md).
 
 | this note said | the device said | |
 |---|---|---|

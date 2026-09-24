@@ -80,7 +80,7 @@ checking it.
 
 ## The wrong turns
 
-Three, all recorded at full length in [`LOG.md`](../LOG.md):
+Three, all recorded at full length in [`LOG.md`](../journal/LOG.md):
 
 * **A 450 °C attempt to desolder the antenna** to get a clearer photograph.
   Abandoned. It bought nothing and risked the only unit there is.

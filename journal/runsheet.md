@@ -94,7 +94,7 @@
 | 你想做什麼 | 去哪裡 |
 |---|---|
 | 查 `P0-2` 是哪一題、預測什麼、判定如何、證據在哪 | **[`test-ledger.md`](test-ledger.md)** —— 搜編號就找到（130 列） |
-| 改它 | [`test-cases.toml`](test-cases.toml)。**`test-ledger.md` 是生成的，改它會被覆蓋** |
+| 改它 | [`test-cases.toml`](../test-cases.toml)。**`test-ledger.md` 是生成的，改它會被覆蓋** |
 | 知道跑哪一節可以關掉它 | 上面那張目錄，或每一節標題括號裡的 `（關 …）` |
 
 **這份檔案只說「跑這一節會關掉哪幾項」，不重述那幾項的內容。**
@@ -132,7 +132,7 @@
 
 **這個 repo 的一部分你重現不了，而這件事寫在這裡，不是讓你在第 40 步發現。**
 這台跑的 firmware **不在任何廠商下載頁上**，而它的 flash dump 帶有這一台獨有的資料
-（`H601` 區的 MAC 與射頻校準）。完整的三層對照在 [`REPRODUCE.md`](REPRODUCE.md)：
+（`H601` 區的 MAC 與射頻校準）。完整的三層對照在 [`REPRODUCE.md`](../REPRODUCE.md)：
 
 | 層 | 你需要 | 做得到哪幾節 |
 |---|---|---|
@@ -165,9 +165,9 @@
 | **本檔 Part B** | 每一週跑哪幾節、順序、本週額外步驟 ← **只追加** |
 | [`RUNBOOK.md`](RUNBOOK.md) §8.12 | **每一步為什麼存在**、坑的來歷、跨週推理。**一個命令塊都沒有** |
 | [`BENCH-LOG.md`](BENCH-LOG.md) | 某一天**實際**打了什麼、實際看到什麼 ← 只追加 |
-| [`test-cases.toml`](test-cases.toml) → [`test-ledger.md`](test-ledger.md) | 預測 / 反證條件 / 判定 / 證據 |
+| [`test-cases.toml`](../test-cases.toml) → [`test-ledger.md`](test-ledger.md) | 預測 / 反證條件 / 判定 / 證據 |
 | [`PROGRESS.md`](PROGRESS.md) | gate、週、carried-forward |
-| [`docs/disclosure.md`](docs/disclosure.md) | 每個發現的揭露狀態 |
+| [`docs/disclosure.md`](../docs/disclosure.md) | 每個發現的揭露狀態 |
 
 ---
 
@@ -260,7 +260,7 @@ make unpack
 
 **預期**：`fetch` 對每個檔案印 `sha256 OK`；`unpack` 印 `no symlinks in the extracted tree` 之類的結構檢查。
 
-> ❌ **雜湊不符就停。** [`firmware/SOURCES.json`](firmware/SOURCES.json) 記錄了每一份
+> ❌ **雜湊不符就停。** [`firmware/SOURCES.json`](../firmware/SOURCES.json) 記錄了每一份
 > 映像的來源與當時的雜湊。不符代表你拿到的不是同一個檔案，後面每一個結論都不可比。
 
 #### A1.2.3 報告
@@ -886,7 +886,7 @@ controls ok: /boafrm/formSysCmd sysCmd found, /boafrm/formNoSuchThingZZ and
 > 倒了代表比對器壞了；負對照（一個編出來的端點必須回報不存在）倒了代表它對什麼都說是；
 > 解析下限（`notes/cve-status.md` 至少要讀出 15 列）倒了代表它在讀一份殘片。
 
-> 🔴 **公告清單不在這支工具裡。** 它從 [`notes/cve-status.md`](notes/cve-status.md)
+> 🔴 **公告清單不在這支工具裡。** 它從 [`notes/cve-status.md`](../notes/cve-status.md)
 > 解析出來——那份檔案是那張矩陣的擁有者。工具帶第二份就是同一份狀態的第二個擁有者，
 > 兩份會在一週內對不起來。代價是要對散文寫解析器，而那個代價由「解析不到就拒絕跑」付。
 
@@ -1299,7 +1299,7 @@ cat "/sys/class/net/$IF/statistics/rx_packets"
 > 🔴 **而 `FLW` 一次都不檢查 argc。** 送**少於**三個參數 →
 > `strtoul(NULL)` 在 `0x80406F08` 解參考。那發生在 `(Y)es` 之前，
 > 所以毀不了 flash，但會吃掉這一次開機。**打完一行先數參數個數，再按 Enter。**
-> 完整讀法與第二來源：[`notes/loader-tftp-and-commands.md`](notes/loader-tftp-and-commands.md)。
+> 完整讀法與第二來源：[`notes/loader-tftp-and-commands.md`](../notes/loader-tftp-and-commands.md)。
 
 > ## 🔴 動手前的四條規矩
 >
@@ -1837,7 +1837,7 @@ COMPCS 0xC000-0x10000              4f721579d2a01875   46f9fc090625707e   DIFF
 > 後者是 **`FLR` 的第三個參數**寫的（`0x80409A04`）。所以
 > **「`get` 是 `FLR` 的快速通道」只在 `FLR` 的目的位址剛好等於 `LOADADDR` 時成立** ——
 > `FLR` 借給 TFTP 的是**長度**，不是位址。完整的推導與位址在
-> [`notes/loader-tftp-and-commands.md`](notes/loader-tftp-and-commands.md)。
+> [`notes/loader-tftp-and-commands.md`](../notes/loader-tftp-and-commands.md)。
 
 > ❌ **本節之前的版本會失敗三次，而三次的錯誤訊息都指著裝置。** 它寫的是
 > `console-dump.py cmd … FLR 300000 81000000 1000`：參數順序是 `FLW` 的不是 `FLR` 的、
@@ -4007,7 +4007,7 @@ raw: 14068 of 65536 bytes differ
 |---|---|---|---|
 | T3 | **A1 的第一發是零副作用；之後會寫 `/var`（ramfs），`A3.10` 才寫 flash** | [`RUNBOOK` §8.12.18](RUNBOOK.md) | 2026-08-17 夜（`P3-3` 成立；`P3-1` 與 `P3-2` 反證） |
 
-**先決條件**：`A3.1` 網段；`A2.3` 的前置快照已抓；[`docs/disclosure.md`](docs/disclosure.md)
+**先決條件**：`A3.1` 網段；`A2.3` 的前置快照已抓；[`docs/disclosure.md`](../docs/disclosure.md)
 已寫明本節每個標的的狀態；主機端 `tcpdump` 已在跑
 
 #### A3.9.0 順序是 ICMP → docroot → flash，而順序本身是方法
@@ -4090,7 +4090,7 @@ HTTP 302  0.012s
 
 > 🔴 **這一發成立 = CVE-2024-51228 在這台上重現，而且是未認證。**
 > NVD 給它 `PR:H`（需要高權限）。**這一發沒有帶任何憑證** ——
-> 那就是 [`docs/disclosure.md`](docs/disclosure.md) `D-6` 的全部內容，
+> 那就是 [`docs/disclosure.md`](../docs/disclosure.md) `D-6` 的全部內容，
 > 而它從 `held` 變成可發布就靠這一步。**下一步把它講精確。**
 
 #### A3.9.3 同一發，帶憑證 —— 把「未認證」講到能被反駁
@@ -5075,7 +5075,7 @@ cat /proc/291/maps
 
 > 🔴 **反證條件在第一行**：`randomize_va_space` 不是 `0`，或 `libuClibc` 的起始
 > 位址不是 `2aae3000` —— 那就是**每次開機會動**，而
-> [`notes/mips-ret2libc.md`](notes/mips-ret2libc.md) 算出來的 `system @ 0x2ab08460`
+> [`notes/mips-ret2libc.md`](../notes/mips-ret2libc.md) 算出來的 `system @ 0x2ab08460`
 > 只對 2026-08-18 那一次開機成立。**這一次是 reset 之後的另一次開機，所以它答得了
 > 登記簿那條字面反證，而 2026-08-18 那兩行 console 答不了。**
 
@@ -5308,7 +5308,7 @@ register OK - 130 cases, 102 frozen, 34 executed, freeze 69c342dc...
 
 > ⚠️ **per-unit 識別碼（MAC、SSID、`config.dat` 內容、射頻校準值）不寫進來。**
 > 跟 W02 把 PCB 條碼塗掉是同一條規則，而揭露策略的擁有者是
-> [`docs/disclosure.md`](docs/disclosure.md) —— **這裡不複述它，只指向它。**
+> [`docs/disclosure.md`](../docs/disclosure.md) —— **這裡不複述它，只指向它。**
 > （標頭曾經複述過，然後跟自己檔案裡的一段矛盾了。）
 
 #### A4.1.4 一週結束時還有三件事
@@ -5316,8 +5316,8 @@ register OK - 130 cases, 102 frozen, 34 executed, freeze 69c342dc...
 | 檔案 | 寫什麼 |
 |---|---|
 | [`PROGRESS.md`](PROGRESS.md) | gate、DoD、carried-forward。**不要把單項測試結果寫成散文** |
-| [`README.md`](README.md) | gate 勾選板 + 一行數字。**跟 PROGRESS 同一個 commit** |
-| [`study/weekly-results.md`](study/weekly-results.md) | 一句話版本、三個可辯護的點、**以及「這週沒證明什麼」** |
+| [`README.md`](../README.md) | gate 勾選板 + 一行數字。**跟 PROGRESS 同一個 commit** |
+| [`study/weekly-results.md`](../study/weekly-results.md) | 一句話版本、三個可辯護的點、**以及「這週沒證明什麼」** |
 
 > 🔴 **「這週沒證明什麼」那一欄是空的，代表這一週的自我檢查不夠。**
 > 那一欄是三個裡面最重要的一個。
@@ -6233,7 +6233,7 @@ boot loader 自己的 `FLR`，所以一個系統性的讀取錯誤對它們三�
 **`P7-7` 今天在桌面上關掉了，而不是照上表寫的「這一場不做」。** 上表把它列為不做，
 理由是「前提被推翻，是一件真正的逆向工作」——那件逆向工作在 2026-08-21 做完了：
 `WLAN_ROOT` 六個區塊全部解開，判定 `refuted`，證據在
-[`notes/wlan-root.md`](notes/wlan-root.md)。**不需要裝置，所以它不佔這一場的任何一次
+[`notes/wlan-root.md`](../notes/wlan-root.md)。**不需要裝置，所以它不佔這一場的任何一次
 夾子就座或電源循環**，登記簿的 W08 從 0/8 變成 1/8。
 
 ## B-W08 增補之二（2026-08-21 桌面第二場，仍然寫在夾子上去之前）

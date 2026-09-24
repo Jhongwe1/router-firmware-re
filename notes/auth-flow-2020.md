@@ -31,9 +31,12 @@ if ((cfg_user[0] != '\0' || cfg_pass[0] != '\0') && req->authorized == 0) {
 translate_uri(req);      /* everything that did not stop above arrives here */
 ```
 
-> **Scope.** Static. No device has been powered on — W02 is blocked on hardware
-> delivery. Every claim here is "the code reads this way". The confirming
-> requests are at the end. Nothing has been reported to anyone.
+> **Scope.** Static, on the published **V3.4.0** image. Every claim here is "the code
+> reads this way"; the confirming requests are at the end. **This unit has been
+> powered and serving since 2026-08-15 and does not run this build** — the equivalent
+> read on the build it does run is [`auth-flow-2018.md`](auth-flow-2018.md), and
+> nothing here has been asked of a live server. Disclosure: nothing was reported to
+> anyone and everything is published — [`docs/disclosure.md`](../docs/disclosure.md).
 
 ## What changed, and what did not
 

@@ -30,7 +30,7 @@ RS="rs-selftest-$$.md"
 RB="$TMP/rb-selftest.md"
 trap 'rm -rf "$TMP"; rm -f "$RS"' EXIT
 
-write_good_runbook() { cp RUNBOOK.md "$RB"; }
+write_good_runbook() { cp journal/RUNBOOK.md "$RB"; }
 
 # A minimally valid runsheet: a front-page index, one station, one step under the
 # matching station carrying the four promised fields, one real make target, one
@@ -65,7 +65,7 @@ python3 tools/rtcase.py todo --week W05
 W05: 27/27 done, 0 outstanding
 ```
 
-See §8.12.3 and [`RUNBOOK.md`](RUNBOOK.md).
+See §8.12.3 and [`RUNBOOK.md`](journal/RUNBOOK.md).
 
 # Part B — per week
 
@@ -92,7 +92,7 @@ expect_fail() {
 # the REAL runsheet, so these pass the real one with a doctored RUNBOOK copy.
 expect_fail_runbook() {
   local label="$1" needle="$2" out rc
-  out="$("$PY" tools/check-runsheet.py runsheet.md --runbook "$RB" 2>&1)"; rc=$?
+  out="$("$PY" tools/check-runsheet.py journal/runsheet.md --runbook "$RB" 2>&1)"; rc=$?
   if [ "$rc" -eq 0 ]; then
     bad "$label — accepted, and it must not be"
   elif printf '%s' "$out" | grep -qF "$needle"; then
@@ -178,7 +178,7 @@ sed -i 's|§8.12.3|§8.99.9|' "$RS"
 expect_fail "a cross-reference that resolves to no RUNBOOK heading" "does not resolve"
 
 write_good
-sed -i 's|(`RUNBOOK.md`)|(NOT-A-FILE.md)|; s|\[`RUNBOOK.md`\](RUNBOOK.md)|[x](NOT-A-FILE.md)|' "$RS"
+sed -i 's|(`RUNBOOK.md`)|(NOT-A-FILE.md)|; s|\[`RUNBOOK.md`\](journal/RUNBOOK.md)|[x](NOT-A-FILE.md)|' "$RS"
 expect_fail "a link target that does not exist" "link target NOT-A-FILE.md does not exist"
 
 write_good

@@ -177,7 +177,7 @@ Three tiers, and this is stated on page one of
 [`REPRODUCE.md`](../REPRODUCE.md) rather than discovered at step 40:
 
 * **T1 — a clone and an internet connection.** The two published images, every
-  report derived from them, and 592 checks that prove this project's own
+  report derived from them, and 626 checks that prove this project's own
   instruments can fail.
 * **T2 — plus a flash dump.** Not obtainable unless you own one of these
   routers.

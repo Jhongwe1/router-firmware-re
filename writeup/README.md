@@ -1,6 +1,6 @@
 # The Build Nobody Had
 
-*Reading a vendor's five-year fix off the chip — and what fifty-six broken
+*Reading a vendor's five-year fix off the chip — and what sixty broken
 instruments taught me about my own results*
 
 **Draft.** Every chapter has content; the prose is a first pass and W09 is the
@@ -15,10 +15,12 @@ has been asked.
 I bought an end-of-life TOTOLINK N150RT, read its 4 MiB SPI flash through the
 boot loader's own commands over a serial console, and found it runs a build that
 appears on no vendor download page — a 2018 image sitting exactly in the middle
-of a five-year, three-step response to a 2015 disclosure. Reading five builds
-side by side shows the vendor deleting the backdoor binary **two and a half
-years before** removing the uid 0 account it shipped with. Along the way
-fifty-six of my own instruments were wrong, and **not one was caught by its own
+of a five-year, three-step response to a 2015 disclosure. Reading three N150RT
+builds side by side shows the vendor deleting the backdoor binary **two and a
+half years before** removing the uid 0 account it shipped with; reading three
+more, from two sibling models, shows that the removal was **per product** and
+not a decision taken on a date. Along the way
+sixty of my own instruments were wrong, and **not one was caught by its own
 self-check**.
 
 ---
@@ -28,17 +30,17 @@ self-check**.
 | | | |
 |---|---|---|
 | **1** | [Why this device — and what "measured" means here](01-rules.md) | the evidence rules, first, because everything after them depends on them |
-| **2** | [Five builds, and where each came from](02-corpus.md) | provenance, including what a hash can and cannot prove |
+| **2** | [Seven images, six binaries read across, and where each came from](02-corpus.md) | provenance, including what a hash can and cannot prove — and the phantom row this chapter carried until W09 |
 | **3** | [The board — and four things the spec sheet got wrong](03-board.md) | and one prediction about the physical world, made three weeks early |
 | **4** | [A console with no shell, and a loader that reads flash](04-console.md) | the baud was measured, not guessed |
 | **5** | [The build nobody had](05-the-build.md) | 🏆 the first result that is only obtainable from silicon |
 | **6** | [Inside `boa`: the dispatch table and the substring gate](06-boa.md) | the advisory names a symptom; this is the cause, and it is broader |
-| **7** | [Reading across, not down: five builds side by side](07-across.md) | which conclusions transferred, and which did not |
+| **7** | [Reading across, not down: three builds in depth, six in breadth](07-across.md) | which conclusions transferred, and which did not |
 | **8** | [The config blob: `COMPCS` decoded](08-compcs.md) | CVE-2019-19823 turned from a citation into an address |
 | **9** | [Making it move: a real flash as `/dev/mtdblock0`](09-emulation.md) | and a widely repeated reason for "you cannot emulate this" that is wrong |
 | **10** | [The chain: five links, five layers of evidence](10-chain.md) | 🏆 ending at the bytes that changed on the flash |
 | **11** | [Beyond the CVEs](11-bughunt.md) | twenty-four verdicts, three of them my own findings withdrawn |
-| **12** | [Fifty-six instruments, fifty-six bugs](12-instruments.md) | 🏆 the chapter that costs me the most and buys the most |
+| **12** | [Sixty instruments, sixty bugs](12-instruments.md) | 🏆 the chapter that costs me the most and buys the most |
 | **13** | [If I were building this router — a gate, not an opinion](13-gate.md) | it runs; the 2020 build still fails it |
 | **14** | [What this does not prove](14-limits.md) | the chapter that should be uncomfortable to read |
 | — | [Disclosure · References · Thanks](15-disclosure.md) | |

@@ -22,9 +22,13 @@ strcpy(&lastUrl, pcVar1);                    /* (B) @0x004145ac */
 send_redirect_perm(param_1, "/msg.htm");
 ```
 
-> **Scope.** Static only. No device has been powered on — W02 is blocked on
-> hardware. Everything below is "the code reads this way"; the confirming
-> requests are listed at the end. Nothing here has been reported to anyone.
+> **Scope.** Static only, on the images it names. Everything below is "the code reads
+> this way"; the confirming requests are listed at the end. **The device has been
+> powered and serving since 2026-08-15**, and what was measured on it for this sink —
+> five handlers faulting at one instruction, and the control that made it a finding
+> rather than a count — is [`absent-parameter-strcpy.md`](absent-parameter-strcpy.md)
+> and [`bughunt.md`](bughunt.md) row 16. Disclosure: nothing reported, everything
+> published — [`docs/disclosure.md`](../docs/disclosure.md).
 
 Recovered by [`BoaArgTrace.java`](../ghidra/scripts/BoaArgTrace.java) into
 [`reports/ghidra-argtrace-2.1.2.json`](../reports/ghidra-argtrace-2.1.2.json)

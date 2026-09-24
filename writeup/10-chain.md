@@ -94,10 +94,24 @@ console.
 **Nine bytes changed.** Eight are the ASCII digits of the value the client
 chose; the ninth is the region's checksum, recomputed by the device.
 
+```text
+$ cmp -l flash-before.bin flash-after.bin     # cmp prints octal
+0x00648a  71 -> 61        '9' -> '1'
+0x00648b  71 -> 63        '9' -> '3'
+0x00648c  71 -> 65        '9' -> '5'
+0x00648d  65 -> 67        '5' -> '7'
+0x00648e  66 -> 62        '6' -> '2'
+0x00648f  60 -> 64        '0' -> '4'
+0x006490  64 -> 66        '4' -> '6'
+0x006491  62 -> 70        '2' -> '8'
+0x006493  15 -> 25        <- the region's own 8-bit checksum, recomputed by the device
+
+before: 99956042
+after : 13572468
 ```
-$ cmp -l flash-before.bin flash-after.bin
-   <the nine offsets>
-```
+
+Eight ASCII digits and a checksum byte, at `0x00648a`–`0x006493`. **The value
+that arrived over HTTP is the value in the flash.**
 
 They are also **in the wrong region**. The plan said that write lands in the
 configuration block. It lands in `H601`, which holds this unit's MAC addresses
@@ -127,3 +141,32 @@ recorded as one.
 > measured on two boundaries and the mechanism this project first proposed for
 > it was **wrong** — the instrument that reported "no write to that global" was
 > the thing at fault, and chapter 12 is where that belongs.
+
+## Where each link's evidence is
+
+Chapter 1's rule is that a claim points at a product something else can
+regenerate. This chapter states six numbers and, until W09, linked to none of
+them — which is the rule being broken in the one chapter that exists to
+demonstrate it.
+
+| link | the claim | what regenerates it |
+|---|---|---|
+| 1 | `GET /config.dat` returns 7,490 bytes; SHA-256 identical to flash `0xC000` | [`poc/01-config-disclosure.md`](../poc/01-config-disclosure.md) · [`notes/mib-and-config-dat.md`](../notes/mib-and-config-dat.md) · `reports/flashdump-unit-2018.json` |
+| 2 | `USER_NAME` / `USER_PASSWORD`, plaintext TLVs | [`notes/compcs-decode.md`](../notes/compcs-decode.md) · [`tools/mkcompds.py`](../tools/mkcompds.py) · `reports/compcs-unit-2018.json` |
+| 3 | no session, no lockout, and 601 seconds of IP-keyed access | [`notes/auth-session-ip.md`](../notes/auth-session-ip.md) · [`notes/auth-flow-2018.md`](../notes/auth-flow-2018.md) · register `P8-4` |
+| 4 | `formSysCmd` is in this build's table and the gate does not run on it | [`notes/cve-status.md`](../notes/cve-status.md) · [`poc/02-command-injection.md`](../poc/02-command-injection.md) · `reports/ghidra-formtable-unit-2018.json` |
+| 5 | nine bytes at `0x00648a`–`0x006493`, in `H601`, restored | [`poc/03-flash-evidence.md`](../poc/03-flash-evidence.md) · [`tools/config-diff.py`](../tools/config-diff.py) · `reports/config-diff-unit-2018.json` |
+| — | the oracles, and the control that fired | [`notes/oracle-design.md`](../notes/oracle-design.md) |
+
+## How the first version of this chapter was wrong
+
+It printed the nine offsets as **`<the nine offsets>`** — a placeholder, inside
+a fence, in the evidence block the whole chapter builds toward. It survived the
+W08 draft and was found on 2026-09-25 by counting addresses across `writeup/`:
+twelve mentions in fifteen chapters, and this one, the chapter about pointing at
+bytes, had exactly one.
+
+The real offsets were three files away the entire time. What the placeholder
+cost is not accuracy — nothing here was ever wrong — it is that **a reader who
+wanted to check the strongest claim in the document was handed an angle
+bracket.**
