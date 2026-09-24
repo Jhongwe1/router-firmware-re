@@ -177,6 +177,9 @@ check-expired: ## No published file asserts something that stopped being true
 expired-test: ## Prove the expired-assertion checker can fail (13 cases)
 	bash tools/test-check-expired.sh
 
+numbers-test: ## Prove the number checker can fail, and that it skips what it cannot measure (12 cases)
+	bash tools/test-check-numbers.sh
+
 gates: ## Regenerate docs/gates.md from the (private) week plans
 	python3 tools/extract-gates.py
 
@@ -378,7 +381,7 @@ loader-report: ## Unpack the boot loader's LZMA stage 2 (needs the flash dump)
 # `rtcase-test` is in here and not optional. It is the only thing proving the
 # register gate can fail; without it `make rtcase` going green means nothing,
 # which is the exact shape of instrument bug 12.
-ci: lint test shellcheck check-reports check-runsheet check-benchlog benchlog-test check-links links-test check-numbers check-expired expired-test check-gates rtcase rtcase-test check-ledger check-ci-parity ci-parity-test qemu-test probe-test loader-test tftp-test ramboot-test console-lint-test runsheet-test dump-test flash-tools-test photo-test write-test failopen-test alignfix-test config-diff-test liveness-test dhcp-test libbase-test upnp-soap-test ## Everything CI checks, except the container build
+ci: lint test shellcheck check-reports check-runsheet check-benchlog benchlog-test check-links links-test check-numbers numbers-test check-expired expired-test check-gates rtcase rtcase-test check-ledger check-ci-parity ci-parity-test qemu-test probe-test loader-test tftp-test ramboot-test console-lint-test runsheet-test dump-test flash-tools-test photo-test write-test failopen-test alignfix-test config-diff-test liveness-test dhcp-test libbase-test upnp-soap-test ## Everything CI checks, except the container build
 	@echo "  ok   local CI equivalents passed (container build not included)"
 
 diff: venv ## Diff the two builds

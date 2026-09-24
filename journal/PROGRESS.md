@@ -7683,6 +7683,44 @@ way nothing makes a *finding* consult `notes/prior-art.md`.
      is not the one cell — it is that a table where every other cell *is*
      checkable is the most persuasive place for a wrong one to sit.
 
+
+### Instrument bug 61 — found by the remote, after the push
+
+`make ci` was green here and the GitHub run was red on the same commit, byte for
+byte. `check-numbers` reported **14 stale numbers**, and all fourteen were
+correct on this machine.
+
+`count-checks.sh` had one shell default written months ago:
+
+    n="$(bash "$f" 2>/dev/null | grep -oE '[0-9]+ passed' | ... )"
+    n="${n:-0}"
+
+**A suite that could not run scored zero checks and was added to the total.** The
+runner's job has no pytest and no flashrom, so the total came back **468** against
+this workstation's **626**, and the checker judged the front page against a floor.
+
+This one is worth more than the other four from today, for a reason that has
+nothing to do with its size: **nothing local could have caught it, and nothing
+local ever will.** The defect is not in the repository — the repository is
+identical on both machines. It is the difference between the machines, and it
+became visible only when something finally compared two environments, which is
+the same move as reading six builds across.
+
+It is also this project's own rule arriving from a direction it had not been
+stated in. *A tool reporting `0` is making a claim* — and `${n:-0}` had been
+making that claim silently every time a dependency was missing, for months.
+
+**The fix, and the hole it leaves.** `count-checks.sh` now records an
+unrunnable suite as `--` and prints `INCOMPLETE:<which>`;
+`check-numbers.py` refuses to judge `checks` / `guards` / `pytest` when it sees
+that line, and **prints what it skipped on every run**. So on GitHub those three
+numbers are never verified — only this machine can verify them, the same shape as
+`check-gates` and `plan/`. The difference is that it now says so instead of
+quietly computing a floor. `tools/test-check-numbers.sh` (12 cases) holds it to
+that, and three of the twelve are about this specifically — including the
+positive control, because *"skip when INCOMPLETE"* and *"always skip"* are
+otherwise the same behaviour.
+
 ### W10 — what it owes
 
 W10 is the buffer week and it has no gate. The list is short on purpose; a

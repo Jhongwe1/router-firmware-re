@@ -36,11 +36,12 @@ number needed changing.
   whose refutation field is empty. Those are in
   [`writeup/01-rules.md`](../writeup/01-rules.md) under my own name because they
   are mine.
-- **Noticing when a tool was lying.** Sixty times
+- **Noticing when a tool was lying.** Sixty-one times
   ([`writeup/12`](../writeup/12-instruments.md)), and **not one of them was
   caught by the tool's own self-check.** Four of those were caught inside an
   hour on 2026-09-25 by comparing a brand-new checker's output against the file
-  it was judging, which is the whole method in one sentence.
+  it was judging; a fifth by two machines disagreeing about a commit that was
+  byte-identical on both.
 
 ## Why `CLAUDE.md` is not in this repository
 

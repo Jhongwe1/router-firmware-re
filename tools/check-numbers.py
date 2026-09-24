@@ -179,9 +179,26 @@ SITES: list[tuple[str, str, str, str]] = [
 ]
 
 
+UNMEASURED: dict[str, str] = {}
+
+
 def owners(checks: int | None, pytest_n: int | None) -> dict[str, int]:
-    """Re-derive each number from the thing that owns it."""
+    """Re-derive each number from the thing that owns it.
+
+    Keys this environment cannot measure are left out and recorded in
+    UNMEASURED instead. That distinction is the whole of instrument bug 61:
+    the first version asserted `checks` everywhere, and on a GitHub runner --
+    which has no pytest and no flashrom in the job that runs this -- the
+    recount came back **468** against this workstation's **626**, so the
+    checker reported fourteen correct numbers as stale. Same direction as 57
+    through 60: inventing work.
+
+    A missing key must NOT read as "the generator is broken", because the two
+    need opposite responses -- one is a repository defect, the other is a fact
+    about where the check is running, and only the first should fail a build.
+    """
     out: dict[str, int] = {}
+    UNMEASURED.clear()
 
     stats = subprocess.run(
         [sys.executable, "tools/rtcase.py", "stats"],
@@ -220,6 +237,18 @@ def owners(checks: int | None, pytest_n: int | None) -> dict[str, int]:
             ["bash", "tools/count-checks.sh"], cwd=REPO,
             capture_output=True, text=True,
         ).stdout
+        incomplete = re.search(r"^INCOMPLETE:(.*)$", table, re.MULTILINE)
+        if incomplete:
+            # count-checks.sh could not run every suite here, so its total is
+            # a floor rather than the number. Refuse to judge the prose
+            # against it rather than judging it against a floor.
+            why = incomplete.group(1).strip()
+            for k in ("checks", "guards", "pytest"):
+                UNMEASURED[k] = (
+                    f"count-checks.sh could not run: {why}. Its total is a "
+                    f"floor here, not the count"
+                )
+            return out
         m = re.search(r"^\s*total\s+(\d+)\s*$", table, re.MULTILINE)
         p = re.search(r"fwrecon pytest\s+(\d+)", table)
         if m:
@@ -248,10 +277,14 @@ def main() -> int:
 
     wrong: list[str] = []
     missing: list[str] = []
+    skipped: set[str] = set()
     agreed = 0
     cache: dict[str, str] = {}
 
     for key, rel, pattern, what in SITES:
+        if key in UNMEASURED:
+            skipped.add(key)
+            continue
         if key not in truth:
             missing.append(f"{key}: no generator produced a value -- "
                            f"the owner is broken, not the prose")
@@ -285,6 +318,9 @@ def main() -> int:
             else:
                 agreed += 1
 
+    for key in sorted(skipped):
+        print(f"  note  {key}: not judged here -- {UNMEASURED[key]}")
+
     if missing or wrong:
         print(f"check-numbers: {len(wrong)} stale number(s), "
               f"{len(missing)} claim site(s) not found")
@@ -294,8 +330,11 @@ def main() -> int:
             print(f"  {w}")
         return 1
 
-    print(f"  ok   check-numbers: {agreed} claim(s) at {len(SITES)} sites agree with their "
-          f"generators ({', '.join(f'{k}={v}' for k, v in sorted(truth.items()))})")
+    judged = len(SITES) - sum(1 for k, _, _, _ in SITES if k in skipped)
+    print(f"  ok   check-numbers: {agreed} claim(s) at {judged} of {len(SITES)} sites agree "
+          f"with their generators "
+          f"({', '.join(f'{k}={v}' for k, v in sorted(truth.items()))})"
+          + (f"; {len(skipped)} owner(s) not measurable here" if skipped else ""))
     return 0
 
 

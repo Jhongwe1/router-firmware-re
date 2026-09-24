@@ -88,7 +88,7 @@ verify**, on page one.
 
 ```bash
 make doctor    # is this machine ready? every failure names the command that fixes it
-make ci        # 626 checks - 462 of them exist to prove the tools can refuse
+make ci        # 638 checks - 462 of them exist to prove the tools can refuse
 ```
 
 If you have five minutes and no hardware:

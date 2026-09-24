@@ -19,8 +19,8 @@ middle of a five-year, three-step vendor response to a 2015 disclosure.
 | **Device** | TOTOLINK N150RT hardware V2.0 · Realtek **RTL8196E** · big-endian MIPS-I / o32 · Boa 0.94.14rc21 **running as root** · SquashFS 4.0 |
 | **How far** | soldered UART → measured baud → boot loader → **4 MiB flash read off the chip** → six `boa` binaries read side by side → CVEs located at instruction level → full chain on the physical unit → fourteen-chapter write-up |
 | **The one result nobody else can get** | this unit's resident build, `TOTOLINK-CX-N150RT-V2.1.6-B20171121.1002`, **is on no download page**. It is the missing middle of the vendor's fix: 2015 comments out a line, 2018 deletes the backdoor binary **but keeps the uid 0 account**, 2020 finally removes the account |
-| **Tooling written for it** | a zero-dependency firmware CLI, eight headless Ghidra scripts emitting diffable JSON, a static gate, and **seven** consistency checkers pointed at this repository rather than at the router — **626 checks**, of which **496 exist to prove a tool can refuse** |
-| **Instruments of mine that were wrong** | **sixty**, all listed. **Not one was caught by the instrument's own self-check** |
+| **Tooling written for it** | a zero-dependency firmware CLI, eight headless Ghidra scripts emitting diffable JSON, a static gate, and **seven** consistency checkers pointed at this repository rather than at the router — **638 checks**, of which **508 exist to prove a tool can refuse** |
+| **Instruments of mine that were wrong** | **sixty-one**, all listed. **Not one was caught by the instrument's own self-check** |
 
 <p align="center">
   <img src="notes/img/05-pcb-top-annotated.jpg" width="680"
@@ -86,10 +86,10 @@ Not the bugs. Most of them were public before I started. The method:
   committed before the first request. Editing a prediction after a result shows
   up in `git diff`, and [`tools/rtcase.py`](tools/rtcase.py) refuses a result
   whose refutation field is empty.
-- **A tool has to be shown refusing.** 496 of the 626 checks exist only to feed
+- **A tool has to be shown refusing.** 508 of the 638 checks exist only to feed
   an instrument bad input and require it to reject it — because a check that has
   never been seen to fail is indistinguishable from no check.
-- **Sixty of my own instruments were wrong, and all of them are published**
+- **Sixty-one of my own instruments were wrong, and all of them are published**
   ([chapter 12](writeup/12-instruments.md)). Not one was caught by the
   instrument's own self-check. That chapter costs the most and is worth the most.
 - **What was *not* proved gets its own chapter**
@@ -630,7 +630,7 @@ make verify    # G0: every tool answers when called
 make fetch     # download + hash-verify the firmware (not redistributed here)
 make unpack    # carve and extract the root filesystems
 make recon     # regenerate everything under reports/
-make ci        # 626 checks — 462 of them exist to prove the tools can refuse
+make ci        # 638 checks — 462 of them exist to prove the tools can refuse
 make rtcase    # G3.75: the test register is frozen, every result carries evidence
 make ledger    # regenerate test-ledger.md from the register
 ```

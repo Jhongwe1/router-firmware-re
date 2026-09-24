@@ -31,18 +31,39 @@ VENV_PY="${FWRE_WORK:-$HOME/fwre-work}/venv/bin/python"
 [ -x "$VENV_PY" ] && PY="$VENV_PY"
 
 total=0
+silent=""
 for f in tools/test-*.sh; do
   n="$(bash "$f" 2>/dev/null | grep -oE '[0-9]+ passed' | tail -1 | grep -oE '^[0-9]+')"
-  n="${n:-0}"
+  # A suite that printed no count did not run. `${n:-0}` used to turn that into
+  # "zero checks" and add it to the total, so the number degraded silently in
+  # any environment missing a dependency - 468 on a GitHub runner against 626
+  # here, with nothing to tell the two apart. It is recorded as unmeasured now,
+  # because a tool reporting 0 is making a claim.
+  if [ -z "$n" ]; then
+    silent="$silent $(basename "$f")"
+    [ "$quiet" -eq 1 ] || printf '  %-32s %4s\n' "$(basename "$f")" "--"
+    continue
+  fi
   [ "$quiet" -eq 1 ] || printf '  %-32s %4s\n' "$(basename "$f")" "$n"
   total=$((total + n))
 done
 
 pt="$(cd tools/fwrecon && "$PY" -m pytest 2>/dev/null \
       | grep -oE '[0-9]+ passed' | tail -1 | grep -oE '^[0-9]+')"
-pt="${pt:-0}"
-[ "$quiet" -eq 1 ] || printf '  %-32s %4s\n' 'fwrecon pytest' "$pt"
+if [ -z "$pt" ]; then
+  silent="$silent fwrecon-pytest"
+  [ "$quiet" -eq 1 ] || printf '  %-32s %4s\n' 'fwrecon pytest' "--"
+  pt=0
+else
+  [ "$quiet" -eq 1 ] || printf '  %-32s %4s\n' 'fwrecon pytest' "$pt"
+fi
 total=$((total + pt))
+
+if [ -n "$silent" ]; then
+  # The marker check-numbers.py reads. It must be unambiguous and it must be on
+  # its own line, because the alternative is a checker inferring completeness.
+  echo "INCOMPLETE:$silent"
+fi
 
 if [ "$quiet" -eq 1 ]; then
   echo "$total"
@@ -50,8 +71,15 @@ else
   echo "  --------------------------------------"
   printf '  %-32s %4s\n' 'total' "$total"
   echo
-  echo "  REPRODUCE.md must quote this number. It is not checked in CI on"
-  echo "  purpose: a suite that grows should not turn the build red."
+  echo "  REPRODUCE.md quotes this number, and since 2026-09-25 CI checks that"
+  echo "  it does: tools/check-numbers.py compares the prose against this"
+  echo "  recount. The old note here said the check was omitted on purpose,"
+  echo "  because a suite that grows should not redden the build - true of"
+  echo "  asserting a CONSTANT, and not of asserting an AGREEMENT, which goes"
+  echo "  red only when the prose is stale. Where this cannot run every suite"
+  echo "  the line above says INCOMPLETE and the comparison is skipped, because"
+  echo "  a total with an unrunnable suite counted as zero is a floor, not a"
+  echo "  count - it read 468 on a GitHub runner against 626 here."
 fi
 
 # A suite that reports zero is a claim too, and it is usually a broken suite
