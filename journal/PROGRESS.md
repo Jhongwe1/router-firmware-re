@@ -8,12 +8,25 @@
 | **W04** | CVE root-cause location | **G3** | ✅ **passed** — 2026-08-11 |
 | **W04-2** | Catch-up: move the findings onto the build this unit runs | **G3.5** | ✅ **passed** — 2026-08-17 (the fifth box closed in W05) |
 | **W05 Day 0** | Pre-engagement: freeze the predictions before the first packet | **G3.75** | ✅ **passed** — 2026-08-17 |
-| **W05** | Dynamic analysis, upper half | — (DoD) | ⚠️ **4 of 5 DoD, 22 / 31 register rows** — 2026-08-17 |
-| **W06** | PoC reproduction | **G4** | ⚠️ **4 of 5 — L2 clause not met, 18 / 18 register rows** — 2026-08-17 |
-| W07 | Systematic bug hunt | — | |
-| W08 | Write-up draft | — | |
+| **W05** | Dynamic analysis, upper half | — (DoD) | ✅ **DoD 5 of 5, 27 / 27 register rows** — 2026-08-17 |
+| **W06** | PoC reproduction | **G4** | ✅ **passed 5 of 5** — 2026-08-18, clause 3 split into 3a met / 3b impossible by construction; **20 / 20 register rows** |
+| **W07** | Systematic bug hunt | — (DoD) | ✅ **58 / 58 register rows, DoD 5 of 6** — 2026-08-19; the six-build differential harness was never built and `notes/bughunt.md` says so |
+| **W08** | Write-up draft, plus the bench work W07 deferred | — (DoD) | ✅ **DoD met, 8 / 8 register rows, 0 outstanding** — 2026-08-22. The fourteen-chapter draft is written ([`writeup/`](../writeup/)); six rows were **cut with reasons** rather than run, and the last three were frozen at the desk and closed at the bench the same night — **all three `partial`**, because each carries a clause its own prediction got wrong |
 | W09 | Write-up publication | G5 | |
 | W10 | Buffer / disclosure / close-out | — | |
+
+> 📌 **This table was four days stale and the author caught it, not a check.**
+> On 2026-08-22 it still read "W05 ⚠️ 4 of 5 DoD, 22 / 31 register rows" and
+> "W06 ⚠️ 4 of 5 — L2 clause not met, 18 / 18", with W07 and W08 blank — while
+> the body of this same file recorded W05 at 5 of 5 and 27 / 27
+> (2026-08-17 close-out), G4 passing at five of five on 2026-08-18, and eleven
+> W07 and W08 sessions below it. **The numbers were never wrong where they are
+> owned** — `test-cases.toml` and `make todo` have been right throughout — and
+> that is exactly the failure mode this repository has a rule about: a summary
+> that restates state it does not own drifts silently, because nothing reads it.
+> The counts above are now quoted from `python3 tools/rtcase.py todo --week W0N`
+> rather than typed, and the fix for the general case is in **§ Corrections**
+> below rather than here.
 
 ---
 
@@ -48,7 +61,7 @@ Verified by `make verify` (Linux) and `tools\setup\setup-windows.ps1 verify`
 | 6 | Web binary | `/bin/boa`, `Boa/0.94.14rc21`, running as root |
 | 7 | Config storage | `libapmib.so` → `COMPCS` → `/web/config.dat` |
 
-Full working: [`notes/anatomy-n150rt.md`](notes/anatomy-n150rt.md)
+Full working: [`notes/anatomy-n150rt.md`](../notes/anatomy-n150rt.md)
 
 ### Delivered beyond the plan
 
@@ -174,11 +187,11 @@ decompiler raised three warnings on this function.
   absent from it. Whether the replacement repeats the substring mistake is
   **not yet known** and is W04's first task.
 
-Working: [`notes/dispatch-table.md`](notes/dispatch-table.md) ·
-[`notes/auth-flow.md`](notes/auth-flow.md) ·
-[`notes/formSysCmd-analysis.md`](notes/formSysCmd-analysis.md) ·
-[`notes/sink-inventory.md`](notes/sink-inventory.md) ·
-[`notes/skt-analysis.md`](notes/skt-analysis.md)
+Working: [`notes/dispatch-table.md`](../notes/dispatch-table.md) ·
+[`notes/auth-flow.md`](../notes/auth-flow.md) ·
+[`notes/formSysCmd-analysis.md`](../notes/formSysCmd-analysis.md) ·
+[`notes/sink-inventory.md`](../notes/sink-inventory.md) ·
+[`notes/skt-analysis.md`](../notes/skt-analysis.md)
 
 ### W01 claims that W03 overturned
 
@@ -212,7 +225,7 @@ Working: [`notes/dispatch-table.md`](notes/dispatch-table.md) ·
 
 | Item | Plan slot | Why |
 |---|---|---|
-| Ghidra GUI screenshots (3 were asked for) | Day 4 | Replaced by [`BoaListing.java`](ghidra/scripts/BoaListing.java), which emits the same listing as diffable, greppable text with resolved call targets and string literals. A screenshot cannot be re-checked by a reader or regenerated after a Ghidra upgrade. |
+| Ghidra GUI screenshots (3 were asked for) | Day 4 | Replaced by [`BoaListing.java`](../ghidra/scripts/BoaListing.java), which emits the same listing as diffable, greppable text with resolved call targets and string literals. A screenshot cannot be re-checked by a reader or regenerated after a Ghidra upgrade. |
 | Committing the decompiled C corpus | — | Decompiler output is a derivative of the vendor binary; committing all of it redistributes the firmware by another route, against this project's stated position. `ghidra/decomp/` is gitignored; excerpts are quoted in the notes with commentary. |
 | Tracing `execl` argument vectors in six handlers | Day 5 | Real work, not a quick check — `execl` needs no shell, so each one needs its argv built and read. Listed in `sink-inventory.md` §3 for W04. |
 | Reading `libapmib.so` | — | On the path of every finding this week and completely unread. W04. |
@@ -231,7 +244,7 @@ closed in the opposite direction to what W03 expected.
 | 1 | CVE-2019-19824 / `formSysCmd`: the `system()` line and why it is reachable | ✅ as a **negative result** — the handler is in neither dispatch table. W04 dates it: V2.1.2 ships **after** the last build Pierre Kim reports as vulnerable, so this reads as the vendor's fix, not a build flag |
 | 2 | CVE-2019-19822 / `config.dat`: why no auth check runs | ✅ **both builds**. 2015: the gate runs only for URIs containing `htm`. 2020: only for `.htm`, `.asp` or POST — `GET /config.dat` is outside both |
 | 3 | Backdoor account (CVE-2015-9550/9551): where the credentials are | ✅ `/etc/passwd` → `/var/passwd`, written at boot by `/bin/sysconf` from `passwd.org`. **`onlime_r` / `12345`, uid 0**, hash byte-identical to Pierre Kim's published one |
-| 4 | `auth-flow.md` complete | ✅ for both builds — [`auth-flow.md`](notes/auth-flow.md) + [`auth-flow-2020.md`](notes/auth-flow-2020.md) |
+| 4 | `auth-flow.md` complete | ✅ for both builds — [`auth-flow.md`](../notes/auth-flow.md) + [`auth-flow-2020.md`](../notes/auth-flow-2020.md) |
 | 5 | ≥ 1 CVE-2025 root-caused | ✅ **twelve of the fourteen**, and they turn out to be **three** defects |
 
 ### The findings
@@ -257,7 +270,7 @@ the parameter is *absent*, the handler runs `strcpy(p, "/status.htm")` into the
 accessor's default return value — the `""` literal in `.rodata`, which lives in
 an `R E` segment. As the code reads, that is a one-request unauthenticated crash
 of the web server on the 2015 build.
-→ [`submit-url-overflow.md`](notes/submit-url-overflow.md)
+→ [`submit-url-overflow.md`](../notes/submit-url-overflow.md)
 
 **3. The 2020 build fixed W03's hole and kept the technique that caused it.**
 Every POST now enters the gate, so the 59-handlers finding **is repaired** — that
@@ -267,20 +280,20 @@ redirect, `translate_uri` allows a POST when `strstr(uri, "boafrm")` matches, an
 `handleForm` finds its route with `strstr(uri, "/boafrm/")`. Three unanchored
 substring tests on one string. And `GET /config.dat` is still outside the gate
 entirely, in a build dated nine months after full disclosure.
-→ [`auth-flow-2020.md`](notes/auth-flow-2020.md)
+→ [`auth-flow-2020.md`](../notes/auth-flow-2020.md)
 
 **4. Every MIB id in this project now has a name.** `libapmib.so` carries a
 413-record table; `0xb6` is `USER_NAME`, `0xb7` is `USER_PASSWORD`. `config.dat`
 is a `COMPCS`-magic compressed TLV dump of that table — CVE-2019-19823 located
 rather than cited. The 2020 table has **no `AUTHG_*` entries at all**,
 independently confirming from a second file what Boa's string table implied.
-→ [`mib-and-config-dat.md`](notes/mib-and-config-dat.md)
+→ [`mib-and-config-dat.md`](../notes/mib-and-config-dat.md)
 
 **5. Two shipped private keys, found while looking for something else.**
 `/etc/privateKey.key` (V3.4.0, 2048-bit RSA, certificate **expired 2014**, CN
 `192.168.1.254` — a Realtek sample key) and `/etc/dropbear_rsa_host_key`
 (V2.1.2). Identical on every unit of the model. No CVE against this device.
-→ [`credentials.md`](notes/credentials.md)
+→ [`credentials.md`](../notes/credentials.md)
 
 ### W01 and W03 claims that W04 overturned
 
@@ -303,10 +316,10 @@ own self-check, all by comparing the two builds against each other.
 
 | | |
 |---|---|
-| [`BoaXref.java`](ghidra/scripts/BoaXref.java) | callers, callees, strings, data-reference direction, bounded reverse reachability. Exists because W03 had to write "the selector returned nothing, which is a tooling result and not an answer" |
-| [`BoaArgTrace.java`](ghidra/scripts/BoaArgTrace.java) | per-argument provenance from the decompiler's SSA form: literal, stack slot with frame offset, global, or **request parameter by name** |
-| [`BoaPlt.java`](ghidra/scripts/BoaPlt.java) | the single place that knows how a call reaches libc in an `sstrip`'d binary. Extracted after the PLT bug W03 fixed in `BoaSinks` reappeared in a re-implementation |
-| [`fwrecon mib`](tools/fwrecon/src/fwrecon/mibtable.py) | recovers the APMIB id/name table. 12 new tests, all of them about making it fail |
+| [`BoaXref.java`](../ghidra/scripts/BoaXref.java) | callers, callees, strings, data-reference direction, bounded reverse reachability. Exists because W03 had to write "the selector returned nothing, which is a tooling result and not an answer" |
+| [`BoaArgTrace.java`](../ghidra/scripts/BoaArgTrace.java) | per-argument provenance from the decompiler's SSA form: literal, stack slot with frame offset, global, or **request parameter by name** |
+| [`BoaPlt.java`](../ghidra/scripts/BoaPlt.java) | the single place that knows how a call reaches libc in an `sstrip`'d binary. Extracted after the PLT bug W03 fixed in `BoaSinks` reappeared in a re-implementation |
+| [`fwrecon mib`](../tools/fwrecon/src/fwrecon/mibtable.py) | recovers the APMIB id/name table. 12 new tests, all of them about making it fail |
 
 The `BoaArgTrace` failures, in order: two copies of one resolver that drifted
 (1 tainted site out of 304, against three W03 had already found by hand); an
@@ -314,7 +327,7 @@ The `BoaArgTrace` failures, in order: two copies of one resolver that drifted
 (86 tainted sites in 2015 versus **0** in 2020, `self_check: consistent`
 throughout); and the `sstrip`'d-PLT bug again (`strcpy`: 151 sites in 2015, 0 in
 2020). **A check that never fires never fails.** Written up in full at the end of
-[`submit-url-overflow.md`](notes/submit-url-overflow.md).
+[`submit-url-overflow.md`](../notes/submit-url-overflow.md).
 
 ### Deliberately not done in W04
 
@@ -330,7 +343,7 @@ throughout); and the `sstrip`'d-PLT bug again (`strcpy`: 151 sites in 2015, 0 in
 
 1. Which firmware build is on my unit — only a flash dump decides (W02). W02 Day 1
    adds a **prediction** from the board's date codes: around 2018, i.e. neither image
-   analysed here. See [`hardware-inspection.md`](notes/hardware-inspection.md#6-date-codes--a-prediction-written-before-the-dump).
+   analysed here. See [`hardware-inspection.md`](../notes/hardware-inspection.md#6-date-codes--a-prediction-written-before-the-dump).
 2. ~~Real flash part and size~~ → **answered in W02: Eon EN25QH32B, 32 Mbit = 4 MiB.**
 3. Fetch **V2.1.1-B20150708** and recover its `root_form[]`. One command settles
    whether `formSysCmd`'s absence from V2.1.2 is the vendor's fix or a build flag.
@@ -357,8 +370,8 @@ to it closed. G2 was worked out of order, the same way W03 was.
 |---|---|---|
 | 1 | a live bootlog, **or** a recorded fallback | ✅ captured at 38400 over a **measured** pin-out, and decoded a second time off the same wire by a logic analyser — the two transcripts byte-identical |
 | 2 | SPI dump + hash verification, **or** the vendor-firmware main path | ✅ **two** full 4 MiB reads, 105 min each, **zero chunk retries**, staged through **different RAM addresses**. `sha256 a800059a…` both times, recomputed independently of the tool that wrote them; `cmp` finds zero differing bytes |
-| 3 | dump vs vendor image compared, **or** the reason recorded | ✅ [`dump-vs-official.md`](notes/dump-vs-official.md) — and the comparison turned up a **five-year, three-step vendor remediation** that neither published image can show |
-| 4 | PCB photograph, annotated | ✅ [`notes/img/`](notes/img/) — rendered from a committed JSON spec, MAC and serial painted out with coordinates recorded |
+| 3 | dump vs vendor image compared, **or** the reason recorded | ✅ [`dump-vs-official.md`](../notes/dump-vs-official.md) — and the comparison turned up a **five-year, three-step vendor remediation** that neither published image can show |
+| 4 | PCB photograph, annotated | ✅ [`notes/img/`](../notes/img/) — rendered from a committed JSON spec, MAC and serial painted out with coordinates recorded |
 
 Achieved in the strong form of every clause, not the fallback form — and it took the
 programmer being measured and set aside, not used.
@@ -390,7 +403,7 @@ no soldering anywhere — which removes the week's largest irreversible-damage r
 before it can be taken.
 
 Full working, including the second source each reading is still waiting on:
-[`notes/hardware-inspection.md`](notes/hardware-inspection.md)
+[`notes/hardware-inspection.md`](../notes/hardware-inspection.md)
 
 ### W01's flash derivation, confirmed by silicon
 
@@ -408,7 +421,7 @@ claim about the physical world, and the physical world agreed.
 
 | Plan said | The board says |
 |---|---|
-| SoC **RTL8196C** | **RTL8196E.** Commonly documented with a different core (RLX5281, against the C's Lexra RLX4181), which bears directly on W01's "MIPS-I" reading — falsifiable test in [`hardware-inspection.md`](notes/hardware-inspection.md#2-soc--rtl8196e-and-what-that-does-to-w01s-mips-i) §2 |
+| SoC **RTL8196C** | **RTL8196E.** Commonly documented with a different core (RLX5281, against the C's Lexra RLX4181), which bears directly on W01's "MIPS-I" reading — falsifiable test in [`hardware-inspection.md`](../notes/hardware-inspection.md#2-soc--rtl8196e-and-what-that-does-to-w01s-mips-i) §2 |
 | **2 MB** SPI NOR | **4 MiB** — and W01 had already shown 2 MB impossible from the firmware alone |
 | **16 MB** RAM | **32 MiB fitted.** *Fitted* is not *usable*; the kernel banner decides the second number, and the two are recorded separately |
 | Wi-Fi **RTL8188RE** | **RTL8188ER** |
@@ -429,15 +442,15 @@ table should say so rather than imply a check that did not happen.
 
 ### G2 checkbox 4 met: the annotated PCB photograph
 
-Photographs are in [`notes/img/`](notes/img/), and getting them there took two new
+Photographs are in [`notes/img/`](../notes/img/), and getting them there took two new
 instruments — because the alternative was an image editor, which produces a file
 nobody can check, diff, or regenerate. That is the same objection W03 raised against
 Ghidra screenshots, and it gets the same answer.
 
 | | |
 |---|---|
-| [`tools/redact-photo.py`](tools/redact-photo.py) | Paints out the unit's MAC barcode and serial QR. Solid fill, never blur — a blur is a reversible transform on a known font. Drops EXIF, which carries GPS and a device id that survive every *visual* redaction. Verifies its own work by reading the written file back off disk |
-| [`tools/annotate-photo.py`](tools/annotate-photo.py) | Renders the callouts from [`notes/img/pcb-top-annotations.json`](notes/img/pcb-top-annotations.json), so a moved box appears in `git diff` as a changed number. The legend is drawn in a strip *below* the frame, never over it, so no annotation can hide the evidence it describes |
+| [`tools/redact-photo.py`](../tools/redact-photo.py) | Paints out the unit's MAC barcode and serial QR. Solid fill, never blur — a blur is a reversible transform on a known font. Drops EXIF, which carries GPS and a device id that survive every *visual* redaction. Verifies its own work by reading the written file back off disk |
+| [`tools/annotate-photo.py`](../tools/annotate-photo.py) | Renders the callouts from [`notes/img/pcb-top-annotations.json`](../notes/img/pcb-top-annotations.json), so a moved box appears in `git diff` as a changed number. The legend is drawn in a strip *below* the frame, never over it, so no annotation can hide the evidence it describes |
 
 **Both were wrong on the first run, and neither noticed.**
 
@@ -482,7 +495,7 @@ dead, voltage with it live — except RX, which is inferred by elimination and h
 never been driven. **The baud was measured, not tried:** narrowest pulse 26 µs,
 and a second pulse at exactly 52 µs proves 26 is one bit and not two. The nearest
 wrong answer, 19200, has a 52.08 µs bit time.
-→ [`uart-pinout.md`](notes/uart-pinout.md)
+→ [`uart-pinout.md`](../notes/uart-pinout.md)
 
 **There is no shell on the console.** Sending `\r` gets perfect echo and nothing
 else — that is the tty line discipline, which echoes whether or not a process is
@@ -518,7 +531,7 @@ Those claims are not wrong; the repository has always named its images. **They d
 not cover this device**, and anything demonstrated against this hardware in
 W05/W06 tests a third binary. That makes the flash dump worth more than a
 checkbox.
-→ [`uart-findings.md`](notes/uart-findings.md)
+→ [`uart-findings.md`](../notes/uart-findings.md)
 
 #### RTL8196E: a third source, and the dissenter disqualified
 
@@ -558,7 +571,7 @@ rather than XZ like 2020, and smaller than either.
 reads `0x80AD1C00`; byte-reversed that is 1,879,424 against a `bytes_used` of
 1,876,033 — the same relationship, on a build made by someone else on another day.
 **Three builds carry it.**
-→ [`flash-layout.md`](notes/flash-layout.md)
+→ [`flash-layout.md`](../notes/flash-layout.md)
 
 #### The config region located — this unblocks W04
 
@@ -673,10 +686,10 @@ executed. The pin accepts input and the board acts on it.
 
 | | |
 |---|---|
-| [`tools/console-dump.py`](tools/console-dump.py) | `FLR`+`DB` driven over the console with a positive control, per-chunk validation, automatic re-read, sampled second-pass verification, and **no output file unless every chunk validated**. Serial on stdlib `termios` only |
-| [`tools/flash-read.sh`](tools/flash-read.sh) | the CH341A path for when the programmer works: read-only by construction, JEDEC id checked against a written-down prediction, screening for the ways a clip lies |
-| [`fwrecon flashdump`](tools/fwrecon/src/fwrecon/flashdump.py) | checks a raw image against expectations recorded **before it existed** — W01's derived burn addresses and the 2026-08-15 console windows. Per-unit secret regions are reported by digest and never printed. 11 tests |
-| [`tools/test-console-dump.sh`](tools/test-console-dump.sh) · [`tools/test-flash-tools.sh`](tools/test-flash-tools.sh) | guard suites that need no hardware |
+| [`tools/console-dump.py`](../tools/console-dump.py) | `FLR`+`DB` driven over the console with a positive control, per-chunk validation, automatic re-read, sampled second-pass verification, and **no output file unless every chunk validated**. Serial on stdlib `termios` only |
+| [`tools/flash-read.sh`](../tools/flash-read.sh) | the CH341A path for when the programmer works: read-only by construction, JEDEC id checked against a written-down prediction, screening for the ways a clip lies |
+| [`fwrecon flashdump`](../tools/fwrecon/src/fwrecon/flashdump.py) | checks a raw image against expectations recorded **before it existed** — W01's derived burn addresses and the 2026-08-15 console windows. Per-unit secret regions are reported by digest and never printed. 11 tests |
+| [`tools/test-console-dump.sh`](../tools/test-console-dump.sh) · [`tools/test-flash-tools.sh`](../tools/test-flash-tools.sh) | guard suites that need no hardware |
 
 **7. The interrupt technique poisons its own next command.** Catching the boot
 loader means *streaming* ESC, because the window is a second wide. The loader
@@ -755,9 +768,9 @@ says `boa: server built Jan 10 2018 at 14:57:54`. V2.1.2's is 522,556 and
 V3.4.0's is 404,904. **The most-analysed binary in this repository is still not
 this one** — but it is now extracted, hashed, and available to be read.
 
-→ [`dump-vs-official.md`](notes/dump-vs-official.md) ·
-[`reports/flashdump-unit-2018.json`](reports/flashdump-unit-2018.json) ·
-[`reports/n150rt-unit-2018.md`](reports/n150rt-unit-2018.md)
+→ [`dump-vs-official.md`](../notes/dump-vs-official.md) ·
+[`reports/flashdump-unit-2018.json`](../reports/flashdump-unit-2018.json) ·
+[`reports/n150rt-unit-2018.md`](../reports/n150rt-unit-2018.md)
 
 > ⚠️ **A second independent instrument still has not read this chip.** The
 > 2026-08-15 windows used the same `FLR`+`DB` path, so agreeing with them is
@@ -779,7 +792,7 @@ this one** — but it is now extracted, hashed, and available to be read.
 | `LWL`/`LWR`/`SWL`/`SWR` census in `/bin/boa` | Needs a Ghidra mnemonic histogram that does not exist yet. Recorded as a hypothesis, not claimed as a result |
 | Looking up the MAC's OUI | Moot: the flash's `H601` block confirmed the barcode is the MAC directly, without anyone having to handle the value against a public database |
 | Running the device on a network | Nothing has been connected to any port. W05's problem |
-| **`notes/hardware-chapter.md`** — the plan's Day 5 deliverable | It would be a fifth copy of material that already exists in [`hardware-inspection.md`](notes/hardware-inspection.md), [`uart-pinout.md`](notes/uart-pinout.md), [`uart-findings.md`](notes/uart-findings.md), [`flash-layout.md`](notes/flash-layout.md) and [`dump-vs-official.md`](notes/dump-vs-official.md) — and a summary written now goes stale the moment W05 touches the hardware again. **A writeup chapter is W08's job**, and it should be written from the notes rather than alongside them. Recorded as a decision so a later session finds one instead of an oversight |
+| **`notes/hardware-chapter.md`** — the plan's Day 5 deliverable | It would be a fifth copy of material that already exists in [`hardware-inspection.md`](../notes/hardware-inspection.md), [`uart-pinout.md`](../notes/uart-pinout.md), [`uart-findings.md`](../notes/uart-findings.md), [`flash-layout.md`](../notes/flash-layout.md) and [`dump-vs-official.md`](../notes/dump-vs-official.md) — and a summary written now goes stale the moment W05 touches the hardware again. **A writeup chapter is W08's job**, and it should be written from the notes rather than alongside them. Recorded as a decision so a later session finds one instead of an oversight |
 | Extracting and decoding the config region | The plan's Day 5 asked for `strings` over a config partition it expected at `0x1F0000` on a 2 MB part. The real one is `COMPCS` at `0x00C000`, it is compressed, and it is now in hand — but decoding it is W04's deferred item, not a G2 box |
 
 ### Open, carried forward
@@ -827,8 +840,8 @@ this repository described two images this device has never executed.
 | # | Required | Result |
 |---|---|---|
 | 1 | `root_form[]` + sink census for every build, each carrying its input's SHA-256 | ✅ three builds, `tools/check-reports.py` green |
-| 2 | `notes/auth-flow-2018.md`, key branch confirmed at instruction level | ✅ [`auth-flow-2018.md`](notes/auth-flow-2018.md) — the decompiler raised three warnings, so every branch was read from `BoaListing` output first |
-| 3 | `COMPDS` decoded, `TELNET_ENABLED`/`SSH_ENABLED` answered with a second source | ✅ [`compcs-decode.md`](notes/compcs-decode.md) — `TELNET_ENABLED = 0`, confirmed by the code that reads it |
+| 2 | `notes/auth-flow-2018.md`, key branch confirmed at instruction level | ✅ [`auth-flow-2018.md`](../notes/auth-flow-2018.md) — the decompiler raised three warnings, so every branch was read from `BoaListing` output first |
+| 3 | `COMPDS` decoded, `TELNET_ENABLED`/`SSH_ENABLED` answered with a second source | ✅ [`compcs-decode.md`](../notes/compcs-decode.md) — `TELNET_ENABLED = 0`, confirmed by the code that reads it |
 | 4 | G4's target chosen **from evidence** | ✅ `POST /boafrm/formSysCmd`, `sysCmd` → `system()`, and the gate does not run on that URI |
 | 5 | Recovery path rehearsed — `FLW` write → read-back → erase | ❌ **not done.** Hardware. See *Deliberately not done* |
 
@@ -875,7 +888,7 @@ if (*cmd != '\0') {
 > derivation from the binary of a claim disclosed in 2024**, not a discovery.
 > `notes/prior-art.md` had no 2024 entries at all; that gap, and the change that
 > follows from it, are recorded in
-> [`prior-art.md`](notes/prior-art.md#2024--cve-2024-51228-and-the-gap-that-let-it-be-missed).
+> [`prior-art.md`](../notes/prior-art.md#2024--cve-2024-51228-and-the-gap-that-let-it-be-missed).
 >
 > **What survives as this project's own contribution is narrower and checkable:**
 > NVD scores it `AV:A/AC:L/**PR:H**/UI:N/S:U/C:H/I:H/A:H` = 6.8 MEDIUM, while
@@ -948,7 +961,7 @@ daemon to start.
 
 ### A build gate, and the control that caught it being broken
 
-[`BoaGate.java`](ghidra/scripts/BoaGate.java) — R1 unbounded write from a request
+[`BoaGate.java`](../ghidra/scripts/BoaGate.java) — R1 unbounded write from a request
 parameter, R2 request parameter reaching `system()`/`popen()`, R3 request
 parameter into a fixed-size global.
 
@@ -968,7 +981,7 @@ in **all three** builds, which appears in none of W04's findings.
 
 ### The `lwl` census, and why "none" would have proved nothing
 
-[`BoaMnemonics.java`](ghidra/scripts/BoaMnemonics.java) emits three numbers, not
+[`BoaMnemonics.java`](../ghidra/scripts/BoaMnemonics.java) emits three numbers, not
 one.
 
 | | 2.1.2 | unit-2018 | 3.4.0 | 2018 busybox |
@@ -1007,11 +1020,11 @@ from — the finding above supplies one.
 
 | | |
 |---|---|
-| [`BoaMnemonics.java`](ghidra/scripts/BoaMnemonics.java) | mnemonic histogram, coprocessor-2/3 census, undecoded-byte count. Ships the *reading* alongside the number because the number points the wrong way half the time |
-| [`BoaGate.java`](ghidra/scripts/BoaGate.java) | three rules as a build gate, with a positive control that fails the run if a build known to be defective produces fewer than N findings |
-| [`fwrecon compcs`](tools/fwrecon/src/fwrecon/compcs.py) | the config decoder W04 deferred. 18 tests, most of them about making it fail |
-| [`fwrecon web`](tools/fwrecon/src/fwrecon/webbundle.py) | the `w6cg` bundle parser W01 left open. No checksum and no entry count exist in the format, so the check is structural: every stride is `64 + length`, and the walk either lands on the last byte or it does not. `exact` on all three builds; a test moves the length field to a plausible wrong offset and asserts it derails |
-| [`tools/zipprefix.py`](tools/zipprefix.py) | truncated-archive recovery that refuses to write an unverified payload, and does not launder the exit code when `--allow-partial` permits the write |
+| [`BoaMnemonics.java`](../ghidra/scripts/BoaMnemonics.java) | mnemonic histogram, coprocessor-2/3 census, undecoded-byte count. Ships the *reading* alongside the number because the number points the wrong way half the time |
+| [`BoaGate.java`](../ghidra/scripts/BoaGate.java) | three rules as a build gate, with a positive control that fails the run if a build known to be defective produces fewer than N findings |
+| [`fwrecon compcs`](../tools/fwrecon/src/fwrecon/compcs.py) | the config decoder W04 deferred. 18 tests, most of them about making it fail |
+| [`fwrecon web`](../tools/fwrecon/src/fwrecon/webbundle.py) | the `w6cg` bundle parser W01 left open. No checksum and no entry count exist in the format, so the check is structural: every stride is `64 + length`, and the walk either lands on the last byte or it does not. `exact` on all three builds; a test moves the length field to a plausible wrong offset and asserts it derails |
+| [`tools/zipprefix.py`](../tools/zipprefix.py) | truncated-archive recovery that refuses to write an unverified payload, and does not launder the exit code when `--allow-partial` permits the write |
 
 **10. `BoaArgTrace` counted its unmeasured rows without naming them.** The report
 said "3 rows are unmeasured" and gave no way to find them, so in practice the
@@ -1079,7 +1092,7 @@ repair is one commit and the habit is not.
 
 0. **Re-download the published V2.1.6. The success criterion is written down in
    advance: `CRC-32 == 0xd20c0622`**, read out of the archive's own local file
-   header, and [`tools/zipprefix.py`](tools/zipprefix.py) fails non-zero until it
+   header, and [`tools/zipprefix.py`](../tools/zipprefix.py) fails non-zero until it
    matches. Obtained in a browser on 2026-08-16 and **the download is 40.3%
    complete** — 1,390,332 bytes of a declared 3,447,222, no central directory,
    `unzip` rejects it outright, which reads as *corrupt* and means *truncated*.
@@ -1088,7 +1101,7 @@ repair is one commit and the habit is not.
    986,114/986,114, the latter's inner LZMA reaching `eof` at 3,374,608 bytes.
    Only the rootfs is cut, so what is missing is `/etc/version` and `boa` and
    nothing else. Procedure in [`RUNBOOK.md` §8.8.4](RUNBOOK.md), provenance in
-   [`firmware/SOURCES.json`](firmware/SOURCES.json).
+   [`firmware/SOURCES.json`](../firmware/SOURCES.json).
 
 1. ~~**Is the published V2.1.6 this build?**~~ → **answered: no.** The published
    image is `TOTOLINK-N150RT-V2.1.6-**B20160516**.1233.web`; this unit runs
@@ -1118,7 +1131,7 @@ repair is one commit and the habit is not.
    hardware in W02. **The ceiling is unchanged: TOTOLINK signs nothing**, so this
    raises the cost of a forgery from renaming a file to rebuilding a kernel, and
    no further. Full working in
-   [`dump-vs-official.md` §2.1](notes/dump-vs-official.md).
+   [`dump-vs-official.md` §2.1](../notes/dump-vs-official.md).
 
    What is still established only weakly:
 
@@ -1145,7 +1158,7 @@ repair is one commit and the habit is not.
 
 2. **CVE-2024-51228 was missed for two weeks by a survey that had the build
    string in hand.** The literature review is now fixed
-   ([`prior-art.md`](notes/prior-art.md#2024--cve-2024-51228-and-the-gap-that-let-it-be-missed)),
+   ([`prior-art.md`](../notes/prior-art.md#2024--cve-2024-51228-and-the-gap-that-let-it-be-missed)),
    but the open item is the CVSS discrepancy: NVD scores `PR:H`, the original
    researcher says "without credentials", and the binary agrees with the
    researcher. **Settling it is a G4 deliverable**, and it is worth nothing until
@@ -1179,10 +1192,10 @@ repair is one commit and the habit is not.
    explained.** `syscmd.htm` ships in 2015 and 2016 (byte-identical) while
    `formSysCmd` is absent from `root_form[]`; in 2018 the page is gone and the
    route is registered at `0x004838a8`
-   ([`w6cg-web-ui.md`](notes/w6cg-web-ui.md), entry lists in
-   [`webbundle-2.1.2.json`](reports/webbundle-2.1.2.json),
-   [`webbundle-2.1.6-b20160516.json`](reports/webbundle-2.1.6-b20160516.json),
-   [`webbundle-unit-2018.json`](reports/webbundle-unit-2018.json)).
+   ([`w6cg-web-ui.md`](../notes/w6cg-web-ui.md), entry lists in
+   [`webbundle-2.1.2.json`](../reports/webbundle-2.1.2.json),
+   [`webbundle-2.1.6-b20160516.json`](../reports/webbundle-2.1.6-b20160516.json),
+   [`webbundle-unit-2018.json`](../reports/webbundle-unit-2018.json)).
    The 2015 state is explained — a
    partial fix answering Pierre Kim's disclosure, of a piece with `#skt&` and
    `onlime_r`. **The 2018 state is not: something put the route back three years
@@ -1208,7 +1221,7 @@ no mechanism for recording what each one predicted before it ran.
 | 2 | isolation verified — two MACs on the segment, WAN on a fake upstream | ❌ needs the bench |
 | 3 | IoC pre-check — live config against this unit's own factory baseline, plus the ports known botnets leave behind | ❌ needs the device. **Criterion written in advance: the difference stays at 4 of 344 entries** |
 | 4 | the prediction ledger frozen before any request | ✅ [`test-ledger.md`](test-ledger.md) — 130 tests, 102 with a written refutation condition, freeze `69c342dc…`, schedule `d68ace7d…` |
-| 5 | the disclosure register written | ✅ [`docs/disclosure.md`](docs/disclosure.md) — eight candidates, and the rule that decides what is publishable |
+| 5 | the disclosure register written | ✅ [`docs/disclosure.md`](../docs/disclosure.md) — eight candidates, and the rule that decides what is publishable |
 
 > ⚠️ **G3.75 is not passed.** Box 3 in particular is not a formality: this model
 > is named in public botnet tooling, and a unit that is already someone else's
@@ -1247,8 +1260,8 @@ the start of a week, and `CLAUDE.md` now says so in those words.
 
 ### The instrument
 
-[`tools/rtcase.py`](tools/rtcase.py) — the register is
-[`test-cases.toml`](test-cases.toml), the ledger is generated from
+[`tools/rtcase.py`](../tools/rtcase.py) — the register is
+[`test-cases.toml`](../test-cases.toml), the ledger is generated from
 it, and `rtcase check` is a CI gate. What it refuses:
 
 | refusal | why it exists |
@@ -1265,7 +1278,7 @@ shows it as two deliberate lines. This is not tamper-proofing — the author hol
 the key. It is the difference between a change that is visible and one that is
 not.
 
-**And the gate is proved able to fail.** [`tools/test-rtcase.sh`](tools/test-rtcase.sh)
+**And the gate is proved able to fail.** [`tools/test-rtcase.sh`](../tools/test-rtcase.sh)
 drives 22 cases: one control that must pass, and 21 that must be rejected *and
 rejected for the stated reason* — checking the exit code alone would let a case
 pass on an unrelated failure. `make ci` runs both, and so does CI. Writing that
@@ -1279,7 +1292,7 @@ disappearing from it. Grouped:
 
 | | |
 |---|---|
-| **post-exploitation tradecraft** — the 60-second rule, credential harvesting on a live host, lateral movement / DNS / WAN-management changes, anti-forensics, weaken-to-persist | None produces a checkable fact about this device. The credentials they would collect are **already decoded from flash** ([`compcs-decode.md`](notes/compcs-decode.md)); collecting them again on a live shell learns nothing and produces a copy that should not exist. Anti-forensics and weaken-to-persist exist to make a compromised device read as a badly configured one — the opposite of what a write-up is for |
+| **post-exploitation tradecraft** — the 60-second rule, credential harvesting on a live host, lateral movement / DNS / WAN-management changes, anti-forensics, weaken-to-persist | None produces a checkable fact about this device. The credentials they would collect are **already decoded from flash** ([`compcs-decode.md`](../notes/compcs-decode.md)); collecting them again on a live shell learns nothing and produces a copy that should not exist. Anti-forensics and weaken-to-persist exist to make a compromised device read as a badly configured one — the opposite of what a write-up is for |
 | **downgrading the unit to reinstall the 2015 backdoor** | Irreversible, and its purpose is to put a known backdoor back into a device that no longer has it. The property it would demonstrate — no firmware signature, no anti-rollback — is already established statically, and reflashing does not make it truer |
 | **social engineering an administrator into handing over the device** | The target is a person, not the device. There is no administrator in this lab, so in this environment the test is not falsifiable at all |
 | **evil twin, and broadcast wireless DoS** | Both radiate into third-party equipment by construction. Targeted wireless work against this unit's own SSID and this lab's own client stays in, with the constraint written on the case |
@@ -1297,12 +1310,12 @@ down what would refute them.
 
 1. **The boot-script survey of configuration values reaching a shell exists in
    no committed artefact.** `rcS` was reviewed
-   ([`skt-analysis.md`](notes/skt-analysis.md),
-   [`credentials.md`](notes/credentials.md)), but the `/bin/*.sh` interpolation
+   ([`skt-analysis.md`](../notes/skt-analysis.md),
+   [`credentials.md`](../notes/credentials.md)), but the `/bin/*.sh` interpolation
    census that the persistence line depends on was never written up. Recorded as
    a **partial** result rather than a pass, which is what the ledger is for.
 2. **"This unit has no `nc` and no `tftp`" is not established.** The 55-binary
-   inventory in [`n150rt-unit-2018.json`](reports/n150rt-unit-2018.json) counts
+   inventory in [`n150rt-unit-2018.json`](../reports/n150rt-unit-2018.json) counts
    ELF files; busybox applets are symlinks and would not appear in it. The claim
    may well be true — it is now a *prediction*, with a refutation naming exactly
    what a hit would mean.
@@ -1320,8 +1333,8 @@ down what would refute them.
    **`UPNP_ENABLED` is `1`**, in the live config and in the factory default. So
    the expectation flips to *UPnP is listening*, and CVE-2014-8361,
    CVE-2021-35392 and CVE-2021-35393 come back onto the W07 list. Corrected at
-   source in [`attack-surface.md`](notes/attack-surface.md) and
-   [`cve-status.md`](notes/cve-status.md).
+   source in [`attack-surface.md`](../notes/attack-surface.md) and
+   [`cve-status.md`](../notes/cve-status.md).
 
    Three things worth separating here. **The instrument was not wrong** —
    `fwrecon` says "disabled only by commenting out their init line", which is
@@ -1350,7 +1363,7 @@ recorded after the observation is not a prediction.
 | **G3.75 boxes 1–3** | Hardware, console, and a person. They run as W05's first session, in one seating, exactly as decided on 2026-08-16 for G3.5 #5 |
 | **Refutation conditions for 21 of the scheduled cases** | Mostly Phase 6–8, which run in W07. Writing a refutation for a test whose preconditions are unknown produces a sentence, not a condition. `rtcase check` will not accept a result for any of them, and the ledger prints the list per phase, so the gap cannot go quiet |
 | **`poc/`** | G4's deliverable, and it stays absent until something has been demonstrated. An empty directory with a plan in it reads as work done |
-| **Reporting anything to TWCERT/CC** | Unchanged. Everything is still static. [`docs/disclosure.md`](docs/disclosure.md) now records what the queue would contain and what has to happen first |
+| **Reporting anything to TWCERT/CC** | Unchanged. Everything is still static. [`docs/disclosure.md`](../docs/disclosure.md) now records what the queue would contain and what has to happen first |
 
 ### Open, carried forward
 
@@ -1419,8 +1432,8 @@ ask about, in *Open, carried forward* #17.
 |---|---|---|
 | 1 | a prediction scorecard committed **before** testing, then scored | ✅ frozen in W05 Day 0; **27 of 27 scored** — 16 confirmed, 5 refuted, 6 partial |
 | 2 | one dynamic path standing up | ✅ **two**: the device on an isolated segment, and the emulator |
-| 3 | [`notes/emulation-2018.md`](notes/emulation-2018.md) — what was faked and whether it distorts | ✅ |
-| 4 | [`notes/oracle-design.md`](notes/oracle-design.md), ≥ 1 oracle rehearsed under emulation | ✅ **four of five** |
+| 3 | [`notes/emulation-2018.md`](../notes/emulation-2018.md) — what was faked and whether it distorts | ✅ |
+| 4 | [`notes/oracle-design.md`](../notes/oracle-design.md), ≥ 1 oracle rehearsed under emulation | ✅ **four of five** |
 | 5 | W06's target with its three conditions | ✅ **all three.** (b) closed in the afternoon: an unauthenticated `POST /boafrm/formSysCmd` carrying only `submit-url` answers `302 -> status.htm` in 10 ms. **Nothing was injected, and the handler's own guard proves nothing ran** — W04-2's decompilation shows `if (*cmd != '\0')` around the `system()` call, and `sysCmd` was absent |
 
 **The register reads 27, not 31.** Four cases scheduled W05 were ones this
@@ -1461,7 +1474,7 @@ own binaries.**
 
 | | |
 |---|---|
-| `fwrecon web` | `flash extr /web` — the device's own extractor — writes **143 files** and every one's SHA-256 matches [`webbundle-unit-2018.json`](reports/webbundle-unit-2018.json). The format has no checksum and no entry count, so until today the parser's only check was structural |
+| `fwrecon web` | `flash extr /web` — the device's own extractor — writes **143 files** and every one's SHA-256 matches [`webbundle-unit-2018.json`](../reports/webbundle-unit-2018.json). The format has no checksum and no entry count, so until today the parser's only check was structural |
 | `fwrecon compcs` | `flash all` emits 2,317 MIB lines; 316 names appear in both. **249 identical**, 66 explained by exactly four rendering rules *by a script that exits non-zero if any difference is left over*, **1 unexplained** |
 
 Not one of the 66 is a disagreement about a **value**. Two of the four rules are
@@ -1583,10 +1596,10 @@ been read** — and it is recorded as a lead, not a result.
 
 | | |
 |---|---|
-| [`tools/qemu-env.sh`](tools/qemu-env.sh) | builds the chroot from this unit's rootfs and its own flash image, with a **positive control of three known values** and a `diff` that checks the `H601` checksum still balances. Every set-up step is copied from `rcS` or from `sysconf`'s own string table, and the file says which |
-| [`tools/test-qemu-env.sh`](tools/test-qemu-env.sh) | 14 cases. Five need neither root nor the dump and run in CI |
-| [`tools/bench-probe.py`](tools/bench-probe.py) | the network round. Refuses a POST to `/boafrm/*` without `submit-url`, refuses shell metacharacters, re-runs its control every 10–20 requests, and takes the endpoint list from the committed Ghidra report rather than from a hardcoded copy |
-| [`tools/test-bench-probe.sh`](tools/test-bench-probe.sh) | 8 cases, including a real HTTP server as the control |
+| [`tools/qemu-env.sh`](../tools/qemu-env.sh) | builds the chroot from this unit's rootfs and its own flash image, with a **positive control of three known values** and a `diff` that checks the `H601` checksum still balances. Every set-up step is copied from `rcS` or from `sysconf`'s own string table, and the file says which |
+| [`tools/test-qemu-env.sh`](../tools/test-qemu-env.sh) | 14 cases. Five need neither root nor the dump and run in CI |
+| [`tools/bench-probe.py`](../tools/bench-probe.py) | the network round. Refuses a POST to `/boafrm/*` without `submit-url`, refuses shell metacharacters, re-runs its control every 10–20 requests, and takes the endpoint list from the committed Ghidra report rather than from a hardcoded copy |
+| [`tools/test-bench-probe.sh`](../tools/test-bench-probe.sh) | 8 cases, including a real HTTP server as the control |
 | `rtcase` `emulated` | a third evidence grade. **🟪, and it never renders as ✅.** `test-rtcase.sh` goes 22 → 27 cases, three of them about exactly that |
 
 ### Instrument bugs 13 through 17
@@ -1951,20 +1964,20 @@ Done.` — and at **`0x0012F0` there is an LZMA-alone stream, 17,334 bytes in an
 56,592 out**, holding the command interpreter, the TFTP client, the SPI chip
 table and the whole help text.
 
-[`tools/loader-unpack.py`](tools/loader-unpack.py) recovers it and **refuses to
+[`tools/loader-unpack.py`](../tools/loader-unpack.py) recovers it and **refuses to
 write a report** unless exactly one stream is found in the region, the declared
 output size matches, the help banner is present, and all seventeen commands the
 console's own `?` prints are found by the same scan that reports absences. That
 last one is the whole design: this report's headline result *is* an absence.
 
 It also traces `chipName: UNKNOWN`, which
-[`notes/uart-findings.md`](notes/uart-findings.md) recorded as explicitly
+[`notes/uart-findings.md`](../notes/uart-findings.md) recorded as explicitly
 unconfirmed. **One of its three halves now holds and two still do not.** The
 loader's chip table carries Eon parts only as `F` and `Q` families — no `QH` —
 and `UNKNOWN` is the table's last entry. The *fallback behaviour* is a claim
 about code and this is a string scan; and **which** chip it failed to identify
 is still unknown, because the JEDEC ID has never been read
-([`notes/hardware-inspection.md`](notes/hardware-inspection.md) still lists it
+([`notes/hardware-inspection.md`](../notes/hardware-inspection.md) still lists it
 as outstanding). The silkscreen remains the only source for the part number.
 
 ### `P9-1` — refuted, and refuted without spending a boot cycle
@@ -2011,7 +2024,7 @@ exercised.
 ### `P1-12` — 38.76 s, and the margin is the finding
 
 From the first console character to the first HTTP 200, measured by
-[`tools/coldboot-timing.sh`](tools/coldboot-timing.sh) with both halves stamped
+[`tools/coldboot-timing.sh`](../tools/coldboot-timing.sh) with both halves stamped
 by one clock. `boa: starting server pid=350, port 80` lands at **+32.50 s and
 the first 200 at +38.76 s** — six and a quarter seconds during which the server
 has announced itself and answers nobody.
@@ -2054,7 +2067,7 @@ reason is one line: **the exemption and the file lookup read the same normalised
 path.** `/password.htm?x=status.htm` stays `302` because the query is not part
 of it; `/password.htm;status.htm` becomes `404` because it *is* exempt and there
 is no such file. X-3 does not stand — for that reason, not the recorded one.
-Full working in [`notes/auth-flow-2018.md`](notes/auth-flow-2018.md).
+Full working in [`notes/auth-flow-2018.md`](../notes/auth-flow-2018.md).
 
 ### `P1-4` — partial, and it took the web server down twice
 
@@ -2146,12 +2159,12 @@ power lost mid-cycle costs the whole 4 KiB, not eight bytes.
 
 | | |
 |---|---|
-| [`tools/loader-unpack.py`](tools/loader-unpack.py) | unpacks the loader's LZMA stage 2 from a flash dump. Refuses on: no stream, more than one stream, a size that does not match, a missing help banner, or any of the seventeen commands not found. `tools/test-loader-unpack.sh`, 7 cases, needs no dump |
+| [`tools/loader-unpack.py`](../tools/loader-unpack.py) | unpacks the loader's LZMA stage 2 from a flash dump. Refuses on: no stream, more than one stream, a size that does not match, a missing help banner, or any of the seventeen commands not found. `tools/test-loader-unpack.sh`, 7 cases, needs no dump |
 | `console-dump.py rescue` | the one write this reader is allowed to make. It can emit **only** `AUTOBURN 0` — no flag turns it on and the string does not exist in the file — and it asserts the reply before touching the network |
 | `bench-probe` refusal list | thirteen handlers refused **by name with a reason each**, the skipped names recorded in the transcript's first record, overridable only by a second flag that is also recorded |
 | `bench-probe writes` | answers `P3-13` with GET, so no handler runs. Its classifier is reported as the proxy it is — splitting on "reaches a process-spawning sink" calls `formPasswordSetup` quiet — so it also probes the three endpoints the test's own text names, and refuses to run if the table lacks them |
 | `rtcase` `[schedule].sha256` | a week may move and may not move quietly. `rescheduled_from` + reason + date required, hash re-declared in the same commit. `test-rtcase.sh` 27 to 33 cases |
-| [`tools/coldboot-timing.sh`](tools/coldboot-timing.sh) | one power cycle feeding `P1-12`, `P9-1`'s dynamic half and a timestamped boot log, both clocks the same clock |
+| [`tools/coldboot-timing.sh`](../tools/coldboot-timing.sh) | one power cycle feeding `P1-12`, `P9-1`'s dynamic half and a timestamped boot log, both clocks the same clock |
 
 ### Instrument bugs 18 through 21
 
@@ -2228,7 +2241,7 @@ W04-2's list stands except #20, answered above. From the morning: #16, #17
     `formWlanRedirect2` resolves to no function at all: the string is in
     `.rodata`, nothing references it, and the device answers it exactly like an
     absent name. Every count derived from 57 / 59 / 49 since W03 can stand.
-    [`reports/ghidra-xref-unit-2018-redirects.json`](reports/ghidra-xref-unit-2018-redirects.json)
+    [`reports/ghidra-xref-unit-2018-redirects.json`](../reports/ghidra-xref-unit-2018-redirects.json)
     — whose `self_check` reads `SUSPECT` **by design**, because two selectors
     resolved to nothing and one of them is the negative control.
 27. **The boot loader's TFTP serves memory to a read request for any name.**
@@ -2519,10 +2532,10 @@ distinct naming beside the silicon ID's `8196E` and the Ethernet driver's
 
 | | |
 |---|---|
-| [`tools/console-write.py`](tools/console-write.py) | The flash **writer**, which did not exist this morning although `runsheet.md` A2.6 had specified it. An allow-list of two ranges — the drill sector and the config region — so the boot loader and `H601` are unreachable by construction. Positive control before every run, staged RAM read back before every `FLW`, and the written range read into a third address afterwards |
-| [`tools/test-console-write.sh`](tools/test-console-write.sh) | 28 cases. First run: 19 passed, 6 failed, and all six were real |
+| [`tools/console-write.py`](../tools/console-write.py) | The flash **writer**, which did not exist this morning although `runsheet.md` A2.6 had specified it. An allow-list of two ranges — the drill sector and the config region — so the boot loader and `H601` are unreachable by construction. Positive control before every run, staged RAM read back before every `FLW`, and the written range read into a third address afterwards |
+| [`tools/test-console-write.sh`](../tools/test-console-write.sh) | 28 cases. First run: 19 passed, 6 failed, and all six were real |
 | `qemu-env.sh serve` / `stop` | Stands `boa` up and **refuses to report it up** unless a gated page redirects *and* an exempt page is served. `stop` uses a pidfile, because `pkill -f` matches the calling shell's own command line and kills it |
-| [`poc/run.sh`](poc/run.sh) | Two modes, preconditions that name the failing step, an RFC 1918 check, a banner check, and a refusal to start without `--i-own-this-device` |
+| [`poc/run.sh`](../poc/run.sh) | Two modes, preconditions that name the failing step, an RFC 1918 check, a banner check, and a refusal to start without `--i-own-this-device` |
 | `rtcase` schedule hash | now covers the reschedule **reason**, not just `(id, week)` |
 
 ### Instrument bugs 23 through 27
@@ -2634,7 +2647,7 @@ because of the *freeze*. It came out of a handler census rather than a question
 somebody wrote down first, so no prediction was ever frozen for it, and
 `rtcase record` correctly refuses a case with no pre-written refutation
 condition. The same is true of the Boa `HEAD`-method test, which is recorded only
-in [`notes/prior-art.md`](notes/prior-art.md).
+in [`notes/prior-art.md`](../notes/prior-art.md).
 
 So:
 
@@ -2695,7 +2708,7 @@ Initialize AP MIB failed!
 which is `P0-11`'s prediction — frozen and committed before the environment
 existed — down to the string. 82.9 % of the image is reconstructed from the
 download; three regions are synthesised with zeroed payloads and **no byte comes
-from any physical unit**. [`reports/mkflash-2.1.2.json`](reports/mkflash-2.1.2.json)
+from any physical unit**. [`reports/mkflash-2.1.2.json`](../reports/mkflash-2.1.2.json)
 names every range and its origin.
 
 `libapmib` states its own requirement when it refuses the next check —
@@ -2762,9 +2775,9 @@ user-mode emulation does not provide.
 
 | | |
 |---|---|
-| [`tools/mkflash.py`](tools/mkflash.py) | Builds a flash image from a published container and emits a provenance map — every range labelled `published-image`, `overlay` (mandatory origin string, sha256) or blank `0xFF`. Refuses overlapping sections, an overlay colliding with the image, a section below the `0x010000` floor, and a magic that is not where the section table said it would be |
-| [`tools/mkhwsetting.py`](tools/mkhwsetting.py) | A structurally valid, content-free `H601`. `--verify-format-against` re-derives the header from a real dump and compares **structure only** — no payload byte is read, printed or compared, because that region is per-unit |
-| [`tools/mkcompds.py`](tools/mkcompds.py) + `fwrecon.compcs.lzss_encode` | The encoder this project has never had. `P8-12` has been parked as "blocked, `fwrecon` has no encoder" since the register was written, and it is no longer blocked. Every region is round-tripped through the vendor's **own** decoder before it is written |
+| [`tools/mkflash.py`](../tools/mkflash.py) | Builds a flash image from a published container and emits a provenance map — every range labelled `published-image`, `overlay` (mandatory origin string, sha256) or blank `0xFF`. Refuses overlapping sections, an overlay colliding with the image, a section below the `0x010000` floor, and a magic that is not where the section table said it would be |
+| [`tools/mkhwsetting.py`](../tools/mkhwsetting.py) | A structurally valid, content-free `H601`. `--verify-format-against` re-derives the header from a real dump and compares **structure only** — no payload byte is read, printed or compared, because that region is per-unit |
+| [`tools/mkcompds.py`](../tools/mkcompds.py) + `fwrecon.compcs.lzss_encode` | The encoder this project has never had. `P8-12` has been parked as "blocked, `fwrecon` has no encoder" since the register was written, and it is no longer blocked. Every region is round-tripped through the vendor's **own** decoder before it is written |
 | `qemu-env.sh --profile` | Two environments: `unit-2018` unchanged and re-verified, `v2.1.2` new. A profile must declare where its flash came from and a control that can fail; the new one refuses to `check` at all until its controls are measured |
 | `qemu-env.sh mkflash` | The whole L2 build as one deterministic command with its sha256 pinned, so "anyone can do this" is checkable rather than asserted |
 
@@ -2892,7 +2905,7 @@ a grep would miss it.
 
 **W04-2 already found the interesting one by hand** — `syscmd.htm` posts to
 `formSysCmd`, which V2.1.2's dispatch table does not contain
-([`notes/w6cg-web-ui.md`](notes/w6cg-web-ui.md), *"the form the vendor shipped
+([`notes/w6cg-web-ui.md`](../notes/w6cg-web-ui.md), *"the form the vendor shipped
 posts to a 404"*). What is new is that it is **a pattern rather than an oddity**:
 ten pages across the two builds post to handlers that do not exist, and the 2015
 UI shipped a page for a handler that only appears in 2018.
@@ -3016,7 +3029,7 @@ single tool — turns out to have a sibling: no claim from a single *run*.
 | Firing the 39 at the device | Each crash costs a power cycle. A *sample* chosen from the list is the right bench task, and this session was ended before hardware on purpose |
 | The differential harness across five builds | `mkflash` makes it possible now: a V3.4.0 profile is a few lines. It is W07 Day 2 and it wants a clean session |
 | `bughunt.md` | The week's DoD document. Its judgement column is worth writing once the bench results exist, not before |
-| Everything needing RF or an SPI programmer | `P7-*` and `P9-5`…`P9-12`. Rescheduled to W08 with the instrument named against each — see [`docs/lab-inventory.md`](docs/lab-inventory.md) |
+| Everything needing RF or an SPI programmer | `P7-*` and `P9-5`…`P9-12`. Rescheduled to W08 with the instrument named against each — see [`docs/lab-inventory.md`](../docs/lab-inventory.md) |
 
 ### Open, carried forward
 
@@ -3105,7 +3118,7 @@ W03 saw the same shape in V2.1.2 at `sp+0x40` / `sp+0x60` and correctly refused
 to call it a finding. What was wrong was not the caution: the candidate then sat
 for weeks while an environment able to fire it was built for an unrelated
 purpose, and nobody pointed it here.
-→ [`uninit-credential-pair.md`](notes/uninit-credential-pair.md)
+→ [`uninit-credential-pair.md`](../notes/uninit-credential-pair.md)
 
 ### The firmware upgrade path checks a 16-bit sum, and the trigger is outside the gate
 
@@ -3123,7 +3136,7 @@ over **plain HTTP**. The same job is inside `boa`: `FUN_0044f7b4`, reached from
 `submit_rfw_upgrade` and calls `CheckRFW` with the hard-coded host
 `sl.totolink.software`. `POST /boafrm/formSaveConfig` does not enter the gate on
 this build.
-→ [`firmware-upgrade-path.md`](notes/firmware-upgrade-path.md)
+→ [`firmware-upgrade-path.md`](../notes/firmware-upgrade-path.md)
 
 ### `check_host` is correct code that nothing calls
 
@@ -3140,7 +3153,7 @@ Separately: the client's `Host` is copied verbatim into the gate's redirect
 `Location`, an unauthenticated open redirect on every gated path. **It is not
 XSS** — both sinks encode, URL-encoding in the header and HTML entities in the
 body — and saying so is the point.
-→ [`host-header-and-redirect.md`](notes/host-header-and-redirect.md)
+→ [`host-header-and-redirect.md`](../notes/host-header-and-redirect.md)
 
 ### The three unread binaries, and one was not what four weeks of notes assumed
 
@@ -3154,7 +3167,7 @@ Also corrected: this `miniigd`'s SOAP control endpoint is
 `/upnp/control/WANIPConnection`. The working notes carried `miniupnpd`'s
 `/upnp/control/WANIPConn1`; a bench probe of the documented path would have
 returned a clean negative with the port open the whole time.
-→ [`three-unread-binaries.md`](notes/three-unread-binaries.md)
+→ [`three-unread-binaries.md`](../notes/three-unread-binaries.md)
 
 ### The XSS five are one omission, and the escaper is already in the binary
 
@@ -3173,7 +3186,7 @@ factor of six.
 And the plan's method for this could not have worked: `dhcptbl.htm` contains no
 field, only `<% dhcpClientList(); %>`. The value is written by a C function, so
 grepping 146 template files would have returned nothing and proved nothing.
-→ [`xss-escaping.md`](notes/xss-escaping.md)
+→ [`xss-escaping.md`](../notes/xss-escaping.md)
 
 ### `P8-24` — the boot script turns telnet on when both settings regions are invalid
 
@@ -3201,7 +3214,7 @@ not found` — `flash`'s own error text run as a command.
 **It flips `P8-12`**, which records the config-upload chain as blocked on this
 project having no `COMPCS` encoder. This path does not want a valid blob; it
 wants an invalid `COMPDS`, and invalid bytes need no encoder.
-→ [`config-failopen.md`](notes/config-failopen.md)
+→ [`config-failopen.md`](../notes/config-failopen.md)
 
 ### `P8-8` and `P8-18` refuted, `P10-7` refuted, and each for a different reason
 
@@ -3372,7 +3385,7 @@ Two more things fell out of reading the source, and neither was being looked for
 > wording stays "authenticates", never "as an administrator" — and what the empty
 > pair actually buys is that the **entire** authorisation block does not run.
 
-→ [`uninit-credential-pair.md`](notes/uninit-credential-pair.md) §3, §4
+→ [`uninit-credential-pair.md`](../notes/uninit-credential-pair.md) §3, §4
 
 ### The gate has a third arm, it is keyed on the client's IP, and it dies 601 seconds after boot
 
@@ -3411,7 +3424,7 @@ of uptime, a gated page is served to whichever address logged in last, with no
 credentials on the request. **The emulator cannot reach it** — `sysinfo()` under
 `qemu-user` returns the host's uptime — so it needs `A3.2`, the only station that
 owns the clock.
-→ [`auth-session-ip.md`](notes/auth-session-ip.md), `docs/disclosure.md` `D-18`
+→ [`auth-session-ip.md`](../notes/auth-session-ip.md), `docs/disclosure.md` `D-18`
 
 ### `P4-7`'s thirty-nine deaths were the emulator
 
@@ -3465,8 +3478,8 @@ finding, it **sharpened it by a factor of thirty-nine**. That is the third of th
 project's own results to be overturned, and the first overturned by building an
 instrument that could tell the emulator from the firmware rather than by arguing
 about a caveat the report already carried.
-→ [`emulation-2018.md`](notes/emulation-2018.md) §7a ·
-[`reports/handler-sweep-unit-2018-alignfix.json`](reports/handler-sweep-unit-2018-alignfix.json)
+→ [`emulation-2018.md`](../notes/emulation-2018.md) §7a ·
+[`reports/handler-sweep-unit-2018-alignfix.json`](../reports/handler-sweep-unit-2018-alignfix.json)
 
 ### Prior art: three searched, one matched, and the method that found the most was new
 
@@ -3623,7 +3636,7 @@ measured and none of it is recorded; the bench block has not started.
 
 | Next | Needs the device? | Note |
 |---|---|---|
-| **1. ~~Finish the `--alignfix` sweep~~** | ❌ | **Done, at the end of the session.** 58 probed, 58 restarts, **0 failed, 57 survived, one died: `formSchedule`.** All three controls held and `env_intact_after_sweep` is true, so no probe left state behind — which is bug 41's fix proving itself. The emulated candidate list for `D-11` is now **one handler instead of thirty-nine**, and it is computed rather than chosen. → [`reports/handler-sweep-unit-2018-alignfix.json`](reports/handler-sweep-unit-2018-alignfix.json) |
+| **1. ~~Finish the `--alignfix` sweep~~** | ❌ | **Done, at the end of the session.** 58 probed, 58 restarts, **0 failed, 57 survived, one died: `formSchedule`.** All three controls held and `env_intact_after_sweep` is true, so no probe left state behind — which is bug 41's fix proving itself. The emulated candidate list for `D-11` is now **one handler instead of thirty-nine**, and it is computed rather than chosen. → [`reports/handler-sweep-unit-2018-alignfix.json`](../reports/handler-sweep-unit-2018-alignfix.json) |
 | **2. Record the desk block** | ❌ | `P1-9`, the `P3-8`…`P3-12` static halves, `P5-3`, `P5-7`, `P5-6`, then the `P4` / `P5` chain. `P4-7` now has a second, better result to record against it |
 | **3. Freeze the bench predictions** | ❌ | Three are new as of today, and one — the 601-second window — has no runsheet step at all. **This gates the visit** |
 | **4. The bench visit** | ✅ | 32 rows, station order per `runsheet.md` Part B `B-W07`, `P9-9` last |
@@ -3672,7 +3685,7 @@ handlers drawn from 47 had roughly one chance in four each. And the fifth,
 > transferable sentence is not "the earlier test was sloppy". It is: **a
 > refutation inherits the coverage of whatever produced it, and three
 > hand-picked handlers is a coverage nobody wrote down.**
-→ [`notes/absent-parameter-strcpy.md`](notes/absent-parameter-strcpy.md)
+→ [`notes/absent-parameter-strcpy.md`](../notes/absent-parameter-strcpy.md)
 
 ### And one that is a different defect entirely
 
@@ -3951,9 +3964,9 @@ and the second reboots the guest — the answer is unambiguous.
 Same registers saved, same order, frame one word larger on the older build. The
 `unit-2018` column reproduces yesterday's numbers exactly from a separate run, so
 this is also a replication of the measurement it is being compared against.
-→ [`reports/crash-triage-v2.1.2-wsc.json`](reports/crash-triage-v2.1.2-wsc.json),
-[`reports/crash-triage-v2.1.2-wsc-cyclic.json`](reports/crash-triage-v2.1.2-wsc-cyclic.json),
-[`reports/crash-triage-unit-2018-wsc-cyclic.json`](reports/crash-triage-unit-2018-wsc-cyclic.json)
+→ [`reports/crash-triage-v2.1.2-wsc.json`](../reports/crash-triage-v2.1.2-wsc.json),
+[`reports/crash-triage-v2.1.2-wsc-cyclic.json`](../reports/crash-triage-v2.1.2-wsc-cyclic.json),
+[`reports/crash-triage-unit-2018-wsc-cyclic.json`](../reports/crash-triage-unit-2018-wsc-cyclic.json)
 
 **The absent-parameter class is wider on the published image: seven handlers, not
 five.** Same instruction, same verdict, different address — `0x00476418`, in
@@ -3962,7 +3975,7 @@ of the three handlers W06 hand-picked to test the class and found clean.** They
 were clean; W06 measured the 2017 build. The refutation inherited the coverage of
 its handler sample *and* of its build, and widening the first was never going to
 show the second.
-→ [`reports/crash-triage-v2.1.2.json`](reports/crash-triage-v2.1.2.json)
+→ [`reports/crash-triage-v2.1.2.json`](../reports/crash-triage-v2.1.2.json)
 
 ### Open #64: the answer was in this repository, in two files, since W04
 
@@ -4756,9 +4769,9 @@ not offer. It needed no channel. Two kernel fault messages were already in
 ```
 
 Neither names a library. Turning one into a load base is
-[`tools/libbase.py`](tools/libbase.py); the reasoning and the addresses are
-[`notes/mips-ret2libc.md`](notes/mips-ret2libc.md); the report is
-[`reports/libbase-unit-2018.json`](reports/libbase-unit-2018.json).
+[`tools/libbase.py`](../tools/libbase.py); the reasoning and the addresses are
+[`notes/mips-ret2libc.md`](../notes/mips-ret2libc.md); the report is
+[`reports/libbase-unit-2018.json`](../reports/libbase-unit-2018.json).
 
 **`boa`'s `epc` is `strcpy+0x18`, which puts `libuClibc` at `0x2aae3000`, and
 `system` at `0x2ab08460`.** The four bytes between that and qemu-user's own `pc`
@@ -4835,7 +4848,7 @@ step reads "it is the fourth time these two lists have diverged."
 RUNBOOK 10.21 made it a rule. A rule broken five times is a reminder, and this
 repository's answer to a broken reminder is already on the record —
 `tools/check-benchlog.py` replaced one. So:
-[`tools/check-ci-parity.py`](tools/check-ci-parity.py) compares which `tools/`
+[`tools/check-ci-parity.py`](../tools/check-ci-parity.py) compares which `tools/`
 scripts each file runs, in **both** directions, with one-sided entries recorded
 as decisions in a `DELIBERATE` table rather than tolerated silently. It fired on
 its first run and named all three. 13 guard cases, and two of them exist because
@@ -5207,7 +5220,7 @@ zero — the same treatment the seventeen-command control already had, for the
 same reason.
 
 Full note, including the funnel and what else the table gave up:
-[`notes/loader-chip-table.md`](notes/loader-chip-table.md).
+[`notes/loader-chip-table.md`](../notes/loader-chip-table.md).
 
 **What this does for the bench is the point.** `P9-7`'s prediction was frozen on
 2026-08-18 as "the packaging text is one source, the JEDEC id is the second".
@@ -5497,7 +5510,7 @@ the rest. All thirteen decode now, 37 of 37 counting the nested ones, 2,991
 nested entries, both regions `consistent`.
 
 Full note, including the six blocks, the cross-build read and how the first
-version was wrong twice: [`notes/wlan-root.md`](notes/wlan-root.md).
+version was wrong twice: [`notes/wlan-root.md`](../notes/wlan-root.md).
 `P7-7`'s row is in `test-cases.toml`; this section does not restate it.
 
 **What made the gap invisible is worth more than the gap.**
@@ -5631,7 +5644,7 @@ the loosened rule is still strictly narrower than "pick the first match".
 66, 67, 69, 70, 71, 74, 75, 77, 78, 79, 81, 82, 84, 85, 86, 87, 88, 92, 93 —
 unchanged.
 
-**90 is closed** — `WLAN_ROOT` is decoded, [`notes/wlan-root.md`](notes/wlan-root.md).
+**90 is closed** — `WLAN_ROOT` is decoded, [`notes/wlan-root.md`](../notes/wlan-root.md).
 
 89. **Which flash descriptor does `FLW` use when the lookup fails?** Unchanged,
     and now with a recorded decision attached: the cheapest instrument that
@@ -6084,7 +6097,7 @@ path is one function:
 So **`get` is a fast path for `FLR`'s output only when `FLR`'s destination
 happens to equal `LOADADDR`.** What `FLR` lends to TFTP is the *length*, not the
 address. Full derivation, the recovered 17-entry command table, the `J` handler
-and the write path: [`notes/loader-tftp-and-commands.md`](notes/loader-tftp-and-commands.md).
+and the write path: [`notes/loader-tftp-and-commands.md`](../notes/loader-tftp-and-commands.md).
 
 It also explains `T-09` in a way nothing had: the 516 bytes that matched flash
 `0x060010` came from RAM at `0x80500000`, and **nothing in that session put them
@@ -6140,8 +6153,8 @@ the previous design could not do to itself.
 
 | | |
 |---|---|
-| [`tools/mkramboot.py`](tools/mkramboot.py) | new. Builds the RAM payload `P9-12` needs: ~40 instructions of big-endian MIPS that print a nonced banner to the UART and repeat. UART addresses read out of **the loader's own putchar** at `0x80406B6C`, bounded spin included. Every build **simulates** the encoded words against a stand-in UART and refuses unless the bytes emitted are exactly the banner |
-| [`tools/test-mkramboot.sh`](tools/test-mkramboot.sh) | **26 cases**, seven of which put a real bug back into the encoder and require the build to go red |
+| [`tools/mkramboot.py`](../tools/mkramboot.py) | new. Builds the RAM payload `P9-12` needs: ~40 instructions of big-endian MIPS that print a nonced banner to the UART and repeat. UART addresses read out of **the loader's own putchar** at `0x80406B6C`, bounded spin included. Every build **simulates** the encoded words against a stand-in UART and refuses unless the bytes emitted are exactly the banner |
+| [`tools/test-mkramboot.sh`](../tools/test-mkramboot.sh) | **26 cases**, seven of which put a real bug back into the encoder and require the build to go red |
 | `tools/loader-tftp.py` | `--attribute` on `probe`/`get` (locate the served bytes in a dump, exactly one offset or it says so); `put` refuses the loader's two auto-execute filenames; `put` bounds the age of the rescue transcript; `--expect-load`. **17 → 30 cases** |
 | `tools/console-dump.py` | `LOADADDR` joins `FORBIDDEN` for `cmd`; `rescue --load-addr` gives it a guarded home and records the loader's echo. **18 → 23 cases** |
 | `Makefile` · `.github/workflows/ci.yml` | `ramboot`, `ramboot-test` added to **both** in the same commit |
@@ -6327,7 +6340,7 @@ is not evidence of.
 
 96. **Closed.** Answered statically on 2026-08-21 and confirmed the same evening
     on four pre-registered hashes. Mechanism and addresses:
-    [`notes/loader-tftp-and-commands.md`](notes/loader-tftp-and-commands.md);
+    [`notes/loader-tftp-and-commands.md`](../notes/loader-tftp-and-commands.md);
     what was typed and seen: `BENCH-LOG.md` `T-86` / `T-87`.
 
 99. **Does the loader really take the switch ports down on the way out of `J`?**
@@ -6539,7 +6552,7 @@ session and not.
     writer; the vendor's own `CmdSFlw` has `//strtoul(argv[3], …)` commented out;
     and no instruction in the image reads the table's count column. Mechanism,
     addresses and the three readers:
-    [`notes/loader-tftp-and-commands.md`](notes/loader-tftp-and-commands.md);
+    [`notes/loader-tftp-and-commands.md`](../notes/loader-tftp-and-commands.md);
     reasoning: `RUNBOOK.md` §8.12.46. **`P9-14` is the device confirmation and it
     is not the answer** — it is four cells that would refute the answer, and it
     writes nothing.
@@ -6556,3 +6569,1143 @@ session and not.
      interrupt-driven. Nothing here has looked at where `0x80406728` and the
      TFTP receive path are called from, and the SDK tree has both an
      `ethInt_865x.c` and an `irq.c`, so the static answer is not obvious either.
+
+## W08 Day 1, station 2 second visit — three confirmed, and the cell that was not scored is the one that changes the next session — 2026-08-22
+
+**`BENCH-LOG.md` 2026-08-21 夜 – 2026-08-22 「進站場次之二」 carries what was
+typed and seen; record cards `T-91`–`T-95`.** Two power cycles, four flash
+writes all inside `0x3F0000`/`0x3F0100` and **all restored to `ff` before
+close**, `P9-14` `P9-15` `P9-16` all `confirmed`. `make todo WEEK=W08` went 9 → 6
+— three rows opened and closed in the same session.
+
+Thirteen of the frozen conditions were checked. **The one that mattered most was
+deliberately written with no bet on it, and it is the one that did not resolve.**
+
+### `FLW`'s fourth argument, measured
+
+Four cells differing only in the fourth token — absent, `0`, `5`, `DEADBEEF` —
+produced a **byte-identical** message, `flash#1` every time, `Abort!` every time.
+`0x80409BE4` `li a2,1` is the only source of that `%d`. Zero flash bytes.
+
+The device confirmed one of the same day's desk corrections before anything was
+typed: its own `?` prints `FLW <…> <SPI cnt#>: Write offset-data to SPI from
+RAM` — **the six words the hand transcription had truncated** — and all
+seventeen lines match `tools/loader-unpack.py --commands` line for line.
+
+### The five PHY enable bits are sufficient on their own
+
+At the prompt, no jump, interrupts untouched: `probe` answers → `EW` clears bit 0
+of `PCRP0`–`PCRP4` → `probe` times out three times → `EW` restores the read-back
+values → `probe` answers again. Three signals that share no code agree at every
+step: DATA-from-`:2098`, `ip neigh` `REACHABLE`/`FAILED`/`REACHABLE`, and
+`rx_packets` 2 → 2 → 4 — **the counter moved exactly when DATA came back.**
+
+The same `DW` carried a control nobody planned: `0xBB80411C` and `0xBB804120`
+have bit 0 **clear** and `0xBB804118` is entirely zero, so the read is not an
+address echo and the field is not stuck at 1.
+
+**`carrier` stayed 1 throughout, and that says nothing.** Two explanations —
+this rtl8153 is documented to assert carrier into thin air, and `EnablePHYIf`
+may gate the SoC's internal MAC↔PHY interface rather than the line side. The
+instrument that would separate them is the one already known to be unreliable.
+Both are recorded; neither is chosen.
+
+### `J` is a call, and a committed sentence was wrong
+
+`EB` put `03E00008 00000000` (`jr ra; nop`) at `0x80540000`, `DW` verified it,
+and `J 80540000` printed `---Jump to address=80540000` and **returned to the
+`<RealTek>` prompt**, with `DW`/`EW` working normally afterwards. `0x80409360` is
+`jalr s0`; `ra` is `0x80409368`.
+
+`runsheet.md` Part B's "`J` 之後沒有軟體的路回去" came from a real observation —
+`P9-12`'s payload loops forever — but that is a property of that payload. **One
+observation written as a rule whose scope exceeds the observation.**
+
+### Open #99 is closed, and what it leaves behind is bigger
+
+Immediately after the jump, `DW BB804104 5` showed all five bits cleared with
+nobody having touched them. That is `0x804092F4`–`0x80409354` executing, and it
+is exactly what #99 asked. Closed.
+
+**Then restoring those five bits did not bring TFTP back.** Not immediately, and
+not 28 seconds later — so link renegotiation is excluded. The same five bits,
+cleared and restored *without* a jump, had revived it minutes earlier. So `J`'s
+network kill is **not** attributable to those bits alone, and three candidates
+survive untouched: `GIMR0 = 0` / `IE = 0` stopping the receive path, the cache
+maintenance or the payload disturbing something else, or the switch needing more
+than bit 0 after the interface was disabled.
+
+**That cell was frozen as "both outcomes get recorded, and no deciding after the
+fact which was expected".** It landed on the second, and because no bet was
+placed it scores nothing. That was the right way to write it — I did not know,
+and `GetLine` polling does not imply the TFTP path does. But it is worth naming
+the cost plainly: **an honest "I don't know" buys a result with no score, while a
+confident prediction buys a good-looking tally and a wrong conclusion.** Take the
+first, and do not pretend it was free.
+
+**And the experiment that separates the candidates did not exist before this
+session.** The loader has no command that writes CP0 status — `MTC0SR` is
+commented out of the vendor's table, and the seventeen lines printed that night
+confirm it is absent here — so re-enabling interrupts requires a RAM payload
+that returns. **Which is what `P9-16` had just proved possible.** One result
+turning the next experiment from impossible into cheap is worth more than its
+own row.
+
+### `A2.5` re-run, and the control broke twice
+
+`P0-3` was already `confirmed` from 2026-08-17, so this was a rehearsal for
+`P9-10` rather than a debt. It produced a stronger answer anyway: the sector
+model is now pinned by three independent legs — writing `FF` over `DE` returns
+`FF` (pure NOR programming cannot do that, so `FLW` erases); **both neighbour
+directions survive** (writing `0x3F0100` preserves `0x3F0000`, and writing
+`0x3F0000` preserves `0x3F0100` — the second is new); and the loader's seventeen
+commands contain no erase, so the erase is inside `FLW`.
+
+**Two ways a control can be worthless, one of each:**
+
+* **No control at all.** Every read-back was "into a RAM address we have not
+  used". Measured: that address held `bf 84 9e 83 8f e4 f5 3c …` — **random, not
+  zero.** If it had held `ff`, "the read worked" and "nothing happened" would
+  look identical. `§8.9.4`'s tool version has done this since W05; the hand-typed
+  path had never been given it. `A2.5` now has a Step 0 and three more controls.
+* **A control whose expected value was already there.** Step 5 used
+  "`0x3F0100` reads `ca fe ba be`" as proof the second write landed — and
+  2026-08-17 wrote **the same pattern to the same address**. Under the preserve
+  model it had been sitting there for four days. **That check passes in both
+  worlds, and a check that cannot fail is not a check.** The fix (Step 6c) is
+  also the restore: write `FF` over `0x3F0100` and watch it change from a value
+  read a minute earlier.
+
+Both are the same shape: not a wrong measurement, a right measurement whose
+evidence does not hold. One lacked a way to be negative; the other lacked a way
+to fail.
+
+### Two explanations of mine, both dead inside two minutes
+
+* "`make doctor` opened the serial port, so DTR toggled and reset the board" —
+  `bench-doctor.sh` uses `[ -r ] && [ -w ]`, an `access(2)` permission test that
+  **never opens the device**.
+* "the first `EB` failed because asynchronous TFTP output interleaved with
+  `GetLine`" — still a candidate for that one line, but `cat -A` shows the line
+  carried no escape bytes, and the *other* `Unknown command !` that night had a
+  completely different cause.
+
+Both were said out loud before the evidence was looked at, and both times the
+evidence was two minutes away. The problem is not being wrong; it is that a
+spoken guess becomes the next step's premise without passing any check.
+
+### The arrow keys, and how a verbatim log gets read
+
+`FLR 80520000 0 100` came back `Unknown command !`. Under `cat -A` the line is
+`<RealTek>^[[A^[[BFLR 80520000 0 100` — **up-arrow, down-arrow.** This loader has
+no history and no line editing, so `↑` puts `1b 5b 41` straight into the command
+line and `argv[0]` becomes `\x1b[A…`. It looks exactly like broken firmware. The
+rule is now at the top of station 2.
+
+The lesson is not the arrow keys. The earlier `EB` failure was written up as
+"two candidate causes, this session did not separate them" — **and the verbatim
+log was already on disk; `cat -A` takes two seconds.** A verbatim record read the
+wrong way is the same as no record. `BENCH-LOG.md` is append-only and exact, and
+all of that value rests on somebody reading it correctly.
+
+### Instrument and procedure work
+
+- **`A2.5`**: new Step 0; controls added to Steps 4, 5 and 6; new Step 6c which
+  restores `0x3F0100` and closes Step 5's degenerate control in the same action.
+- **`A2.8`**: the three liveness checks changed from `get` to `probe` — with no
+  `FLR` the length global is 0, so `get` returns an empty file and "empty" versus
+  "timed out" needs a second inference. A single-variable experiment needs the
+  three observations to be the identical command.
+- **Station 2 preamble**: no arrow keys.
+- **`A2.8` step 1's expected output** said `Write 0x8 Bytes`; the device prints
+  `Write 0x00000008 Bytes` — this loader's `printf` pads `%x` to eight. An
+  approximately-right expected output teaches the operator to accept an
+  approximately-right result.
+- `RUNBOOK` §8.9.5 (the two control failures, owned by `A2.5`'s section) and
+  §8.12.46's post-run half (the unscored cell, the arrow keys, the dead
+  explanations).
+
+### Deliberately not done
+
+- **`A2.3`, `A2.6`, `A2.7`, station 5**: nothing tonight changed the config
+  region, so the two hash-verified dumps are the restore point; `A2.7`'s two
+  purposes were met on 2026-08-21; station 5 is still blocked on open #97.
+- **The interrupt-restoring payload was not designed at the bench.** `A2.8`'s own
+  stop condition 5 forbids it: needing to try another value to find out means the
+  prediction was not specific enough, and searching on the device is not
+  measuring.
+- **`FLW` with fewer than three arguments** — still not scheduled, same reason.
+
+### Open, carried forward
+
+66, 67, 69, 70, 71, 74, 75, 77, 78, 79, 81, 82, 84, 85, 86, 87, 88, 89, 91, 92,
+93, 94, 95, 97, 100 — unchanged.
+
+99. **Closed by measurement.** `J` does clear `EnablePHYIf` in `PCRP0`–`PCRP4`;
+    read directly off the registers after the jump with nobody having touched
+    them. `BENCH-LOG.md` `T-94`. What it leaves behind is #101.
+
+101. **Restated and sharpened.** It asked whether the loader's TFTP is polled or
+     interrupt-driven. The measurement that would have answered it as a side
+     effect — restore the five bits after `J` and see if `probe` revives — came
+     back **negative**, so the question is now: *why is restoring those five bits
+     not sufficient after `J` when it is sufficient before one?* Three candidates,
+     none excluded. The way in is a RAM payload that re-enables interrupts and
+     `jr ra`s back, which `P9-16` made possible; the loader itself cannot write
+     CP0 status. **Design it at the desk.**
+
+102. **Why did a clean `EB` line come back `Unknown command !`?** One line,
+     verified escape-free under `cat -A`, rejected by the dispatcher; the
+     identical line succeeded after one Enter. It arrived immediately after
+     asynchronous TFTP output. Answerable statically: find what the TFTP receive
+     path writes and whether it can reach the monitor's line buffer or the argv
+     array at `0x8040EAE0`. Until then, the operational rule stands — **press
+     Enter before typing whenever anything has printed since the last prompt.**
+
+## W08 Day 2, desk — the shape matched and the answer was backwards — 2026-08-22
+
+**Desk only. The device was not powered on and nothing was clipped.**
+`BENCH-LOG.md` 2026-08-22 桌面第六場 carries the plan and the three frozen
+predictions, written before the next power-on. **No record cards: nothing was
+sent to the device.**
+
+Open questions **101** and **102** are both closed. They turned out to be the
+same question from two sides — *what runs the loader's network, and what does
+the command prompt do while it waits?* — and one reading settles both. The
+working is [`notes/loader-interrupts-and-console.md`](../notes/loader-interrupts-and-console.md);
+the reasoning is `RUNBOOK.md` §8.12.47.
+
+### 101 — the loader's TFTP is interrupt-driven
+
+Four legs that share no mechanism:
+
+* **The prompt polls nothing but the UART.** `0x80406BBC` is the command loop's
+  character source and it is an unbounded spin on `0xB8002014`. The only two
+  addresses the whole routine touches are that and `0xB8002000`, with **zero**
+  unresolved memory references.
+* **An `eth0` interrupt is installed.** `request_IRQ(15, …)` at `0x80402A44`,
+  handler `0x804023B0`, and the irqaction carries the literal name string
+  `eth0`. Two more: IRQ 8 `timer`, IRQ 27 `SPEED`.
+* **Interrupts are on before the prompt is ever printed.** `0x80408468` calls
+  the ethernet init, prints `---Ethernet init Okay!`, sets `IE` at `0x80408494`,
+  starts the TFTP service, and only then enters the command loop.
+  **That console line is in this unit's own W02 boot capture**, one line above
+  the first `<RealTek>`.
+* **The `eth0` handler is the packet input path**, `0x804023B0` to `0x80402040`,
+  dispatching on EtherType into the ARP and IP paths.
+
+So `J`'s `GIMR0 = 0` and its `IE` clear are **each independently sufficient** to
+stop TFTP, and restoring the five `EnablePHYIf` bits could never bring it back.
+That is exactly the cell 2026-08-22 measured and could not attribute.
+
+### The near-miss, and it is the one worth reading
+
+**Version 1 of this analysis concluded that the loader never enables interrupts
+at all.** It searched for Realtek's `sti` idiom — `mfc0 $1,$12 / ori $1,1 /
+mtc0 $1,$12` — found none, found seven `cli` sites of the matching shape, and
+read that as "the loader runs masked, so its TFTP must be polled".
+
+Every observation in that chain is correct. The conclusion is the opposite of
+the truth, because **this build writes `ori $1,0x1f / xori $1,0x1e`** — same
+effect, different bytes — and a search for one shape cannot see another.
+
+**Notice which way the error pointed.** It would have excluded the *correct*
+candidate out of the three that survived the bench, and excluded it with a
+sentence that sounds well-founded: *"interrupts cannot be the cause, because
+this loader never enables them."*
+
+The fix is not more care. It is a different question: not *"is this the shape I
+expected"* but *"what is bit 0 afterwards"*. The instrument now evaluates every
+`mtc0 $12` in the image with a four-valued per-bit lattice — `0`, `1`, *what
+`mfc0` read*, *its complement* — so `xori` is exact.
+`tools/test-loader-unpack.sh` holds it there with two fixtures that differ in
+**one bit of one immediate**.
+
+### 102 — the prompt was printed by the interrupt, and the answer was on disk
+
+A clean `EB` line was rejected because **eight spaces were already in the line
+buffer**, and the prompt that appeared to invite the command had been painted by
+the TFTP completion path from inside the `eth0` handler.
+
+* `0x80401CD0` prints `"\n.Success!\n%s"` and passes `0x8040A894` — a **second
+  copy** of the string `<RealTek>`. The upload and auto-burn messages do the
+  same. All of them run in the interrupt.
+* The tokeniser stores `argv[i]` at `0x80407290` **before** testing for a space
+  at `0x804072D4`, so a line with leading whitespace has `argv[0] == ""`.
+* `GetLine` expands a TAB into exactly eight spaces (`0x8040713C`).
+  **`stage2.bin` contains no run of eight spaces anywhere**, so no `printf`
+  produced them.
+* The log's next two lines confirm the model: one Enter produced a prompt with
+  **no** complaint, and the identical `EB` then worked.
+
+**Why it took a day**: the search for who prints `<RealTek>` was a
+cross-reference search on one address. It returned one result, the result was
+correct, and the conclusion drawn from it — *the prompt has one owner* — was
+false. A cross-reference search answers "who uses this address"; the question
+was "who prints this text".
+
+**And 102's own hypothesis is refuted, not confirmed.** It asked whether the
+TFTP receive path can write into the line buffer or the `argv` array at
+`0x8040EAE0`. It can — the payload write at `[0x8040DD10]` has no end-address
+check anywhere — but the `probe` that preceded the failure was a **read** of
+**zero** bytes and wrote nothing at all. The write path is excluded by the
+packet as well as by the code.
+
+### Three instruments, and what each is allowed to refuse
+
+| | |
+|---|---|
+| `tools/loader-unpack.py --irq` | The interrupt wiring: every `mtc0 $12` with bit 0 evaluated, every `GIMR0` access, every `request_IRQ` site with its handler and device name, and every memory address the prompt's character source touches. Refuses if the census cannot find the writes that **clear** IE — because then its report that nothing **sets** it is worthless. `reports/bootloader-unit-2018.json` gains an `interrupt_wiring` section |
+| `tools/console-lint.py` | Reads a `picocom` log the way the dispatcher reads it: classifies each prompt, reconstructs the line buffer across repaints, and **accounts for every `Unknown command !` or reports it unexplained**, which is a non-zero exit. 13 guard cases |
+| `tools/mkramboot.py --irq-restore` | Two payloads differing in exactly five words, all five on the second `EW` line. The simulator gained `sw` / `mfc0` / `mtc0` / `jr`; it refuses a word store to anything but `GIMR0`, a payload that does not return through `ra`, and an `EW` line the loader's 128-character buffer would silently truncate |
+
+Guard totals: `test-loader-unpack.sh` 26 to **34**, `test-mkramboot.sh` 32 to
+**42**, `test-check-runsheet.sh` 38 to **42**, plus **13** new in
+`test-console-lint.sh`.
+
+### What the log reader explained without being asked
+
+Run over `dumps/uart-bootloader.log` — W02's boot capture, 2026-08-16 — it
+attributes the three `Unknown command !` at the start of every escape-caught
+session to **`console-dump.py`'s own ESC stream landing in `argv[0]`**. Those
+three lines have been in the record for six days and nobody asked about them.
+
+The fourth is `help`, and it names something the disassembly had not: the
+dispatcher runs `strupr` (`0x80407040`) on `argv[0]` before comparing, so **the
+seventeen commands are case-insensitive**. `help` fails because the table's entry
+is `?`.
+
+### Instrument bugs 52 through 54
+
+**52 — a census that matched a shape and answered the opposite question.** The
+`sti` search above. It is an instrument bug rather than a reading error because
+the search *was* the instrument: it produced a claim about the whole image
+("nothing sets IE") from a scan whose failure mode is invisible to any test —
+you can only look for the shapes you can think of. Caught by replacing the
+question, not by looking harder. Guarded by two fixtures differing in one bit of
+one immediate.
+
+**53 — a function-entry rule that walked past a routine ending in `rfe`.** The
+first version located entries by scanning back for `jr ra` and taking the word
+after its delay slot. The routine before `enable_irq` ends in `rfe`, so the scan
+overran and reported an entry nothing calls. **Caught by the tool's own
+refusal** — "the GIMR0 bit-setter has 0 callers" — which is the only reason it
+did not become a confident wrong answer somewhere else in the image. A function
+entry is an address a `jal` names, and this image names all of them.
+
+**54 — a new check that was vacuous, and its own guard case found it.** The
+stop-condition count check went in with a regular expression requiring a space
+before `條`. The runsheet writes `停止條件，五條：` with no space, so the check
+matched nothing and passed on every file including the one it was written for.
+The guard case written in the same commit is what failed. **A check with nothing
+to work on reports success**, which is instrument bug 12's shape and the fourth
+time this project has recorded it.
+
+That is **fifty-four instrument bugs recorded**, and the ratio has not moved:
+none was caught by the instrument's own self-check. 52 was caught by changing
+the question, 53 by a refusal that had been written to fire on exactly that
+shape of nonsense, and 54 by a test written in the same commit as the code.
+
+### A pointer at a rule that does not exist
+
+`A2.8` step 4 ends with *"see stop condition 5 below"* and **`A2.8` has no
+numbered stop conditions at all.** The nearest list is `A2.7`'s — above, not
+below, and four items rather than five. `BENCH-LOG.md`'s 2026-08-22 entry quotes
+the same number back as though it were a rule.
+
+The rule's *content* was there all along (step 4's "do not design it in front of
+the device"). What was missing is that it was numbered and placed where the
+pointer points. **A pointer at a rule that does not exist is worse than no
+pointer**: the reader believes something is holding them and nothing is.
+
+`A2.8` and the new `A2.9` now carry five each, and `tools/check-runsheet.py`
+checks two things it never did: a heading that declares a count must carry that
+many items, and a "第 N 條" reference must resolve. Four guard cases.
+
+### Corrections
+
+| Said | Actually |
+|---|---|
+| **This file's own summary table:** W05 "4 of 5 DoD, 22 / 31", W06 "4 of 5 — L2 clause not met, 18 / 18", W07 and W08 blank | W05 closed at 5 of 5 and 27 / 27 on 2026-08-17, G4 passed at five of five on 2026-08-18, W07 closed at 58 / 58 on 2026-08-19. The table had been stale for four days **while the body of the same file recorded all three correctly**, and the author caught it, not a check. Fixed at the top of this file, with the counts quoted from `rtcase todo` rather than typed |
+| **`P9-4`'s recorded result:** the loader's network stack "exists only after a serial `IPCONFIG`" | It exists as soon as the **escape window is taken**, at the compiled-in `192.168.1.6` (`0x80401D1C`), one instruction after the `sti`. `IPCONFIG`'s handler (`0x80409378`) parses a dotted quad into `0x8040EDC0` and does nothing else — it changes the address, it does not bring the stack up. **`P9-4`'s conclusion is untouched**: an uninterrupted boot takes `0x804084B8` instead and puts nothing on the wire, which two passive captures measured and `dumps/uart-boot.log` shows by the absence of `---Ethernet init Okay!`. The sentence explaining it is what was wrong, and `P9-18`'s fourth cell measures the correction rather than assuming it |
+| **`runsheet.md` `A2.8` step 4:** "see stop condition 5 below" | There were no numbered stop conditions in that section. Five now exist, and the checker resolves the reference |
+| **The operational rule written 2026-08-22:** "press Enter before typing whenever anything has printed since the last prompt" | Still good advice, wrong shape — it asks the operator to remember something. The mechanical form is narrower: **a `<RealTek>` that follows `Success!` was printed by the interrupt handler and is not a prompt**, and `tools/console-lint.py` enforces it instead of the operator |
+
+### Deliberately not done
+
+- **Nothing was sent to the device.** Every claim above is "the code reads as",
+  and `P9-17`, `P9-18` and `P9-19` are the confirmations, frozen before the next
+  power-on (freeze `7ade2454…`).
+- **The `eth0` ISR was not traced all the way to the TFTP handler.** It reaches
+  `0x80402040` and that dispatches on EtherType; the rest is a call-graph
+  reading with no device observable behind it, and the note says so rather than
+  drawing the arrow.
+- **`GIMR0`'s bit 8 was not resolved.** Two possible writers, and the call graph
+  between them was not chased. Both outcomes are in `P9-18`'s prediction with
+  the instruction that settles them — the same shape as 2026-08-22's unscored
+  cell, on purpose.
+- **The TFTP filename's `%s` was read, not chased.** `0x804011FC` prints an
+  attacker-supplied string to the operator's console with no length check on the
+  request beyond a 42-byte floor. It needs the escape window caught first, so it
+  crosses no boundary a UART cable has not already crossed; it is recorded in
+  the note and not opened as a register row.
+- **`A2.5`, `A2.6`, `A2.7`, `A2.8`, station 5**: nothing this session changes any
+  of them. Station 5 is still blocked on open #97.
+
+### The write-up draft — fourteen chapters, all with content
+
+W08's definition of done in `plan/W08` is the fourteen-chapter draft, and it is
+written: [`writeup/`](../writeup/), one file per chapter, English, with a
+Traditional Chinese reading guide in
+[`study/writeup-導讀.md`](../study/writeup-導讀.md) that carries the *design* —
+what each chapter is for and where a hostile reader would push — rather than the
+content.
+
+Three decisions worth recording, because each was a choice between two things
+that both looked reasonable:
+
+* **The title is not "From SPI Flash to Root Shell".** That sells the result,
+  and the result is the least rare thing here: an end-of-life device, publicly
+  disclosed defects. *The Build Nobody Had* sells the **corpus** — a build on no
+  download page, sitting in the middle of the vendor's five-year remediation —
+  and that is the part nobody can repeat without buying one of these routers and
+  reading its flash.
+* **Chapter 12 is fifty-four instrument bugs, not ten.** The week plan said ten,
+  written when the count was ten. It is fifty-four, three of them from this
+  session, and the ratio has not moved: none was caught by the instrument's own
+  self-check.
+* **Chapter 14 is written from `study/weekly-results.md`'s "did not prove"
+  columns**, which means it is assembled from sentences written *at the time*
+  rather than remembered afterwards. The first item in it is that no second
+  instrument has ever read this unit's flash.
+
+**What the draft is not**: edited. It is a first pass and W09 is the editing
+week. The ten-minute read test in the week plan has not been run.
+
+### Open, carried forward
+
+66, 67, 69, 70, 71, 74, 75, 77, 78, 79, 81, 82, 84, 85, 86, 87, 88, 89, 91, 92,
+93, 94, 95, 97, 100 — unchanged.
+
+101. **Closed.** The loader's TFTP is interrupt-driven: `request_IRQ(15,"eth0")`
+     at `0x80402A44`, `IE` set at `0x80408494` before the prompt is printed, and
+     a command loop whose character source (`0x80406BBC`) touches only the two
+     UART registers. Mechanism, addresses and the near-miss that nearly
+     published the opposite:
+     [`notes/loader-interrupts-and-console.md`](../notes/loader-interrupts-and-console.md);
+     reasoning: `RUNBOOK.md` §8.12.47. **`P9-17` is the device confirmation and
+     it is not the answer** — it is a two-step ladder that can refute it.
+
+102. **Closed, and its own hypothesis refuted.** The rejection was leading
+     whitespace in a buffer carried across a prompt the `eth0` interrupt handler
+     had painted (`0x80401CD0`, with the second copy of the prompt string at
+     `0x8040A894` as its `%s`), not anything the TFTP receive path wrote — the
+     `probe` that preceded it served zero bytes and wrote nothing.
+     `tools/console-lint.py` reproduces the diagnosis from the committed log and
+     reports an unexplained rejection as an error.
+
+## W08 Day 2, the bench — the control failed as designed, and the confirmation landed a layer below where it was aimed — 2026-08-22
+
+**`BENCH-LOG.md` 2026-08-22 「桌面第七場」 and 「第 2 站進站場次之三」 carry what was
+cut, what was typed and what was seen; record cards `T-96`–`T-100`.** Two power
+cycles, **zero flash bytes written all night**, two `J` jumps and both returned to
+the prompt. `make todo WEEK=W08` went 9 → 3 at the desk and 3 → **0** at the
+bench. **W08 closes at 8 / 8.**
+
+**All three rows are recorded `partial`, and not one of them is rounded up.** Each
+carries a clause its own frozen prediction got wrong. Writing all three as
+`confirmed` was available tonight — every main conclusion holds — and taking it
+would have been deciding after the fact which half counted.
+
+### Six rows cut, and the three groups are not the same thing
+
+`P7-3`, `P7-4`, `P9-5`, `P9-6`, `P9-7` and `P9-10` now carry a `cut_reason`
+instead of a schedule slot. The ledger keeps them apart by *kind*, because
+collapsing them is how "I chose not to" becomes "I could not":
+
+* **Out of scope by consent** — `P7-3`. A beacon is a broadcast; a malformed one
+  reaches the scan path of every device in range. Two independent legs, and
+  **the second is not purchasable**: an AR9271 lifts the instrument leg and does
+  nothing about the radiation leg. So this row should not come back even with
+  the card, and saying so *is* the conclusion.
+* **Blocked on an instrument** — `P7-4` with the wireless group, and `P9-5` /
+  `P9-6` / `P9-7` because the part sits at **1.70 V against a 3.3 V supply**.
+  **These would have produced checkable facts**, which is what separates them
+  from the group above.
+* **Traded away on purpose** — `P9-10`. Its preconditions were met: `P0-3`
+  rehearsed the `FLW` write-back twice and `P9-3` reached rescue mode. It is cut
+  because `P9-12` already handed this SoC 156 bytes of code it had never seen
+  **with no flash write**, and what the reflash adds on top is persistence
+  across a power cycle — paid for with the only unit that exists.
+
+**Open item 97 is not answered by any of this.** The author's reading is that the
+1.70 V is the board's design and that reading `U19` needs it desoldered. That is
+a judgement, not a measurement: three supplies giving one voltage reads like a
+clamp, but clamp versus clip-path resistance was never separated. The cut reasons
+say "not doing this", not "cannot, because X", and #97 stays open.
+
+### A reason I nearly wrote was the flattering one, and the file had the right one
+
+`P7-4` was about to be written as "the instrument does not exist". **It does
+exist**: the row's own frozen prediction names an ESP8266's
+`wifi_send_pkt_freedom` as the transmitter, and there is an ESP8266 on the desk —
+it was the 3.3 V regulator in the clip session. That correction stands and is in
+the reason.
+
+The replacement reason offered next — shared-band consent, as for `P7-3` — **was
+wrong**, and the register had settled it four days earlier: the 2026-08-18
+reschedule note names `P7-3` / `P7-6` / `P7-9` as the radiation group and leaves
+`P7-4` out, because a WPS IE can ride a **directed probe response** to the
+router's own Site Survey rather than a broadcast. The author said so; the file
+agreed with the author.
+
+**An invented reason and a looked-up one read with identical confidence.** The
+first correction was worth making and the second guess was not worth trusting,
+and nothing about how they were said distinguished them.
+
+### `P9-18` — three cells hold, one is refuted, and the refuted one has no branch
+
+`GIMR0` = `0x00008100`. Bit 15 = 1, so `request_IRQ(15,"eth0")` ran and stop
+conditions 1 and 2 do not fire; bit 27 = 0. `IRR1` = `0x30050004`, bits 28–31 =
+3, so refutation (c) does not fire. Reading the whole line rather than one nibble
+cost nothing and gave more: sources 8, 12 and 15 hold priorities 4, 5 and 3 while
+`GIMR0` unmasks only 8 and 15.
+
+**`IRR3` reads `0x00000000` and the prediction said bits 12–15 = 3.** Source 27's
+priority slot is never written. That is consistent with bit 27 being clear but
+**not for the reason the prediction gave**, so the `installs` table's source-27
+row is downgraded — and, importantly, **`IRR3` had a prediction with no
+refutation branch**, so it cannot be scored either way. It is recorded, not
+counted.
+
+**The cell frozen with no bet landed:** bit 8 = 1, so `0x80402FB8`'s
+`GIMR0 |= 0x100` is on the ethernet-init path. The instruction frozen beside it
+was to go read `0x80402F80`'s callers, which is now open item 104.
+
+### `P9-18`'s fourth cell, and a second witness nobody planned
+
+With the escape window taken and `IPCONFIG` never typed, a TFTP read request to
+the compiled-in `192.168.1.6` returned **DATA opcode 3 from `192.168.1.6:2098`**,
+`rx_packets` 0 → 2, `ip neigh` `REACHABLE`. Refutation (d) does not fire, and the
+desk correction of 2026-08-22 is measured rather than assumed.
+
+**Then the MAC settled it a second time, by a route nobody designed.** At
+`192.168.1.6` the loader answered as `56:aa:a5:5a:7d:e8`; after `IPCONFIG
+10.1.1.1` it answered as `56:0a:01:01:01:e8`, and `0a 01 01 01` is `10.1.1.1`. So
+the middle four bytes are written by **`IPCONFIG`'s handler**, not by the stack
+bring-up — which means the stack was serving TFTP at `192.168.1.6` **carrying a
+MAC that could not have come from `IPCONFIG`, because `IPCONFIG` had never run.**
+The recorded model — the loader synthesises its MAC from its IP — has the
+mechanism right and the timing wrong.
+
+### `P9-19` — the 2026-08-21 rejection reproduced on command
+
+Four cells confirmed and one split. `' DW 80540000 2'` with one leading space is
+rejected; **the identical line without the space executes**, same session, one
+variable. That control was initially skipped and had to be asked for — without
+it, "rejected because of the space" and "that command does not work right now"
+are the same observation.
+
+**2c is the reproduction the row exists for.** TAB pressed and *not* followed by
+Enter, a TFTP probe fired from the host, then `DW 80540000 2` typed straight
+after the `<RealTek>` that appeared — rejected. **In the log there is no space
+between `<RealTek>` and `DW` on that line**, because the echo shows only what was
+typed after the repaint while the buffer still held the eight spaces from before
+it. The mechanism and the illusion sit in the same four lines.
+
+**2b split, and the refuted half is a real refinement.** The TAB expanded to
+exactly eight spaces — three times in one log — but **no `Unknown command !`
+followed**; both TAB+Enter cycles returned a silent prompt. The prediction had
+conflated two paths the dispatcher keeps apart: a line of *only* whitespace takes
+the silent `blez` at `0x804091C8`, whitespace *followed by a token* gets the
+complaint.
+
+**`console-lint` closed 2e and then did the job the operator's account did not.**
+33 prompts (1 printed by the TFTP path), 3 rejections, **0 unexplained**, exit 0,
+and it reconstructed 2c's real buffer contents as eight spaces followed by the
+command — the line the device saw and the screen never showed. Its third finding
+was `control-bytes` at offset `0x198`, `\x1b[A\x1b`: **an arrow key, in a session
+whose runsheet preamble forbids them, which nobody reported.**
+
+### `P9-17` — the control failed as designed, and then the device answered a question I had not asked
+
+**B (GIMR0 restored, `IE` left clear) stayed dead on three signals that share no
+code**: no TFTP reply in three attempts, `rx_packets` 4 → 4, `ip neigh`
+`STALE` → `FAILED`. The payload demonstrably ran — `GIMR0` read back `00008100`
+where `J` clears it to zero. Refutation (a) does not fire.
+
+**C changed exactly five words** — only the second `EW` line was re-sent, because
+line 1 is byte-identical between the two payloads — and the instant it set `IE`
+the console printed, **with no probe having been sent**:
+
+```text
+File Start: 80500000,length=00000000
+**TFTP GET File probe,Size 00000000 Byte
+```
+
+That is **B's timed-out request**, which had been sitting in the receive path
+with the interrupt pending and masked, being taken the moment `IE` went to 1. A
+second witness for the same event turned up in a register nobody was watching:
+`0xB8003004` read `88000004` before any jump, `880001**04**` after B's jump with
+`IE` still clear, and `88000004` again after C's.
+
+**Measured on the wire**, with the neighbour entry deliberately deleted to force
+a fresh exchange:
+
+```text
+1  0.000000  fc:19:28:61:84:c9 -> ff:ff:ff:ff:ff:ff  ARP  Who has 10.1.1.1?
+2  0.000927  56:0a:01:01:01:e8 -> fc:19:28:61:84:c9  ARP  10.1.1.1 is at ...
+3  0.000007  10.1.1.100 -> 10.1.1.1  TFTP  Read Request, File: probe
+4  4.004022  10.1.1.100 -> 10.1.1.1  TFTP  Read Request, File: probe
+5  4.004479  10.1.1.100 -> 10.1.1.1  TFTP  Read Request, File: probe
+```
+
+**ARP answered in 0.9 ms; three TFTP requests got nothing.** So `IE` is what
+packet *reception* was missing, and restoring `GIMR0` alone could never have
+supplied it — that is confirmed, one layer below where the prediction aimed. And
+the prediction's own success criterion, "DATA comes back", **is refuted.**
+
+### The negative half is the valuable half, and this time it can be said why
+
+The register had frozen two surviving candidates in case C failed: cache
+maintenance or the payload disturbing something else, and the switch needing more
+than bit 0 after the interface was disabled. **The ARP round trip kills both** —
+frames pass in both directions and the stack under TFTP parses and replies.
+
+What is left is narrower and new: **the TFTP service's own state**, and it has
+evidence rather than a guess behind it. Two readings that share no mechanism
+agree:
+
+| | the healthy transaction (2c) | after C's `J` |
+|---|---|---|
+| spinner | `/` `\b` | `-` `\b` |
+| completion | `*TFTP Client Download Success!` | **absent** |
+| | `.Success!` | **absent** |
+| the `<RealTek>` after it | `console-lint`: **TFTP repaint** | `console-lint`: **real prompt** |
+
+`console-lint` counted exactly **one** repaint in the whole log, and it was 2c's.
+So the prompt after C's jump came from the command loop — the `J` handler
+returning — not from a transfer finishing. **The transfer started and never
+completed.** That is open item 103, and it is a candidate, not a conclusion.
+
+### Instrument bug 55, and a control that caught it when the exit code did not
+
+**`tshark` failed and reported success.** The first capture was written to
+`$FWRE_WORK/dumps/`; `sudo tshark` drops privileges, could not create the file,
+printed `Permission denied` and `0 packets captured` — and **exited 0**.
+
+"Zero packets on the wire" was one of the candidate answers to the question being
+asked, so that failure was in a position to *become* the result. **What caught it
+was a control, not the exit status**: the capture contained zero of **our own
+outgoing** packets, and those were known to have been sent. `P0-4` recorded the
+same lesson on 2026-08-17 — zero is not evidence until the link is known to
+deliver. Re-run into `/tmp`, five packets, all present.
+
+### Instrument bug 56 — a guard that expired on the day the thing it guards worked
+
+Committing the above turned one of `test-check-runsheet.sh`'s 42 cases red. Its
+comment says why it chose its fixture: *"W08 is the fixture for it because it has
+sixteen live rows and zero results, so only the new rule can fire and a pass here
+cannot be the old rule passing by accident."*
+
+**W08 closed 8 / 8 an hour earlier, so the premise died.** `scheduled - executed`
+went empty, the rule under test could no longer fire against any week — every
+week in the register is now closed — and the case failed reporting a *different*
+rule.
+
+Two things make this worth a number rather than a footnote:
+
+* **A guard whose premise is a property of live data expires without anybody
+  deciding to expire it.** Nothing marked it; it simply became untrue.
+* **It expires by going red on the day the project succeeds**, which is the worst
+  available day to read a red test as noise. It went red rather than green, and
+  that is the only reason this one was cheap — the same shape passing silently is
+  instrument bug 12.
+
+Fixed by making it synthetic: `check-runsheet.py` gained `--register` and
+`--results`, the case builds a two-row fixture, and **the flag proves itself** —
+if it were ignored, the fixture's week would not exist in the live register,
+nothing would be unplanned, the checker would exit 0, and the case would report
+"accepted, and it must not be". A control was added beside it: the same fixture
+with the one row exempted must pass. 42 cases became **43**.
+
+That is **fifty-six instrument bugs recorded, and the ratio has not moved**: not
+one was caught by the instrument's own self-check.
+
+### Two smaller things, recorded rather than chased
+
+* **`$VAR` is stripped dispatching Git Bash → WSL**, so `for R in …; do … DW $R 1`
+  sent `DW 1` three times. No harm — it is a read — but it exposed something:
+  **`DW` with one argument does not fault.** It read `0x80000004` and returned
+  normally. `FLW`'s missing argc check is not unique to `FLW`. Mechanism not
+  chased.
+* **A guard in the night's one-shot patch script could not fire.** It refused to
+  cut a row that already carried a result, by reading `test-results.json`; the
+  results file is `reports/test-results.json`, so `Path.exists()` was False and
+  the whole guard was skipped silently. Harmless — `rtcase check` enforces the
+  same rule and the rows had no results — and **not numbered**, because it was a
+  throwaway script and not one of this project's instruments. It is noted because
+  it is instrument bug 12's shape and this is its fifth appearance.
+
+### Deliberately not done
+
+- **`A2.3`, `A2.5`, `A2.6`, `A2.7`, station 5.** Nothing tonight changed the
+  config region and nothing was written to flash, so the two hash-verified dumps
+  remain the restore point. **`A2.5` is now permanently unnecessary rather than
+  merely unneeded tonight**: its only remaining purpose was rehearsing `P9-10`,
+  and `P9-10` is cut.
+- **Station 5 was not visited and the clip was not touched.** Open #97 is
+  unchanged, and the six cuts did not answer it.
+- **The separation experiment for #97 was designed and not run.** A known series
+  resistor in the ESP8266 injection line, with the meter across it, yields the
+  current without needing anything inserted at the clip's fixed header — which
+  was the stated reason it was called impossible. The author's decision is to
+  wait for a programmer that can drive the part. **The design is recorded in
+  `BENCH-LOG.md`, not in the cut reason, because it is a proposal and not a
+  measurement.**
+- **The TFTP state machine was not read.** Open #103 names it; it is a desk
+  question and designing it in front of the device is what `A2.9`'s stop
+  condition 5 forbids.
+- **`fwrecon compcs`'s sentence was left as written**, by decision — see
+  Corrections.
+
+### Corrections
+
+| Said | Actually |
+|---|---|
+| **The summary table's W08 row:** "5 / 14 register rows, 9 outstanding" | **8 / 8, 0 outstanding.** Six rows cut with reasons, three closed at the bench. Updated at the top of this file, quoted from `rtcase todo` |
+| **The board's register numbers:** 138 registered, 124 frozen, "nine items were cut" | **141 / 127 / 23.** These were stale *before* tonight. The sentence "none of them produce a checkable fact about this device" was true of the original nine and is **false** of the SPI-clip trio, so it was rewritten rather than renumbered |
+| **`CLAUDE.md`:** "Nine items were deliberately cut" | Twenty-three, and the file now also says to keep the three kinds of cut apart |
+| **`P9-18`'s prediction for `IRR3`:** bits 12–15 = 3, written by `0x8040A398` | `0x00000000`. Source 27's priority slot is never written, and the `installs` table's source-27 row is downgraded to "this structure resembles an irqaction" |
+| **`P9-19`'s prediction for the TAB cell:** eight spaces **then** `Unknown command !` | Eight spaces, **then a silent prompt**. Whitespace-only and whitespace-plus-token are different dispatcher paths |
+| **`P9-17`'s prediction for C:** DATA comes back | ARP comes back, DATA does not. The mechanism is confirmed at packet reception and refuted at the TFTP service |
+| **`runsheet.md` `A2.9` step 0:** assigns an address and probes | It never brings the host interface **up**, and it was administratively DOWN. Run as written it would have produced a **false negative on a cell that can only be measured once per boot**. Fixed, with the carrier wait beside it |
+| **`runsheet.md` `A2.4`'s closing rule:** "power-cycle after this section; do not `J` from an `IPCONFIG`'d state" | `A2.9`'s preconditions require exactly that, and `A2.9` is right — 2c and step 3 both need `IPCONFIG`, and `AUTOBURN 0` makes an upload unable to reach flash. `A2.4`'s rule is a generalisation whose scope exceeds its observation, the same shape as "`J` 之後沒有軟體的路回去", which was overturned on 2026-08-22. Both sections now say so |
+| **`tools/fwrecon/src/fwrecon/compcs.py:749`:** "The device itself would reject this blob" | An assertion about device behaviour whose **only** measurement was `P9-6`, now cut. **Left as written by the author's decision**, and listed in `writeup/14-limits.md` as an unmeasured claim rather than quietly kept |
+| **The register commit landed before this prose** | Deliberate. `make doctor` asks for a clean tree before a session so the plan's timestamp means something, and the cuts had to be on the record before the device was powered. The rule that `PROGRESS` moves with the work is met within the night, not within the single commit |
+
+### Open, carried forward
+
+66, 67, 69, 70, 71, 74, 75, 77, 78, 79, 81, 82, 84, 85, 86, 87, 88, 89, 91, 92,
+93, 94, 95, 97, 100 — unchanged. **#97 in particular is unchanged**: choosing not
+to measure it is not the same as finding out.
+
+103. **Why does the loader's TFTP service stop answering after a transfer is
+     interrupted?** With `GIMR0` and `IE` restored the stack receives, parses and
+     replies to ARP in 0.9 ms, and ignores three TFTP read requests with the
+     console silent. The candidate is that the queued request taken at the moment
+     `IE` was set left the server mid-transfer: it printed the spinner and no
+     `Success!`, and `console-lint` independently read the following prompt as a
+     command-loop prompt rather than a TFTP repaint. **Answerable at the desk** —
+     read the TFTP state machine, find the completion condition, and find where
+     an interrupted transfer stops. Nothing here needs the device.
+
+104. **Who sets `GIMR0` bit 8?** It is 1 at the prompt. Two writers were known
+     (`0x80402FB8`'s `GIMR0 |= 0x100` and `request_IRQ(8,"timer")`) and the call
+     graph between them was never chased. The instruction was frozen with the
+     cell before the reading: go read `0x80402F80`'s callers.
+
+105. **Why is `IRR3` zero?** `0x8040A398` was read as writing source 27's
+     priority. The slot is never written, so either that reading is wrong or the
+     code does not run on this path. Until it is settled the `installs` table's
+     source-27 row claims only that the structure resembles an irqaction.
+
+## W08 Day 3, desk — one query retired the largest claim in the report drafts, and the disclosure policy went with it — 2026-08-23
+
+Desk-only. The device was not powered, the clip was not touched, nothing was
+measured. What changed is what this project believes about work it had already
+finished, and what it does with it.
+
+The session started as *"remind me what we were going to send"* and ended with
+**nothing being sent, ever, and everything being published instead.**
+
+### `CVE-2018-13315` — the second time a by-handler search retired a finding
+
+`docs/report-draft.md`'s finding **A** — an unauthenticated POST changes the
+administrator password because `formPasswordSetup` carries `Cusername` /
+`Cpassword` for the current credentials and never checks them — **is
+CVE-2018-13315**, published 2018-07-03 against the sibling TOTOLINK A3002RU
+1.0.8, CVSS 9.8, CWE-20. Independent Security Evaluators' own title for it is
+*"Missing Server-side Validation of Current Password During Password Change"*,
+which is the sentence this project had been writing for six days.
+
+Four independent sources, because a search summary is a summariser and this
+claim retires a finding: NVD, Vulmon, CXSecurity's product table, and GitHub
+Advisory `GHSA-vw86-c7px-f6g6`.
+
+**This is `D-1` a second time and the second one is worse.** `D-1` needed a Cisco
+Talos advisory. This one is on NVD, under the handler's own name, and the
+draft's own timeline entry from 2026-08-17 says in as many words that the
+by-handler search *"has not yet been run for A, B and C"*. It stayed not-run for
+six days across four sessions.
+
+The mechanism of the failure is not laziness and calling it that would waste it.
+**A confirmed prediction feels like an ending.** `P10-3` was measured on the
+hardware against a refutation condition frozen beforehand, it held at the first
+attempt, and a result that survives its own refutation does not feel like
+something that still needs checking against the literature. Both misses have that
+shape.
+
+One method result worth keeping: the query that found it named **the handler and
+the effect** — `formPasswordSetup` + *unauthenticated password change*. The
+handler alone returns the 2019 and 2025 command-injection material and buries a
+2018 access-control row. The effect is the vocabulary a CVE description is
+written in; the handler is the vocabulary the binary is written in. `disclosure.md`
+step 2 says *search by handler, not by product*, and that is true and
+insufficient.
+
+### The decision: nothing is reported, everything is published
+
+Decided by the author. **Nothing goes to TWCERT/CC, to the vendor, or to anyone
+else, and the reproductions are published in `poc/` instead.** `README.md`
+promised the opposite until today and was changed in the same commit, because a
+promise nobody intends to keep is worse than no promise.
+
+The argument is in `docs/disclosure.md` §"The decision of 2026-08-23" and it is
+checkable rather than rhetorical: on these builds an unauthenticated attacker on
+the LAN already has **root** (CVE-2024-51228, public PoC naming this exact build
+string) and already has the **plaintext credentials** (`GET /config.dat`,
+CVE-2019-19822/19823, one request, no bypass, unfixed in a build dated nine
+months after full disclosure). Every reproduction published today is reachable
+from either, item by item, in a table. **It adds mechanism, not capability.**
+
+The vendor half: ISE reported twelve CVEs against the sibling in 2018 across
+three emails and record no response to any of them. One of those twelve is what
+retired finding A today, still present eight years later.
+
+**Tradecraft did not move.** No persistence, no anti-forensics, no lateral
+movement, no credential harvesting. That line has never been argued with here.
+
+### The four things that argument does not cover, written into the register
+
+Because this is the half that will be attacked, and it should be attacked:
+
+1. The affected window is **2015 → 2018 present, 2020 absent** — not "one
+   end-of-life unit". It is whatever ships a 2015–2018-era `boa`, and **one such
+   device has been measured.**
+2. **Five of the six `-CX-` models CVE-2024-51228 names are untested here.** The
+   argument assumes CVE-2019-19822 reaches them too. That is likely from the SDK
+   lineage and it is an assumption about hardware nobody here has touched.
+3. **`N300RT` is not end-of-life** — CVE-2025-34319 names firmware prior to
+   `V3.4.0-B20250430`, so that model was still receiving builds in 2025 while
+   CVE-2024-51228 names its 2017 and 2019 builds. *"The device is EOL"* is true
+   of this unit and is **not** a statement about the affected set. It was nearly
+   used as one.
+4. Every claim is **LAN-side**, in this unit's shipped configuration.
+
+### `password.htm` hands out the credentials, and it changes nothing
+
+`/password.htm` inlines the plaintext administrator username **and** password
+into two JavaScript variables, by server-side SSI, and the client-side
+comparison against them is the *entire* current-password check — which is the
+other half of CVE-2018-13315's story. Read out of this unit's own rootfs template
+and confirmed in a rendered 5,332-byte response.
+
+Across the three builds it is the **2018 build alone** that both carries the
+`D-15` credential pair and puts the password in the page it unlocks: 2015 has the
+pair but inlines only the username, 2020 has neither.
+
+**And it is not an escalation.** Those two values have been one unauthenticated
+`GET /config.dat` away since 2019. The first draft of the note said *"credential
+disclosure leading to full takeover"* and was written before asking what the
+attacker already had — the same error, in the opposite direction, as the draft
+sentence that made the finding look unimportant. → `notes/password-page-credentials.md`
+
+### Two files that disagreed with themselves, and no tool reads either
+
+- **`notes/prior-art.md`** carried a section headed *"Not searched yet — three
+  items"* naming `D-15`, `D-17`, `D-12` — while the section a hundred lines above
+  it, committed the same day, records all three as searched with results. It also
+  omitted the two items that genuinely had not been searched, `D-4` and `D-11`,
+  which were the two about to go into a report.
+- **`docs/report-draft-2.md`** listed two blocking conditions that had both been
+  cleared on the day it was written — the prior-art search four ways, and the
+  device confirmation at 19:44 the same evening. The file still said *"not done"*
+  five days later, **and that is why the finding was read as unimportant today**:
+  the file said it was not ready, so it was not reconsidered.
+
+Both are the shape of instrument bug 22 — a checker's blind spot holding the bug
+it was written for — except there is no checker at all. `check-runsheet.py` reads
+the runsheet, `rtcase.py` reads the register, and **nothing reads
+`docs/disclosure.md` or `notes/prior-art.md`.** That is now three instances.
+
+### Corrections
+
+| Said | Actually |
+|---|---|
+| `docs/report-draft.md`, finding **A**: this project's own, and the strongest of the three | **CVE-2018-13315**, published 2018-07-03, sibling model, same handler, same mechanism |
+| `docs/disclosure.md` `D-1`: *"`BoaGate` R2 mis-classified an `sprintf` site as a `system()` site"* | The withdrawal stands, the reason is too harsh. **CVE-2018-13314 / 13316 put `ipAddr` and `subnet` into `system()` on `formAliasIp`** — R2 matched a real sink family and attached it to the wrong handler, which is a different and more fixable bug than inventing one |
+| `docs/disclosure.md` `D-15`: *"(c) still outstanding: confirmation on the device"* | Done **2026-08-18 19:44**, `BENCH-LOG.md` `T-43`. The row carried it as outstanding for five days |
+| `docs/report-draft-2.md`: prior-art search *"not done"*, hardware confirmation *"not done"* | Both done 2026-08-18, the day the draft was written |
+| `docs/report-draft-2.md`: the finding adds *"reading: pages, and what they contain"* | True and it never says what they contain: the plaintext credentials. Also true: that changes nothing, and the draft could not say so either |
+| `writeup/14-limits.md` and `15-disclosure.md`: *"one item has had no prior-art search"*, *"one turned out to have a CVE against it already"* | Three items were unsearched (`D-4`, `D-11`, `D-19`) and **two** had CVEs. Both counts corrected; both files had been published-facing with the wrong number since 2026-08-22 |
+| `README.md`: *"anything genuinely new goes to TWCERT/CC before any public discussion"* | Replaced 2026-08-23. Nothing was ever reported and nothing will be |
+| `docs/disclosure.md` `D-19`: `NOT SEARCHED` | Searched today. Everything returned is CVE-2014-8361's **command injection** on the same parameter; nothing describes the daemon terminating. The most likely reading — a variant of the 2014 defect that fails closed — is a hypothesis and is labelled one |
+
+### Deliberately not done
+
+- **The device was not touched.** Nothing today needed it and nothing today
+  produced a reason to power it.
+- **`run.sh` was not extended to the two newly published items.** A script that
+  fires an authentication bypass is a different artefact from one that reproduces
+  a documented CVE, and no gate here asks for it.
+- **`runsheet.md` `A3.11.2` was not redacted, and now never needs to be.** The
+  governance defect it created — a complete request for an unreported defect
+  sitting in a committed file — was resolved by the item turning out to be
+  CVE-2018-13315 and by the policy change, in that order. **That is luck, not
+  process**, and it does not retire open #70.
+- **The ISE post was not read.** Three fetch attempts returned nothing and the
+  archive is unreachable from this toolchain; the author could not open it
+  either. `D-18`'s prior-art claim is recorded as single-sourced and unverified
+  rather than dropped or absorbed. → open #108.
+
+### Open, carried forward
+
+66, 67, 69, 70, 71, 74, 75, 77, 78, 79, 81, 82, 84, 85, 86, 87, 88, 89, 91, 92,
+93, 94, 95, 97, 100, 103, 104, 105 — unchanged. **#70 in particular is
+unchanged and is now the most expensive one on the list**: *nothing makes a
+finding consult `notes/prior-art.md` before it is written*. It has now cost two
+findings and one report draft.
+
+106. **Where did `$FWRE_WORK/dumps/w05-password-page.html` come from?** It is
+     named in no committed file — not `BENCH-LOG.md`, not the runsheet, not any
+     note. Device or emulator, and which run, is unrecorded; the byte count is
+     the only thing tying it to `T-43`. `notes/password-page-credentials.md`
+     leans on the rootfs template for this reason and uses the rendered file as
+     corroboration only. **Closes with one capture** at the next visit: re-run
+     `A3.13`'s bypass with the body saved and `cmp` it.
+
+107. **Why 5,322 against 5,332?** The same page measured ten bytes shorter with
+     the stored password emptied (`P10-4`) than with credentials set (`T-43`).
+     The page inlines both values, so the length tracking the credentials is
+     expected; **the arithmetic does not come out** — two five-character values
+     emptied is five bytes, not ten, and the username was also rewritten in that
+     run. Not usable as evidence until it reconciles.
+
+108. **What else is in the ISE post?** It is the reference behind twelve 2018
+     CVEs on the sibling model, and the one paragraph reachable through a search
+     summary already bears on `D-18`. Two of its twelve touch `password.htm`
+     and one is the CVE that retired finding A today, so the rest is the highest
+     prior-art yield left unread. `blog.securityevaluators.com` did not answer
+     and `web.archive.org` is blocked from this toolchain.
+
+109. **Do the other five `-CX-` models carry the second credential pair?** The
+     whole "nothing published here adds a capability" argument leans on
+     CVE-2019-19822 reaching them, which is an inference from SDK lineage. One
+     of the five, `N300RT`, was still receiving firmware in 2025. **Answerable
+     without hardware** if any of their images can be obtained: the pair is a
+     static read of one function.
+
+## W09 — the publication week, run as one desk session: three checkers written to hold this repository to account, and 31 of their first 39 findings were their own — 2026-09-25
+
+Desk-only. The device was not powered, the clip was not touched, nothing was
+measured. W09 is the publication week and its deliverable is a front door, so
+this session's work is structural — except that following one number into the
+write-up turned up the worst content defect this project has shipped.
+
+### The instruments came first, deliberately
+
+Six files had to move into `journal/` and 1,038 relative links had to survive
+it. **Building the instrument that can see a broken link before moving anything**
+is the same rule as measuring before fixing, and it paid immediately.
+
+`tools/check-links.py` makes exactly one decision that matters: **it asks git,
+not the file system.** `README.md` linked to `plan/` for eleven weeks, in the
+one sentence the entire gate board rests on — *"the acceptance criteria from the
+week plans in `plan/` — copied, not invented after the fact"* — and `plan/` is
+gitignored. On GitHub it was a 404. On every machine that could have noticed it
+was a directory that exists. **The file system and the repository disagreed, and
+only one of them is what a reader gets.**
+
+`tools/check-numbers.py` re-derives each front-door number from the thing that
+owns it. It exists because `tools/count-checks.sh` diagnosed this failure in its
+own header in August — *"a number on the front door that nobody can re-derive is
+worth less than no number"* — **and was then never wired into anything.** The
+front page said **592** where a recount said **593**, and **130 registered
+tests** where the register held **141**, on the same page that said 141 a
+hundred and forty lines further down.
+
+`count-checks.sh`'s stated reason for staying out of CI was half right: pinning
+the total to a constant would go red every time a suite grew. Asserting that
+**the prose equals the recount** goes red only when the prose is stale. The
+distinction is between checking a value and checking an agreement.
+
+### Instrument bugs 57, 58 and 59 — and they are a different shape from the other 56
+
+`check-links.py`'s first run reported **21 broken links. 18 were the checker.**
+
+- **57** — the slug function collapsed *runs* of whitespace to one hyphen.
+  Removing punctuation leaves the gap behind, so `codes — a` anchors as
+  `codes--a`. Fourteen correct links reported broken.
+- **58** — the same checker blanked inline code *before* slugging, so
+  `### 7.4 \`J2\` and the power switch` lost the `J2`. GitHub slugs the
+  **rendered** heading. Four more.
+
+`check-numbers.py`'s first version scanned prose for `N tests`, `N checks`,
+`N items cut`. It reported **18 disagreements; 13 were the checker.**
+
+- **59** — English gives a total and a subset the same grammar.
+  *"141 registered tests"* and *"Three registered tests are frozen against it"*
+  are indistinguishable to a pattern, and both are correct sentences. Rewritten
+  as a **table of claim sites**: file, sentence shape, owning generator. The
+  price is that a new total in a new sentence is invisible until someone adds
+  it; the purchase is that **a claim site that stops matching is itself a
+  failure**, so coverage cannot silently narrow the way instrument bug 12 did.
+
+**The direction is the finding.** The other fifty-six skew hard toward *silent
+passes* — a census returning 1 instead of 589, a freeze check hashing an empty
+list, a capture printing `0 packets captured` and exiting 0, a regular
+expression matching nothing and therefore passing on every file. These three all
+**invented work**, and an instrument that invents work is worse than one that
+hides it, for a reason that has nothing to do with the instrument: **a false
+alarm gets obeyed.** The first response to *"this anchor is broken"* is to go
+and fix the anchor. Fourteen correct links were one keystroke from being
+"fixed" into fourteen broken ones. A silent pass leaves the evidence intact; a
+false alarm is an instruction to destroy it.
+
+What caught all three is embarrassingly cheap: **read every finding before
+acting on the first one.** Eighteen anchor failures sharing one shape — every
+one spanning an em dash, a slash or a comma — is not eighteen defects in the
+corpus. It is one defect in the reader. `writeup/12` now carries this as a fifth
+worked section, because it sharpens the chapter's own rule: *no claim from a
+single tool* has a corollary, which is that **a tool's first run is a claim too,
+and the shape of its findings is evidence about the tool.**
+
+### Following one number into `writeup/02-corpus.md`
+
+The README draft said *six builds*; `writeup/02-corpus.md` was titled *Five
+builds*. Chasing the disagreement found three defects in the chapter whose
+entire job is to say which image supports which claim:
+
+1. **A row for `V4.1.5cu`.** That string appears in **exactly one file in this
+   repository: that chapter.** No `SOURCES.json` entry, no manifest row, no
+   report, no other document. It was never obtained and never analysed.
+2. **Three images that *were* analysed were missing** — two N300RT and one
+   N200RE — while chapter 7's per-product finding depends on all three.
+3. **The chapter contradicted its own count** inside four hundred words: a table
+   of five that includes this unit's dump, then a section calling the dump *"the
+   sixth image"*.
+
+The true corpus is **six downloadable images plus this unit's dump**, of which
+**six `boa` binaries were read side by side**
+(`reports/formtable-scan-six-builds.json`); the seventh image was downloaded
+incomplete and contributes its `w6cg` bundle only, which `SOURCES.json` has said
+all along.
+
+### And then `writeup/07-across.md`, which is worse
+
+Its `root_form[]` row read **`57 | 58 | 57`**. The correct row is
+**`59 | 57 | 49`** — every one of the three wrong, and wrong *in a shape*:
+near-identical counts with this unit one entry above its neighbours. The real
+numbers say the 2020 build **dropped ten routes**, a visible narrowing of the
+attack surface and the most interesting cell in the table. **The fabricated
+symmetry hid it.**
+
+The correct numbers were never in doubt and never hidden —
+`notes/three-way-read.md:107` carries `59 | 57 | 49` from W04-2,
+`notes/dispatch-table.md` has 59 and 49 by address, and the three report files
+say so themselves. **The chapter did not disagree with the evidence. It
+disagreed with this repository's own notes, and nothing was comparing the two.**
+
+Every other row in that table checks out against `reports/` — the gate row
+`5 | 6 | 8` is exactly `findings_by_rule.R2` in the three gate reports — which
+makes the one wrong row worse rather than better. **A table where everything is
+checkable and one cell was not checked is a table that has taught its reader to
+stop checking.**
+
+Its title also claimed five builds, chapter 13 inherited the same number for a
+gate that ran on three, and the six-build scan — the strongest cross-build
+result this project has — **was cited nowhere in the write-up at all**, despite
+being the thing that corrects chapter 7's own generalisation.
+
+### Structure
+
+- **Six files moved to `journal/`**: `PROGRESS.md`, `LOG.md`, `BENCH-LOG.md`,
+  `RUNBOOK.md`, `runsheet.md`, `test-ledger.md`. The repository root is now five
+  tracked files. `journal/README.md` states why an audit trail is published at
+  all, which is the difference between *auditability* and *hoarding* and is
+  entirely a matter of whether anyone says which one it is.
+  `test-cases.toml` stayed at the root: it is machine-readable source that
+  `make ledger` and CI consume, not a journal.
+- **326 links rewritten** by script, in two passes — inbound to the moved files,
+  then outbound from them — each pass verified by `check-links.py` rather than
+  by eye. Six tool path constants and 96 artefact paths in
+  `reports/test-results.json` followed.
+- **`LICENSE`** (MIT) added. `tools/fwrecon/pyproject.toml` had declared MIT
+  since W01 with no such file, which is a self-contradiction in a repository
+  whose pitch is that two documents never disagree.
+- **`CLAUDE.md` untracked**, with `docs/how-this-was-built.md` added in the same
+  commit. It is an agent configuration file, the same category as
+  `.vscode/settings.json`; the note says what was collaborative, what was not,
+  and that the rule is *the tools can be collaborative, the conclusions cannot*.
+- **`docs/gates.md`** generated by `tools/extract-gates.py` from the private week
+  plans, with `make check-gates` proving the two still agree. It replaces the
+  `plan/` 404 with something better than the link was: **the first commit of
+  `PROGRESS.md`, `b085444`, 2026-08-07, already carries the whole G0–G5
+  assignment** — nine days before the hardware arrived and datable from this
+  repository's own history rather than from a directory nobody else can see.
+- **README rebuilt.** 127 lines before the first `<details>`, down from 362
+  before the first section heading. The nine reverse-chronological "Latest"
+  blockquotes are **deleted, not moved**: `PROGRESS.md` already carried those
+  sessions at higher density, so the README had been a second owner of that
+  state. The gate board is kept and collapsed, as W09's plan directs.
+- **CI now runs on `w*` branches**, not `main` alone.
+
+### Corrections
+
+| claim | correction |
+|---|---|
+| External review: *"`main` is dead — 5 commits, 2026-08-07, 110 commits behind"* | **False, and it was false on the day it was written.** `origin/main` carries 23 merged PRs, 276 files, last merged 2026-08-21 — the day *before* the review. What is stale is the **local** `main` ref, never fast-forwarded in this working copy. The review read `git log main` in the working directory and reported it as GitHub's state. The real gap was **7 commits**, not 110 |
+| External review: *"`D-19` is marked `NOT SEARCHED`"* | Searched 2026-08-23, `docs/disclosure.md:155`, the day after the review. Nothing matched; published, not reported |
+| External review: *"`study/writeup-導讀.md` is untracked, 404"* | Tracked. Most likely a CJK filename that the reviewer's check did not resolve |
+| `plan/W09` assumes the repository must be created — *"`git init` / `git remote add`"* | It has existed and been public since W01. W09's actual job is a front door, which is what the plan's own first table says |
+| `make todo WEEK=W09` | **"no week W09 in the register."** W09 schedules no tests, because it measures nothing. The closure list for a publication week is its gate, not its register rows — worth stating because every week since W05 has had one |
+| `writeup/02-corpus.md` — *"Five builds"*, incl. `V4.1.5cu` | Seven images, six `boa` binaries read across; `V4.1.5cu` does not exist |
+| `writeup/07-across.md` — `root_form[]` `57 \| 58 \| 57` | `59 \| 57 \| 49`, per `notes/three-way-read.md`, `notes/dispatch-table.md` and the three reports |
+| `writeup/07-across.md` and `13-gate.md` — *"five builds"* | Three. `reports/` holds three gate reports and three per-build formtable reports |
+| `REPRODUCE.md` — *"130 tests"*, *"592 checks"*; README — *"592 checks"* | 141 and 613. Both now checked by `tools/check-numbers.py` at 36 claim sites |
+
+### Open, carried forward
+
+66, 67, 69, 70, 71, 74, 75, 77, 78, 79, 81, 82, 84, 85, 86, 87, 88, 89, 91, 92,
+93, 94, 95, 97, 100, 103, 104, 105, 106, 107, 108, 109 — unchanged. **#70 is
+still the most expensive one on the list** and today added a second instance of
+its shape: nothing makes a *number* consult the report it came from, in the same
+way nothing makes a *finding* consult `notes/prior-art.md`.
+
+110. **Nothing compares a measurement quoted in `writeup/` against the report it
+     came from.** `57 | 58 | 57` fell through exactly this gap, and so did the
+     `V4.1.5cu` row and the three missing images.
+     `tools/check-numbers.py` covers **front-door totals** with a named owner;
+     it does not and cannot cover a single measured value cited mid-chapter.
+     **Answerable at the desk**, and the shape is probably the same claim-site
+     table: a chapter cell, the report key it must equal. The reason to write it
+     is not the one cell — it is that a table where every other cell *is*
+     checkable is the most persuasive place for a wrong one to sit.
+
+### W10 — what it owes
+
+W10 is the buffer week and it has no gate. The list is short on purpose; a
+buffer week that acquires a scope is not a buffer week.
+
+1. **Clause 1b of G5 — a stranger.** The one clause this project cannot
+   self-certify. It needs a person who has not seen the repository, ten minutes,
+   and three questions afterwards: *what is the device, what was found, and how
+   would you check it.* Everything else about the front door is already measured
+   and every one of those measurements is a proxy.
+2. **Open item 110 — the checker for a measurement quoted mid-chapter.**
+   `57 | 58 | 57` was in **two** chapters, not one, and chapter 6 named the very
+   reports that contradict it in the sentence above the table. The shape is
+   probably the claim-site table again: a chapter cell, the report key and JSON
+   path it must equal. Cheap, and it is the only one of these that removes a
+   class rather than an instance.
+3. **Eleven chapters have not been audited against `reports/`.** Four were, and
+   four defects came out. That ratio is the argument for (2) and it is also the
+   reason not to do the remaining eleven by hand.
+4. **Open items 106 and 107** still need one bench capture between them — the
+   `A3.13` body, saved rather than measured. Unchanged, still cheap, still needs
+   a session that is going to the bench anyway.
+5. **Nothing else.** In particular: no new CVE, no new tool, and no new chapter.
+   The W09 plan's own stop-loss says *"想再多做一個 CVE → 停"*, and the honest
+   state of this project is that its weakest point is no longer what it found —
+   it is that one person has read it.

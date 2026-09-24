@@ -598,6 +598,104 @@ make_cmd_image "$TMP/cmd-basemix.bin" basemix
 expect_cmd_refusal "the chip table and the command table disagreeing on the base is refused" \
                    "cannot have two" "$TMP/cmd-basemix.bin"
 
+# ---------------------------------------------------------------------------
+# 25-31. The interrupt wiring (open #101).
+#
+# These drive the analysis functions directly rather than through a synthetic
+# 4 MiB image, because what has to be proved is arithmetic on instruction words
+# and a fixture large enough to carry an interrupt controller would hide it.
+# The case that matters is 27: two `cli`/`sti` idioms whose only difference is
+# one bit of one immediate. Version 1 of this analysis matched the *shape*
+# `ori $1,1 / mtc0` and reported that nothing in the image ever sets IE -- while
+# `0x80408494` was setting it with `ori 0x1f / xori 0x1e`, four instructions
+# after the loader printed `---Ethernet init Okay!` on this unit's own boot log.
+# ---------------------------------------------------------------------------
+irq_case() {
+  local why="$1"; shift
+  if "$PY" - "$@" <<'PYEOF'
+import importlib.util, struct, sys
+spec = importlib.util.spec_from_file_location("lu", "tools/loader-unpack.py")
+lu = importlib.util.module_from_spec(spec); spec.loader.exec_module(lu)
+
+
+def W(*ws):
+    return b"".join(struct.pack(">I", w) for w in ws)
+
+
+def ie(*ws):
+    rows = lu._status_census(lu._words_of(W(*ws)), 0x80400000)
+    assert len(rows) == 1, rows
+    return rows[0]["ie_bit_after"]
+
+
+which = sys.argv[1]
+MFC0, MTC0, MTC0Z = 0x40016000, 0x40816000, 0x40806000
+
+if which == "sti":
+    assert ie(MFC0, 0, 0x3421001F, 0x3821001E, MTC0) == "1"
+elif which == "cli-1f":
+    # one bit of one immediate away from the case above
+    assert ie(MFC0, 0, 0x3421001F, 0x3821001F, MTC0) == "0"
+elif which == "cli-01":
+    assert ie(MFC0, 0, 0x34210001, 0x38210001, MTC0) == "0"
+elif which == "zero":
+    assert ie(MTC0Z) == "0"
+elif which == "restore":
+    # `mtc0` of what `mfc0` read, untouched: IE is whatever it was
+    assert ie(MFC0, 0, MTC0) == "S"
+elif which == "control":
+    # the whole analysis refuses when the census cannot see the writes that
+    # clear IE, because then its report that nothing SETS it is worthless
+    try:
+        lu.interrupt_wiring(W(MFC0, 0, 0x3421001F, 0x3821001E, MTC0), 0x80400000)
+    except lu.LoaderError as e:
+        assert "clear IE" in str(e), str(e)
+    else:
+        raise SystemExit("the analysis did not refuse on a one-write image")
+elif which == "funcstart":
+    # A function entry is an address something CALLS. The word after the
+    # previous `jr ra` is not the same thing: the routine before `enable_irq`
+    # in this loader ends in `rfe`.
+    words = [0x03E00008, 0x00000000, 0x00000000, 0x00000000]
+    assert lu._func_start(words, 3, {2}) == 2
+    assert lu._func_start(words, 3, set()) is None
+    assert lu._func_start(words, 3, {2}, back=0) is None
+else:
+    raise SystemExit(f"unknown case {which}")
+PYEOF
+  then ok "$why"; else bad "$why"; fi
+}
+
+irq_case "an sti built as ori 0x1f / xori 0x1e is read as setting IE" sti
+irq_case "the same shape with xori 0x1f is read as clearing it" cli-1f
+irq_case "the ori 1 / xori 1 cli is read as clearing it" cli-01
+irq_case "mtc0 zero is read as clearing it" zero
+irq_case "mtc0 of an untouched mfc0 is read as leaving IE alone" restore
+irq_case "an image the census cannot find cli sites in is refused" control
+irq_case "a function entry is derived from what calls it, not from the previous jr ra" funcstart
+
+# 32. The committed report is what the note cites, so it is what CI checks. The
+#     dump itself lives outside the repository and CI cannot regenerate this.
+if "$PY" - <<'PYEOF'
+import json
+d = json.load(open("reports/bootloader-unit-2018.json"))
+w = d["interrupt_wiring"]
+assert "refused" not in w, w["refused"]
+eth = [r for r in w["installs"] if r["name"] == "eth0"]
+assert len(eth) == 1 and eth[0]["irq"] == 15, w["installs"]
+assert w["console_input"]["polls_only_the_uart"] is True
+assert w["console_input"]["unresolved_memory_references"] == 0
+assert w["boot_path_to_the_prompt"]["found"] is True
+assert "Ethernet init Okay" in \
+    w["boot_path_to_the_prompt"]["console_line_printed_immediately_before_sti"]
+assert len(w["writes_that_set_ie"]) >= 1 and len(w["writes_that_clear_ie"]) >= 4
+PYEOF
+then
+  ok "the committed report carries the eth0 install, the boot path and the console reading"
+else
+  bad "the committed report does not carry the interrupt wiring the note cites"
+fi
+
 echo
 echo "  $pass passed, $fail failed"
 [ "$fail" -eq 0 ] || exit 1

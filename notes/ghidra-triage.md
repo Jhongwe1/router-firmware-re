@@ -22,7 +22,7 @@ opening in W03".
 >
 > Also superseded: the commands below. `import.ps1` now only imports and
 > analyses, into a per-version project folder, and scripts are run separately by
-> `analyze.ps1` — see [`../RUNBOOK.md`](../RUNBOOK.md). The W01 invocation had a
+> `analyze.ps1` — see [`../RUNBOOK.md`](../journal/RUNBOOK.md). The W01 invocation had a
 > real bug: `analyzeHeadless -import` names the program after the *file*, so both
 > firmware versions imported as a program called `boa` and `-overwrite` made the
 > second import destroy the first.

@@ -76,7 +76,7 @@ WSL = Windows Subsystem for Linux，讓你在 Windows 裡跑一個真的 Linux�
 
 **逆向 Linux 韌體必須在 Linux 上做。** 韌體裡有符號連結（symlink）、有 Unix 權限位元，Windows 的檔案系統存不下這些東西 —— 存不下就等於**資料會悄悄消失，而且不會報錯**。這個專案最重要的一個發現（`/web/config.dat` 是個符號連結）在 Windows 上解包會直接看不到。
 
-詳見 [`docs/workspace-layout.md`](docs/workspace-layout.md)。
+詳見 [`docs/workspace-layout.md`](../docs/workspace-layout.md)。
 
 ---
 
@@ -145,7 +145,10 @@ bin/  dev/  etc/  home/  lib/  mnt/  proc/  sys/  tmp/  usr/  var/  web/
 > - 只拆**自己買的**硬體
 > - 只在**隔離網路**測試，不連上線設備
 > - 不碰 ISP 的機器（中華電信的數據機不是你的）
-> - 真的找到新漏洞 → 走 TWCERT/CC 責任揭露，不公開
+> - 真的找到新漏洞 → **看 `docs/disclosure.md`，不要在這裡讀政策。**
+>   2026-08-23 之前是「先通報 TWCERT/CC，不公開」；之後是「不通報，全部公開」，
+>   而那個決定的理由**只對這幾個 build 成立**（它們已經帶著公開的未認證 root
+>   與公開的未認證明文憑證）。政策有一個擁有者，這裡不是
 
 ---
 
@@ -314,10 +317,10 @@ make fetch
 
 **這會做什麼：**
 
-1. 讀 [`firmware/SOURCES.json`](firmware/SOURCES.json) —— 裡面寫著要抓哪兩個檔、從哪抓、雜湊值應該是多少
+1. 讀 [`firmware/SOURCES.json`](../firmware/SOURCES.json) —— 裡面寫著要抓哪兩個檔、從哪抓、雜湊值應該是多少
 2. 下載到 `~/fwre-work/firmware/`（**不是**在專案資料夾裡，見下方說明）
 3. 逐一比對 **檔案大小 / MD5 / SHA-1 / SHA-256**
-4. 把實際結果寫進 [`firmware/MANIFEST.json`](firmware/MANIFEST.json)
+4. 把實際結果寫進 [`firmware/MANIFEST.json`](../firmware/MANIFEST.json)
 
 **應該看到：**
 
@@ -428,7 +431,7 @@ cat -n ~/fwre-work/extracted/v2.1.2/squashfs-root/etc/init.d/rcS | sed -n '105,1
    111	
 ```
 
-**第 110 行前面那個 `#` 就是本專案最有意思的發現之一。** `skt` 是 2015 年被公開的後門程式，廠商的「修補」方式是**把啟動那行註解掉**，但 `/bin/skt` 這個檔案還好好地留在韌體裡。詳見 [`notes/prior-art.md`](notes/prior-art.md)。
+**第 110 行前面那個 `#` 就是本專案最有意思的發現之一。** `skt` 是 2015 年被公開的後門程式，廠商的「修補」方式是**把啟動那行註解掉**，但 `/bin/skt` 這個檔案還好好地留在韌體裡。詳見 [`notes/prior-art.md`](../notes/prior-art.md)。
 
 ---
 
@@ -438,7 +441,7 @@ cat -n ~/fwre-work/extracted/v2.1.2/squashfs-root/etc/init.d/rcS | sed -n '105,1
 make recon
 ```
 
-**這會做什麼：** 對兩個版本各產生 JSON + Markdown 報告，再做一份版本差異對照，全部寫進 [`reports/`](reports/)。
+**這會做什麼：** 對兩個版本各產生 JSON + Markdown 報告，再做一份版本差異對照，全部寫進 [`reports/`](../reports/)。
 
 ⏱ 約 10 秒。
 
@@ -590,9 +593,9 @@ INFO  BoaSinks.java> BoaSinks: 1686 call sites across 21 sinks, 432 named functi
 wsl -d Ubuntu-24.04 bash -c "cd /mnt/c/Users/Key20/Desktop/router && jq -r '.tables[] | select(.role==\"root_form\") | .entries[] | \"\(.handler) \(.name)\"' reports/ghidra-formtable-2.1.2.json | head -20"
 ```
 
-完整的「該看哪些函式、為什麼」整理在 [`notes/ghidra-triage.md`](notes/ghidra-triage.md);
-結論在 [`notes/dispatch-table.md`](notes/dispatch-table.md) 和
-[`notes/auth-flow.md`](notes/auth-flow.md)。
+完整的「該看哪些函式、為什麼」整理在 [`notes/ghidra-triage.md`](../notes/ghidra-triage.md);
+結論在 [`notes/dispatch-table.md`](../notes/dispatch-table.md) 和
+[`notes/auth-flow.md`](../notes/auth-flow.md)。
 
 ### 打開圖形介面自己看
 
@@ -652,7 +655,7 @@ wsl -d Ubuntu-24.04 bash -c "cd /mnt/c/Users/Key20/Desktop/router && jq -r '.tab
 ```
 
 **這四行就是本週的結論**：URI 裡沒有 `htm` 三個字，授權檢查整段被跳過。
-完整說明在 [`notes/auth-flow.md`](notes/auth-flow.md)。
+完整說明在 [`notes/auth-flow.md`](../notes/auth-flow.md)。
 
 > 用純文字而不是截圖，是因為截圖沒辦法 diff、沒辦法 grep、Ghidra 升版之後也沒辦法重新產生。
 
@@ -703,7 +706,7 @@ G2 的第四格交付物就是**標註過的 PCB 照片**，而**原廠狀態只
 > 但世界上沒有 `EN25OH32B`。**這種事不要靠瞇眼睛決定** —— Day 4 讓 `flashrom` 讀
 > 晶片自己回報的 JEDEC ID，那才是證據。
 
-完整判讀和每一條的第二來源：[`notes/hardware-inspection.md`](notes/hardware-inspection.md)。
+完整判讀和每一條的第二來源：[`notes/hardware-inspection.md`](../notes/hardware-inspection.md)。
 
 ### 8.6.4 確認 flashrom 認得這顆 flash
 
@@ -798,7 +801,7 @@ USB-TTL / CH341A / 邏輯分析儀插上去之後，這張表會多出對應的�
 
 - **bootlog** 會印出 MAC，而且照 W04 找到的 `flash set HW_WLAN0_WSC_PIN %s` 來看，
   很可能連 **WPS PIN** 一起印；
-- **flash dump 的 config 分割區**裡全部都有 —— 這也是 [`.gitignore`](.gitignore)
+- **flash dump 的 config 分割區**裡全部都有 —— 這也是 [`.gitignore`](../.gitignore)
   一開始就把 `dumps/*` 擋在 repo 外面的原因之一。
 
 **一條規則，三個地方：從「我這一台」讀出來的東西一律遮掉，只發表對「這個型號」
@@ -840,7 +843,7 @@ $PY tools/annotate-photo.py notes/img/pcb-top-annotations.json \
 > ⚠️ **工具能證明框裡是純黑，證明不了框在對的位置。**
 > **那一關是人工的，三張都要親眼看過。**
 
-完整座標紀錄、檔名規則、產生方式：[`notes/img/README.md`](notes/img/README.md)。
+完整座標紀錄、檔名規則、產生方式：[`notes/img/README.md`](../notes/img/README.md)。
 
 ---
 
@@ -935,7 +938,7 @@ timeout 90 cat /dev/ttyUSB0 > ~/fwre-work/dumps/uart-boot.log
 **先讓它跑起來，然後才開板子電源。** 開機訊息只跑一次。
 
 實測 1903 bytes / 69 行，`Booting` 出現 **1 次**（所以不是 boot loop）。
-內容分析在 [`notes/uart-findings.md`](notes/uart-findings.md)。
+內容分析在 [`notes/uart-findings.md`](../notes/uart-findings.md)。
 
 ### 8.7.5 這台的 console 沒有 shell
 
@@ -1026,7 +1029,7 @@ Flash Read Successed!
 >
 > **對策：每次 `FLR` 之前先 `DB` 同一塊 RAM 當對照組。** 內容沒變就是 FLR 沒生效。
 
-實際讀出來的 flash 版面在 [`notes/flash-layout.md`](notes/flash-layout.md)。
+實際讀出來的 flash 版面在 [`notes/flash-layout.md`](../notes/flash-layout.md)。
 
 ---
 
@@ -1168,7 +1171,7 @@ expected one of ['COMPCS', 'COMPDS', 'COMPHS']
 >
 > **要看的兩個新欄位**：`table_entries_decoded` 必須等於 `table_entries`，
 > 而 `check-reports.py` 現在會擋下不相等的報告 ——「這一區解好了」不再是一句沒人查
-> 的話。原理與六個區塊的意義寫在 [`notes/wlan-root.md`](notes/wlan-root.md)。
+> 的話。原理與六個區塊的意義寫在 [`notes/wlan-root.md`](../notes/wlan-root.md)。
 
 `--disclosure protect` 會把 per-unit 識別碼換成 sha256。今天的決定是 `open`，
 但**機制留著，而且有一個會失敗的測試守著它** —— 改的是政策，不是能力，下一台
@@ -1666,6 +1669,44 @@ DB 80560000 8 ; FLR 80560000 3F0100 8 ; Y ; DB 80560000 8
 （`0x006000`）那個磁區裡 —— 那是這台的 MAC 和射頻校準值，全世界只有這一份。
 如果 `FLW` 是整磁區重寫，寫入中途斷電失去的不是幾個 byte，是那個磁區。
 
+### 8.9.5 2026-08-22 重跑：磁區語意兩個方向都量到了，而對照組壞過兩次
+
+**`A2.5` 全節第二次執行**，四次 `FLW`，全程 picocom 手打，收工時
+`0x3F0000` 與 `0x3F0100` 都回到 `ff`。逐字實錄：`BENCH-LOG.md` 紀錄卡 `T-95`。
+
+答案與 2026-08-17 相同，**但這一次是三條各自獨立的證據把模型定死的**：
+
+1. 寫 `FF` 蓋在 `DE` 上面回到 `FF` —— **NOR 的程式化只能 `1→0`，做不到這件事**，
+   所以 `FLW` 自己抹除過；
+2. **兩個方向的鄰居都活著**：寫 `0x3F0100` 保住 `0x3F0000`（Step 5），
+   寫 `0x3F0000` 保住 `0x3F0100`（Step 6 新增的那一格）—— 所以抹除之前先讀出來了；
+3. loader 的十七個指令裡**一個抹除指令都沒有**，所以抹除只能在 `FLW` 裡面。
+
+**`FLW` = 讀出整個磁區 → 改指定 byte → 抹除磁區 → 整段寫回。**
+
+#### 但真正要記的是對照組壞掉的兩種方式
+
+**第一種：根本沒有對照組。** 這一節的每一次讀回原本只是「換一個沒用過的 RAM
+位址」。實測那個位址裡是 `bf 84 9e 83 8f e4 f5 3c …` —— **隨機內容，不是零**。
+讀回 `ff` 之前那裡如果本來就是 `ff`，「讀到了」與「什麼都沒發生」在畫面上
+一模一樣。§8.9.4 早就用工具解掉了這件事；**全程手打的時候要自己補**，
+而作業單原本沒有寫。現在 `A2.5` 有 Step 0，Step 4/5/6 各補一次。
+
+**第二種，而且更難看：一個預期值本來就已經在那裡的對照組。**
+Step 5 用「`0x3F0100` 讀到 `ca fe ba be`」去證明第二次寫入落地了 ——
+而 2026-08-17 那一輪寫的是**同一個位址、同一個樣式**。在保留模型之下，
+那個值從四天前就一直躺在那裡。**於是那個檢查在兩種世界裡都會通過，
+而一個不會失敗的檢查不是檢查。**
+
+修法是 Step 6c，而它同時是收工還原：把 `0x3F0100` 寫成 `FF`，
+**看著它從 `ca fe ba be` 變過去** —— 那個變化是一分鐘前才親眼讀過的，
+不可能是殘留。一個動作兩個目的，而第二個目的是原本沒有排進去的那一個。
+
+**這兩種壞法的共通點**：都不是「量錯了」，是**量對了而證據不成立**。
+第一種缺一個否定的可能，第二種缺一個失敗的可能。§8.9.4 的工具版本兩種都免疫，
+而這一夜證明的是：**同一節換成手打，免疫也就一起沒了** ——
+所以那個對照組必須寫進步驟本身，不能只寫進工具。
+
 ---
 
 ## 8.10 W05 Day 0：測試登記簿怎麼用（G3.75）
@@ -1860,12 +1901,12 @@ sudo bash tools/qemu-env.sh diff
 
 上面那一行 `sh -c` 的字串，就是 `boa` 的 `sprintf` 會組出來的東西。
 輸出落在 docroot（oracle 0），flash 上被改掉的三個 byte 是 oracle 4。
-完整設計在 [`notes/oracle-design.md`](notes/oracle-design.md)。
+完整設計在 [`notes/oracle-design.md`](../notes/oracle-design.md)。
 
 > **`boa` 本身在這裡起不來** —— 它在 `libapmib.so+0x27dc` 的一個**未對齊半字存取**
 > 上吃 SIGBUS，而真機的 kernel 會靜靜幫它修好。這不是韌體的缺陷也不是指令集問題
 > （那條指令是 opcode `0x29`，標準 MIPS I，手算編碼對過原始 bytes）。
-> 經過在 [`notes/emulation-2018.md` §4](notes/emulation-2018.md)。
+> 經過在 [`notes/emulation-2018.md` §4](../notes/emulation-2018.md)。
 
 ### 8.11.5 登記簿多了第三種證據等級
 
@@ -2163,7 +2204,7 @@ DISCOVER 同時索取這三個，而哪一個它真的照做是問題本身；�
 > |---|---|
 > | 確切要打什麼、會看到什麼、什麼時候該停 | **[`runsheet.md`](runsheet.md)** |
 > | 這一步為什麼存在、上次是怎麼壞的 | **本節** |
-> | 我能重現到哪裡（三層） | [`REPRODUCE.md`](REPRODUCE.md) |
+> | 我能重現到哪裡（三層） | [`REPRODUCE.md`](../REPRODUCE.md) |
 > | 那一天實際發生了什麼 | [`BENCH-LOG.md`](BENCH-LOG.md) |
 >
 > **`tools/check-runsheet.py` 對本節驗兩件事：§8.12 底下一個 `bash` /
@@ -2382,7 +2423,7 @@ flash 真的跑起來了 —— 記成 `static` 低估了（有東西執行了�
 
 **per-unit 識別碼（MAC、SSID、`config.dat` 內容、射頻校準）不進 repo** ——
 跟 W02 把 PCB 條碼塗掉是同一條規則，而擁有者是
-[`docs/disclosure.md`](docs/disclosure.md)。原始 transcript 留在 `$FWRE_WORK/dumps/`。
+[`docs/disclosure.md`](../docs/disclosure.md)。原始 transcript 留在 `$FWRE_WORK/dumps/`。
 
 ---
 
@@ -3876,7 +3917,7 @@ RAM 裡 load address 的內容；兩份相同 → 它自己有一份固定來源
 只改 `LOADADDR`。**而四格的預期 sha256 全部在進站之前從 8/16 那份 dump 算出來**，
 所以這一節不是去看「有沒有變化」，是去看「落在哪一格」——**落不上任何一格，靜態讀法
 就是錯的**，而那比原本的設計有價值得多。完整推導在
-[`notes/loader-tftp-and-commands.md`](notes/loader-tftp-and-commands.md)。
+[`notes/loader-tftp-and-commands.md`](../notes/loader-tftp-and-commands.md)。
 
 #### 三個守衛，各自守著一件到 2026-08-21 為止沒有人守的事
 
@@ -4088,6 +4129,207 @@ RAM` —— 恰好是指名那個欄位的六個字），並且把 `0xB8003000` 
 而且靜態與廠商原始碼兩邊都說得清楚的路徑，不值得一次電源循環去確認。
 `A2.8` 步驟 1 的四格全部送滿三個參數，差別只在第四個。
 
+#### 事後（2026-08-21 夜）：一格沒有押注的實驗，以及一個看起來像韌體壞掉的方向鍵
+
+**`A2.8` 三項全部 `confirmed`，而這一段要寫的是第四格。** 2026-08-21 夜跑完，
+逐字實錄在 `BENCH-LOG.md` 同日「進站場次之二」，紀錄卡 `T-91`–`T-95`。
+
+#### 開放題 99 只關掉一半，而關掉的那一半是最沒有懸念的那一半
+
+`J` 之後直接讀 `PCRP0`–`PCRP4`，五個 bit 全被清掉，沒有任何人碰過它們 ——
+`0x804092F4`–`0x80409354` 執行過，這是開放題 99 字面上問的東西，結束。
+
+**沒關掉的那一半是後來才長出來的**：把那五個 bit 寫回去，**TFTP 沒有回來**。
+而同樣這五個 bit，在 `J` 之前清了再寫回去是會回來的（步驟 2）。
+所以「`J` 讓網路死掉」不是那五個 bit 單獨造成的，而三個候選一個都沒排除。
+
+**這一格事前被寫成「兩種結果都要記、不准事後改判哪一種是預期」，**
+於是它落在第二種的時候，**拿不到分數** —— 沒有押注就沒有輸贏。
+那是對的寫法：我當時確實不知道，而 `GetLine` 是輪詢的**不代表** TFTP 也是，
+那是兩個子系統。**但也因此，這一場最有意思的一格在登記簿上是 `🔶`。**
+
+值得記的是它的形狀：**一個誠實的「我不知道」會換來一個沒有分數的結果，
+而一個假裝知道的預測會換來一個好看的比數和一個錯的結論。** 選前者，
+但不要假裝那是免費的。
+
+#### 而分開它的實驗，是這一場自己造出來的
+
+loader 的十七個指令裡**沒有任何一個寫得到 CP0 status**（`MTC0SR` 在廠商
+原始碼裡是註解掉的，而這一夜 `?` 印出來的十七行也證實它不在表上）。
+所以「把中斷開回來，看 TFTP 活不活」這個實驗，**用主控台是做不到的**。
+
+它只能靠一段 RAM payload：開中斷、然後 `jr ra` 回到 loader。
+**而「payload 可以跑完回到 loader」正是同一場 `P9-16` 剛剛證明的事。**
+一個結果讓下一個實驗從不可能變成可能，這比它自己那一列更值錢。
+
+#### 兩次 `Unknown command !`，以及我讀 log 的方式
+
+`A2.5` Step 1a 的 `FLR` 被 dispatcher 拒絕。把 picocom 的 log 用 `cat -A` 重看：
+
+  `<RealTek>` 之後是 `^[[A^[[B`，然後才是 `FLR …`。
+
+**上箭頭與下箭頭。** 這個 loader 沒有指令歷史也沒有行編輯，`↑` 送出去的
+`1b 5b 41` 三個位元組**直接變成指令行的一部分**，`argv[0]` 於是是 `\x1b[A…`。
+
+**它看起來完全像韌體壞了**，而它是終端機的預設行為。規則進了第 2 站的開頭。
+
+**但這一節真正要記的不是方向鍵。** 同一夜稍早 `A2.8` 的第一次 `EB` 也被拒絕，
+而我當時給的解釋是「TFTP 非同步輸出插進 `GetLine`」，並且把它寫成
+「兩個候選成因，這一場沒有分開」。**那句話當時就已經可以再窄一點** ——
+逐字 log 一直在手上，用 `cat -A` 讀它要兩秒鐘，而那一行確實是乾淨的
+（所以方向鍵這個解釋對它不適用，成因至今未知）。
+
+**一份逐字紀錄用錯誤的方式讀，跟沒有那份紀錄是一樣的。**
+`BENCH-LOG.md` 只追加、逐字保存，價值全部建立在「有人會用正確的方式讀它」上面。
+
+#### 兩個解釋，兩分鐘，都死了
+
+同一夜我還說過「`make doctor` 開關了序列埠，DTR 跳一下等於按一次 reset」。
+讀一次 `bench-doctor.sh` 就知道它用的是 `[ -r ] && [ -w ]` ——
+`access(2)` 權限檢查，**根本沒有開啟那個裝置**。
+
+兩個解釋都是在看證據之前先講出口的，而兩次的證據都在兩分鐘之內拿得到。
+**這不是「猜錯了」的問題，是把猜測用陳述句講出來的問題**：
+一個講出口的假設會變成下一步的前提，而它沒有經過任何檢查。
+
+**`A2.5` 這一夜也重跑了一次，而它踩到的是另一類問題**（對照組的兩種壞法），
+那屬於 §8.9，不屬於這裡。
+
+### 8.12.47 一個形狀比對答錯了整條結論，而它只差一個 bit　→ `runsheet.md` `A2.9`
+
+**這一節為什麼存在**：2026-08-22 的進站量到一件沒有人下注的事 —— `J` 之後把五個
+`EnablePHYIf` bit 還原**救不回 TFTP**。那個結果沒有分數（凍結時刻意兩邊都記），
+而它留下三個候選，一個都沒排除。分開它們需要一段「重新開中斷再 `jr ra`」的
+RAM payload，因為 loader 十七條指令裡沒有一條寫得到 CP0 status。**桌面這一場先
+去讀那條線路本身**，於是實驗從「試試看」變成「預測一個數字」。
+
+#### 先講那個差點被發表的錯誤答案
+
+第一版的讀法找的是 Realtek 那個 `sti` 慣用式 —— `mfc0 $1,$12 / ori $1,1 /
+mtc0 $1,$12`。**一個都沒找到**，卻找到七個同形狀的 `cli`。結論寫出來是：
+「這個 loader 全程遮著中斷跑，所以它的 TFTP 一定是輪詢的。」
+
+每一步的觀察都是對的，結論剛好相反。**這個 build 寫的是
+`ori $1,0x1f / xori $1,0x1e`** —— 設 bit 0、清 bit 1..4，效果一樣、位元組不一樣。
+用形狀去找，看不到另一個形狀。
+
+抓到它的方法不是更仔細地比對，是**換一個問題**：不要問「這是不是我預期的形狀」，
+要問「寫進去之後 bit 0 是幾」。儀器現在對每一個 `mtc0 $12` 做四值的逐位元推導
+（`0`、`1`、*`mfc0` 讀到的那一位*、*它的補數*），所以 `xori` 是精確的而不是近似的。
+守衛案例裡最重要的一對只差**一個立即數的一個 bit**：`xori 0x1e` 必須讀成設 IE，
+`xori 0x1f` 必須讀成清 IE。**兩個測試的差別小到看起來像重複，而那正是重點。**
+
+#### 第二個錯，方向相反
+
+同一支儀器第一版用「往回找 `jr ra`，取延遲槽後面那個 word」來定位函式入口。
+規則本身合理，在這個映像上錯得很具體：`enable_irq` 前面那個常式**結尾是 `rfe`
+不是 `jr ra`**，於是掃描越過它、報出一個沒有任何 `jal` 指向的入口 —— 然後工具
+大聲拒絕了（「GIMR0 的設位元函式有 0 個呼叫者」）。
+
+**它同樣可能落在一個真的函式上，然後給一個有自信的錯答案。** 函式入口不是
+「上一個 return 後面」，它是**某個 `jal` 指名的位址**，而這個映像把它們全部指名了。
+這一條的價值不在這一次抓到，在於它示範了一件事：**一條會在錯的時候大聲失敗的
+規則，比一條大部分時候對的規則值錢。**
+
+#### 開放題 102 的成因，一直在磁碟上
+
+那一行乾淨卻被拒絕的 `EB`，成因是**行緩衝區裡先有了八個空白**，而看起來像在邀請
+輸入的那個提示字元，是 TFTP 完成訊息在中斷處理程序裡印出來的。
+
+會拖一天，是因為「誰印 `<RealTek>`」這件事是用**交叉引用**查的。查到一個結果，
+結果是對的，而從它推出來的結論 ——「提示字元只有一個擁有者」—— 是錯的，
+因為同一個字串在映像裡有**兩份**。交叉引用回答的是「誰用了這個位址」，
+而問題是「誰印了這段文字」。
+
+**這件事第二次教同一課了**：2026-08-22 的教訓寫成「要用正確的方式讀逐字紀錄」，
+而那是一條紀律。這個 repo 已經看過紀律失敗三次，所以它現在是一支腳本
+（`tools/console-lint.py`）：它照 dispatcher 的方式讀 log、跨越假提示字元重建
+行緩衝區，並且**把檔案裡每一個 `Unknown command !` 都歸因，或者明講它不知道**。
+只認得三種模式、對其餘保持沉默的檢查器，跟真的懂那台裝置的檢查器，
+在出事之前長得一模一樣。
+
+順帶被它解釋掉的還有一件從 W02 就在的事：每一場 ESC 搶進去之後開頭那幾個
+`Unknown command !`，是 `console-dump.py` 自己灌的 ESC 流掉進 `argv[0]` 裡。
+那三行在 2026-08-16 的紀錄裡躺了六天。
+
+#### 為什麼 `A2.9` 的步驟 1 排在步驟 3 前面
+
+因為它**可以否決步驟 3**。`GIMR0` 的 bit 15 如果是 0，「TFTP 由中斷驅動」這條讀法
+就沒有支柱，兩個 payload 一個都不該送。**一個先跑、可能讓後面整段作廢的量測，
+價值不在它會不會成立，在它便宜。** 三個 `DW`，零寫入，一次都不用跳。
+
+#### 一個不敢預測的 bit，寫在前面
+
+`GIMR0` 的 bit 8 有兩個可能的寫入者（`request_IRQ(8,"timer")` 與 `0x80402FB8`
+那個 `|= 0x100`），而它們之間的呼叫圖這一場沒有解出來。**兩種結果都寫進登記簿，
+並且指名 `0x80402F80` 的呼叫者是那個決定它的東西。** 這跟 2026-08-22 那格沒有
+分數的實驗是同一個形狀，而且是故意的：**一份說得出自己哪幾位是承重的預測，
+撐得住敵意的讀者；一個剛好猜錯的漂亮數字撐不住。**
+
+#### 跑完之後 —— 那個不敢預測的 bit 落在 1，而不敢預測是對的
+
+`GIMR0` 讀回 `0x00008100`，bit 8 是 1。**這一格沒有分數，而它今天付了兩次房租**：
+第一次是它在讀之前就寫好了「讀到哪一種就去看 `0x80402F80` 的呼叫者」，所以量到之後
+不必再爭論預期是什麼；第二次是同一行裡的 `IRR3` **有預測、沒有反證分支**，讀回全零，
+而它因此**只能被記下來，不能被算分**。兩格並排放，差別就是這一份檔案整個存在的理由。
+
+**`IRR3` 那一格要當成一次失誤來記，不是當成一個發現。** 寫一條預測而不寫它的反證
+條件，等於把「事後決定它算不算數」的權力留給自己 —— 這次的方向恰好是對自己不利的
+（預測錯了），所以看起來無害。**下一次方向會反過來。**
+
+#### 對照組失敗了，而它是這一場唯一設計成會失敗的東西
+
+B 版只還原 `GIMR0`、不碰 `IE`，預測是「仍然死的」。它死了，三個不共用程式碼的訊號
+一致：沒有回應、`rx_packets` 不動、`ip neigh` 由 `STALE` 變 `FAILED`。
+
+**一個預測會失敗的實驗，成本跟一個預測會成功的一樣，但它買到的東西不同**：C 成立
+的時候，B 是「不是隨便動一下就會活」的證據。沒有 B，C 只是一次「我改了東西然後它
+好了」。這一節之所以是兩個 payload 而不是一個，全部的理由就在這裡。
+
+而它們的差別是**五個 word，而且五個都在第二行**。C 版只重送第二行，第一行留在 RAM
+裡不動 —— 所以整台機器只有那五個 word 變了。**這才叫單一變數**：兩個 payload 各自
+重打一次，中間會多出「兩次打字都對」這個假設。
+
+#### 最值錢的一個觀察，是裝置自己送上來的
+
+C 版設好 `IE` 的那一瞬間，主控台印出 `**TFTP GET File probe` —— **而當時沒有任何
+probe 被送出去**。那是 B 版逾時的那一個請求，一直躺在接收路徑上、中斷掛著被遮著，
+`IE` 變成 1 的當下被取走。
+
+**這件事沒有人設計，而它比設計好的那一格更強**：它把「中斷被遮住」從一個推論變成
+一個可以看見的事件。第二個證人在一個沒有人在看的暫存器上：`0xB8003004` 在任何 `J`
+之前是 `88000004`，B 的 `J` 之後（`IE` 仍然是 0）變成 `88000104`，C 的 `J` 之後又回到
+`88000004`。**掛起、被遮、被取走**，三個讀值。
+
+**它也是一個方法論上的提醒**：那個暫存器之所以有三個讀值，是因為步驟 1 讀 `GIMR0`
+的時候**整行四個 word 一起印**，而沒有人把旁邊三個丟掉。多讀的成本是零，而丟掉的
+成本是這一段不存在。
+
+#### 反證的那一半，以及為什麼它把問題變小了
+
+預測寫的是「DATA 回來」。**沒有回來。** 而 `tshark` 讓這個否定變得精確：ARP 0.9 ms
+回應，三個 TFTP 請求零回應。
+
+登記簿凍結的時候留了兩個候選給「C 也不復活」這個分支 —— cache 維護或 payload 動到
+別的狀態、交換器需要比 bit 0 更多的重新初始化。**那次 ARP 往返把兩個都殺掉了**：
+交換器兩個方向都通，TFTP 底下那層堆疊解析了一個 frame 並且發出了回應。
+
+**一個負面結果通常會讓候選變多；這一個讓候選變少。** 差別在它是**在線上量的**，
+不是從「還是不會動」推的。剩下的那一個候選（TFTP 服務自己的狀態）也不是猜出來的：
+健康的那次傳輸印了 `Success!` 兩行，這一次印了進度指示然後什麼都沒有，而
+`console-lint` 獨立地把後面那個提示字元判成命令迴圈印的、不是 TFTP 重繪印的 ——
+全場只有一次重繪，那一次是 2c。**兩個不共用機制的讀法同意「傳輸開始了、沒有結束」。**
+
+#### 為什麼零封包那次擷取沒有變成答案
+
+第一次 `tshark` 寫到 `$FWRE_WORK/dumps/`，降權之後建不了檔，印了 `Permission denied`
+和 `0 packets captured`，**然後 exit 0**。而「線上真的什麼都沒有」正好是當時要問的
+問題的候選答案之一 —— 所以那次失敗**站在會變成結論的位置上**。
+
+**抓到它的是對照組，不是錯誤碼**：那份擷取裡連**我們自己送出去的**封包都是零，
+而那些封包確定送出去了。`P0-4` 在 2026-08-17 記過同一句話 —— 零在鏈路未經證實之前
+不是證據 —— 而那一次是在裝置上，這一次是在自己的儀器上。**同一條規則，兩個方向。**
+
 ## 9. 驗收
 
 ### G0 — 工具鏈全綠
@@ -4103,7 +4345,7 @@ powershell -ExecutionPolicy Bypass -File tools\setup\setup-windows.ps1 verify   
 
 ### G1 — 能不能口述韌體的七個要素
 
-**闔上電腦，大聲回答。** 答不出來就再讀一次 [`notes/anatomy-n150rt.md`](notes/anatomy-n150rt.md)。
+**闔上電腦，大聲回答。** 答不出來就再讀一次 [`notes/anatomy-n150rt.md`](../notes/anatomy-n150rt.md)。
 
 | # | 問題 | 答案 |
 |---|---|---|
@@ -4815,7 +5057,7 @@ cd FirmAE && ./install.sh      # 30–60 分鐘
 |---|---|---|
 | 2026-08-07 | W01 | 初版。涵蓋環境建置、韌體取得、解包、`fwrecon` 報告、Ghidra headless 分析，以及 W01 實際踩到的 13 個坑。 |
 | 2026-08-07 | W01 收工 | 新增 §12.5：W02 / W05 開工前要補裝的東西（usbipd、UART 3.3V 警告、qemu chroot 先於 FirmAE）。這三項 W01 刻意沒做，理由記在 `PROGRESS.md`。 |
-| 2026-08-07 | W01 收工 | 新增 [`study/QA.md`](study/QA.md) 自我檢核題庫（39 題）。之後每週的問題都往那裡累積。 |
+| 2026-08-07 | W01 收工 | 新增 [`study/QA.md`](../study/QA.md) 自我檢核題庫（39 題）。之後每週的問題都往那裡累積。 |
 | 2026-08-10 | W03 | §8 改寫：`import.ps1`（匯入+分析）與 `analyze.ps1`（跑腳本）拆開，並加上 `-Label` 為什麼要當資料夾用的說明 —— W01 的寫法會讓第二次匯入無聲蓋掉第一次。 |
 | 2026-08-10 | W03 | 新增 §8.5 Part 5：用 `BoaDecompile` 匯出 C、用 `BoaListing` 讀組語，以及「反編譯器出警告時不能信它」的操作方式。 |
 | 2026-08-10 | W03 | §12 速查表補上 W03 的四支腳本。`study/QA.md` 增至 60 題。 |
@@ -4864,16 +5106,16 @@ cd FirmAE && ./install.sh      # 30–60 分鐘
 
 | 文件 | 內容 |
 |---|---|
-| [`README.md`](README.md) | 專案總覽與主要發現 |
+| [`README.md`](../README.md) | 專案總覽與主要發現 |
 | [`PROGRESS.md`](PROGRESS.md) | 每週關卡進度 |
 | [`LOG.md`](LOG.md) | 逐日工作紀錄，**包含所有走錯的路** |
-| [`notes/anatomy-n150rt.md`](notes/anatomy-n150rt.md) | 韌體結構完整解剖 |
-| [`notes/prior-art.md`](notes/prior-art.md) | 前人研究：誰在什麼時候發現了什麼 |
-| [`notes/attack-surface.md`](notes/attack-surface.md) | 攻擊面地圖 |
-| [`notes/ghidra-triage.md`](notes/ghidra-triage.md) | Ghidra 裡該先看哪些函式 |
-| [`notes/dispatch-table.md`](notes/dispatch-table.md) | **`root_form[]` 全表** —— 兩個版本的每一個 `/boafrm/` 路由 |
-| [`notes/auth-flow.md`](notes/auth-flow.md) | **Boa 怎麼決定你可不可以進來** —— W03 最重要的一份 |
-| [`notes/sink-inventory.md`](notes/sink-inventory.md) | 危險函式呼叫點清單，依可利用性排序 |
-| [`notes/formSysCmd-analysis.md`](notes/formSysCmd-analysis.md) | 那個不存在的 CVE 端點，以及三條線索為什麼都指錯方向 |
-| [`notes/skt-analysis.md`](notes/skt-analysis.md) | 2015 後門完整拆解：port、暗號、和它存在的那一行 `iptables` |
-| [`study/QA.md`](study/QA.md) | **自我檢核題庫** —— 每一條主張配一個「想推翻它的人會怎麼問」，答案是折疊的 |
+| [`notes/anatomy-n150rt.md`](../notes/anatomy-n150rt.md) | 韌體結構完整解剖 |
+| [`notes/prior-art.md`](../notes/prior-art.md) | 前人研究：誰在什麼時候發現了什麼 |
+| [`notes/attack-surface.md`](../notes/attack-surface.md) | 攻擊面地圖 |
+| [`notes/ghidra-triage.md`](../notes/ghidra-triage.md) | Ghidra 裡該先看哪些函式 |
+| [`notes/dispatch-table.md`](../notes/dispatch-table.md) | **`root_form[]` 全表** —— 兩個版本的每一個 `/boafrm/` 路由 |
+| [`notes/auth-flow.md`](../notes/auth-flow.md) | **Boa 怎麼決定你可不可以進來** —— W03 最重要的一份 |
+| [`notes/sink-inventory.md`](../notes/sink-inventory.md) | 危險函式呼叫點清單，依可利用性排序 |
+| [`notes/formSysCmd-analysis.md`](../notes/formSysCmd-analysis.md) | 那個不存在的 CVE 端點，以及三條線索為什麼都指錯方向 |
+| [`notes/skt-analysis.md`](../notes/skt-analysis.md) | 2015 後門完整拆解：port、暗號、和它存在的那一行 `iptables` |
+| [`study/QA.md`](../study/QA.md) | **自我檢核題庫** —— 每一條主張配一個「想推翻它的人會怎麼問」，答案是折疊的 |

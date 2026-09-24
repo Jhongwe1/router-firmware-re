@@ -31,9 +31,12 @@ if ((cfg_user[0] != '\0' || cfg_pass[0] != '\0') && req->authorized == 0) {
 translate_uri(req);      /* everything that did not stop above arrives here */
 ```
 
-> **Scope.** Static. No device has been powered on — W02 is blocked on hardware
-> delivery. Every claim here is "the code reads this way". The confirming
-> requests are at the end. Nothing has been reported to anyone.
+> **Scope.** Static, on the published **V3.4.0** image. Every claim here is "the code
+> reads this way"; the confirming requests are at the end. **This unit has been
+> powered and serving since 2026-08-15 and does not run this build** — the equivalent
+> read on the build it does run is [`auth-flow-2018.md`](auth-flow-2018.md), and
+> nothing here has been asked of a live server. Disclosure: nothing was reported to
+> anyone and everything is published — [`docs/disclosure.md`](../docs/disclosure.md).
 
 ## What changed, and what did not
 
@@ -132,9 +135,11 @@ parameters that reach `system()` unfiltered
 This is stated as carefully as it deserves: it is a static reading of three
 `strstr` calls and one dispatcher, it has not been executed, and it is exactly
 the kind of claim this project has been wrong about before. It is **not** in any
-CVE for this device. If it survives dynamic testing in W05/W06 it goes to
-TWCERT/CC before it goes anywhere else, per the disclosure position in the
-README — and nothing about it will be published until then.
+CVE for this device. **The reporting sentence that stood here until 2026-08-23 —
+that it would go to TWCERT/CC first — no longer applies**: nothing is reported to
+anyone now, and `docs/disclosure.md` §"The decision of 2026-08-23" owns that. It
+remains a static reading either way, and a static reading is not published as a
+finding.
 
 ## `GET /config.dat` is still outside the gate
 

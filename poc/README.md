@@ -1,7 +1,8 @@
 # `poc/` — what is here, and what is deliberately not
 
-Four reproductions, one script, and a rule that decides what a file in this
-directory may contain.
+Five reproductions across six files, one script, and a rule that decides what a file in this
+directory may contain. **The rule changed on 2026-08-23** and the change is
+recorded below rather than applied silently.
 
 ## The rule
 
@@ -10,14 +11,24 @@ directory may contain.
 | | published here |
 |---|---|
 | **Finding** — "this handler takes this parameter into `system()`, at this address, in this binary" | **yes**, that is the research |
-| **Reproduction** — a procedure that produces the effect, with a request that can be copied | **only once the issue is public** |
-| **Tradecraft** — persistence, anti-forensics, credential harvesting on a live host | **no**, and no gate here asks for it |
+| **Reproduction** — a procedure that produces the effect, with a request that can be copied | **yes, since 2026-08-23** — it was *only once the issue is public* until then |
+| **Tradecraft** — persistence, anti-forensics, credential harvesting on a live host | **no**, and no gate here asks for it. **This line did not move** |
 
-So this directory holds reproductions of **already-public** issues, and it holds
-no request at all for anything unreported. That is not a stylistic choice; it is
-the rule biting. `P3-2` (`formRoute` / `subnet`) was tested on the same evening
-as everything else and its request appears in no file in this repository,
-because at the time it was tested nothing about it had been reported to anyone.
+**What changed and what did not.** From 2026-08-17 to 2026-08-23 this directory
+held reproductions of already-public issues only, and `04` was a stub carrying no
+request. On 2026-08-23 the author decided to report nothing and publish
+everything, and the argument — including the four things it does **not** cover —
+is `docs/disclosure.md` §"The decision of 2026-08-23". The one-line version:
+these builds already carry public unauthenticated root (CVE-2024-51228, public
+PoC naming this exact build string) and public unauthenticated plaintext
+credentials (CVE-2019-19822, one `GET`), so **nothing published here adds a
+capability against them**.
+
+That rule did bite while it stood, and the mark is left in place: `P3-2`
+(`formRoute` / `subnet`) was tested on the same evening as everything else and
+its request appears in no file in this repository, because at the time it was
+tested nothing about it had been reported to anyone. It has since been withdrawn
+for other reasons and there is nothing to publish.
 
 ## What each file covers
 
@@ -26,12 +37,21 @@ because at the time it was tested nothing about it had been reported to anyone.
 | [`01-config-disclosure.md`](01-config-disclosure.md) | CVE-2019-19822 (unauthenticated configuration disclosure) + CVE-2019-19823 (plaintext credential storage) | 2019-12 |
 | [`02-command-injection.md`](02-command-injection.md) | CVE-2024-51228 (`formSysCmd` → `system()`), and why its CVSS vector is wrong | 2024-11-27 |
 | [`03-flash-evidence.md`](03-flash-evidence.md) | the part that is this project's own: pointing at the bytes one HTTP request changed on the SPI NOR | — |
-| [`04-auth-takeover.md`](04-auth-takeover.md) | **held.** Unauthenticated administrator password change, and an empty password disabling authentication device-wide | **not reported yet** |
+| [`04-auth-takeover.md`](04-auth-takeover.md) | unauthenticated administrator password change (**CVE-2018-13315**, and this project did not know that until 2026-08-23), an empty stored password disabling authentication device-wide, and one legal POST to `formSchedule` that removes the web server until power cycle | 2018-07 for the first; **never reported** for the other two |
+| [`05-auth-bypass.md`](05-auth-bypass.md) | an empty username and an empty password pass the authorisation gate — a second credential pair that nothing writes | **never reported** |
+| [`05-l2-published-image.md`](05-l2-published-image.md) | **the same class of chain on an image anyone can download** — G4's third clause, and the honest form of it is narrower than the clause assumed | — |
 | [`run.sh`](run.sh) | the two public chains, with preconditions that fail loudly | |
 
-`04` is a stub on purpose. It names the finding and points at the register row;
-it carries no request. It becomes a reproduction if and when
-`docs/disclosure.md` says so.
+`04` was a stub from 2026-08-17 to 2026-08-23 and said so in its own text; it now
+carries its three requests. `05` is new on 2026-08-23. **`05-l2` was in this
+directory and in no index**: this table said *"Five reproductions"* and listed
+five of the six files, with `05-l2` appearing in it zero times — found 2026-09-25, and
+it is the reason [`../notes/README.md`](../notes/README.md),
+[`../tools/README.md`](../tools/README.md) and
+[`../reports/README.md`](../reports/README.md) now exist. **`run.sh` still runs only
+the two public chains** — it was not extended to the newly published items,
+because a script that fires an authentication bypass is a different artefact from
+one that reproduces a documented CVE, and nothing in this project needs it.
 
 ## Scope
 

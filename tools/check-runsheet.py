@@ -75,6 +75,15 @@ NL = chr(10)
 STEP_RE = re.compile(r"^### (A(\d+)\.\d+) ")
 STATION_RE = re.compile(r"^## 第 (\d+) 站")
 SUBSTEP_RE = re.compile(r"^#### (A\d+(?:\.\d+)+)")
+
+# Stop conditions. The heading declares a count; the items are numbered inside a
+# blockquote; and a step may point at one by number from its own prose.
+CJK_NUM = {"一": 1, "二": 2, "三": 3, "四": 4, "五": 5,
+           "六": 6, "七": 7, "八": 8, "九": 9, "十": 10,
+           **{str(n): n for n in range(1, 11)}}
+STOPCOND_HEAD_RE = re.compile(r"停止條件，\s*([一二三四五六七八九十]|\d+)\s*條")  # noqa: RUF001
+STOPCOND_ITEM_RE = re.compile(r"^> (\d+)\. ", re.M)
+STOPCOND_REF_RE = re.compile(r"停止條件第\s*([一二三四五六七八九十]|\d+)\s*條")
 FENCE_RE = re.compile(r"^```(\w*)")
 
 # Every step heading ends with the tests it closes, or says it closes none. That
@@ -293,7 +302,9 @@ def check_runbook_812(path: Path, errors: list[str], step_ids: list[str],
                     "One of the two is pointing at the wrong half")
 
 
-def check(path: Path, runbook: Path) -> int:
+def check(path: Path, runbook: Path,
+          register: Path | None = None,
+          results_path: Path | None = None) -> int:
     text = path.read_text("utf-8")
     lines = text.splitlines()
     errors: list[str] = []
@@ -460,6 +471,37 @@ def check(path: Path, runbook: Path) -> int:
                 len(lines)))
         body = "\n".join(lines[ln:end])
 
+        # ---- stop conditions: the count must be real, and so must the pointer
+        #
+        # Added 2026-08-22, after `A2.8` step 4 shipped with "見下面的停止條件第 5
+        # 條" and `A2.8` had no numbered stop conditions at all. The nearest list
+        # was `A2.7`'s, above rather than below, and four items rather than five.
+        # `BENCH-LOG.md` then quoted the same number back. A pointer at a rule
+        # that does not exist is worse than no pointer: the reader believes a
+        # rule is holding them and nothing is.
+        declared = STOPCOND_HEAD_RE.findall(body)
+        items = STOPCOND_ITEM_RE.findall(body)
+        have = len(items)
+        for word in declared:
+            want = CJK_NUM.get(word)
+            if want is not None and want != have:
+                errors.append(
+                    f"{path.name}:{ln}: step {name} declares 停止條件，{word} 條 "  # noqa: RUF001
+                    f"and carries {have} numbered item(s). A count in a heading "
+                    f"that nothing checks drifts the moment an item is added")
+        for word in STOPCOND_REF_RE.findall(body):
+            want = CJK_NUM.get(word)
+            if want is None:
+                continue
+            if have == 0:
+                errors.append(
+                    f"{path.name}:{ln}: step {name} points at 停止條件第{word}條 "
+                    f"and has no numbered stop conditions at all")
+            elif want > have:
+                errors.append(
+                    f"{path.name}:{ln}: step {name} points at 停止條件第{word}條 "
+                    f"and carries {have}")
+
         # the station the step is filed under must match its own first digit
         want = int(name[1:].split(".")[0])
         current = None
@@ -601,8 +643,9 @@ def check(path: Path, runbook: Path) -> int:
     #
     # The second direction is the one that matters. The first would pass on an
     # empty mapping.
-    reg = REPO / "test-cases.toml"
-    results = REPO / "reports/test-results.json"
+    reg = register if register is not None else REPO / "test-cases.toml"
+    results = (results_path if results_path is not None
+               else REPO / "reports/test-results.json")
     if reg.is_file() and results.is_file():
         import json as _json
         import tomllib
@@ -708,7 +751,7 @@ def check(path: Path, runbook: Path) -> int:
     # fixture-based case fail for the same unrelated reason. The guard suite
     # exercises this half by passing the real runsheet with a doctored
     # `--runbook`.
-    if path.resolve() == (REPO / "runsheet.md").resolve():
+    if path.resolve() == (REPO / "journal" / "runsheet.md").resolve():
         check_runbook_812(runbook, errors, [s for s, _, _ in steps], why)
 
     # ---- report --------------------------------------------------------
@@ -731,17 +774,34 @@ def main(argv: list[str]) -> int:
             s.reconfigure(encoding="utf-8", errors="replace")
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("runsheet", nargs="?", default=str(REPO / "runsheet.md"),
+    ap.add_argument("runsheet", nargs="?", default=str(REPO / "journal" / "runsheet.md"),
                     type=Path)
-    ap.add_argument("--runbook", default=str(REPO / "RUNBOOK.md"), type=Path,
+    ap.add_argument("--runbook", default=str(REPO / "journal" / "RUNBOOK.md"), type=Path,
                     help="the other half of the split; override it to let the "
                          "guard suite prove the §8.12 rules can fail")
+    # The coverage rules below read the register. Pointing them at a
+    # fixture is what keeps the guard suite from expiring: the case that
+    # proves "a scheduled row with no step is reported before it has ever
+    # run" used to key on W08 having live rows and no results, and on
+    # 2026-08-22 W08 closed 8/8 and the case started failing for the wrong
+    # reason. A guard whose premise is a property of live data expires
+    # without anybody deciding to expire it.
+    ap.add_argument("--register", default=None, type=Path,
+                    help="test register to check coverage against; the "
+                         "guard suite points this at a fixture")
+    ap.add_argument("--results", default=None, type=Path,
+                    help="results file naming the rows that have run; "
+                         "the guard suite points this at a fixture")
     args = ap.parse_args(argv[1:])
     for f in (args.runsheet, args.runbook):
         if not f.is_file():
             print(f"no such file: {f}", file=sys.stderr)
             return 2
-    return check(args.runsheet, args.runbook)
+    for f in (args.register, args.results):
+        if f is not None and not f.is_file():
+            print(f"no such file: {f}", file=sys.stderr)
+            return 2
+    return check(args.runsheet, args.runbook, args.register, args.results)
 
 
 if __name__ == "__main__":

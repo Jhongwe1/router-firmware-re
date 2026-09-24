@@ -16,7 +16,7 @@ make fetch unpack recon
 
 | # | Question | Answer | How it was established |
 |---|---|---|---|
-| 1 | SoC | Realtek RTL8196-class (**unconfirmed** — needs the board) | Firmware evidence is consistent with it: MIPS-I, `0x80c00000` kernel load address, Realtek `cvimg` container. The chip marking is a W02 task. |
+| 1 | SoC | **Realtek RTL8196E** — confirmed on silicon in W02 | Three independent sources: the package marking, the boot banner, and `0x8196E000` in the boot code ([`hardware-inspection.md`](hardware-inspection.md) §2). The firmware evidence that predicted it — MIPS-I, `0x80c00000` kernel load address, Realtek `cvimg` container — is kept because it was the W01 prediction and it held. |
 | 2 | CPU architecture | **MIPS32, MIPS-I ISA, o32 ABI** | `e_machine=8`, `e_flags` arch bits = `mips1`, `EF_MIPS_ABI_O32` set |
 | 3 | Endianness | **Big endian** | `e_ident[EI_DATA] = ELFDATA2MSB` on every ELF in both images |
 | 4 | Load base / entry | Load base `0x00400000`; `/bin/boa` entry `0x00404020` (2.1.2) / `0x004034d0` (3.4.0) | lowest `PT_LOAD` vaddr and `e_entry` |

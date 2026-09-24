@@ -341,7 +341,7 @@ index constant. What V2.1.2 additionally carries, and the later two do not, is
 **a hardcoded `Authorization: Basic YWRtaW46YWRtaW4=` literal, twice.** That
 base64 decodes to `admin:admin`. Neither W03 nor W04 recorded it. Which function
 holds it, and whether `boa` ever sends it, is **not established** — it is listed
-in [`PROGRESS.md`](../PROGRESS.md) as carried forward rather than described here,
+in [`PROGRESS.md`](../journal/PROGRESS.md) as carried forward rather than described here,
 because a string is not a behaviour.
 
 ---

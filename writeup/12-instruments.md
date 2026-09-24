@@ -1,0 +1,199 @@
+# 12. Sixty instruments, sixty bugs — none caught by a self-check
+
+Writing this chapter does nothing for me except one thing: it is the reason to
+believe the rest of the document.
+
+Sixty times, an instrument this project built or relied on was wrong.
+Every one is numbered in [`PROGRESS.md`](../journal/PROGRESS.md) at the point it was
+found. **Not one was caught by the instrument's own self-check.** Every single
+one was caught by two things that should have agreed, disagreeing — or by a test
+written to fail.
+
+Four are worth telling properly, and a fifth section covers three that arrived
+together and pointed at something the other fifty-six had hidden.
+
+---
+
+## 1. A sink census that returned 589, then 1
+
+The census walks a binary and counts call sites reaching `strcpy`, `sprintf`,
+`system` and friends. On the 2015 build: **589**. On the 2018 build, a sibling
+compiled from the same SDK two and a half years later: **1**.
+
+One. Not zero — zero would have looked broken. **One** looks like a firmware
+that has been almost entirely rewritten, and that sentence was drafted.
+
+It is impossible. Two builds of one codebase a few years apart track closely;
+589 → 1 is not a code change, it is an instrument. The bug was in symbol
+resolution on an `sstrip`'d binary, where the section headers the resolver
+depended on are gone.
+
+**The rule that came out of it — *read the builds across, not down* — went on to
+catch three more.** A number with nothing to compare it to is not a measurement.
+
+---
+
+## 2. A guard suite reporting 5 of 5 while every invocation died on `import PIL`
+
+The photo-redaction tool has a guard suite whose job is to prove it refuses
+things: a box outside the image, a wrong `--expect-size`, a missing input. Five
+cases, all asserting *this must fail*.
+
+Five of five passed. Every invocation was dying on `import PIL` before reaching
+any of the logic under test.
+
+**A suite made only of refusals goes green when the whole system is broken**,
+because a crash is a non-zero exit and a refusal is a non-zero exit. What caught
+it was adding the one case that asserts *this must succeed* — the positive
+control — which failed immediately.
+
+Every guard suite in this project now has one. The reason this bug has its own
+number and its own rule is that it is the shape three other bugs turned out to
+share: **a check with nothing to work on reports success.**
+
+---
+
+## 3. A parser written from the quotation instead of from the record
+
+A tool was written to parse the boot loader's console output. Its author — me —
+wrote the expected format from a **note**, because the note contained the
+transcript.
+
+The tool rejected every line the device actually emits.
+
+The note was analysis; quotations in analysis get tidied, reflowed and
+abbreviated, and this one had. The **runbook** carried the same transcript
+verbatim, because a runbook is an operating record. Both files existed. The
+wrong one was read.
+
+> A verbatim record is only worth what it is worth if somebody reads the
+> verbatim one.
+
+That lesson recurred two more times and is now a script: `console-lint.py` reads
+a console log the way the device's own dispatcher reads it, and reports an
+unexplained rejection as an error rather than as silence.
+
+---
+
+## 4. The one from the last session, and it points the wrong way
+
+Deciding whether the boot loader ever enables interrupts began as a search for
+Realtek's `sti` idiom — `mfc0 $1,$12 / ori $1,1 / mtc0 $1,$12`. There are none.
+There are seven `cli` sites of the matching shape. The sentence written from
+that was:
+
+> *the loader runs with interrupts masked, so its TFTP must be polled.*
+
+Every observation in that chain is correct. The conclusion is the opposite of
+the truth, because this build writes **`ori $1,0x1f / xori $1,0x1e`** — sets bit
+0, clears bits 1 to 4. Same effect, different bytes.
+
+**Notice which way the error pointed.** The night before, a bench measurement had
+left three candidate causes for a failure and excluded none of them. That
+sentence would have excluded the *correct* one — and excluded it in language
+that sounds well-founded: *interrupts cannot be the cause, because this loader
+never enables them.*
+
+The fix is not more care. A pattern match answers *"is this the shape I
+expected"*, and the question was *"what is bit 0 afterwards"*. The instrument
+now evaluates every `mtc0 $12` in the image with a four-valued per-bit lattice —
+`0`, `1`, *what `mfc0` read*, *its complement* — so `xori` is exact and the
+answer is arithmetic. Two guard fixtures differ in **one bit of one immediate**,
+and they look like a duplicate test, which is the point.
+
+---
+
+## 5. Three in one hour, all wrong in the same direction
+
+2026-09-25, the publication week, and nothing was being measured — three checkers
+were being written to hold the repository's own documents to account. The first
+reported **21 broken links**; 18 of them were the checker. The second reported
+**18 stale numbers**; 13 of them were the checker. The third's own guard suite
+reported **6 failures out of 13** against a checker that was working correctly.
+
+What makes them worth a section is not the count, it is the **direction**. The
+other fifty-six skew hard the other way: a census returning 1 instead of 589, a
+freeze check hashing an empty list, a capture printing `0 packets captured` and
+exiting 0, a regular expression matching nothing and therefore passing on every
+file. Those are all *silent passes* — instruments that said nothing was there.
+
+All four **invented work**. And an instrument that invents work is worse
+than one that hides it, for a reason that has nothing to do with the instrument:
+a false alarm gets obeyed. The first response to *"this anchor is broken"* is to
+go and fix the anchor, and fourteen correct links were one keystroke from being
+"fixed" into fourteen broken ones. A silent pass leaves the evidence intact; a
+false alarm is an instruction to destroy it.
+
+The thing that caught all three is the same thing, and it is embarrassingly
+cheap: **before acting on the first finding, read all of them.** Eighteen
+anchor failures sharing one shape — every single one spanning an em dash, a
+slash or a comma — is not eighteen mistakes in the corpus. It is one mistake in
+the reader. A single finding hides that; the distribution does not.
+
+So the rule this chapter has been making, *no claim from a single tool*, has a
+corollary it had not stated: **a tool's first run is a claim too, and its shape
+is evidence about the tool.** The right question after a new checker's first
+report is not "which of these do I fix" but "do these look like eighteen
+independent defects".
+
+The fourth one sharpens it once more, because it is the *guard suite* that was
+wrong rather than the checker. Its shape gave it away in one line: **every case
+that was supposed to pass, passed; every case that was supposed to catch something, failed.**
+No defect in the thing under test produces that pattern — a broken checker fails
+both halves or neither. A result that splits exactly along the *suite's own*
+structure is a statement about the suite. (`set -o pipefail` and a command whose
+job is to exit non-zero: the pipeline returns the checker's status, not grep's.)
+
+---
+
+## The whole list, in one table
+
+| # | what was wrong | what caught it |
+|---|---|---|
+| 1–9 | the first nine, W01–W03 | two sources disagreeing, every time |
+| 10 | sink census 589 → **1** | reading across builds |
+| 12 | a freeze check hashing an **empty** list | asking what the check does when it has nothing |
+| 13–21 | nine in one day, six of them in code written that day | controls written in the same commit |
+| 19 | `AUTOBURN: 0` — the loader rejects the syntax from its own help text | the bench |
+| 22 | the runsheet checker **did not read the runbook**, which held twelve stale command blocks, four already refuted | asking what the checker does *not* read |
+| 24 | a self-check that passes because it never fires | a case that had to succeed |
+| 40–42 | 41 and 42 were **created by fixing 40** | the guard suite for 40 |
+| 43 | found by **GitHub**, not locally | `gh run list` after a push |
+| 44 | the refusal that knew the answer fired **second** | ordering, not logic |
+| 45 | the checker written to catch a broken workflow **shipped a workflow that would not parse** | the workflow, on the first push |
+| 46 | a flash **write** tool with a hardcoded verbosity flag | a divergence case |
+| 47 | the hardest to see | a second reader |
+| 49 | the one this project is supposed to be immune to | — |
+| 50 | `[^\n]` inside a POSIX bracket expression is **"neither a backslash nor the letter n"**, so four identification lines had never printed | a case that required them to print |
+| 51 | a probe asking flashrom for a verbosity at which the line it parses **is not printed**, which would have sent the operator to re-seat a working clip | flashrom's own `dummy` programmer, no hardware |
+| 52 | the `sti` shape match, above | changing the question |
+| 53 | a function-entry rule that walked past a routine ending in `rfe` | **the tool's own refusal** — "0 callers" |
+| 54 | a brand-new check whose regular expression matched nothing, so it passed on every file including the one it was written for | its own guard case, in the same commit |
+| 55 | a packet capture that could not create its output file, printed `0 packets captured`, and **exited 0** — while "nothing is on the wire" was one of the candidate answers to the question being asked | a control: the capture contained zero of **our own outgoing** packets, which were known to have been sent |
+| 57 | a heading-anchor slugger that collapsed **runs** of whitespace to one hyphen. Removing punctuation leaves its gap behind, so `codes — a` anchors as `codes--a`; fourteen correct links were reported broken | the headings themselves — the "broken" anchors were what GitHub actually renders |
+| 58 | the same checker blanked inline code **before** slugging, so `### 7.4 \`J2\` and the power switch` lost the `J2`. GitHub slugs the *rendered* heading | four more correct links, in the same run as 57 |
+| 60 | a **guard suite** whose `must_catch` helper piped the checker into `grep` under `set -o pipefail`. The checker's whole job is to exit 1, so the pipeline inherited that status and **every case that was supposed to catch something reported a false failure** — 6 of 13, on a checker that was working | the cases that were supposed to *pass* passed, so "the checker is broken" did not fit the evidence |
+| 59 | a numbers checker that read prose grammar for totals. English gives `141 registered tests` and `Three registered tests are frozen against it` the same shape, so **13 of its first 18 findings were its own** | reading all eighteen before believing any of them |
+| 56 | a guard case whose premise was *a property of live data* — "this week has rows and no results, so only the new rule can fire". The week closed, the premise died, and the case went **red for a reason unrelated to what it tests**, on the day the thing it guards started working | it went red rather than green, which is the only reason this one was cheap. Re-based on a fixture, with a control |
+
+---
+
+## The sentence this chapter exists for
+
+> **Sixty instrument bugs. Not one was caught by the instrument's own
+> self-check. Every single one was caught by two things that should have agreed,
+> disagreeing — or by a test written to fail.**
+>
+> **A check that never fires never fails.**
+
+The corollary is the operational one, and it is why this project has 496 guard
+cases across twenty-three suites plus 130 parser tests, and why `make ci` runs all
+of them: **most of the engineering in a reverse-engineering project is not
+reverse engineering. It is building the thing that tells you when you are
+wrong.**
+
+> **Where this chapter stops:** sixty is the count of bugs *found*. It is a
+> lower bound on the bugs that existed, and it says nothing about the ones still
+> in there. The honest reading of a rising count is not "the instruments are
+> getting better" — it is "the search is getting better", and those are
+> different.

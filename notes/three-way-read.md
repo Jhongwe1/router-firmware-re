@@ -241,7 +241,7 @@ Those two are not independent sources on a file in this state; Ghidra and `nm -D
 are, and they agree on `lastUrl`.
 
 **What the check did catch was in the tracer, not the firmware**, and it is
-written up in [`PROGRESS.md`](../PROGRESS.md) § Instrument work: unifying the
+written up in [`PROGRESS.md`](../journal/PROGRESS.md) § Instrument work: unifying the
 tracer's spec across the three builds to make their scope counts comparable
 silently dropped V3.4.0's accessor override, and its tainted-site count went
 49 → 0 with `self_check: consistent`. Same 86 → 0 shape as W04, arriving this

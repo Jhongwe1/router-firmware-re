@@ -191,7 +191,7 @@ differ**:
 
 ## 4. Disclosure — decided per field, and the reasons do not all transfer
 
-The decision of 2026-08-16 ([`LOG.md`](../LOG.md) § 決策) is that this unit's
+The decision of 2026-08-16 ([`LOG.md`](../journal/LOG.md) § 決策) is that this unit's
 values are published: self-purchased, end of life, never deployed, and a MAC is
 an identifier rather than a credential.
 

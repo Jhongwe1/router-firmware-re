@@ -833,6 +833,568 @@ def command_table(stage2: bytes, base_hint: int | None = None) -> dict[str, Any]
     }
 
 
+# --- the interrupt wiring, and what the command prompt actually polls -------
+#
+# open #101 asked whether the loader's TFTP is polled or interrupt driven.  It
+# is answerable from the image, and it needs four readings that do not share a
+# mechanism.  Every one of them is an *absence* claim in the direction that
+# matters, so each carries a positive control produced by the same scan:
+#
+#   1. the CP0 Status census.  Every `mtc0 rt,$12` in the image, with bit 0 (IE)
+#      evaluated *algebraically* rather than by matching an idiom.  This is the
+#      leg that has to be exact, and version 1 of this analysis was not: it
+#      searched for the Realtek `sti` idiom `ori $1,1 / mtc0` and concluded that
+#      nothing in the image ever sets IE, because this build writes
+#      `ori $1,0x1f / xori $1,0x1e` instead -- same result, different bytes.
+#      A pattern match answers "is this the shape I expected"; the question was
+#      "what is bit 0 afterwards".
+#   2. the GIMR0 census.  Every access to 0xB8003000, the SoC's global interrupt
+#      mask, and which of them form the set-a-bit / clear-a-bit pair that a
+#      `request_IRQ` implementation needs.
+#   3. the install sites.  Every call to that `request_IRQ`, with the IRQ
+#      number, the irqaction struct, its handler, and the device name string the
+#      struct carries -- so "eth0 is IRQ 15" is read off the image rather than
+#      assumed from a vendor header.
+#   4. the console's character source.  Every memory address the routine the
+#      command loop blocks in touches.  If the only two are the UART's line
+#      status and receive registers then the prompt polls nothing else, and a
+#      service answering the network while the prompt is up is being driven from
+#      somewhere that is not the command loop.
+#
+# What is measured and what is inferred, kept apart on purpose:
+#   measured  every `mtc0 $12` and its bit 0; every GIMR0 load and store; the
+#             request_IRQ entry, derived from the GIMR0 pair rather than named;
+#             each install site's constant arguments; each handler and name
+#             string; every memory reference in the character source
+#   inferred  nothing.  Where a straight-line window cannot determine a value
+#             the field says `unknown` instead of a number.
+CP0_STATUS = 12
+GIMR0_ADDR = 0xB8003000
+UART_LSR_ADDR = 0xB8002014          # from the loader's own putchar, 0x80406B70
+UART_RBR_ADDR = 0xB8002000          # from the loader's own putchar, 0x80406B9C
+STATUS_WINDOW = 24                  # instructions of straight line before a mtc0
+ARG_WINDOW = 24                     # instructions of straight line before a jal
+JR_RA = 0x03E00008
+
+# Per-bit lattice for the Status census.  A bit is a literal 0 or 1, or it is
+# the corresponding bit of what `mfc0` read ("S"), or the complement of it
+# ("N").  Four values are enough for every idiom in this image and they make
+# `xori` exact, which two-valued masks cannot.
+B0, B1, BS, BN = "0", "1", "S", "N"
+_FLIP = {B0: B1, B1: B0, BS: BN, BN: BS}
+
+
+def _const_bits(value: int) -> list[str]:
+    return [B1 if (value >> b) & 1 else B0 for b in range(32)]
+
+
+def _bits_to_int(bits: list[str]) -> int | None:
+    if any(b in (BS, BN) for b in bits):
+        return None
+    return sum(1 << b for b in range(32) if bits[b] == B1)
+
+
+class _Regs:
+    """Straight-line constant/symbol tracker over a bounded window.
+
+    Deliberately forgetful: anything it cannot follow becomes ``None`` and every
+    consumer has to handle ``None``.  A tracker that guesses is worse than no
+    tracker, because its guesses look like measurements in the report.
+    """
+
+    CALLER_SAVED = (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 24, 25, 31)
+
+    def __init__(self) -> None:
+        self.r: dict[int, list[str] | None] = {0: _const_bits(0)}
+
+    def get(self, reg: int) -> list[str] | None:
+        return self.r.get(reg)
+
+    def value(self, reg: int) -> int | None:
+        bits = self.r.get(reg)
+        return None if bits is None else _bits_to_int(bits)
+
+    def _set(self, reg: int, bits: list[str] | None) -> None:
+        if reg:
+            self.r[reg] = bits
+
+    def step(self, word: int, *, mem=None) -> None:
+        op, rs, rt, rd, fn, imm = _mips(word)
+        s = self.r.get(rs)
+        t = self.r.get(rt)
+        if op == 0x0F:                                   # lui
+            self._set(rt, _const_bits((imm << 16) & 0xFFFFFFFF))
+            return
+        if op == 0x0D:                                   # ori
+            self._set(rt, None if s is None else
+                      [B1 if (imm >> b) & 1 else s[b] for b in range(32)])
+            return
+        if op == 0x0C:                                   # andi
+            self._set(rt, None if s is None else
+                      [s[b] if (imm >> b) & 1 else B0 for b in range(32)])
+            return
+        if op == 0x0E:                                   # xori
+            self._set(rt, None if s is None else
+                      [_FLIP[s[b]] if (imm >> b) & 1 else s[b] for b in range(32)])
+            return
+        if op in (0x08, 0x09):                           # addi/addiu
+            v = self.value(rs)
+            self._set(rt, None if v is None else
+                      _const_bits((v + _simm(imm)) & 0xFFFFFFFF))
+            return
+        if op in MIPS_LOADS:                             # lw/lbu/lhu/...
+            v = self.value(rs)
+            got = None
+            if v is not None and mem is not None and op == 0x23:      # lw only
+                got = mem(v + _simm(imm))
+            self._set(rt, None if got is None else _const_bits(got))
+            return
+        if op == 0x00:
+            if fn in (0x24, 0x25, 0x26, 0x27):           # and/or/xor/nor
+                if s is None or t is None:
+                    self._set(rd, None)
+                    return
+                out = []
+                for b in range(32):
+                    a, c = s[b], t[b]
+                    if fn == 0x24:                       # and
+                        out.append(B0 if B0 in (a, c) else
+                                   (a if c == B1 else (c if a == B1 else None)))
+                    elif fn == 0x25:                     # or
+                        out.append(B1 if B1 in (a, c) else
+                                   (a if c == B0 else (c if a == B0 else None)))
+                    elif fn == 0x26:                     # xor
+                        out.append(_FLIP[a] if c == B1 else
+                                   (a if c == B0 else
+                                    (_FLIP[c] if a == B1 else
+                                     (c if a == B0 else None))))
+                    else:                                # nor
+                        out.append(B0 if B1 in (a, c) else
+                                   (_FLIP[a] if c == B0 else
+                                    (_FLIP[c] if a == B0 else None)))
+                self._set(rd, None if None in out else out)
+                return
+            if fn in (0x21, 0x20):                       # addu/add
+                if rt == 0:
+                    self._set(rd, s)
+                elif rs == 0:
+                    self._set(rd, t)
+                else:
+                    a, c = self.value(rs), self.value(rt)
+                    self._set(rd, None if a is None or c is None else
+                              _const_bits((a + c) & 0xFFFFFFFF))
+                return
+            if fn == 0x00 and t is not None:             # sll
+                sa = (word >> 6) & 31
+                self._set(rd, [B0] * sa + t[:32 - sa] if sa else list(t))
+                return
+            if fn == 0x02 and t is not None:             # srl
+                sa = (word >> 6) & 31
+                self._set(rd, t[sa:] + [B0] * sa if sa else list(t))
+                return
+            if fn in (0x08, 0x09):                       # jr/jalr
+                if fn == 0x09:
+                    self._set(REG_RA, None)
+                return
+            self._set(rd, None)
+            return
+        if op == 0x10:                                   # cop0
+            if rs == 0x00 and ((word >> 11) & 31) == CP0_STATUS:      # mfc0 $12
+                self._set(rt, [BS] * 32)
+                return
+            self._set(rt, None)
+            return
+        if op == 0x03:                                   # jal: o32 clobbers
+            for reg in self.CALLER_SAVED:
+                self.r[reg] = None
+            return
+        if op in (0x01, 0x02, 0x04, 0x05, 0x06, 0x07) or op in MIPS_STORES:
+            return
+        self._set(rt, None)
+
+
+def _is_mtc0_status(word: int) -> bool:
+    return ((word >> 26) == 0x10 and ((word >> 21) & 31) == 0x04
+            and ((word >> 11) & 31) == CP0_STATUS and (word & 0x7FF) == 0)
+
+
+def _words_of(stage2: bytes) -> list[int]:
+    n = len(stage2) // 4
+    return list(struct.unpack(f">{n}I", stage2[:n * 4]))
+
+
+def _provenance(words: list[int], start: int, end: int, reg: int) -> str:
+    """Walk a register's definition chain back to its roots inside a window.
+
+    Only the roots matter.  "Computed" says nothing: every one of these values
+    is computed.  What decides whether an undetermined IE can hide a *third*
+    way to turn interrupts on is where the arithmetic started -- a value loaded
+    from memory or arriving in an argument register can only put back a bit
+    that something else had already set.
+    """
+    roots: list[str] = []
+    seen: set[tuple[int, int]] = set()
+
+    def walk(r: int, upto: int, depth: int = 0) -> None:
+        if depth > 12 or (r, upto) in seen:
+            return
+        seen.add((r, upto))
+        for j in range(upto - 1, start - 1, -1):
+            if _defines(words[j]) != r:
+                continue
+            w = words[j]
+            if (w >> 26) in MIPS_LOADS:
+                roots.append("a value loaded from memory")
+            elif (w >> 26) == 0x10:
+                roots.append("what `mfc0` read")
+            elif (w >> 26) in (0x0F,) or _mips(w)[0] in (0x08, 0x09, 0x0C, 0x0D, 0x0E):
+                for u in _uses(w):
+                    walk(u, j, depth + 1)
+                if not _uses(w) - {0}:
+                    roots.append("a literal")
+            else:
+                for u in _uses(w) - {0}:
+                    walk(u, j, depth + 1)
+            return
+        if r:
+            roots.append(f"live-in ${r} (an argument, or set before this window)")
+
+    walk(reg, end)
+    uniq = sorted(set(roots))
+    return "built from " + ", ".join(uniq) if uniq else "not traceable"
+
+
+def _status_census(words: list[int], base: int) -> list[dict[str, Any]]:
+    """Every `mtc0 rt,$12`, with bit 0 of the written value evaluated."""
+    out = []
+    for i, w in enumerate(words):
+        if not _is_mtc0_status(w):
+            continue
+        src = (w >> 16) & 31
+        regs = _Regs()
+        start = max(0, i - STATUS_WINDOW)
+        for j in range(start, i):
+            regs.step(words[j])
+        bits = regs.get(src)
+        ie = bits[0] if bits else "unknown"
+        row = {
+            "at": f"0x{base + i * 4:08X}",
+            "source_register": src,
+            "ie_bit_after": ie,
+            "means": {B0: "clears IE", B1: "sets IE",
+                      BS: "leaves IE as it was read",
+                      BN: "inverts IE"}.get(ie, "not determined in a straight line"),
+        }
+        if ie == "unknown":
+            # Where the value came from decides whether "unknown" can hide a
+            # third way to turn interrupts on. A value loaded from memory or
+            # live-in at the window's edge is a *restore* -- it can only put
+            # back a bit that was already set. Only a computed one could raise
+            # IE from zero, and saying which is which is the difference between
+            # an absence claim and an absence of analysis.
+            row["source"] = _provenance(words, start, i, src)
+        out.append(row)
+    return out
+
+
+def _gimr_census(words: list[int], base: int) -> list[dict[str, Any]]:
+    """Every load or store whose resolved address is GIMR0."""
+    out = []
+    for i, w in enumerate(words):
+        op, rs, rt, _rd, _fn, imm = _mips(w)
+        if op not in MIPS_LOADS and op not in MIPS_STORES:
+            continue
+        regs = _Regs()
+        for j in range(max(0, i - 8), i):
+            regs.step(words[j])
+        b = regs.value(rs)
+        if b is None or (b + _simm(imm)) & 0xFFFFFFFF != GIMR0_ADDR:
+            continue
+        kind = "read"
+        if op in MIPS_STORES:
+            src = regs.value(rt)
+            kind = "write zero" if src == 0 else (
+                f"write 0x{src:08X}" if src is not None else "write a computed value")
+        out.append({"at": f"0x{base + i * 4:08X}", "op": kind})
+    return out
+
+
+def _jal_targets(words: list[int], base: int) -> set[int]:
+    out = set()
+    for w in words:
+        if (w >> 26) == 0x03:
+            t = (((base + 4) & 0xF0000000) | ((w & 0x03FFFFFF) << 2)) - base
+            if 0 <= t // 4 < len(words) and t % 4 == 0:
+                out.add(t // 4)
+    return out
+
+
+def _func_start(words: list[int], idx: int, targets: set[int],
+                back: int = 320) -> int | None:
+    """The nearest preceding address that something in this image *calls*.
+
+    Version 1 of this scanned backwards for a `jr ra` and took the word after
+    its delay slot.  That is wrong here in a way that fails loudly and could
+    have failed quietly: the routine before `enable_irq` ends in `rfe`, not
+    `jr ra`, so the scan ran past it into an unrelated function and reported an
+    entry nothing calls.  A function entry is not "after the previous return";
+    it is "an address a `jal` names", and this image names them all.
+    """
+    cands = [t for t in targets if t <= idx and idx - t <= back]
+    return max(cands) if cands else None
+
+
+def _callers_of(words: list[int], base: int, entry_idx: int) -> list[int]:
+    want = 0x0C000000 | ((base + entry_idx * 4) >> 2) & 0x03FFFFFF
+    return [i for i, w in enumerate(words) if w == want]
+
+
+def _cstring_at(stage2: bytes, base: int, addr: int, limit: int = 64) -> str | None:
+    off = addr - base
+    if not 0 <= off < len(stage2):
+        return None
+    end = stage2.find(b"\x00", off, min(len(stage2), off + limit))
+    if end < 0:
+        return None
+    try:
+        s = stage2[off:end].decode("ascii")
+    except UnicodeDecodeError:
+        return None
+    return s if s and all(32 <= ord(c) < 127 or c in "\r\n\t" for c in s) else None
+
+
+def _call_args(words: list[int], base: int, stage2: bytes,
+               idx: int) -> dict[int, int | None]:
+    """a0/a1/a2 at a `jal`, delay slot included -- it runs before the call."""
+    def mem(addr: int) -> int | None:
+        off = addr - base
+        if 0 <= off <= len(stage2) - 4:
+            return struct.unpack(">I", stage2[off:off + 4])[0]
+        return None
+
+    regs = _Regs()
+    for j in range(max(0, idx - ARG_WINDOW), idx):
+        regs.step(words[j], mem=mem)
+    if idx + 1 < len(words):
+        regs.step(words[idx + 1], mem=mem)
+    return {r: regs.value(r) for r in (4, 5, 6)}
+
+
+def interrupt_wiring(stage2: bytes, load_base: int,
+                     dispatcher_site: int | None = None) -> dict[str, Any]:
+    words = _words_of(stage2)
+    base = load_base
+
+    def mem(addr: int) -> int | None:
+        off = addr - base
+        if 0 <= off <= len(stage2) - 4:
+            return struct.unpack(">I", stage2[off:off + 4])[0]
+        return None
+
+    targets = _jal_targets(words, base)
+    status = _status_census(words, base)
+    sti = [s for s in status if s["ie_bit_after"] == B1]
+    cli = [s for s in status if s["ie_bit_after"] == B0]
+    # Positive control.  A classifier that reports no `sti` is only worth
+    # reading if the same pass finds the writes that clear IE, and this image
+    # has seven of them.
+    if len(cli) < 4:
+        raise LoaderError(
+            f"the CP0 Status census found {len(cli)} writes that clear IE. The "
+            "loader masks interrupts on at least four paths (`J`, the two boot "
+            "hand-offs and the exception entry), so a census that cannot see "
+            "them cannot be trusted to report that nothing sets IE either")
+
+    gimr = _gimr_census(words, base)
+    # The set-a-bit / clear-a-bit pair: a GIMR0 read and a GIMR0 write within a
+    # dozen instructions with an `sllv` between them.  Derived, not named.
+    enable_idx = disable_idx = None
+    for g in gimr:
+        if not g["op"].startswith("read"):
+            continue
+        i = (int(g["at"], 16) - base) // 4
+        window = words[i:i + 12]
+        has_sllv = any((w >> 26) == 0 and (w & 63) == 0x04 for w in window)
+        has_nor = any((w >> 26) == 0 and (w & 63) == 0x27 for w in window)
+        stores = [j for j, w in enumerate(window)
+                  if (w >> 26) in MIPS_STORES]
+        if not (has_sllv and stores):
+            continue
+        start = _func_start(words, i, targets)
+        if start is None:
+            continue
+        if has_nor:
+            disable_idx = start
+        else:
+            enable_idx = start
+    if enable_idx is None:
+        raise LoaderError(
+            "no GIMR0 read-modify-write that sets a bit chosen by `sllv` was "
+            "found, so there is no `enable_irq` to hang the rest of this "
+            "analysis on")
+
+    req_callers = _callers_of(words, base, enable_idx)
+    if len(req_callers) != 1:
+        raise LoaderError(
+            f"the GIMR0 bit-setter has {len(req_callers)} callers. `request_IRQ` "
+            "is identified as its only caller, and that identification is only "
+            "sound when there is exactly one")
+    request_idx = _func_start(words, req_callers[0], targets)
+    if request_idx is None:
+        raise LoaderError("could not find the entry of the routine that calls "
+                          "the GIMR0 bit-setter")
+
+    installs = []
+    for site in _callers_of(words, base, request_idx):
+        args = _call_args(words, base, stage2, site)
+        irq, action, dev = args[4], args[5], args[6]
+        row: dict[str, Any] = {
+            "call_site": f"0x{base + site * 4:08X}",
+            "irq": irq,
+            "irqaction": f"0x{action:08X}" if action is not None else None,
+            "dev_id": f"0x{dev:08X}" if dev is not None else None,
+            "handler": None,
+            "name": None,
+        }
+        if action is not None:
+            h = mem(action)
+            n = mem(action + 12)
+            row["handler"] = f"0x{h:08X}" if h else None
+            row["name"] = _cstring_at(stage2, base, n) if n else None
+        installs.append(row)
+    if not installs:
+        raise LoaderError("`request_IRQ` was located and nothing calls it")
+
+    # --- the console's character source ----------------------------------
+    getchar_idx = None
+    for i, w in enumerate(words):
+        op, rs, _rt, _rd, _fn, imm = _mips(w)
+        if op != 0x24:                                   # lbu
+            continue
+        regs = _Regs()
+        for j in range(max(0, i - 6), i):
+            regs.step(words[j])
+        b = regs.value(rs)
+        if b is None or (b + _simm(imm)) & 0xFFFFFFFF != UART_LSR_ADDR:
+            continue
+        nxt = words[i + 1:i + 5]
+        if not any((w2 >> 26) == 0x0C and (w2 & 0xFFFF) == 1 for w2 in nxt):
+            continue                                     # andi rX,rT,1
+        if not any((w2 >> 26) == 0x04 and _simm(w2 & 0xFFFF) < 0 for w2 in nxt):
+            continue                                     # a backward beq
+        getchar_idx = _func_start(words, i, targets)
+        break
+    if getchar_idx is None:
+        raise LoaderError(
+            "no routine that spins on the UART line status register's "
+            "data-ready bit was found, so nothing can be said about what the "
+            "command prompt polls")
+
+    end = getchar_idx
+    while end < len(words) and words[end] != JR_RA:
+        end += 1
+    touched: list[str] = []
+    unresolved = 0
+    for i in range(getchar_idx, min(end + 2, len(words))):
+        op, rs, _rt, _rd, _fn, imm = _mips(words[i])
+        if op not in MIPS_LOADS and op not in MIPS_STORES:
+            continue
+        regs = _Regs()
+        for j in range(getchar_idx, i):
+            regs.step(words[j])
+        b = regs.value(rs)
+        if b is None:
+            unresolved += 1
+            continue
+        addr = f"0x{(b + _simm(imm)) & 0xFFFFFFFF:08X}"
+        if addr not in touched:
+            touched.append(addr)
+
+    # --- the boot path: eth init, then sti, then the prompt ---------------
+    eth = next((r for r in installs if (r["name"] or "").startswith("eth")), None)
+    boot_path: dict[str, Any] = {"found": False}
+    monitor_idx = (_func_start(words, (dispatcher_site - base) // 4, targets)
+                   if dispatcher_site else None)
+    if eth is not None and monitor_idx is not None:
+        eth_site = (int(eth["call_site"], 16) - base) // 4
+        eth_init = _func_start(words, eth_site, targets)
+        for caller in (_callers_of(words, base, eth_init) if eth_init else []):
+            fs = _func_start(words, caller, targets)
+            if fs is None:
+                continue
+            fe = caller
+            while fe < len(words) and words[fe] != JR_RA:
+                fe += 1
+            seq = words[caller:fe + 1]
+            sti_off = next((k for k, w in enumerate(seq)
+                            if _is_mtc0_status(w)
+                            and any(s["at"] == f"0x{base + (caller + k) * 4:08X}"
+                                    for s in sti)), None)
+            mon = 0x0C000000 | (((base + monitor_idx * 4) >> 2) & 0x03FFFFFF)
+            mon_off = next((k for k, w in enumerate(seq) if w == mon), None)
+            if sti_off is None or mon_off is None or not sti_off < mon_off:
+                continue
+            banner = None
+            for k in range(sti_off):
+                if (seq[k] >> 26) == 0x03:
+                    a0 = _call_args(words, base, stage2, caller + k)[4]
+                    if a0 is not None:
+                        s = _cstring_at(stage2, base, a0)
+                        if s and len(s) > 6:
+                            banner = s
+            boot_path = {
+                "found": True,
+                "at": f"0x{base + fs * 4:08X}",
+                "calls_ethernet_init": f"0x{base + eth_init * 4:08X}",
+                "then_sets_ie_at": f"0x{base + (caller + sti_off) * 4:08X}",
+                "then_enters_the_command_loop_at": f"0x{base + monitor_idx * 4:08X}",
+                "console_line_printed_immediately_before_sti": banner,
+            }
+            break
+
+    polls_only_uart = (sorted(touched) == sorted([f"0x{UART_LSR_ADDR:08X}",
+                                                  f"0x{UART_RBR_ADDR:08X}"])
+                       and unresolved == 0)
+    return {
+        "cp0_status_writes": status,
+        "writes_that_set_ie": [s["at"] for s in sti],
+        "writes_that_clear_ie": [s["at"] for s in cli],
+        "gimr0_accesses": gimr,
+        "enable_irq_at": f"0x{base + enable_idx * 4:08X}",
+        "disable_irq_at": (f"0x{base + disable_idx * 4:08X}"
+                           if disable_idx is not None else None),
+        "request_irq_at": f"0x{base + request_idx * 4:08X}",
+        "installs": installs,
+        "console_input": {
+            "getchar_at": f"0x{base + getchar_idx * 4:08X}",
+            "memory_addresses_touched": touched,
+            "unresolved_memory_references": unresolved,
+            "polls_only_the_uart": polls_only_uart,
+            "bounded": any((w >> 26) in (0x08, 0x09)
+                           for w in words[getchar_idx:end]),
+        },
+        "boot_path_to_the_prompt": boot_path,
+        "reading": (
+            "the command prompt's character source blocks on the UART and "
+            "touches nothing else, so a service that answers the network while "
+            "the prompt is up is not being driven by the command loop. Whether "
+            "it is driven by an interrupt is settled by `installs` and by "
+            "`boot_path_to_the_prompt`, which names the instruction that sets "
+            "IE and the console line printed one instruction earlier."),
+    }
+
+
+def interrupt_wiring_or_reason(stage2: bytes, load_base: int | None,
+                               dispatcher_site: int | None = None) -> dict[str, Any]:
+    if load_base is None:
+        return {"refused": "no load base was recovered, so no address in this "
+                           "analysis could be resolved"}
+    try:
+        return interrupt_wiring(stage2, load_base, dispatcher_site)
+    except LoaderError as exc:
+        return {"refused": str(exc)}
+
+
 def command_table_or_reason(stage2: bytes,
                             base_hint: int | None = None) -> dict[str, Any]:
     try:
@@ -878,6 +1440,18 @@ def build(dump: Path, region_end: int) -> tuple[dict[str, Any], bytes]:
     chip_tbl = chip_table_or_reason(stage2)
     chip_base = (int(chip_tbl["load_base"], 16)
                  if "load_base" in chip_tbl else None)
+    cmd_tbl = command_table_or_reason(stage2, chip_base)
+    load_base = chip_base
+    if load_base is None and "load_base" in cmd_tbl:
+        load_base = int(cmd_tbl["load_base"], 16)
+    # The dispatcher, not the `?` printer: it is the reader that loads the
+    # handler column (+8).  Naming it by what it reads rather than by its
+    # address keeps this working on a fixture whose table sits elsewhere.
+    dispatcher_site = None
+    for r in cmd_tbl.get("readers_of_the_table", []):
+        if 8 in r.get("field_offsets_read", []):
+            dispatcher_site = int(r["site"], 16)
+            break
 
     doc: dict[str, Any] = {
         "producer": PRODUCER,
@@ -907,7 +1481,13 @@ def build(dump: Path, region_end: int) -> tuple[dict[str, Any], bytes]:
         # Soft for the same reason, and it takes the chip table's load base as a
         # hint: two tables in one image cannot have two bases, so a disagreement
         # is a refusal rather than a field nobody compared.
-        "command_table": command_table_or_reason(stage2, chip_base),
+        "command_table": cmd_tbl,
+        # Soft for the same reason again.  A fixture with no interrupt
+        # controller has no wiring to report, and that is not a reason to lose
+        # the rest of the report -- but the refusal text is kept so an absent
+        # analysis reads as absent rather than as a section nobody wrote.
+        "interrupt_wiring": interrupt_wiring_or_reason(stage2, load_base,
+                                                       dispatcher_site),
         "controls": {
             "help_banner_present": True,
             "documented_commands_found": found_cmds,
@@ -954,6 +1534,12 @@ def main(argv: list[str]) -> int:
                     help="print the loader's command table beside what each "
                          "handler actually dereferences, and exit non-zero if "
                          "it cannot be recovered")
+    ap.add_argument("--irq", action="store_true",
+                    help="print the loader's interrupt wiring -- every CP0 "
+                         "Status write with bit 0 evaluated, every GIMR0 "
+                         "access, every request_IRQ install site, and what the "
+                         "command prompt's character source polls -- and exit "
+                         "non-zero if it cannot be recovered")
     ap.add_argument("--has-id", metavar="HEX",
                     help="ask whether a three-byte JEDEC id, e.g. 1c7016, has a "
                          "row in that table. Exit 0 if it does, 1 if it does not")
@@ -1012,6 +1598,52 @@ def main(argv: list[str]) -> int:
                 flag = "  <- hands argv to a callee; not followed"
             print(f"  {r['name']:<9} {r['declared_argc']:>4} {reads:<14} "
                   f"{checks:<12} {r['handler']}{flag}")
+        return 0
+
+    if args.irq:
+        irq = doc["interrupt_wiring"]
+        if "refused" in irq:
+            print(f"refused: {irq['refused']}", file=sys.stderr)
+            return 1
+        print(f"enable_irq  {irq['enable_irq_at']}    "
+              f"disable_irq {irq['disable_irq_at']}    "
+              f"request_IRQ {irq['request_irq_at']}")
+        print()
+        print(f"  {'irq':>4}  {'irqaction':<12} {'handler':<12} name")
+        for r in irq["installs"]:
+            print(f"  {r['irq']!s:>4}  {r['irqaction']!s:<12} "
+                  f"{r['handler']!s:<12} {r['name']!r}")
+        print()
+        print(f"  CP0 Status writes: {len(irq['cp0_status_writes'])}  "
+              f"({len(irq['writes_that_set_ie'])} set IE, "
+              f"{len(irq['writes_that_clear_ie'])} clear it)")
+        for s in irq["cp0_status_writes"]:
+            mark = "  <- sets IE" if s["ie_bit_after"] == "1" else ""
+            why = f"  [{s['source']}]" if "source" in s else ""
+            print(f"    {s['at']}  ie={s['ie_bit_after']}  {s['means']}{mark}{why}")
+        print()
+        print("  GIMR0 (0xB8003000):")
+        for g in irq["gimr0_accesses"]:
+            print(f"    {g['at']}  {g['op']}")
+        ci = irq["console_input"]
+        print()
+        print(f"  the prompt's character source is {ci['getchar_at']}, and it "
+              f"touches {', '.join(ci['memory_addresses_touched'])}"
+              f" ({ci['unresolved_memory_references']} unresolved)")
+        print(f"  polls_only_the_uart: {ci['polls_only_the_uart']}")
+        bp = irq["boot_path_to_the_prompt"]
+        if bp.get("found"):
+            print()
+            print(f"  boot path {bp['at']}: ethernet init "
+                  f"{bp['calls_ethernet_init']} -> sets IE at "
+                  f"{bp['then_sets_ie_at']} -> command loop "
+                  f"{bp['then_enters_the_command_loop_at']}")
+            print(f"  console line printed immediately before that IE write: "
+                  f"{bp['console_line_printed_immediately_before_sti']!r}")
+        else:
+            print()
+            print("  no straight-line boot path from the ethernet init through "
+                  "an IE write to the command loop was found")
         return 0
 
     if args.chip_table or args.has_id:

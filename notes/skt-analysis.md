@@ -65,8 +65,10 @@ on `eth1`**. `oki,xasf` removes it again. Both run as root, because everything
 on this device does.
 
 `eth1` is the interface the rule names. On this board layout that is the WAN
-side — but that is read off the rule, not verified on hardware, and confirming
-it is a W02 task. Stated carefully: **this opens the router's administrative web
+side — but that is read off the rule, **not verified on hardware, and it is still
+not**: `/bin/skt` is absent from this unit's build, so there was nothing on the
+running device to confirm it against, and the WAN-side reachability question is
+open item `P8-7`'s second half. Stated carefully: **this opens the router's administrative web
 interface on an interface it is otherwise firewalled off from.**
 
 It is worth being precise about what kind of backdoor this is. It does not

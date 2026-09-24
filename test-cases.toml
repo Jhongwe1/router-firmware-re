@@ -31,8 +31,8 @@ schema_version = "1"
 # sha256 over (id, predict, refute) of every case that has a refutation.
 # Change a prediction and this must change in the same commit, where the diff
 # shows it. `python3 tools/rtcase.py freeze` prints the current value.
-sha256 = "b026221b558abb8f7d16c9e3ac965e9fb1859176f71ffdf923a0f8561e4ab26c"
-committed = "2026-08-20"
+sha256 = "7ade245482e61ad14ab273cc12f04d1a9e0ae742cdd31e8b0ce44e8fe93285c7"
+committed = "2026-08-22"
 note = """W05 Day 0 — frozen before any request has been served to this device.
 
 2026-08-18: two cases added, P0-11 and P3-14, both for G4 clause 3a — the L2
@@ -146,7 +146,31 @@ sharper in the way that matters — it can fail:
 Editing a frozen prediction is allowed and is never allowed to be quiet; this
 hash is what makes it loud, and the reason is that the first one was wrong about
 the format rather than unlucky about the outcome. Nothing had been measured, no
-result existed, and the correction is dated in the same commit as the edit."""
+result existed, and the correction is dated in the same commit as the edit.
+
+2026-08-22 (W08, desk) — three cases added, `P9-17`, `P9-18` and `P9-19`, and
+nothing existing was edited. All three are frozen **before the device is next
+powered on**, and all three are zero-write.
+
+They exist because 2026-08-22's bench session produced a result nobody had bet
+on: after `J`, restoring the five `EnablePHYIf` bits did **not** revive TFTP, so
+"the network is dead after `J`" still has three candidate causes and none is
+excluded. The desk work that followed read the loader's interrupt wiring out of
+its own second stage — `request_IRQ(15, "eth0")` at `0x80402A44`, the `sti` at
+`0x80408494`, and a command prompt whose character source polls nothing but the
+UART — and that turns the open question into a prediction with a number in it.
+
+**`P9-18` is deliberately the first of the three, and it is the one that can
+stop the other two.** It reads `GIMR0` and two interrupt-routing registers
+before anything is jumped to; if bit 15 is clear, or `GIMR0` reads zero, the
+reading behind `P9-17` is wrong and `P9-17` does not get sent.
+
+**And `P9-18` names a bit it cannot predict.** Bit 8 of `GIMR0` has two possible
+writers and the call graph between them was not resolved; both outcomes are
+written down, with the instruction that settles it. That is the same shape as
+2026-08-22's unscored cell, and it is on purpose: a prediction that says which
+of its bits are load-bearing survives a hostile reader, and a confident number
+that happens to be wrong does not."""
 
 [schedule]
 # sha256 over (id, week) of every live case. `week` is deliberately NOT in
@@ -157,8 +181,8 @@ result existed, and the correction is dated in the same commit as the edit."""
 # breaking the plan or editing the field. Editing it quietly is
 # indistinguishable from moving the goalposts, so now it hashes.
 # `python3 tools/rtcase.py schedule` prints the current value.
-sha256 = "7bdcc16b8884eca614b344dc9cdb8ea0b0343f0626e82c423c66f798e29adb4f"
-committed = "2026-08-20"
+sha256 = "25095eb09c9afc1e93a54189eb1b9ea9caa4f2be8fc3ace1c7d244a49aeae0e1"
+committed = "2026-08-22"
 note = """The payload changed on 2026-08-17: it was (id, week) and is now
 (id, week, rescheduled_from, reschedule_date, reschedule_reason), so every
 declared hash before this line is on the old basis and cannot be compared to
@@ -271,7 +295,7 @@ because of it. `PROGRESS.md` open item 93.
 """
 
 [ledger]
-output = "test-ledger.md"
+output = "journal/test-ledger.md"
 title = "測試登記簿 — W05–W08 的逐項預測、反證條件與結果"
 
 preamble = '''
@@ -1404,6 +1428,15 @@ reschedule_reason = '''需要 monitor mode + 封包注入的無線網卡，而�
 
 [[case]]
 id = "P7-3"
+cut_reason = '''2026-08-22：兩個理由，各自獨立、各自就足夠，**而第二個買不掉**。
+
+（一）**注入端的儀器**：這台機器唯一的無線介面是 Intel Wi-Fi 6 AX201（PnP id `PCI\VEN_8086&DEV_A0F0`），掛在 **PCIe** 上，`usbipd-win` 只轉送 USB 裝置，所以 WSL 在任何設定下都拿不到它；就算改用裸機 Linux，`iwlwifi` 沒有實作 frame injection。`docs/lab-inventory.md` 建議的 AR9271（約 US$30）沒有購入，本專案到 W10 結案前也不打算購入。
+
+（二）**輻射範圍，而這一條買了網卡也不會解除**：beacon 是廣播。一個宣告超長 SSID 的 beacon 會進到範圍內每一台裝置的掃描路徑，那跟兩個乙太網埠之間拉一條線是完全不同的同意情境。要做它需要屏蔽箱或真正隔離的場地，兩者都不在本專案範圍內，而**登記簿已經因為同一個理由砍掉 `P7-6` 與 `P7-9`**。
+
+**可否證形式要分兩條寫，因為門檻不同**：買一張 AR9271、讓 `aireplay-ng --test` 通過，只解除（一）。要解除（二）需要一個屏蔽環境，而那不是 US$30 的問題。**所以這一列即使有了網卡也不該回來** —— 這句話本身就是結論，不是免責聲明。
+
+被砍掉的是量測，不是問題：本專案到結案為止沒有做過任何無線測試，`writeup/14-limits.md` 明寫這件事。**靜態的那一半沒有被這一刀影響** —— Site Survey 頁不需要憑證就能觸發（`P2-1`，已量）是這一項當初的立足點，它還站著。'''
 phase = "7"
 section = "10.2"
 title = "惡意 Beacon → Site Survey 表溢位"
@@ -1420,6 +1453,15 @@ refute = '超長 SSID 的 beacon 完全不出現在 Site Survey 表 → 有長�
 
 [[case]]
 id = "P7-4"
+cut_reason = '''2026-08-22：跟 `P7-1` / `P7-2` / `P7-5` 同一類 —— **等一張 USB 無線網卡，到時候一起做**。
+
+（一）**儀器**：這台機器唯一的無線介面是 Intel Wi-Fi 6 AX201（PnP id `PCI\VEN_8086&DEV_A0F0`），掛在 **PCIe** 上，`usbipd-win` 只轉送 USB 裝置，所以 WSL 在任何設定下都拿不到它；就算改用裸機 Linux，`iwlwifi` 沒有實作 frame injection。`docs/lab-inventory.md` 建議的 AR9271（約 US$30）沒有購入，本專案到 W10 結案前也不打算購入。
+
+（二）**這一列的儀器側要寫得比其他無線項精確，因為它自己的凍結預測不是用網卡送的**：預測寫的發射端是 ESP8266 的 `wifi_send_pkt_freedom`，而桌上確實有一片 ESP8266（2026-08-21 當過一顆 3.3 V 穩壓器）。所以「完全沒有發射手段」對本列**不成立**，而把它寫成那樣會是把「我選擇不做」說成「我做不到」—— `schedule_payload` 的 docstring 就是為了擋這個方向才把理由納入雜湊的。**改用網卡的理由是量測品質**，兩條：（a）ESP8266 那條路能不能燒進送管理框的韌體**沒有查過**，`docs/lab-inventory.md` 也沒有這一項的盤點 —— 那是「未查」，不是「不存在」；（b）monitor mode 的**接收端**會把反證條件（a）從間接對照升級成直接觀測：現行對照是「同一片板子送出的正常 beacon 出現得了」，那是用一個間接訊號排除「根本沒發出去」；有監聽端就能直接看見那一幀在空中。
+
+（三）**輻射範圍對本列不是阻礙，而這一點跟 `P7-3` 不同**：WPS IE 可以掛在**探測回應**上，而探測回應是回給發出探測請求的那一台（也就是這台路由器自己的 Site Survey），不是無差別廣播。`P7-3` / `P7-6` / `P7-9` 需要屏蔽環境，**本列不需要** —— 2026-08-18 的改期理由當初點名那三項時就沒有把本列算進去，那個判斷現在仍然成立。
+
+**可否證形式**：買一張支援 monitor mode + 注入的 USB 無線網卡（`docs/lab-inventory.md` 建議 AR9271，約 US$30），`aireplay-ng --test` 通過，本列就跟 `P7-1` / `P7-2` / `P7-5` 一起回來。**單一條件，跟 `P7-3` 的兩條不一樣。**'''
 predict = '''WSC 的屬性是 2-byte type + **2-byte length**，而設定頁上 Device Name 的上限是 32。一個宣告超長 length 的 Device Name 屬性，塞在**信標或探測回應**的 WPS IE 裡，走的是掃描端的解析路徑而不是關聯路徑 —— 而 `P2-1` 已經確認這台的 Site Survey **不需要憑證就能觸發**，所以掃描動作可以自己發起。預測：解析端把宣告長度當成可信值拷進固定大小的緩衝區，`wscd` 或 `boa` 其中之一出現可觀察的異常（行程消失、連線被拒、或頁面回不完整）。
 
 **儀器側的限制寫在前面而不是事後**：這一發由 ESP8266 的 `wifi_send_pkt_freedom` 送出，它送得出管理框，單框長度上限約 1400 byte。所以「宣告長度 0xFFFF、實際只帶 40 byte」這種形式送得出去，而「真的塞 65535 byte」送不出去 —— **這一列測的是解析端信不信那個宣告值，不是它擋不擋得住真的長資料**。這兩件事不一樣，混為一談會把一個負面結果讀成正面結果。'''
@@ -1875,6 +1917,15 @@ refute = '在一次重開機期間，隔離網段上的主機對 loader 送 ARP 
 
 [[case]]
 id = "P9-5"
+cut_reason = '''2026-08-22：**在找到一支能真的驅動這顆晶片的燒錄器之前，不做在板讀寫。**
+
+**已經量到的**：CH341A（已改 3.3 V，改機量測見 `BENCH-LOG.md` 2026-08-20）夾上 `U19` 之後，晶片端 `VCC` 在三種供電下都停在 **1.70 V**，而供電端保持 3.3 V（`PROGRESS.md` W08 Day 1 the clip session）。1.70 V 在這顆零件的工作範圍之外，而**一次在欠壓下看起來正確的讀取，比一次失敗的讀取更糟** —— `P9-5` 存在的目的就是消除「兩支儀器對同一顆晶粒不一致」這個混淆，欠壓正好會製造它。
+
+**沒有量到的是為什麼，而它仍然是開放題 97。** 作者的判斷是板子的設計使然、要解焊下來才讀得到；**那是判斷，不是量測** —— 三種供電同一個電壓讀起來像箝位，但箝位與夾具路徑電阻這一場一條都沒有分離。所以本列寫的是「不做」，不是「做不到，因為 X」。
+
+**可否證形式，兩條，任何一條成立這一列就該回來**：（一）換一支能在這種負載下維持 3.3 V 的燒錄器；（二）把 `U19` 解焊下來離板讀 —— 第二條同時會直接答掉開放題 97。
+
+**這一刀的代價要寫清楚，因為它是全專案最貴的一刀。** 這台 flash 的每一個 byte 級主張至今只有一個來源 —— boot loader 自己的 `FLR`，走裝置自己的 UART，進裝置自己的 RAM，再由 `DB` 出來。兩次全讀 sha256 相同證明的是**傳輸與 SPI 讀取穩定，不是讀得對**：一個系統性的 `FLR` 錯誤（錯的 stride、chunk 邊界差一、一個本專案不知道的 bank 選擇）對兩趟都是隱形的。`writeup/14-limits.md` 的第一段就是這件事，而這一刀把它從**待辦**變成**永久**。'''
 phase = "9"
 section = "12.4"
 title = "SPI 直讀 dump（第二支儀器）"
@@ -1891,6 +1942,17 @@ refute = 'SPI 讀出來的 sha256 與 FLR 讀出來的一致 → FLR 這條路�
 
 [[case]]
 id = "P9-6"
+cut_reason = '''2026-08-22：**在找到一支能真的驅動這顆晶片的燒錄器之前，不做在板讀寫。**
+
+**已經量到的**：CH341A（已改 3.3 V，改機量測見 `BENCH-LOG.md` 2026-08-20）夾上 `U19` 之後，晶片端 `VCC` 在三種供電下都停在 **1.70 V**，而供電端保持 3.3 V（`PROGRESS.md` W08 Day 1 the clip session）。1.70 V 在這顆零件的工作範圍之外，而**一次在欠壓下看起來正確的讀取，比一次失敗的讀取更糟** —— `P9-5` 存在的目的就是消除「兩支儀器對同一顆晶粒不一致」這個混淆，欠壓正好會製造它。
+
+**沒有量到的是為什麼，而它仍然是開放題 97。** 作者的判斷是板子的設計使然、要解焊下來才讀得到；**那是判斷，不是量測** —— 三種供電同一個電壓讀起來像箝位，但箝位與夾具路徑電阻這一場一條都沒有分離。所以本列寫的是「不做」，不是「做不到，因為 X」。
+
+**可否證形式，兩條，任何一條成立這一列就該回來**：（一）換一支能在這種負載下維持 3.3 V 的燒錄器；（二）把 `U19` 解焊下來離板讀 —— 第二條同時會直接答掉開放題 97。
+
+**附帶的代價，因為它牽到本 repo 自己的工具。** `fwrecon compcs` 在拒絕壞 checksum 時印的是「The device itself would reject this blob」（`tools/fwrecon/src/fwrecon/compcs.py:749`；`tools/ioc-precheck.sh:87` 另有一句）。那是一句**關於裝置行為的主張**，而**唯一要驗它的就是本列的第二發**（`zzzzz`，刻意留壞 178 的 checksum）。這一刀之後那句話沒有任何量測支撐它。
+
+**經作者決定，工具的原文保留不改**（等到有燒錄器的時候再量），所以它改為登記在 `writeup/14-limits.md` 的未量測主張清單裡。**一句沒有量測支撐的裝置行為主張，留在工具裡可以，不被標示不行。**'''
 predict = '''兩發，刻意分開，因為它們問的是不同的問題，而混在一起就兩個都答不了。
 
 **第一發（校驗和刻意保持有效）**：flash `0x00C0D1` 的五個 byte，`admin` → `nimda`。這五個字元是同一組字元的重排，所以 8-bit payload 校驗和**一個數都不動**——變因因此只剩下「直寫有沒有到達執行中的系統」這一件事。桌面上已經先算過而且可以重跑：`fwrecon compcs` 對改過的映像仍然回 `checksum_ok=True`、`ring_fill_agrees=True`、`entry_count=344`，而**恰好兩筆**欄位改變——`USER_NAME`(id 182 = `0xb6`) 與 `USER_PASSWORD`(id 183 = `0xb7`)，兩筆都變成 `nimda`。原因是壓縮串流裡只有**一份** `admin` 字面值（`0x00C0D1`），密碼那一筆是往回指的參照。預測：開機後未認證的 `GET /config.dat` 解出來的兩筆都是 `nimda`，而 `nimda`/`nimda` 通得過 Basic 驗證、`admin`/`admin` 不行。**五個 byte，沒有執行任何一行程式碼，換掉這台的管理帳號與密碼。**
@@ -1914,6 +1976,17 @@ caution = "最高風險。P0-3 與 P9-3 都通過之前不做"
 
 [[case]]
 id = "P9-7"
+cut_reason = '''2026-08-22：**在找到一支能真的驅動這顆晶片的燒錄器之前，不做在板讀寫。**
+
+**已經量到的**：CH341A（已改 3.3 V，改機量測見 `BENCH-LOG.md` 2026-08-20）夾上 `U19` 之後，晶片端 `VCC` 在三種供電下都停在 **1.70 V**，而供電端保持 3.3 V（`PROGRESS.md` W08 Day 1 the clip session）。1.70 V 在這顆零件的工作範圍之外，而**一次在欠壓下看起來正確的讀取，比一次失敗的讀取更糟** —— `P9-5` 存在的目的就是消除「兩支儀器對同一顆晶粒不一致」這個混淆，欠壓正好會製造它。
+
+**沒有量到的是為什麼，而它仍然是開放題 97。** 作者的判斷是板子的設計使然、要解焊下來才讀得到；**那是判斷，不是量測** —— 三種供電同一個電壓讀起來像箝位，但箝位與夾具路徑電阻這一場一條都沒有分離。所以本列寫的是「不做」，不是「做不到，因為 X」。
+
+**可否證形式，兩條，任何一條成立這一列就該回來**：（一）換一支能在這種負載下維持 3.3 V 的燒錄器；（二）把 `U19` 解焊下來離板讀 —— 第二條同時會直接答掉開放題 97。
+
+**三項裡最便宜的一項，而它跟另外兩項一起倒下。** 讀 JEDEC ID 只要三個 byte 出來，不必讀完 4 MiB，也不寫任何東西 —— 它倒下的理由跟另外兩項**一模一樣**（晶片到不了工作電壓），不是因為它比較難。
+
+**所以「Eon EN25QH32B」到結案為止仍然只有一個來源：封裝上的字。** `flashrom` 同意它是 4096 KiB 不算第二來源 —— 那個資料庫就是用同一個型號名索引的，兩者不獨立。'''
 phase = "9"
 section = "12.4"
 title = "讀 JEDEC ID（flash 型號的第二來源）"
@@ -1958,6 +2031,17 @@ refute = '''（a）reset 之後那三個欄位仍然是 0 → 按鈕的復原來
 
 [[case]]
 id = "P9-10"
+cut_reason = '''2026-08-22：**全檔唯一不可逆的一項，而它的前置條件已經全部滿足** —— 所以這一刀不是「還不安全」，是一個明講出來的取捨。
+
+`P0-3`（`FLW` 寫回，2026-08-17 `confirmed`，2026-08-22 帶對照組重演一次）與 `P9-3`（bootloader TFTP 救援，`partial`）都演練過，brick 之後有兩條回來的路。**當初改期理由寫的條件成立了**，而這一列仍然不做，理由是：這一台是 G2 與 G4 的單點故障，**而它要買到的東西已經被一項不可逆度低得多的測試買到了**。
+
+**那項測試是 `P9-12`，而它 `confirmed`**：`J 80500000` 把控制權交給一個 156 byte、這台裝置從未見過的映像，payload 印出自己的 nonce（該 nonce 在 4 MiB dump 與解壓後的 loader stage 2 裡各出現 0 次，**建置之前就先查過**）；`AutoBurning=0` 在同一次開機被回顯、`autoburn` 只在 `0x80401B9C` 一個地方被讀、`beqz` 跳過燒錄常式，**flash 一個 byte 都沒寫**。所以「這台會執行我給它的、原廠沒有的程式碼」**已經在矽上被量到了**。
+
+**`P9-10` 在 `P9-12` 之上只多買到一件事：跨電源循環的持續性。** 而那正是會花掉這台唯一單位的那一件事。這個取捨明著寫，不留白。
+
+**代價兩條，寫在這裡而不是等讀者自己發現**：（一）`writeup/10-chain.md` 的鏈結尾停在「一個 HTTP 請求改掉了 flash 上的一個 byte」，不會延伸到「一份改造映像開得起來」。（二）`P8-10`（`batchRemoteUpgrade` 的明文 HTTP 對外連線）與 `P9-13`（升級路徑只驗 checksum、不驗簽章）到結案為止**永遠是靜態的** —— 那是一條供應鏈路徑，而靜態讀出來的東西不會被寫成已驗證的行為。
+
+**可否證形式**：買第二台 N150RT（EOL，二手市場上還找得到）。這一列就不再是拿整個專案的單點故障去換一次量測，而是一次乾淨的實驗，**而且它會同時解除上面那兩條代價**。'''
 phase = "9"
 section = "12.7"
 title = "改造韌體回刷 / implant"
@@ -2048,6 +2132,69 @@ star = true
 caution = "零寫入。payload 只有兩個指令，用 `EB` 打進 RAM，不經過 TFTP，也不經過 flash"
 predict = '''`0x80409360` 是 `jalr s0` 而不是 `jr s0`，所以 `ra` 被設成 `0x80409368`；handler 在那裡從堆疊還原 `ra` 與 `s0` 之後 `jr ra`，回到 dispatcher 的迴圈。因此一個內容只有 `jr ra; nop`（`03 e0 00 08 00 00 00 00`）的 8-byte payload 被 `J` 過去之後，主控台會印 `---Jump to address=…` 然後**回到 `<RealTek>` 提示字元**，不需要重開機。上一場為了從 `P9-12` 的 payload 回到 loader 燒掉一次電源循環，而 `runsheet.md` Part B 的 `B-W08 進站實錄` 寫的是「`J` 之後沒有軟體的路回去」—— 這一項就是去推翻那句話。回到提示字元之後，`get` 應該是死的（`P9-15` 的那五個 bit 已經被 `J` 自己清掉了），而把原值寫回去之後如果 `get` 復活，`J` 的網路副作用就與中斷無關。'''
 refute = '''（a）主控台沒有回到提示字元 → `jalr` 的讀法對而回程被別的東西擋住（cache 維護之後的狀態，或 `cli()` 讓 `GetLine` 收不到字元），那時「payload 可返回」在這台上不成立，`P9-10` 的 payload 一律要當成單程，而這比讀對了更值得記。（b）回到了提示字元但之後每一個指令都失常 → 回程存在但 loader 的狀態被破壞了，同樣不能拿來省電源循環。（c）`EB` 打進去的兩個 word 用 `DW` 讀回來不是 `03e00008` / `00000000` → 先修 `EB` 的用法，不要跳。'''
+
+[[case]]
+id = "P9-18"
+phase = "9"
+section = "12.8"
+title = "進站前把中斷接線讀出來：`GIMR0` 與兩個路由暫存器"
+feasibility = 5
+exit_evidence = "unverified"
+week = "W08"
+star = true
+caution = "零寫入，全部是 `DW`。三格都在任何 `J` 之前，板子停在 `<RealTek>`"
+predict = '''靜態讀法（`notes/loader-interrupts-and-console.md`、`reports/bootloader-unit-2018.json` 的 `interrupt_wiring`）說：loader 在抓到 ESC 之後走 `0x80408468`，那裡呼叫乙太網初始化 `0x804028B4`（內含 `request_IRQ(15, "eth0")`，`0x80402A44`）、印出 `---Ethernet init Okay!`、在 `0x80408494` 用 `ori 0x1f` / `xori 0x1e` 把 CP0 status 的 IE 設起來，然後才進命令迴圈 `0x80409144`。所以在提示字元下：
+
+（1）`DW B8003000 1`（`GIMR0`）**bit 15 = 1**，這是 `eth0`；**bit 27 = 0**，因為 `SPEED` 的初始化在 `0x8040A4B0` 把它自己存下來的舊值寫回去了。**bit 8 這份讀法不敢定**：`0x80402FB8` 有一個 `GIMR0 |= 0x100`，而它在不在 `0x804028B4` 的呼叫路徑上沒有查出來，`request_IRQ(8, "timer")` 設的又是同一個 bit，中間還隔著 `0x804086E4` 的 `GIMR0 = 0`。**兩種結果都要記，讀到哪一種就去看 `0x80402F80` 的呼叫者。**
+
+（2）`DW B800300C 1`（`IRR1`，source 8–15 各四個 bit）**bit 28–31 = 3**，由 `0x80402A1C` 寫入，那是 source 15 的優先權欄。
+
+（3）`DW B8003014 1`（`IRR3`，source 24–31）**bit 12–15 = 3**，由 `0x8040A398` 寫入，那是 source 27。
+
+（4）第四格是獨立的一路，用來檢查「網路堆疊在 `IPCONFIG` 之前就起來了」：`A2.2` 抓到提示字元之後、**還沒有打過 `IPCONFIG`**，把主機加一個 `192.168.1.10/24`，`loader-tftp.py probe --host 192.168.1.6`。預測有 DATA 回來（0 byte 也算成功）。`0x80401D18` 在 `sti` 之後立刻被呼叫，`0x80401D1C` 把 `192.168.1.6` 寫進 `0x8040EDC0`，而 `IPCONFIG` 的 handler `0x80409378` 只解析一組點分十進位再存進同一個位址 —— 它換的是位址，不是把堆疊叫起來。'''
+refute = '''（a）`GIMR0` 的 bit 15 是 0 → `request_IRQ(15,"eth0")` 沒有跑到，整條「TFTP 由中斷驅動」的讀法失去它的支柱，`J` 之後網路死掉要另外歸因，`P9-17` 的兩個 payload 先不要送。（b）`GIMR0` 整個讀回 `00000000` → 提示字元下中斷全被遮著，那 TFTP 既不可能由中斷驅動，`0x80406BBC` 又證實命令迴圈不 poll 網路 —— 兩個讀法至少有一個是錯的，**停手**，回去讀，不要試別的值。（c）`IRR1` 的 bit 28–31 不是 3 → 路由暫存器的模型錯了，「irq 15 = eth0」這個對應沒有第二個來源，`installs` 那張表要降級成「這個結構長得像 irqaction」。（d）第四格沒有回應 → 網路堆疊不是在 escape 視窗起來的，`P9-4` 結果欄那句「只在序列埠打過 IPCONFIG 之後才存在」是對的，而 `notes/loader-interrupts-and-console.md` 對 `0x80401D18` 的讀法要改寫。'''
+
+[[case]]
+id = "P9-17"
+phase = "9"
+section = "12.8"
+title = "`J` 的網路死因：把中斷還原，TFTP 會不會回來"
+feasibility = 4
+exit_evidence = "unverified"
+week = "W08"
+star = true
+caution = "零 flash 寫入。只寫 RAM 與兩個暫存器，斷電即還原。**每一次 `J` 都會重新清掉那五個 PHY bit**，所以每跳一次都要重寫一次 `EW BB804104 …`"
+predict = '''`J` 在跳之前做三件事，2026-08-22 已經證明還原其中一件（五個 `EnablePHYIf` bit）不足以讓 TFTP 回來。剩下兩件是 `0x804092AC` 的 `GIMR0 = 0` 與 `0x804092B0`–`0x804092C0` 的清 `IE`，而 loader 沒有任何指令寫得到 CP0 status，所以只能用 payload。兩個 payload 由 `tools/mkramboot.py --irq-restore` 產生，**只差五個 word，而且五個都落在第二行 `EW` 上**：
+
+**A（對照，先做）**：`J` 到任何 payload 之後 `DW B8003000 1` 讀到 `00000000`。這是 `0x804092AC` 的直接證據，而且是在沒有人手動清過的情況下讀到的 —— `T-94` 已經對那五個 PHY bit 做過同一件事，這一格是對 `GIMR0` 補上同樣的證據。
+
+**B（`--no-set-ie`，只還原 `GIMR0`）**：`J` → `DW B8003000 1` 讀回 `P9-18` 抄下來的那個值 → `EW BB804104 <五個原值>` → `DW` 確認五個 bit 0 回到 1 → `probe`。**預測仍然逾時**，因為 `IE` 還是 0，中斷還是不會被取。
+
+**C（完整版，`GIMR0` + `IE`）**：`J` → `EW BB804104 <五個原值>` → `probe`。**預測有 DATA 回來**，`ip neigh` 回 `REACHABLE`，`rx_packets` 前進。
+
+B 與 C 之間唯一的差別是那五個 word，而那五個 word 是從 loader 自己 `0x80408484`–`0x80408494` 的 `sti` 逐字拷過來的。所以 C 成立而 B 不成立的話，`J` 之後網路死掉的**未歸因那一半就是被遮掉的中斷**，而且是 `IE` 那一半，不是 `GIMR0` 那一半。'''
+refute = '''（a）**B 就復活了** → `J` 的 `mtc0`（`0x804092B0`–`0x804092C0`）沒有真的清掉 `IE`，或者 `IE` 不是收送路徑的必要條件。那時 `notes/loader-interrupts-and-console.md` 對那四個指令的讀法要重寫，而「四值 per-bit 格」那支儀器要先被質疑一次 —— 它正是為了不要再用形狀去猜而寫的。（b）**C 也不復活** → 中斷不是充分原因，剩下兩個候選（cache 維護或 payload 動到別的狀態、交換器在介面被關掉之後需要比 bit 0 更多的重新初始化）活著。**這是負面結果不是失敗**，而且它比正面結果更值得寫：它會把問題縮到「交換器需要重新初始化」，下一步是 `PORT1` / `PHYW` 那幾條指令，而那要另外設計。不准當場試別的值。（c）**`J` 之後回不到提示字元** → `P9-16` 的回程只對兩個指令的 payload 成立，二十個 word 的不成立。那時 `P9-10` 的 payload 一律當成單程，而這比原本的結論更重要。（d）**設完 `IE` 之後主控台不再回應** → 中斷風暴（`GIMR0` 打開時有掛著的事件而 ISR 清不掉）。斷電重來；flash 一個 byte 都沒動過，所以代價是一次電源循環。**而它本身是一個發現**：`J` 留下的狀態不是可以隨便把中斷打回去的狀態。（e）`DW` 讀回來的二十個 word 與 `mkramboot` 印出來的不一致 → 先修 `EW` 的打法（一行最多十八個值，`GetLine` 只收 128 個字元），**不要跳**。'''
+
+[[case]]
+id = "P9-19"
+phase = "9"
+section = "12.8"
+title = "假的提示字元與前導空白：把 2026-08-21 那次 `Unknown command !` 照著重現"
+feasibility = 5
+exit_evidence = "unverified"
+week = "W08"
+star = true
+caution = "零寫入。四格都只是打字，其中兩格預期會被拒絕 —— 被拒絕才是成立"
+predict = '''2026-08-21 有一行乾淨的 `EB` 被回 `Unknown command !`，當時記成「成因不明」。靜態讀法給出的成因有兩半，這一節把兩半分開各測一次：
+
+**（1）前導空白**：在提示字元下打 `<一個空白>DW 80540000 2`。tokeniser `0x80407248` 在 `0x80407290` 先把 `argv[i] = p` 存下去，**然後**才在 `0x804072D4` 測 `*p` 是不是空白並寫進 NUL —— 所以 `argv[0]` 是空字串，十七個名字一個都不match。**預測：`Unknown command !`。** 對照組：同一行不帶空白，正常印出兩個 word。
+
+**（2）TAB**：在提示字元下按一次 TAB 再按 Enter。`GetLine` 的 `0x8040713C`–`0x80407168` 把一個 TAB 展開成**正好八個空白**，寫進緩衝區也回顯出來。**預測：主控台上出現恰好八個空白，然後 `Unknown command !`。**
+
+**（3）假提示字元**：跑一次 `loader-tftp.py probe`。`0x80401CD0` 印的是 `"\\n.Success!\\n%s"`（`0x8040A948`），而那個 `%s` 是 `0x8040A894` —— 字串 `<RealTek>` 在這個映像裡的**第二份**。它是在 `eth0` 的中斷處理程序裡印的，不會清掉行緩衝區。所以：先按一次 TAB（不按 Enter），再跑 `probe`，等 `.Success!` 之後那個 `<RealTek>` 出現，**直接**打 `DW 80540000 2`。**預測：`Unknown command !`**，因為緩衝區裡還留著那八個空白。再按一次 Enter（預期靜靜地回一個新的提示字元，`0x804091C8` 的 `blez` 那條路，不印任何抱怨），同一行再打一次 —— 正常。
+
+**（4）儀器**：整場 `picocom` log 餵給 `python3 tools/console-lint.py`。預測它把每一個 `Unknown command !` 都歸到 `leading-whitespace` / `control-bytes` / `not-a-command` 其中之一，`unexplained` 為 0，而且 `repaints` 至少是 1。'''
+refute = '''（a）帶前導空白的那一行照常執行 → tokeniser 的讀法錯了，`0x80407290` 不是在測試空白之前存 `argv[i]`，`notes/loader-interrupts-and-console.md` 的 102 那一半整段要重寫。（b）按 TAB 回顯的不是八個空白（或什麼都沒有）→ `GetLine` 的 TAB 展開讀法錯，而 2026-08-21 那八個空白就要另外找來源 —— 那時「操作員打了八個空白」是唯一剩下的解釋，而它本來就分不開。（c）`probe` 跑完之後主控台沒有印出 `<RealTek>` → `%s` 的引數讀法錯，`0x8040A894` 不是那第二份字串，「假提示字元」這個機制不存在，8/21 那次要重新歸因。（d）第（3）格沒有被拒絕 → 中斷印出來的東西**有**清到行緩衝區，那比預測有意思：它表示 ISR 動到了主執行緒的狀態，而那是一個要單獨追的問題。（e）`console-lint` 的判讀和主控台看到的不一致 → **先修工具再談別的**，而且那正是這一節第四格存在的理由。'''
 
 # ===========================================================================
 # Phase 10 — 設定層

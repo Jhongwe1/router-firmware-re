@@ -30,7 +30,7 @@ RS="rs-selftest-$$.md"
 RB="$TMP/rb-selftest.md"
 trap 'rm -rf "$TMP"; rm -f "$RS"' EXIT
 
-write_good_runbook() { cp RUNBOOK.md "$RB"; }
+write_good_runbook() { cp journal/RUNBOOK.md "$RB"; }
 
 # A minimally valid runsheet: a front-page index, one station, one step under the
 # matching station carrying the four promised fields, one real make target, one
@@ -65,7 +65,7 @@ python3 tools/rtcase.py todo --week W05
 W05: 27/27 done, 0 outstanding
 ```
 
-See §8.12.3 and [`RUNBOOK.md`](RUNBOOK.md).
+See §8.12.3 and [`RUNBOOK.md`](journal/RUNBOOK.md).
 
 # Part B — per week
 
@@ -92,7 +92,7 @@ expect_fail() {
 # the REAL runsheet, so these pass the real one with a doctored RUNBOOK copy.
 expect_fail_runbook() {
   local label="$1" needle="$2" out rc
-  out="$("$PY" tools/check-runsheet.py runsheet.md --runbook "$RB" 2>&1)"; rc=$?
+  out="$("$PY" tools/check-runsheet.py journal/runsheet.md --runbook "$RB" 2>&1)"; rc=$?
   if [ "$rc" -eq 0 ]; then
     bad "$label — accepted, and it must not be"
   elif printf '%s' "$out" | grep -qF "$needle"; then
@@ -178,7 +178,7 @@ sed -i 's|§8.12.3|§8.99.9|' "$RS"
 expect_fail "a cross-reference that resolves to no RUNBOOK heading" "does not resolve"
 
 write_good
-sed -i 's|(`RUNBOOK.md`)|(NOT-A-FILE.md)|; s|\[`RUNBOOK.md`\](RUNBOOK.md)|[x](NOT-A-FILE.md)|' "$RS"
+sed -i 's|(`RUNBOOK.md`)|(NOT-A-FILE.md)|; s|\[`RUNBOOK.md`\](journal/RUNBOOK.md)|[x](NOT-A-FILE.md)|' "$RS"
 expect_fail "a link target that does not exist" "link target NOT-A-FILE.md does not exist"
 
 write_good
@@ -359,18 +359,60 @@ fi
 # Everything above keys on `executed`, so a week that has not started reads as
 # fully covered. That is not hypothetical: on 2026-08-18 W07 had 58 live rows,
 # 2 claimed, 11 exempted and 47 with neither, 32 of them scheduled for a bench
-# visit the same evening. W08 is the fixture for it because it has sixteen live
-# rows and zero results, so only the new rule can fire and a pass here cannot be
-# the old rule passing by accident.
+# visit the same evening.
+#
+# THIS CASE USED TO POINT AT THE LIVE REGISTER, and that was a mistake with a
+# date on it. It read "W08 is the fixture because it has sixteen live rows and
+# zero results, so only the new rule can fire". On 2026-08-22 W08 closed 8 / 8
+# and the premise died: `scheduled - executed` went empty, the older rule fired
+# instead, and the case failed for a reason that had nothing to do with what it
+# tests. **A guard whose premise is a property of live data expires without
+# anybody deciding to expire it** -- and it expires by going red on the day the
+# project succeeds, which is the worst possible day to be reading a red test as
+# noise.
+#
+# So the register is a fixture now. It also proves `--register` is honoured:
+# if the flag were ignored, W99 would not exist in the live register, nothing
+# would be unplanned, the checker would exit 0, and this case would report
+# "accepted, and it must not be".
 write_good
-sed -i 's|## B-W99|## B-W08|' "$RS"
-out="$("$PY" tools/check-runsheet.py "$RS" 2>&1)"; rc=$?
+FIXREG="$TMP/fixture-register.toml"
+FIXRES="$TMP/fixture-results.json"
+cat > "$FIXREG" <<'TOML'
+schema_version = "1"
+
+# Claimed by A1.1 in the fixture runsheet, so the "claims a test the register
+# does not have" rule stays quiet and this case tests one thing.
+[[case]]
+id = "P0-2"
+week = "W99"
+
+# Scheduled for the covered week, never run, not cut, and no step closes it.
+# This is the row the rule exists to find.
+[[case]]
+id = "P9-99"
+week = "W99"
+TOML
+printf '{"schema_version": "1", "results": []}\n' > "$FIXRES"
+out="$("$PY" tools/check-runsheet.py "$RS" --register "$FIXREG" --results "$FIXRES" 2>&1)"; rc=$?
 if [ "$rc" -eq 0 ]; then
   bad "a runsheet covering a week whose rows have no procedure was accepted"
 elif printf '%s' "$out" | grep -qF "scheduled test(s) with no procedure"; then
   ok "a scheduled test with no step is reported before it has ever run"
 else
   bad "the pre-session gap was reported for the wrong reason:"
+  printf '%s\n' "$out" | sed 's/^/          /'
+fi
+
+# The control for the case above: same fixture, same runsheet, with the one
+# unplanned row exempted. If this does not pass, the case above is reporting
+# something other than the row it thinks it is.
+sed -i 's|^## B-W99$|## B-W99\n<!-- no-procedure: P9-99 desk work, no bench step -->|' "$RS"
+out="$("$PY" tools/check-runsheet.py "$RS" --register "$FIXREG" --results "$FIXRES" 2>&1)"; rc=$?
+if [ "$rc" -eq 0 ]; then
+  ok "exempting that one row makes the same fixture pass"
+else
+  bad "the exemption did not clear the pre-session gap:"
   printf '%s\n' "$out" | sed 's/^/          /'
 fi
 
@@ -517,6 +559,52 @@ make ledger""")
 open(p, "w", encoding="utf-8").write(s)
 PYEOF
 expect_fail "a curl at the device inside a boot-loader step" "nothing is served until the board has booted"
+
+# ---------------------------------------------------------------------------
+# Stop conditions: the declared count, and the pointer at one by number.
+#
+# The bug: `A2.8` step 4 ended with "見下面的停止條件第 5 條" and `A2.8` carried
+# no numbered stop conditions at all. `BENCH-LOG.md` then quoted the same number
+# back as though it were a rule. Nothing in the repository read either.
+# ---------------------------------------------------------------------------
+add_stopconds() {
+  "$PY" - "$RS" "$1" <<'PYEOF'
+import sys
+p, block = sys.argv[1], sys.argv[2]
+s = open(p, encoding="utf-8").read()
+s = s.replace("See §8.12.3 and", block + "\n\nSee §8.12.3 and")
+open(p, "w", encoding="utf-8").write(s)
+PYEOF
+}
+
+write_good
+add_stopconds '> ❌ **停止條件，二條：**
+> 1. one
+> 2. two'
+if "$PY" tools/check-runsheet.py "$RS" >/dev/null 2>&1; then
+  ok "a stop-condition list whose count matches its heading passes"
+else
+  bad "a correct stop-condition list was rejected"
+  "$PY" tools/check-runsheet.py "$RS" 2>&1 | sed 's/^/          /'
+fi
+
+write_good
+add_stopconds '> ❌ **停止條件，三條：**
+> 1. one
+> 2. two'
+expect_fail "a stop-condition heading that over-counts its own items" "carries 2 numbered item"
+
+write_good
+add_stopconds '這一格見下面的停止條件第 5 條。
+
+> ❌ **停止條件，二條：**
+> 1. one
+> 2. two'
+expect_fail "a pointer at a stop condition past the end of the list" "points at 停止條件第5條"
+
+write_good
+add_stopconds '這一格見下面的停止條件第 5 條。'
+expect_fail "a pointer at a stop condition in a step that has none" "no numbered stop conditions at all"
 
 echo
 echo "  $pass passed, $fail failed"

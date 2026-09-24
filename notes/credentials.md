@@ -20,10 +20,12 @@ cp /etc/passwd.org /var/passwd 2> /dev/null    # V2.1.2
 cp /etc/passwd_orig /var/passwd                # V3.4.0
 ```
 
-> **Scope.** Static. The hashes below were cracked offline from the shipped
-> files; no device has been powered on and no login has been attempted. Whether
-> any login service is actually reachable is a separate question, addressed at
-> the end.
+> **Scope.** Static. The hashes below were cracked offline from the shipped files in
+> the published images. **No login was attempted at the time this was written**;
+> the device was first powered on 2026-08-15, and what the running unit actually
+> hands out — plaintext credentials, by SSI, in `password.htm` — is
+> [`password-page-credentials.md`](password-page-credentials.md). Whether any login
+> service is reachable is addressed at the end of this file.
 
 ## The accounts
 

@@ -69,7 +69,7 @@
       "verdict": "confirmed",
       "evidence_kind": "dynamic",
       "artefacts": [
-        "BENCH-LOG.md"
+        "journal/BENCH-LOG.md"
       ],
       "note": "38400 8N1 全程無亂碼；一次上電命中 bootloader，`?` 印出完整 16 條指令。banner: RTL8196E v1.3 2014.04.22 400MHz",
       "case_freeze_sha256": "93a9a620b79884cf62f3c18afb495db6ebba8a25b30cec30933a4e9b0aabe7a5"
@@ -80,7 +80,7 @@
       "verdict": "confirmed",
       "evidence_kind": "dynamic",
       "artefacts": [
-        "BENCH-LOG.md"
+        "journal/BENCH-LOG.md"
       ],
       "note": "寫入→讀回逐 byte 一致（新 RAM 位址），寫 FF 後回到全 FF。凍結的兩個條件都滿足。FLW 的磁區語意是新開的問題，不在這一條裡",
       "case_freeze_sha256": "f0db18fea6119430592e503c83e3e5dad991007b40a6964626fcf859de8fef03"
@@ -91,7 +91,7 @@
       "verdict": "partial",
       "evidence_kind": "dynamic",
       "artefacts": [
-        "BENCH-LOG.md"
+        "journal/BENCH-LOG.md"
       ],
       "note": "基準快照已取，與 8/16 完整 dump 的前 64 KiB 逐 byte 相同。反證條件要一次寫入後的差分，那是 W06",
       "case_freeze_sha256": "8c6d743e1b8d2e569bc61968f6e9b5f1b12e3ae86cce8e8496b9b4631adb5f83"
@@ -102,7 +102,7 @@
       "verdict": "partial",
       "evidence_kind": "dynamic",
       "artefacts": [
-        "BENCH-LOG.md"
+        "journal/BENCH-LOG.md"
       ],
       "note": "設定那半通過：live 與出廠差異 4/343，正是事先寫下的數字。埠那半（19412/31412/48101/2323/60001）本次未測，網段尚未建立",
       "case_freeze_sha256": "e2719b97e79421b25b2763128ebc1e3606b948c6d301f2f269d566d5c120bdad"
@@ -158,7 +158,7 @@
       "verdict": "confirmed",
       "evidence_kind": "dynamic",
       "artefacts": [
-        "BENCH-LOG.md"
+        "journal/BENCH-LOG.md"
       ],
       "note": "DHCP 派到 10.1.1.10/24（預測的池子 10.1.1.10–254 的第一個位址），10.1.1.1 回應 ICMP 3/3。但回應 TTL=63 不是 64 —— 網路卡起在 Windows 側，WSL 是繞過去的，所以 P0-4/P1-10/P2-7 在 usbipd attach 之前都不能測",
       "case_freeze_sha256": "65123dc6cc2b3e98c89449d3078b1805ab4d90e850490dfdcbdccd5d837d233d"
@@ -169,7 +169,7 @@
       "verdict": "partial",
       "evidence_kind": "dynamic",
       "artefacts": [
-        "BENCH-LOG.md"
+        "journal/BENCH-LOG.md"
       ],
       "note": "前半成立：GET / 回 200，Server: Boa/0.94.14rc21，與三版字串表一致。後半（未認證可取頁面是那 143 檔的子集）未測。⚠️ 這個請求在 G3.75 未滿的情況下送出，而且路徑是繞經 Windows 的（TTL 63），記在 PROGRESS 的 process failure 一節",
       "case_freeze_sha256": "38182b87d435164103d9151a65db5af7ab28839fb482d6c42c6d906ba0a238ad"
@@ -180,7 +180,7 @@
       "verdict": "confirmed",
       "evidence_kind": "dynamic",
       "artefacts": [
-        "BENCH-LOG.md"
+        "journal/BENCH-LOG.md"
       ],
       "note": "網段上剛好兩個 MAC（各 8 個封包），無 DNS、無對外 HTTP。對照組 16 個封包 > 0——第一次抓 45 秒是零封包，而零在鏈路未經證實之前不是證據",
       "case_freeze_sha256": "5e7de4f507e3bda36f90df9165c09c25581e0fc127d309ae3e2122d764415707"
@@ -191,7 +191,7 @@
       "verdict": "confirmed",
       "evidence_kind": "dynamic",
       "artefacts": [
-        "BENCH-LOG.md"
+        "journal/BENCH-LOG.md"
       ],
       "note": "兩半都完成：設定與出廠差異 4/343（測前寫的數字），且 2323/5555/9034/19412/31412/48101/60001/7547 全部 closed",
       "case_freeze_sha256": "e2719b97e79421b25b2763128ebc1e3606b948c6d301f2f269d566d5c120bdad"
@@ -202,7 +202,7 @@
       "verdict": "confirmed",
       "evidence_kind": "dynamic",
       "artefacts": [
-        "BENCH-LOG.md"
+        "journal/BENCH-LOG.md"
       ],
       "note": "80 開、22/23/5555 全關、9034 無回應——點名的每一項都對。但**它點名得太少**：52869（miniigd UPnP SOAP）與 52881（wscd WPS）開著，任何預測都沒提到。四次對照組全 200，所以 closed 是真的",
       "case_freeze_sha256": "ca42facdd3cac9af616f9575698ad3e370d971a278a2839d7d36d0afdb20078f"
@@ -213,7 +213,7 @@
       "verdict": "confirmed",
       "evidence_kind": "dynamic",
       "artefacts": [
-        "BENCH-LOG.md"
+        "journal/BENCH-LOG.md"
       ],
       "note": "23 closed（TELNET_ENABLED=0）、22 closed（旗標為 1 但 rootfs 無 SSH daemon）。COMPCS 解出來的旗標與實際生效的一致",
       "case_freeze_sha256": "58c2126927c0e81375f9eea1ab35e6b2192bb288082bcc499d513c8b5d1a5288"
@@ -224,7 +224,7 @@
       "verdict": "confirmed",
       "evidence_kind": "dynamic",
       "artefacts": [
-        "BENCH-LOG.md"
+        "journal/BENCH-LOG.md"
       ],
       "note": "1900 單播 M-SEARCH 有回應（多播無）。而預測特別要求分辨的那件事有答案了：rootfs 裡只有 /bin/miniigd，沒有 mini_upnpd binary，而 miniigd 自己的字串表裡就有 'Server: miniupnpd/1.4'——**banner 報的是另一個 codebase 的名字**",
       "case_freeze_sha256": "dfa8d23cb5d768c9f5c073628108a460f62eb18aa3b6b053b44adf13c7b3a459"
@@ -235,7 +235,7 @@
       "verdict": "refuted",
       "evidence_kind": "dynamic",
       "artefacts": [
-        "BENCH-LOG.md"
+        "journal/BENCH-LOG.md"
       ],
       "note": "前半成立（Server: Boa/0.94.14rc21）。**後半被反證**：未認證可取的 /config.dat 不在 w6cg 那 143 檔裡——它是 boa 啟動時自己建的（模擬環境先看到的）。所以 docroot 不等於 w6cg 展開的內容，webbundle 的覆蓋率宣稱不成立",
       "case_freeze_sha256": "38182b87d435164103d9151a65db5af7ab28839fb482d6c42c6d906ba0a238ad"
@@ -246,7 +246,7 @@
       "verdict": "partial",
       "evidence_kind": "dynamic",
       "artefacts": [
-        "BENCH-LOG.md"
+        "journal/BENCH-LOG.md"
       ],
       "note": "57 個已知端點的 GET 全部 302/131B，與不存在的名字無法區分（GET 走不到 handleForm）。但 formOpdRedirect 回 302/535B→/opmode1.htm、formWanRedirect 回 536B——**兩個與所有其他路徑都不同，而它們不在 root_form[] 的 57 筆裡**。第三個 formWlanRedirect2 無異。所以是「至少 58」，且要找第二條分派路徑",
       "case_freeze_sha256": "1d3f73f1b2df7b1490694abf7e247e4c23e4672eb19bdbcd28c9b7c00832b00f"
@@ -257,7 +257,7 @@
       "verdict": "partial",
       "evidence_kind": "dynamic",
       "artefacts": [
-        "BENCH-LOG.md"
+        "journal/BENCH-LOG.md"
       ],
       "note": "GET 無法測這一條：formWlwds/fromStaticDHCP 與正確拼字 formWlWds/formStaticDHCP 回應完全相同（全部 302/131B）。這本身是一個裝置事實——translate_uri 在 handleForm 之前就轉走了——但拼字的問題要 POST 才判得了",
       "case_freeze_sha256": "6e12bbac4f3d6d841f657711003e7da220fb102aa109e463919addd4f27ab77c"
@@ -268,7 +268,7 @@
       "verdict": "partial",
       "evidence_kind": "dynamic",
       "artefacts": [
-        "BENCH-LOG.md"
+        "journal/BENCH-LOG.md"
       ],
       "note": "/boafrm/ 與 /goform/ 的 GET 回應完全相同（302/131B→home.htm），所以 GET 分辨不出前綴。要 POST 才測得到",
       "case_freeze_sha256": "72775e6cba92a0112686e613f5b6d11d06cd056e8c2197c312150b3cefcb73e1"
@@ -279,7 +279,7 @@
       "verdict": "partial",
       "evidence_kind": "dynamic",
       "artefacts": [
-        "BENCH-LOG.md"
+        "journal/BENCH-LOG.md"
       ],
       "note": "門的 .htm 涵蓋範圍精確測出來了：76 個出貨的 .htm，7 個未認證可取（status/Connect_status/login/index/wan_status/countDownPage/countDownPageWizard），69 個 302→login.htm。兩個 302 目標（login.htm vs home.htm）就是門跑沒跑的指紋。POST /boafrm/* 那一半未測",
       "case_freeze_sha256": "bb548af6da29c28ceaa56f3fab6736483d5e0141e95e77618c0af498eca8e6c6"
@@ -290,7 +290,7 @@
       "verdict": "refuted",
       "evidence_kind": "dynamic",
       "artefacts": [
-        "BENCH-LOG.md"
+        "journal/BENCH-LOG.md"
       ],
       "note": "十二種豁免字串注入全部失敗（query 的 login/status/index、路徑裡的 login.htm/../、loginpassword.htm、password.htmlogin.htm …）：全部照一般路徑處理。所以豁免比對有錨定或有長度限制，**X-3 不成立**——這正是它事先寫下的反證條件",
       "case_freeze_sha256": "2e6667a1d3085dd16f8fe13099feb4351f6457c5a4577c844f01cfb03565d4f1"
@@ -301,7 +301,7 @@
       "verdict": "confirmed",
       "evidence_kind": "dynamic",
       "artefacts": [
-        "BENCH-LOG.md"
+        "journal/BENCH-LOG.md"
       ],
       "note": "十三種正規化變形，沒有一種讓被擋的頁面吐出內容。而極性被示範出來了：/config.dat 回 200，/config.dat.htm 回 302→login.htm——**加副檔名把沒門的路徑推進門裡**。/password.HTM 回 302→home.htm，門不跑但檔案也找不到（大小寫敏感）",
       "case_freeze_sha256": "416df7137a5afd26d0f45f22df61896dd2d4a581a4ce17469e959bdc6714eace"
@@ -312,7 +312,7 @@
       "verdict": "refuted",
       "evidence_kind": "dynamic",
       "artefacts": [
-        "BENCH-LOG.md"
+        "journal/BENCH-LOG.md"
       ],
       "note": "Host 任意值、Host 空、X-Forwarded-For、Referer、Authorization: Basic admin:admin——五個都回同一個 30447B 頁面。check_host 不在授權路徑上，所以 P8-5 的 DNS rebinding 前提直接成立",
       "case_freeze_sha256": "b4da5f5bef58c7ea730cb41401d806c33aaf38694086de7706d3ffcca85e0cfa"
@@ -323,7 +323,7 @@
       "verdict": "confirmed",
       "evidence_kind": "dynamic",
       "artefacts": [
-        "BENCH-LOG.md"
+        "journal/BENCH-LOG.md"
       ],
       "note": "GET /boafrm/* 帶不帶 query string 都是 302/131B→home.htm，與 POST 的行為不同——GET 走不到 handleForm。所以參數來源分方法，Phase 3 的 POST 不能改用 GET，CSRF 面沒有因此變大",
       "case_freeze_sha256": "68e205124efbb71bd6ec3b9436c6ac03c0e129ab35ee51f4717522717fef499a"
@@ -334,7 +334,7 @@
       "verdict": "confirmed",
       "evidence_kind": "dynamic",
       "artefacts": [
-        "BENCH-LOG.md"
+        "journal/BENCH-LOG.md"
       ],
       "note": "GET /config.dat 回 200/7490B，body 開頭是 COMPCS，而且與我們自己 flash dump 的 0xC000 起 7490 bytes **sha256 完全相同**。不需要 formSaveConfig。順帶：這是第二個獨立儀器讀到這顆 flash（kernel MTD + 乙太網 vs bootloader FLR + UART），W02 開放 #11 在這個區段上關掉",
       "case_freeze_sha256": "efde1cde80932fd407e75a15675cef1fc6cd88c8eb8394f0db166be982086299"
@@ -345,7 +345,7 @@
       "verdict": "confirmed",
       "evidence_kind": "dynamic",
       "artefacts": [
-        "BENCH-LOG.md"
+        "journal/BENCH-LOG.md"
       ],
       "note": "admin/admin —— 從這台自己 flash 的 COMPCS 解出來的明文，經 HTTP Basic 直接認證成功（/password.htm 302→200），並開啟其餘 68 個被擋頁面。CVE-2019-19823 端到端。反證條件（連續 50 次錯誤後被鎖）沒有觸發：50 次全部拒絕，第 51 次用正確密碼仍然 200，無鎖定、無失敗計數",
       "case_freeze_sha256": "b974d20aee003a6d48b7db60dc6b4782e597952945a7f1caa88f36d7a6e55aaa"
@@ -356,7 +356,7 @@
       "verdict": "refuted",
       "evidence_kind": "dynamic",
       "artefacts": [
-        "BENCH-LOG.md"
+        "journal/BENCH-LOG.md"
       ],
       "note": "預測的『這台沒有 session』那半是對的，但**它指名的機制是錯的**，而反證條件逐字成立。10.1.1.100 認證成功之後：.101 不帶憑證 302、.100 不帶憑證 302、.101 帶憑證 200。formLogin 一個 cookie 都沒設，而且裝置從來不送 Set-Cookie。所以授權是**每個請求各自的 HTTP Basic**，0x004899d8 不是全機共用的授權狀態 —— PROGRESS 開放 #9 的問法要改",
       "case_freeze_sha256": "655791436c9e19f54d763b69e144e32736679dea5e99599174cf82e9ad67be54"
@@ -367,7 +367,7 @@
       "verdict": "refuted",
       "evidence_kind": "static",
       "artefacts": [
-        "BENCH-LOG.md"
+        "journal/BENCH-LOG.md"
       ],
       "note": "三個獨立儀器,沒有共用程式碼。(A) bootloader 第二階段解壓後(flash 0x0012F0 起 LZMA,17,334→56,592),13 個 cmdline 形狀的針 0 命中,而同一次掃描找到 `?` 印的全部 17 個指令 —— 找不齊工具就拒絕出報告,所以那個 0 有對照組。(B) 裝置 console 的 `?` 印 16 條,與 (A) 的字串表逐條相符。(C) kernel 解壓後(flash 0x060010+0x2808,976,470→3,374,772,宣告長度吻合)在 0x2f9590 有編進去的 `console=ttyS0,38400 root=/dev/mtdblock1`,**沒有 init=**;而 0x2d8590 的 `No init found. Try passing init= option to kernel.` 顯示 kernel 會認 init=,缺的完全在 loader 那一側。(D) 開機 log 全程沒有 `Kernel command line:` —— 而 (C) 顯示那個字串不在 image 裡,所以它永遠印不出來。**反證條件的前件無法構成**:loader 沒有任何指令可以表達「改 init」。仍然存在的路徑是 TFTP 一份改過 cmdline 的 kernel 到 RAM 再 J 過去,零 flash 寫入,成本是要能重壓 kernel,排 W07 之後。",
       "case_freeze_sha256": "9ebdadba20c8d0cfc8fbe57f903379af12c0169b4626c707e830c319ac0f71fb"
@@ -378,7 +378,7 @@
       "verdict": "partial",
       "evidence_kind": "dynamic",
       "artefacts": [
-        "BENCH-LOG.md"
+        "journal/BENCH-LOG.md"
       ],
       "note": "救援模式進得去,凍結的反證條件不成立。AUTOBURN 0 → AutoBurning=0;IPCONFIG 10.1.1.1 → Now your Target IP is 10.1.1.1(**冒號形式兩個都回 Unknown command !,說明文字不是語法**)。網路活著,兩個來源:ARP 解析成功,以及 kernel 自己的 rx_packets 0→1。TFTP 服務確認會回應 —— 對一個不存在的檔名回 516 bytes 的 DATA(opcode 3)。判 partial 是因為預測寫的是「tftp **put** 可用」,而上傳依本場的非破壞性上限不做。**我自己寫在計畫裡的成功條件(ping 有回應、MAC 是這台)兩半都不成立,而那是我的條件錯了**:TFTP-only 的堆疊沒有義務實作 ICMP,loader 的 MAC 是從 IP 合成的(0a 01 01 01 = 10.1.1.1)。計畫外:TFTP GET 不看檔名,吐出的 516 bytes 與 flash 0x060010 起的 cr6c 酬載逐 byte 相同 —— 列為開放題。",
       "case_freeze_sha256": "e91cb0004ef6b02eb4d430fab05c799373829beb2a5e1501ac6c53867b003cb6"
@@ -389,7 +389,7 @@
       "verdict": "confirmed",
       "evidence_kind": "dynamic",
       "artefacts": [
-        "BENCH-LOG.md"
+        "journal/BENCH-LOG.md"
       ],
       "note": "38.76 秒,從第一個 console 字元到第一個 HTTP 200(tools/coldboot-timing.sh,兩半用同一個時鐘)。分段:+0.61 RealTek banner、+5.84 Jump to image start=0x80500000、+6.91 Uncompressing Linux done、+14.02 init started BusyBox v1.13.4、+32.50 boa: starting server pid=350 port 80、+38.76 第一個 200。反證條件寫「**明顯**超過 40 秒」,38.76 不是。**但餘裕只有 1.24 秒,而 t=0 是第一個 console 字元不是通電瞬間,所以這是下界。** 而且 boa 自報啟動之後還有 6.3 秒不能服務 —— 這一項的用途是「掃太早會把沒起來的服務讀成關的」,所以實務結論是等 45 秒不是 40。",
       "case_freeze_sha256": "949d92ab56f5019f7a387de7398cff25021a5ccf2944de7ce44ea1b839d9939e"
@@ -400,7 +400,7 @@
       "verdict": "confirmed",
       "evidence_kind": "dynamic",
       "artefacts": [
-        "BENCH-LOG.md"
+        "journal/BENCH-LOG.md"
       ],
       "note": "bench-probe writes,**GET only,一個 handler 都沒有執行**(GET 在這個 build 上走不到 handleForm)。全部 57 個 /boafrm/formX → 302 → home.htm(門沒跑);全部 57 個 /boafrm/formX.htm → 302 → login.htm(門跑了,擋掉)。測試自己點名的三個(formUpload / formPasswordSetup / formSaveConfig)與其餘 54 個完全同一種行為,所以反證條件「寫入類被擋而讀取類沒被擋」不成立。唯一例外是 formLogin.htm 回 404 而非 302 —— 因為 `formLogin` 在閘門的豁免清單上(W04-2 在指令層級讀出的 11 個字串之一),路徑含有它就豁免,門不跑,落到檔案層找不到檔。**那是閘門模型預測的第 57 個資料點,而它沒有被擬合過。**",
       "case_freeze_sha256": "6500438494737660cd268b1f7f603233eea6f8e7da72925da96ff8f66dc2f2c1"
@@ -411,7 +411,7 @@
       "verdict": "partial",
       "evidence_kind": "dynamic",
       "artefacts": [
-        "BENCH-LOG.md"
+        "journal/BENCH-LOG.md"
       ],
       "note": "兩次獨立的掃描,結果高度一致:送出 34 / 36 個 POST(全部帶 submit-url),有回應 31 / 32,**零個 404**;狀態碼 200×4、302×27–28;302 去向 msg.htm×13、status.htm×11–12、countDownPage.htm×2、login.htm×1(= formLogout,合理)。**formSysCmd → 302 → status.htm,10 ms,未認證** —— 這關掉 W05 DoD 第 5 項的 (b),而且可證明沒有執行任何東西:handler 是 `if (*cmd != 0) { … system(buf); }` 而 sysCmd 缺席。判 partial 有兩個原因。(1) 13 個端點依名字拒打,理由逐條在 RUNBOOK §8.12.12 —— 失去 LAN 位址會讓後面每一個端點變成偽陰性,失去管理密碼會毀掉 CVE-2019-19823 的端到端鏈。(2) **掃描跑不完**:不帶參數的未認證 POST 讓單一 process 的 boa 卡住 4.7–9.7 秒(formPortFw 9650ms、formPocketWizard 6359ms、formWlanSetup / formRoute / formSysLog 各 6008ms),約 45 個之後它徹底停止服務,兩次都是。反證條件寫「大量端點回 404 或連線中斷 → **先確認是不是自己把 boa 打掛了**」—— 確認了,是我們打掛的,證據是逐項 elapsed_ms、會重試的對照組(它能分辨 busy 與 dead)、以及 console 全程零訊息。ping 全程正常,boa 20 分鐘後仍未回來:rcS 是一次性啟動它的,不是 respawn。",
       "case_freeze_sha256": "3048e44e0262abbb2b3df463482c6d5b96e2ff17ae6863010fbfc875ac03ee49"
@@ -434,8 +434,8 @@
       "verdict": "confirmed",
       "evidence_kind": "dynamic",
       "artefacts": [
-        "BENCH-LOG.md",
-        "runsheet.md"
+        "journal/BENCH-LOG.md",
+        "journal/runsheet.md"
       ],
       "note": "Unauthenticated command execution on this hardware, three independent channels. (1) ICMP: POST /boafrm/formSysCmd with sysCmd=ping -c 3 <bench> and NO credentials produced echo REQUESTS sourced from 10.1.1.1 — the reverse direction from the control, where the router sends type 0 replies. seq 0..3 one second apart, so four packets from one run of BusyBox ping -c 3, not two executions. (2) docroot: sysCmd=cat /etc/version > /var/web/w06.txt;# then GET /w06.txt returns TOTOLINK-CX-N150RT-V2.1.6-B20171121.1002. (3) the same request WITH credentials behaves identically, which is what rules out \"I accidentally sent something\". NVD scores CVE-2024-51228 PR:H; this is PR:N. Reproduced first in emulation (P0-9) and then on the device.",
       "case_freeze_sha256": "ce714556e3ca49300738b957655cbd4e08228d48748b85f1c8f04d96fb7b0d91"
@@ -446,7 +446,7 @@
       "verdict": "refuted",
       "evidence_kind": "dynamic",
       "artefacts": [
-        "BENCH-LOG.md"
+        "journal/BENCH-LOG.md"
       ],
       "note": "peerPin produced zero echo requests. The discriminating control is the same handler through a different parameter: formWsc via localPin, the sprintf/system line W04 root-caused, produced four. So the handler IS reached and DOES call system(); peerPin specifically does not get there. BoaGate R2 named six sites in formWsc and at least this one is a false positive.",
       "case_freeze_sha256": "148709f98272b40e0fbae53d90c1dc5a7c2eab71abd4a84227e24f9c8cc8f48d"
@@ -458,7 +458,7 @@
       "evidence_kind": "dynamic",
       "artefacts": [
         "notes/prior-art.md",
-        "BENCH-LOG.md"
+        "journal/BENCH-LOG.md"
       ],
       "note": "formRoute/subnet produced zero echo requests, and the refutation was predicted with a mechanism BEFORE the test by prior art found the same evening: Cisco Talos TALOS-2023-1894 / CVE-2023-41251 reports this exact parameter in the same Realtek rtl819x SDK family as a 100-byte sprintf stack overflow with no system() anywhere. BoaGate R2 mis-classified an sprintf site as a system() site. That rule feeds conclusions about all three builds and has to be re-evaluated. D-1 in docs/disclosure.md loses its \"no CVE\" status: the parameter has had one since 2023, for a different defect class.",
       "case_freeze_sha256": "7c5643078aaa984080a223a3972ba6d172a9cbc6de31dee475aa639c71037ed7"
@@ -469,7 +469,7 @@
       "verdict": "confirmed",
       "evidence_kind": "dynamic",
       "artefacts": [
-        "BENCH-LOG.md"
+        "journal/BENCH-LOG.md"
       ],
       "note": "Predicted NOT to be command injection, and it is not: targetAPSsid produced zero echo requests while localPin on the same handler produced four. R2 six-site count did not include it, and the behaviour agrees.",
       "case_freeze_sha256": "4acc6f2ff7135331d093c81f9d8cf727bb334191cd02e6898933e4f3d13c0d64"
@@ -480,8 +480,8 @@
       "verdict": "confirmed",
       "evidence_kind": "dynamic",
       "artefacts": [
-        "BENCH-LOG.md",
-        "runsheet.md"
+        "journal/BENCH-LOG.md",
+        "journal/runsheet.md"
       ],
       "note": "localPin=13572468 through formWsc set HW_WLAN0_WSC_PIN to that value, read back through the device own flash get. The request took 14.0 s, the longest well-formed request measured on this device so far. IMPORTANT correction to plan/W06 section 2: flash set HW_WLAN0_WSC_PIN writes H601 (0x6000-0x8000), NOT COMPCS — HW_* ids live in the hardware MIB. W05 emulation output already showed the offsets 0x648a/0x648b/0x6493 inside H601 and nobody connected the two. So an unauthenticated HTTP request writes the region holding this unit MAC addresses and radio calibration, which a factory reset does not restore.",
       "case_freeze_sha256": "8aecd66902366164bab2b269fbd50dc882ee4337d9c11d3fdd177f4993098e5e"
@@ -492,7 +492,7 @@
       "verdict": "partial",
       "evidence_kind": "dynamic",
       "artefacts": [
-        "BENCH-LOG.md"
+        "journal/BENCH-LOG.md"
       ],
       "note": "Two halves, opposite outcomes. GET with the parameters in the query string does NOT execute: 302 and the target file is never created, because translate_uri redirects before handleForm. The submit button name is irrelevant: submit-url, Apply, save and no button field at all each executed, each with its own output file to prove which one did it, and the server survived every one. The first attempt used one shared filename and could not attribute the result.",
       "case_freeze_sha256": "6be4d4fa1c419aef454b37cf1a59b4f4a809d51fe7adc0549894ec7bc263dbef"
@@ -503,7 +503,7 @@
       "verdict": "confirmed",
       "evidence_kind": "dynamic",
       "artefacts": [
-        "BENCH-LOG.md"
+        "journal/BENCH-LOG.md"
       ],
       "note": "156 paths: the 143 names in this unit own w6cg bundle plus 13 suspects that are not in it. Of the 13, only config.dat answers 200, and it is the only 200 in the whole scan that is not a bundle name — boa creates it at start-up. Distribution 83x302 / 73x200. The three 000 in the raw output were the scan own liveness-control lines, which had been formatted with a leading 000 to align the columns and were therefore indistinguishable from failures.",
       "case_freeze_sha256": "c0403ee684fef56dbadabc51df4095b02d2558ae5f89d739f80e378bf9933494"
@@ -514,7 +514,7 @@
       "verdict": "confirmed",
       "evidence_kind": "dynamic",
       "artefacts": [
-        "BENCH-LOG.md"
+        "journal/BENCH-LOG.md"
       ],
       "note": "Confirmed in its strongest form and at the first attempt. The form carries Cusername/Cpassword fields for the CURRENT credentials; the handler does not check them. An unauthenticated POST to /boafrm/formPasswordSetup carrying no current-password field at all changed the administrator password: old credentials went 200 to 302 and the new ones 302 to 200. So the chain is shorter than planned — reading the password out of config.dat first is not necessary.",
       "case_freeze_sha256": "2bfccb224a046b7ea21860ba673ae6fe04d483a8876d01b42a1bd177c8e6f37f"
@@ -525,7 +525,7 @@
       "verdict": "confirmed",
       "evidence_kind": "dynamic",
       "artefacts": [
-        "BENCH-LOG.md"
+        "journal/BENCH-LOG.md"
       ],
       "note": "With USER_PASSWORD empty, password.htm returns 200 and 5322 bytes of real HTML with no Authorization header at all, and home.htm, wlbasic.htm, ddns.htm and status.htm likewise. A WRONG password also returns 200, so the comparison is skipped entirely rather than matching empty against empty. That is the beq at 0x0040bd18 as W04-2 read it. With P10-3 this is a complete unauthenticated takeover: docs/disclosure.md D-4 says reachability matters more than the branch, and the path exists. First run of this test built its URLs from a loop variable the WSL dispatch strips, so four requests all went to / and four 200s nearly became a headline.",
       "case_freeze_sha256": "10afe0acd2c5efaa3c2cbfb40d7f07c03c8c65e8d8673e84d5e774bb66fbd8c8"
@@ -536,7 +536,7 @@
       "verdict": "refuted",
       "evidence_kind": "dynamic",
       "artefacts": [
-        "BENCH-LOG.md"
+        "journal/BENCH-LOG.md"
       ],
       "note": "Does not reproduce on the 2018 build. A POST body omitting submit-url returns 200 on formNtp and formWlanSetup and 302 on formSelLang, and the server survives every time. Two false starts worth recording: the first used formWlanRedirect, which is in root_form[] but is NOT one of the 43 functions referencing lastUrl, so it exercised a different path; the second used `curl -X POST` with no body at all and got 400, which measures the parser rather than the missing parameter. D-2 was measured on V2.1.2 and its own text says that if it does not reproduce here it is a V2.1.2 finding and nothing more.",
       "case_freeze_sha256": "4c068aabcf3fbb5819a0854c4981bff12b0c04c35d465b036af7d16a7c653382"
@@ -547,7 +547,7 @@
       "verdict": "refuted",
       "evidence_kind": "dynamic",
       "artefacts": [
-        "BENCH-LOG.md"
+        "journal/BENCH-LOG.md"
       ],
       "note": "Empty and absent are indistinguishable on this build: submit-url= and a body without submit-url both return the same status on the same handler and both leave the server running. The prediction was that they are different paths with different damage; they are neither.",
       "case_freeze_sha256": "c7c41f4bb139ba29901136e971bb6d5c85c2b3d2a127447500543249af657fd6"
@@ -558,7 +558,7 @@
       "verdict": "refuted",
       "evidence_kind": "dynamic",
       "artefacts": [
-        "BENCH-LOG.md"
+        "journal/BENCH-LOG.md"
       ],
       "note": "Refuted with a positive witness rather than with an absence. formNtp echoes submit-url into its Location header, so the value is provably reaching the code that consumes it: 8 bytes echo 7 As, 800 bytes echo 799 As, with no truncation at 100 and no crash, no reboot and no observable change at any length. So on this build submit-url is not the lastUrl[100] idiom W04 measured on V2.1.2. formSelLang was the wrong witness — it redirects to a hardcoded countDownPage.htm whatever you send, which is why an earlier round measured nothing.",
       "case_freeze_sha256": "0f73e53513178a89cc684ab3ccf5280dcc8c27d602a2ffc6cffb608eb3f33ee3"
@@ -569,7 +569,7 @@
       "verdict": "refuted",
       "evidence_kind": "dynamic",
       "artefacts": [
-        "BENCH-LOG.md"
+        "journal/BENCH-LOG.md"
       ],
       "note": "ifname and wlan_id at 16, 20, 24, 40, 80, 120 and 160 bytes on formWlanSetup: 200 every time, server alive every time. The 20-byte buffer class R3 separates from the 100-byte one produces no observable difference here either.",
       "case_freeze_sha256": "d3bf58c137f0a671426efe6fc628d1ba425a60e4ca5607743577340d9d7c985c"
@@ -580,7 +580,7 @@
       "verdict": "confirmed",
       "evidence_kind": "dynamic",
       "artefacts": [
-        "BENCH-LOG.md"
+        "journal/BENCH-LOG.md"
       ],
       "note": "Boa 0.94 answers malformed requests with 400 rather than mis-parsing them, which is what the prediction said. GET / with no version returns a bare HTTP/0.9 body with no status line; HTTP/9.9 returns 400; a chunked POST returns 400; and an HTTP/1.1 request with no Host header returns 200 where RFC 2616 requires 400 — a spec deviation, not a memory-safety one. The server survived all four.",
       "case_freeze_sha256": "0f62a9eebdb3b380c8dc23e1bcde2fbdeae3b6bf738e928309c6bb3e324ba59c"
@@ -591,7 +591,7 @@
       "verdict": "partial",
       "evidence_kind": "dynamic",
       "artefacts": [
-        "BENCH-LOG.md"
+        "journal/BENCH-LOG.md"
       ],
       "note": "Retrieved, and it does not answer the question. /proc/cpuinfo on this unit reads: system type RTL819xD, cpu model 52481, BogoMIPS 398.95, tlb_entries 32, mips16 implemented yes, hardware watchpoint no. \"cpu model\" is a decimal NUMBER, not a core name, so neither RLX4181 nor RLX5281 is confirmed or excluded and W02 open #6 stays open — but it is now open for a different reason: the device does not expose a core name at all, rather than nobody having looked. Two follow-ups were tried and both failed usefully: /proc/cpu does not exist on this kernel, so there is no unaligned-access fixup counter to read, and dmesg returns zero bytes. What the same access DID produce is the kernel banner: Linux 2.6.30.9, gcc 4.4.5-1.5.5p2, built Wed Jan 10 14:50:54 CST 2018 by admin@office.hopeiot — seven minutes before boa is stamped, so kernel and userland come from one build session, which corroborates the W02 timestamp argument from a source W02 never read. And MemTotal is 26052 kB, which refines W02 claim that fitted and usable agree at 32 MiB: 32 MiB is what the boot loader detects, 25.4 MiB is what Linux has. The decisive test for the Lexra question is now a string scan of the decompressed kernel, which needs no device.",
       "case_freeze_sha256": "f9816083bcd3ecfae456ffdf8a388309ae6e13c90916457f8f6ea1a4e69872f9"
@@ -602,8 +602,8 @@
       "verdict": "confirmed",
       "evidence_kind": "dynamic",
       "artefacts": [
-        "BENCH-LOG.md",
-        "runsheet.md"
+        "journal/BENCH-LOG.md",
+        "journal/runsheet.md"
       ],
       "note": "Not one unattributable byte. Four 64 KiB snapshots were taken through the boot loader across the session. H601 (0x6000-0x8000): nine bytes moved and all nine came back — the eight ASCII digits of HW_WLAN0_WSC_PIN plus the region checksum at 0x006493, which the device recomputed itself. The final read is byte-identical BOTH to the pre-injection snapshot AND to the 2026-08-16 full dump, taken before this project had ever written to the device. The boot loader region never moved at all. COMPDS and COMPCS differ, and every field is named: COMPCS moved in exactly two, SYSCMD_SELECT and WPS_FIRST, which are the two handlers that were fired; COMPDS moved in twenty-five, all converging on COMPCS values, which is D-10 and not a side effect of any single test. New baseline for the next session: COMPCS vs COMPDS differ in 0 of 343. And a procedure correction that cost nothing to learn but would have cost a session to guess: restoring COMPDS at the START of a bench session is pointless, because any POST rewrites it from COMPCS before the session ends. It belongs at the end.",
       "case_freeze_sha256": "7f1a5d3a229dc909ba81d7eda712f68dba3d19f38a150bb97ab9fc2259e6cc7a"
@@ -978,7 +978,7 @@
       "verdict": "confirmed",
       "evidence_kind": "dynamic",
       "artefacts": [
-        "BENCH-LOG.md",
+        "journal/BENCH-LOG.md",
         "notes/uninit-credential-pair.md"
       ],
       "note": "Confirmed on the silicon, second run after the emulated one. Six requests against /blank.htm on this unit with the stored credentials read out of tonight's own 64 KiB snapshot and both halves non-empty (USER_NAME and USER_PASSWORD, five characters each): no header 302/132, real credentials 200/333, wrong password 302/132, both-halves-empty 200/333 and byte-identical to the real-credential body (sha256 bc56c91c2cd06b83 against ada993dce7920b0a for every 302). The two controls the emulated run did not have are what make this decisive: empty-user-with-a-password and a-user-with-empty-password BOTH return 302, so the comparison is running rather than being skipped, which is exactly what separates this from the empty-stored-password defect. On the gated page with real content the same request takes /password.htm from 302/132 to 200/5332. The emulated run measured the 302 body at 138 bytes and this unit answers 132 - the redirect Location differs in length, not the finding.",
@@ -990,7 +990,7 @@
       "verdict": "confirmed",
       "evidence_kind": "dynamic",
       "artefacts": [
-        "BENCH-LOG.md",
+        "journal/BENCH-LOG.md",
         "notes/host-header-and-redirect.md"
       ],
       "note": "Confirmed on the silicon, second run after the emulated one. Five Host values against /login.htm - a plain hostname, one with a leading hyphen, one with a doubled dot, one with an underscore, and the header absent - all return 200. check_host is strict and would reject three of those five, so it is not running: vhost_root is NULL on this hardware exactly as it is under emulation, because VHostRoot is commented out in the runtime boa.conf. The reflection half (D-14) also reproduces: a gated page returns 302 with the supplied Host copied into the Location, which is an open redirect. A Host carrying quote, angle-bracket and script-tag characters comes back URL-encoded in the Location, so it is not XSS here either - the same encoding the emulated run measured.",
@@ -1002,7 +1002,7 @@
       "verdict": "confirmed",
       "evidence_kind": "dynamic",
       "artefacts": [
-        "BENCH-LOG.md"
+        "journal/BENCH-LOG.md"
       ],
       "note": "9034/udp is closed on the silicon and /bin/UDPserver is absent from this build's rootfs - two sources, one behavioural and one static. nmap -sU reported closed, which on UDP means an ICMP port-unreachable came back rather than silence, so the port was answered for rather than merely unprobed. The refutation was 'a response on 9034 means the rootfs ELF inventory missed something, and that matters more than hitting a KEV because it invalidates every this-unit-does-not-have-X claim at once'. It did not fire. The EPSS 0.9986 on this CVE is an internet-wide statistic and says nothing about a device that does not ship the daemon.",
       "case_freeze_sha256": "1e74395a111f7495adb32f62cb9af7be72a126fa81c1eb0127f5692a520888a4"
@@ -1013,7 +1013,7 @@
       "verdict": "confirmed",
       "evidence_kind": "dynamic",
       "artefacts": [
-        "BENCH-LOG.md"
+        "journal/BENCH-LOG.md"
       ],
       "note": "5555/tcp closed, and the reason is stronger than the prediction expected. /bin/skt is ABSENT from this build's rootfs entirely, while /etc/init.d/rcS line 110 still carries the commented-out '#skt&'. The 2015 V2.1.2 image ships the binary with only its autostart commented out, which prior-art.md records as the difference between 'we removed the backdoor' and 'we stopped launching it'. This 2018 build removed the binary and left the dead comment - so on this unit the first of those two is finally true. Refutation was 'something answers on 5555, and if it is not skt it is more interesting'; nothing answered.",
       "case_freeze_sha256": "085964395b765c327521b87691ed9ba5a0707f6aa7e47540daa64ba054a62354"
@@ -1024,7 +1024,7 @@
       "verdict": "refuted",
       "evidence_kind": "dynamic",
       "artefacts": [
-        "BENCH-LOG.md"
+        "journal/BENCH-LOG.md"
       ],
       "note": "The prediction's premise is false for this build. It said '/bin/cwmpClient is in the rootfs' and explicitly forbade using 'rcS has it commented out' as the reason. Measured: cwmpClient does not exist anywhere in this rootfs - no such file, and not one binary in the image contains the string. 7547/tcp is closed. The refutation condition was admissibility rather than direction: 'either way, first answer who starts cwmpClient and under what condition, or this row has no basis'. The answer is that nothing starts it because it is not shipped - and /etc/init.d/rcS lines 22-27 still create /var/cwmp_default and /var/cwmp_config and copy DefaultCwmpNotify.txt on every boot, unconditionally, for a client that is not there. The vendor removed the binary and left its boot-time preparation behind.",
       "case_freeze_sha256": "c6f15c4025c97769feb2531b5eab2c1ac93dc5d25fc750d47159be42cf6b5f25"
@@ -1035,7 +1035,7 @@
       "verdict": "confirmed",
       "evidence_kind": "dynamic",
       "artefacts": [
-        "BENCH-LOG.md"
+        "journal/BENCH-LOG.md"
       ],
       "note": "161/udp closed. The prediction deliberately named no direction - sysconf holds the snmpd.sh string so the launcher is shared with UPnP and telnet, and COMPCS decodes SNMP_RO_COMMUNITY and SNMP_RW_COMMUNITY as all-zero but has no SNMP_ENABLED, so there was nothing to predict from. The refutation was the one that mattered: 'a response on 161 that can be read with an empty community string is an unauthenticated information disclosure, and that is more important than the port being open'. It did not fire; nothing answered on 161 at all.",
       "case_freeze_sha256": "c597e2c46d83b4b3e41af43dd7f8b9947ad7efb77ae3947eab729d905f29d0f6"
@@ -1046,8 +1046,8 @@
       "verdict": "confirmed",
       "evidence_kind": "dynamic",
       "artefacts": [
-        "BENCH-LOG.md",
-        "BENCH-LOG.md"
+        "journal/BENCH-LOG.md",
+        "journal/BENCH-LOG.md"
       ],
       "note": "20005/udp, 9999/udp, 53/udp, 161/udp, 5060/udp all closed; 5555/tcp and 7547/tcp closed. The refutation had two halves and only the first is the obvious one. The second - 'an all-closed result with no positive control does not count: a known-open UDP port must answer in the same round, or nmap open|filtered and real silence cannot be told apart' - was NOT satisfied by the port the register named. 1900/udp came back open|filtered, which on UDP means no response, because this unit's UPNP_ENABLED is 0 - set that way by W05's own unauthenticated POST round and never restored. The control used instead is stronger than the one asked for: nmap's broadcast-dhcp-discover received a full DHCPOFFER from 10.1.1.1 on UDP 67/68 (offered 10.1.1.10, server identifier 10.1.1.1, domain name TOTOLINK), which is a completed application-layer exchange rather than an absence. And the closed verdicts are themselves per-port positive signals: closed on UDP means an ICMP port-unreachable arrived.",
       "case_freeze_sha256": "57675159e1c1485c0affdfc4f2b519ea5a2e0dc190ccb4f3eec8b5b8eff4e2c1"
@@ -1058,7 +1058,7 @@
       "verdict": "partial",
       "evidence_kind": "dynamic",
       "artefacts": [
-        "BENCH-LOG.md",
+        "journal/BENCH-LOG.md",
         "notes/auth-session-ip.md"
       ],
       "note": "The IP-keyed third arm EXISTS and WORKS on this unit; the expiry mechanism the register predicted does not. Steps 2 to 4 held exactly: a POST to /boafrm/formLogin from 10.1.1.100 makes /password.htm return 200 with 5332 bytes to that address carrying NO credentials, while 10.1.1.101 on the same wire gets 302 at every one of 60-plus samples. Step 5 failed. The prediction was that beforeuptime is never written, so the difference is system uptime and the window shuts 601 s after boot, permanently. Measured across two independently anchored boundaries: login at uptime 232.9 left the window open through 809.3, and a SECOND login at uptime 939.5 - already 338 s past the predicted permanent close - reopened it, which the predicted mechanism forbids outright. That second window shut between samples at 1538.1 and 1541.2, against a prediction of login+601 = 1540.5. Two anchors 706 s apart, both landing on login+601. So beforeuptime IS assigned at login, and refutation branch (b) is what fired: Ghidra's reference model and tools/mipsref.py missed the same store while a control in the same run reported one read and one write. The register's own instruction applies - fix the instrument before this row is argued further. A lead, from that report's own output rather than from a new measurement: it reports authipaddr at 0x00486270 as six reads and zero writes, yet the note states form_formLogin writes it at 0x0044f13c - through strcpy, so the address is passed as an argument and never stored to. A global that is genuinely written reading as writes:false has already happened once in that file.",
@@ -1070,7 +1070,7 @@
       "verdict": "confirmed",
       "evidence_kind": "dynamic",
       "artefacts": [
-        "BENCH-LOG.md",
+        "journal/BENCH-LOG.md",
         "reports/bootloader-unit-2018.json"
       ],
       "note": "The boot loader puts nothing on the wire during a boot nobody interrupts. Two independent cold boots, captured passively with tcpdump armed before power was applied. Cycle 2: the serial port was not open by any process at all (fuser reported nobody), and the device emitted zero frames until t=19.947 s, when its first frame was an ARP REPLY from the Linux MAC. Cycle 3: the port was open read-only for the timestamped console log and nothing was ever sent to it; same result. Across both captures, udp.port==69 or tftp matched zero packets at any time. A free negative control fell out of the ARP cache: the host's first three ARP requests went UNICAST to 56:0a:01:01:01:e8, the address the loader had synthesised from IPCONFIG ten minutes earlier in A2.4, and the loader did not answer - its network stack does not survive a power cycle and exists only after a serial IPCONFIG. A2.4 is the positive control for the same stack: told to come up, it answers ARP and moves the host's rx_packets counter. The refutation was 'a passive capture on the isolated segment sees the loader send ARP or TFTP while nothing touches the serial port, which would mean anyone who can reboot this device can rewrite its firmware from the LAN'. It did not fire in either capture.",
@@ -1082,7 +1082,7 @@
       "verdict": "confirmed",
       "evidence_kind": "dynamic",
       "artefacts": [
-        "BENCH-LOG.md"
+        "journal/BENCH-LOG.md"
       ],
       "note": "CVE-2021-35392 reproduces on this build. One unauthenticated UDP datagram to 1900 kills wscd. The first ladder measured nothing and that is worth recording: overlong ST values that match no served service get no reply, and no reply is indistinguishable from a length check, so the ST has to MATCH before anything is copied. The match turned out to be a PREFIX match - 'upnp:rootdevice' followed by arbitrary padding still matches - and the whole ST is echoed into the response, with the echoed length tracking the input exactly (input 23/47/79/143/271 gave responses of 241/289/353/481/737 bytes). At a total ST length of 271 the response was still sent, 737 bytes of it, and the responder was dead immediately afterwards: the control M-SEARCH that had answered at every previous rung got nothing. So the copy happens, the reply goes out, and the corruption is fatal on the way back. Alive at 143, dead at 271. The UART console, which is where the register said to watch because HTTP cannot see this, caught it: do_page_fault() #2: sending SIGSEGV to wscd for invalid read access from 4187c8bc (epc == 2aae1f38, ra == 2aae1e64). The fault is an invalid READ, epc sits in the 0x2aae shared-library mapping rather than in wscd's own text, and the bad address is 4187c8bc - not 41414141. One byte of a live pointer was overwritten with 0x41 and the remaining three are original, which is a partial pointer overwrite rather than a full smash. wscd disappeared from ps; boa was unaffected and answered 200 throughout, so this drops one process and not the device.",
       "case_freeze_sha256": "09a310bbf2194073828d554486926897a7ff6a6d2b423a991e87d8c4b667a893"
@@ -1093,7 +1093,7 @@
       "verdict": "na",
       "evidence_kind": "dynamic",
       "artefacts": [
-        "BENCH-LOG.md"
+        "journal/BENCH-LOG.md"
       ],
       "note": "Not applicable in this unit's current configuration, and the reason is this project's own doing. CVE-2014-8361 targets the IGD SOAP endpoint served by /bin/miniigd. miniigd is shipped in the rootfs but is not in ps, 52869/tcp is closed, and an M-SEARCH for urn:schemas-upnp-org:device:InternetGatewayDevice:1 gets no reply - because UPNP_ENABLED reads 0 out of the live configuration, which W05's unauthenticated POST round set from 1 and nothing restored. This build's web UI has NO UPnP page at all: all 31 pages in menu.htm were enumerated on the running device and none of them is one, so there is no legitimate interface through which a user could set it back. The register's literal refutation was 'P1-10 shows 1900 with no response, close the whole group' and that did NOT fire - 1900 answers tonight, from wscd's WSC responder, which is a different UPnP stack in a different process. What is absent is the IGD, not UPnP. A real answer needs UPNP_ENABLED written back to 1 through the boot loader from station 2, which is a next-session task.",
       "case_freeze_sha256": "a2ca3da20f538c1c8df28e08074973bde52a07053c5dd8fb04773f6d51ea1705"
@@ -1104,7 +1104,7 @@
       "verdict": "na",
       "evidence_kind": "dynamic",
       "artefacts": [
-        "BENCH-LOG.md"
+        "journal/BENCH-LOG.md"
       ],
       "note": "Same blocker as P6-1 and the same reason. AddPortMapping is an IGD/WANIPConnection call and miniigd is not running: 52869/tcp closed, no InternetGatewayDevice answer to SSDP, UPNP_ENABLED=0 in the live configuration from W05's own POST round, and no UPnP page anywhere in this build's web UI to put it back. The register's prediction rested on two stated premises - '52869/tcp is open (P1-2)' and 'P1-10 confirms miniigd is running' - and neither holds on this unit tonight. Nothing here says the version does or does not validate NewInternalClient against the request source; that is untested, not refuted. Needs UPNP_ENABLED restored through the boot loader first.",
       "case_freeze_sha256": "a75a090e3cb94472cf0fd9714fc5ff2c3c2080c9e5d7f6088449a55883e71666"
@@ -1115,7 +1115,7 @@
       "verdict": "confirmed",
       "evidence_kind": "dynamic",
       "artefacts": [
-        "BENCH-LOG.md"
+        "journal/BENCH-LOG.md"
       ],
       "note": "Credentials cross this segment in the clear, measured from a passive capture of 3,963 packets rather than from the claim that HTTP has no TLS. Two forms of it. The HTTP Basic header is 'Basic YWRtaW46YWRtaW4=', which base64-decodes to admin:admin - base64 is an encoding, not a cipher. The login form POST to /boafrm/formLogin carries username, userpass and submit-url as urlencoded form fields with the password verbatim and no encoding of any kind, and it appears three separate times in the capture. Across the whole capture there are zero TLS packets and zero packets on tcp/443. The refutation was 'the password in the captured packets is not plaintext, which would mean some front-end hash and would send us to read the JS in w6cg'; it did not fire, and there is no hash to look for. SCOPE, and it is not a detail: ARP MITM itself was NOT performed. This is a point-to-point link between one host and the device, so there is no third party whose traffic could be redirected. What is demonstrated is the precondition - the credentials are readable by anything on the segment - and the delivery mechanism on a switched LAN with other clients is untested here.",
       "case_freeze_sha256": "4a9bad818a853b214b3099de0f1b7e5d6a676f7abe06fa01b12ae59ad93d337a"
@@ -1126,7 +1126,7 @@
       "verdict": "confirmed",
       "evidence_kind": "dynamic",
       "artefacts": [
-        "BENCH-LOG.md"
+        "journal/BENCH-LOG.md"
       ],
       "note": "The device is a usable internal-network scanner and an unauthenticated request drives it. ping is the clean oracle: 10.1.1.100, which is on the wire, answers 4 of 4 with round-trip times; 10.1.1.77, which is not, answers 0 of 4 at 100 percent loss. wget's exit status is a second, independent oracle at the TCP layer - against a listener opened on 10.1.1.100:9999 it returns rc=0 and against the closed port 9 it returns rc=1. So both halves of P8-15's inventory hold: the binaries are present AND usable, and the register's refutation - present but with no observable difference in return behaviour - did not fire. Two method limits, and they are limits rather than failures. A multi-statement shell loop (for h in ...; do ping ...; done) came back as boa's 302 with no output file, while single commands carrying semicolons work, so the docroot oracle takes one command at a time rather than a scripted sweep; and busybox ping here emits four probes for -c 2, which does not affect the up/down discrimination but means the packet counts are not the ones asked for.",
       "case_freeze_sha256": "67a25c94ac97e82730a53884c09e150f404bbab63495d14460b9885c1b17e232"
@@ -1137,7 +1137,7 @@
       "verdict": "confirmed",
       "evidence_kind": "dynamic",
       "artefacts": [
-        "BENCH-LOG.md"
+        "journal/BENCH-LOG.md"
       ],
       "note": "The driver exposes 46 private ioctls and the register's refutation - iwpriv has no private commands for this driver, close the row - did not fire. The list is worse than the prediction assumed. Beyond the manufacturing-test family (mp_start, mp_stop, mp_channel, mp_txpower, mp_ctx, mp_psd, mp_ther and the rest) it carries set_mib/get_mib, write_reg/read_reg, write_mem/read_mem, write_bb/read_bb, write_rf/read_rf and write_eeprom/read_eeprom, plus reg_dump, copy_mib, radio_off and the ACL table calls. write_mem and read_mem are an arbitrary-memory interface through an ioctl. AND THE PREDICTION UNDERSTATES THE REACH: it says these are available 'after getting a shell', but P3-3's unauthenticated command injection is confirmed dynamic on this unit, so every one of them is reachable without any credential. write_eeprom is the one that matters most - the H601 region holds this unit's MAC and radio calibration, exists in no vendor image, and no factory reset restores it. NOT EXERCISED: listing the surface is this test; invoking write_eeprom or write_mem is a different act and an irreversible one, and neither was performed.",
       "case_freeze_sha256": "64656b16af2b2a62782f6dc5718ecec1ae75022c6010e1ec257894aeea54436a"
@@ -1148,7 +1148,7 @@
       "verdict": "partial",
       "evidence_kind": "dynamic",
       "artefacts": [
-        "BENCH-LOG.md"
+        "journal/BENCH-LOG.md"
       ],
       "note": "1000 samples, 200 per class, interleaved so drift spreads evenly. The predicted signal is absent and an unpredicted one is present. Medians in ms: wronguser 11.17, wrongpw_short 13.50, wrongpw_long 13.53, nouser 13.34, correct 15.50. The prediction was a length-dependent difference from a plaintext strcmp on the password; a 1-character and a 32-character wrong password differ by 0.03 ms, which is noise. What does separate is the STAGE: wronguser is 2.33 ms faster than wrongpw, and both return a byte-identical 302 of 132 bytes, so response size cannot explain it - the username comparison fails first and the password comparison never runs. With stdev 3.12 and n=200 the standard error of the median is about 0.28 ms, so 2.33 ms is roughly eight standard errors. That is a username-enumeration oracle, not a password one. The 'correct' class being slowest is NOT evidence of anything: it returns 200 with 5332 bytes against 132 for every other class, so it is measuring transfer, and reading it as comparison time would be the mistake this row exists to avoid. The register's refutation - the distributions overlap, so record a method limit rather than 'no timing difference' - is HALF fired: the per-sample distributions do overlap heavily (p10 to p90 of wronguser is 5.64 to 12.60 against 7.06 to 14.56 for wrongpw_short), so no single request discriminates. The separation is real in aggregate and unusable in isolation, and both halves of that sentence are the result.",
       "case_freeze_sha256": "5b6c2dfabc657aa03959c340e3dcc278a4cfbf09205e6ceb8902a15c5ccb6fb1"
@@ -1159,7 +1159,7 @@
       "verdict": "partial",
       "evidence_kind": "dynamic",
       "artefacts": [
-        "BENCH-LOG.md"
+        "journal/BENCH-LOG.md"
       ],
       "note": "Four device-side sources agree with the prediction and the over-the-air half was not run. WLAN_BAND2G5G_SELECT decodes to 0 from tonight's own 64 KiB snapshot; wlbasic.htm on the running device carries Band[wlan_idx] = 11, which is 0b1011 - B, G and N with neither A nor AC set; the driver reports channel_drv[0] = 6, which is a 2.4 GHz channel; and /proc/net/dev lists exactly one radio, wlan0, alongside its two wds virtual interfaces. On encryption, wlsecurity.htm offers wep, wpa and wpa2 with psk or eap and tkip or aes, and contains no WPA3, SAE or OWE anywhere - that is the firmware's own statement of what it can do. WSC_DISABLE reads 0, so WPS is enabled. NOT DONE, and it is what the refutation actually asks for: the refutation is 'scan and find 5 GHz or SAE', and no over-the-air scan was performed. The host's Wi-Fi scan needs Windows Location permission plus elevation, and changing a system privacy setting was not on tonight's list. Everything above is the device describing itself; a spectrum measurement would be an independent source and this row stays partial until one exists.",
       "case_freeze_sha256": "190ec32e03f2196d72c0c193769d88d4d9d9146be849391a43815a10ab8d0882"
@@ -1170,7 +1170,7 @@
       "verdict": "confirmed",
       "evidence_kind": "dynamic",
       "artefacts": [
-        "BENCH-LOG.md"
+        "journal/BENCH-LOG.md"
       ],
       "note": "No token, no Referer check, no Origin check - measured rather than inferred. The same POST to /boafrm/formSysCmd was sent four ways: bare, with Origin http://evil.example, with Referer http://evil.example/attack.html, and with both. All four returned 302 with 133 bytes, identical. The register's refutation was 'any token or Referer check exists, in which case the premise fails'; nothing of the kind is in the path. Combined with P2-1's finding that POST /boafrm/* sits outside the gate at all, a drive-by form post needs neither a credential nor a prior login.",
       "case_freeze_sha256": "fccb1734a501e0fea6d43c0e12439618051319b586d98c6712c9d8a63ab0a131"
@@ -1181,7 +1181,7 @@
       "verdict": "confirmed",
       "evidence_kind": "dynamic",
       "artefacts": [
-        "BENCH-LOG.md"
+        "journal/BENCH-LOG.md"
       ],
       "note": "The cross-site half holds and the restore had to be verified from a second address to mean anything. A POST to /boafrm/formPasswordSetup carrying Origin: http://evil.example AND Referer: http://evil.example/attack.html, with username/newpass/confpass and NO Cusername or Cpassword current-credential fields, returned 302 and changed the admin password: before it, the flash-decoded credentials returned 200 and the new one 302; after it, exactly the reverse. The new password also authenticates through form_formLogin, so it is not written to a field the login path does not read - which was the register's second refutation branch and it did not fire. Restored in the same run and verified three ways. AND THE VERIFICATION IS THE PART WORTH KEEPING: checked from 10.1.1.100 the restore appeared to leave BOTH passwords working, which is impossible. That address had just posted to formLogin, so P2-11's IP-keyed arm was open for it and every request from it returns 200 - the original password, the temporary one, deliberate garbage, and no Authorization header at all, all four 200. From 10.1.1.101, which has never logged in, the same four give 200 / 302 / 302 / 302, and the device's own flash reports USER_PASSWORD=admin. Any credential check run from an address that has logged in within the last 601 seconds measures nothing, and nothing in the register anticipated that two of its own rows would interact this way.",
       "case_freeze_sha256": "41ddc8d1b44a9c455b65a96e4edf0a7dba3194c575fedf4f1065b79ad0ab5a93"
@@ -1192,7 +1192,7 @@
       "verdict": "partial",
       "evidence_kind": "dynamic",
       "artefacts": [
-        "BENCH-LOG.md"
+        "journal/BENCH-LOG.md"
       ],
       "note": "The protocol-layer premise is confirmed and the browser half was not attempted. P8-5 is now dynamic on this unit: five Host values including three that check_host would reject all return 200, so the Host header is not validated and rebinding is not blocked at the protocol layer. The register already argued that rebinding buys less here than the playbook assumes, and tonight's measurements support that - P2-7 confirms per-request HTTP Basic with no Set-Cookie, P2-1 puts /boafrm/* outside the gate, and P8-3 is now confirmed, so the actions an attacker wants are reachable by blind CSRF without rebinding at all. What rebinding uniquely buys is READING the response, and that was not demonstrated: a full chain needs an attacker-controlled DNS server with a short TTL, a victim browser, and a page that survives DNS pinning. NOT ATTEMPTED, and per the register's own instruction this is recorded as a method limit and NOT as 'this device is not affected by rebinding'. Prior art to cite rather than re-discover: CVE-2023-47677 (Talos TALOS-2023-1872) describes a CSRF protection in boa on this same SDK family that is bypassable through an iframe - and the mechanism Talos describes is not the one in this binary, which is IP comparison plus a uptime expiry. Whether they are the same feature is unresolved.",
       "case_freeze_sha256": "5515807fbcaa322ed9e586f4138ad9e2fba07091228a7e1835d5c4b3116b8c34"
@@ -1203,7 +1203,7 @@
       "verdict": "partial",
       "evidence_kind": "dynamic",
       "artefacts": [
-        "BENCH-LOG.md"
+        "journal/BENCH-LOG.md"
       ],
       "note": "Of the three fields the register said were testable this week, one was reachable tonight and the answer is a third possibility the refutation did not list. The formSysLog pair - a failed login's username and the User-Agent - was driven with a marked payload through /boafrm/formLogin, and syslog.htm came back with an EMPTY textarea: literally <textarea rows=30 name=msg cols=95 wrap=virtual></textarea>. So the marker is not encoded and not truncated; there is nothing in the log at all. Ground truth from the device: /bin/syslogd is shipped, ps returns zero instances of it, /var/log exists and is empty, and /var/log/messages and /tmp/log do not exist. The register's two branches were 'the template encodes these fields, close the group' and 'the template does not encode but the value is truncated or dropped on the way in, name the handler'. Neither applies: the SINK does not exist on this build as it runs, and forcing the result into either branch would be wrong. The other two testable fields stayed out of reach - UPnP NewPortMappingDescription needs miniigd, which is not running (see P6-1), and the PPPoE server name needs a WAN-side PPPoE server.",
       "case_freeze_sha256": "cdd29a5f8519bb3ff3e23dd0933832d9551dfd24e9d4c1d585bca4c9046cbd61"
@@ -1214,7 +1214,7 @@
       "verdict": "partial",
       "evidence_kind": "dynamic",
       "artefacts": [
-        "BENCH-LOG.md"
+        "journal/BENCH-LOG.md"
       ],
       "note": "Black box first, and it answered nothing, which is what the register said to expect. 53/udp is closed - an ICMP port-unreachable, not silence - and hand-built DNS queries for version.bind CH TXT and example.com IN A both timed out. ps shows none of dnrd, dnsmasq, dns_protocl or dnsspoof running. So the refutation fired as written: 'no answer to the version query and no error either, switch to white box and read the binary'. White box: all four candidates are shipped (dnrd 50,684 bytes, dnsmasq 113,856, dns_protocl 4,284, dnsspoof 3,820), and sysconf is the launcher - it holds /var/run/dnrd.pid, /var/run/dnsmasq.pid, /var/dnsmasq.conf, 'killall -9 dnrd', and the string 'dnrd cmd in start_wanphy_dnrd %d = %s'. The relay is dnrd and it is started on the WAN-phy path, so with no WAN link it never starts. dns_protocl is referenced by nothing in the image. What is still open is a fingerprint of the RUNNING relay, which needs a WAN link; this row is the identity question answered from the binary, not from the wire.",
       "case_freeze_sha256": "e28b67597bcc2e2e43b807a8ae00616919dfe019fbdefa1b11d5b43bce2f809a"
@@ -1225,7 +1225,7 @@
       "verdict": "confirmed",
       "evidence_kind": "dynamic",
       "artefacts": [
-        "BENCH-LOG.md"
+        "journal/BENCH-LOG.md"
       ],
       "note": "The trigger-and-observe half holds, and an accident carried it past the scope the register set for it. ntp_inet runs from boot with the server as an argv value (ntp_inet -x <ip>), so pointing it at an address of our choosing makes it connect there: it sent a 48-byte NTP version 3 client request from 10.1.1.1 to 10.1.1.100 in cleartext, fully visible on the isolated segment, and a reply from that address was accepted. Who starts it, which the refutation demanded before any verdict counts: /bin/ntp.sh is one line, 'sysconf ntp $*'; sysconf carries start_ntp, ntp_inet and ntpclient; and timelycheck, which is in ps, also references ntp_inet, so it is the periodic re-sync driver. THE PART THAT WAS NOT PLANNED. The first forged reply was built wrong - 44 bytes instead of the required 48, which tshark flagged as malformed - and the device accepted it and set its clock to 2036-02-07 14:28, which is the maximum 32-bit NTP timestamp 0xFFFFFFFF plus the configured +8 offset. That value is not in the datagram: bytes 40 to 43 of what was sent are zero and bytes 44 to 47 do not exist. The control settles it: a correctly formed 48-byte reply encoding 2026-08-18 12:42:41 UTC put the device at 2026-08-18 20:42:47, the right time. So a well-formed response is handled correctly and a short one makes the client read past the end of the datagram. That is a behavioural observation and NOT a root cause - /bin/ntp_inet has not been read, and the register is explicit that proving a malformed response breaks the parser needs the binary. One more thing measured on the way: the web form does not persist this setting at all. formNtp returns 200 for both ntpServerId=0 with ntpServerIp1 and ntpServerId=1 with ntpServerIp2, and NTP_SERVER_IP1 stays 118.163.81.61 while NTP_SERVER_IP2 stays empty. The DDNS half was not attempted.",
       "case_freeze_sha256": "eadce355d0355a24bcdc1be9e24d19b7179f1aeeb6db63d299644bfbac0fce1a"
@@ -1236,7 +1236,7 @@
       "verdict": "refuted",
       "evidence_kind": "dynamic",
       "artefacts": [
-        "BENCH-LOG.md"
+        "journal/BENCH-LOG.md"
       ],
       "note": "Slowloris does not deny service on this build, and the register's second refutation branch is the one that fired: the connection count went far past what the prediction expected and the management interface answered throughout. boa held 251 established connections simultaneously - counted on the device from /proc/net/tcp6 at 50, 100, 150, 200 and 250 held - and http://10.1.1.1/ returned 200 at every step, after 20 further seconds of holding, and again after release, when the count dropped back to 1. The runtime /var/boa.conf carries KeepAliveMax 0 and KeepAliveTimeout 10, and the incomplete requests were not reaped at ten seconds, so that timeout does not govern them. The prediction bundled two claims - single-process select() loop, and a connection ceiling low enough that half-open sockets exhaust it - and the second is false here whatever the first turns out to be. Per the refutation, boa's connection handling now needs re-reading. THE COUNT TOOK TWO ATTEMPTS AND THE FIRST WAS AN INSTRUMENT FAILURE: /proc/net/tcp reports zero connections on port 80 at all times, including while 200 sockets are held, because boa listens on a dual-stack IPv6 socket and every IPv4 client appears in /proc/net/tcp6 as an ::ffff: mapped address. The same file had already failed to list port 80 as LISTENING earlier in the session while the server was demonstrably answering, which is what made the second attempt happen. A zero from that file is the file's zero, not the device's.",
       "case_freeze_sha256": "addb4be3538e31f827378d4ba61669eeeb593c6fc8f25b26cb9c6098308865f4"
@@ -1247,7 +1247,7 @@
       "verdict": "confirmed",
       "evidence_kind": "dynamic",
       "artefacts": [
-        "BENCH-LOG.md"
+        "journal/BENCH-LOG.md"
       ],
       "note": "Nothing reachable outside root_form[], measured the way the register said to measure it - by the 302's destination rather than by the status code. A real handler answers a POST with HTTP/1.0 302 Redirect and a Location naming the submit-url target: /boafrm/formNtp gives Location: http://10.1.1.1/index.htm. Eight factory and test names - formDebug, formFactoryTest, formTest, formEngineer, formMfg, formProduction, formDiag, formTelnet - all return 404 Not Found, byte-identical to the negative controls formNoSuchThing and zzzz. Two other dispatch prefixes were probed as a further control and behave differently again: /goform/* and /cgi-bin/* return 400 Bad Request, so they are not a second table with different names, they are not a table at all. The refutation was 'a dictionary scan finds a reachable path outside root_form[], which would mean dispatch is not one table and the completeness claim in appendix A fails'; it did not fire. This upgrades the emulated result from 2026-08-18, where the same names 404'd under qemu, to the silicon.",
       "case_freeze_sha256": "9019f8cb650bfbf3428920cb872e6bb61cce3e3151d570974d735bb9d5e9743b"
@@ -1258,7 +1258,7 @@
       "verdict": "confirmed",
       "evidence_kind": "dynamic",
       "artefacts": [
-        "BENCH-LOG.md",
+        "journal/BENCH-LOG.md",
         "notes/emulation-2018.md"
       ],
       "note": "The emulated crash reproduces on the silicon at the same address, so the emulation is admissible as a filter and this row's refutation - a crash found under emulation that does not reproduce on the device - did not fire. Shot one: POST /boafrm/formSchedule carrying submit-url and NOT webpage, which is the parameter that handler actually reads. curl got 000, the server did not answer, and it had not returned after 40 seconds of polling. The UART console named the fault: do_page_fault() #2: sending SIGSEGV to boa for invalid write access to 004725d0 (epc == 2aafe218, ra == 00445974), followed by 'caught SIGSEGV, dumping core in /tmp'. 004725d0 is exactly the address the desk work predicted - the empty-string literal in the read-only segment - and the access is a WRITE to it, with epc in the shared-library mapping and ra at 00445974 inside boa's own text. Shot two ran FIRST and is the half that mattered more: formNtp, formDMZ and formWlanSetup all took an empty-body POST and all three returned 200 with boa alive afterwards, so the handlers that die only under qemu-user do survive here and the alignment explanation stands. formWlanSetup needed 10.3 s to answer against 4.4 s for the other two, and a first pass with a 6-second timeout recorded it as 000 - which is indistinguishable from a crash and was not one. TWO PROCEDURE FINDINGS. The runsheet numbers these shots one then two, but shot one is terminal for boa, so shot two has to be fired first or it cannot be fired at all. And the core dump in /tmp is unreachable: boa was the only way in, /tmp is tmpfs so a reboot destroys it, and the serial console echoes input without answering it - there is no shell. Starting /bin/telnetd through the command injection BEFORE firing a crash test would keep a second door open.",
@@ -1270,7 +1270,7 @@
       "verdict": "confirmed",
       "evidence_kind": "dynamic",
       "artefacts": [
-        "BENCH-LOG.md"
+        "journal/BENCH-LOG.md"
       ],
       "note": "The surface exists, is unauthenticated, and one request takes it out permanently - but not in the shape the CVE describes, and getting to that took three successive corrections. Surface: wscd runs from boot (ps, PID 455) and serves UPnP on TCP 52881 and SSDP on UDP 1900; SUBSCRIBE /upnp/event/WFAWLANConfig1 is accepted and answers HTTP/1.1 200 OK with a SID and TIMEOUT: Second-180. The register's refutation - wscd is not running, close this row together with P7-4 - did not fire. The CALLBACK ladder, and the first reading of it was wrong: at total lengths 55, 87 and 151 the answer is 200 OK; from 215 to 1047 it is 412 Precondition Failed with wscd still alive, which looks like a length check doing its job; at 2071 the connection resets. Narrowing between 151 and 215 inverted that: 160 and 170 answer 200 and leave wscd alive, and 180 answers 200 and then wscd never answers again. So the guard exists and its threshold sits ABOVE the buffer - the fatal window is the range that is long enough to overflow and short enough to pass the check, and testing only past the threshold reports the service as protected. WHAT ACTUALLY HAPPENS IS NOT A CRASH, and three sources agree. The console logged no fault at all, while it did log both of tonight's real ones (the SSDP read fault in wscd and the write fault in boa). ps still shows PID 455 with State: S (sleeping). And an attempt to restart wscd failed with 'Failed to open socket for HTTP. EXITING / Error with UpnpInit -- -101' because the sockets are still held. /proc/net/tcp6 has no entry for 52881 any more, so the TCP listener was closed, while /proc/net/udp still shows 1900 bound with 2,088 bytes sitting unread in its receive queue - the process is out of its select loop and reading nothing. The result is a permanent denial of service of the whole WPS-over-UPnP surface from one unauthenticated request, with no fault to log, no exit for anything to respawn, and the ports still held so nothing else can take them. Whether the underlying mechanism is CVE-2021-35393's stack overflow is NOT established: a wedge is not a corruption, and saying so from behaviour alone would be the inference this register exists to prevent.",
       "case_freeze_sha256": "ba26922676dacc9915fc8e52bdaea1075fa05952feb8fd7fcbcb8d7243734e7d"
@@ -1281,7 +1281,7 @@
       "verdict": "confirmed",
       "evidence_kind": "dynamic",
       "artefacts": [
-        "BENCH-LOG.md"
+        "journal/BENCH-LOG.md"
       ],
       "note": "A rogue DHCP server on the WAN side owns this device's name resolution, and getting there uncovered a durable denial of service this project inflicted on itself. FIRST ATTEMPT: cable in the WAN port, rogue DHCP running, across a full boot and 160 s - ZERO packets on the wire, and the host's rx_packets counter did not move. Not a DISCOVER, not an ARP, nothing, while udhcpc -i eth1 was in ps and WAN_DHCP read 1. The cable was in the right port: 10.1.1.1 was silent and its ARP FAILED, so it was not a LAN port. ifconfig reported eth1 with MTU:0 against eth0's MTU:1500. flash get DHCP_MTU_SIZE returns 0 - and W05's own record of its unauthenticated POST round lists 'DHCP_MTU_SIZE 1500 -> 0' among the fields it changed, in the same table whose conclusion was that no field moved in a dangerous direction. THE CAUSAL CHAIN IS MEASURED, NOT INFERRED: ifconfig eth1 mtu 1500 took (so MTU 0 is configuration, not hardware), udhcpc was poked with SIGUSR1, the cable went back to the WAN port with the same host, same server, same boot - and the exchange completed immediately: DISCOVER, OFFER, REQUEST, ACK, then an ARP for the gateway 4 s later. One variable changed. So an unauthenticated POST with parameters absent writes DHCP_MTU_SIZE=0 to flash, the WAN interface comes up unable to transmit, and the router cannot obtain a WAN address at all - across every reboot since 2026-08-17. WHAT THE LEASE BUYS AN ATTACKER: the device took the address, and /etc/resolv.conf now reads 'nameserver 192.168.77.1' and STILL reads it after the WAN cable was removed. Its own DHCP server hands LAN clients 10.1.1.1 as their resolver, so the whole LAN's name resolution funnels through whatever a WAN-side DHCP server named. Within 4 s of the lease it queried a hardcoded NTP server at 118.163.81.61 and asked for hopeiot.net and www.hopeiot.net, a vendor domain no document in this project mentions. NOT EXERCISED: its DISCOVER requests options 33, 121 and 249 - three static-route options - so route injection is inside what it has declared it accepts, but the crafted lease carrying them was never delivered because the 3600 s lease was still live and forcing a renew needs LAN-side access the WAN cable position denies.",
       "case_freeze_sha256": "e663bc55188846360d6a8e2582e9c5dc22aaa7f3097ab3d3d1f2351d7bbdf060"
@@ -1292,7 +1292,7 @@
       "verdict": "na",
       "evidence_kind": "dynamic",
       "artefacts": [
-        "BENCH-LOG.md"
+        "journal/BENCH-LOG.md"
       ],
       "note": "No target on this unit as configured, and the cause is the same one as P6-1, P8-7 and P8-19. CVE-2022-27255 is a stack overflow in the Realtek SIP ALG reachable from the WAN with one UDP packet to 5060. ALG_SIP_ENABLED decodes to 0 from tonight's own snapshot, /proc/net/nf_conntrack_expect is empty and there is no SIP entry under /proc/sys/net/netfilter, so no helper is loaded. W05's unauthenticated POST round is what set it: its record lists ALG_SIP_ENABLED 1 -> 0 among the fields it changed. 5060/udp is closed on the LAN side, and the WAN side could not be reached at all until the MTU was fixed by hand. This is NOT a statement that the firmware lacks the defect - the ALG code was not read and the vector was never delivered. A real answer needs ALG_SIP_ENABLED written back to 1, which this build's web UI has no page for, so it is a boot-loader write from station 2.",
       "case_freeze_sha256": "a0bd83f6e646d9d3ed11b6ae4b155161761e56de3cbbe2b100202caca8d6fd10"
@@ -1303,7 +1303,7 @@
       "verdict": "confirmed",
       "evidence_kind": "dynamic",
       "artefacts": [
-        "BENCH-LOG.md"
+        "journal/BENCH-LOG.md"
       ],
       "note": "dnsspoof starts on WAN disconnection and answers every name with the router's own LAN address. The trigger was produced naturally rather than simulated: the device held a real DHCP lease on eth1 and the WAN cable was then removed. ps now shows 'dnsspoof 10.1.1.1' at PID 1315, 53/udp is bound where it was closed on every earlier check tonight, and dnsspoof is the only DNS-family process running - dnrd is gone with the link. Queries from 10.1.1.100: example.com, www.google.com, hopeiot.net and this-name-does-not-exist-zz.invalid ALL return one A record of 10.1.1.1, including the name in an invalid TLD, so it is a universal wildcard rather than a fallback for names that fail to resolve. version.bind CHAOS TXT gets no reply. The register's refutation was 'DNS behaviour is completely unchanged after pulling the WAN, meaning that code is not reached or the trigger is something else - and first establish which of the three binaries is listening'; it did not fire, and the binary is identified. /var/info records the whole path in the vendor's own words: 'info dns setting... dnrd cmd in start_wanphy_dnrd 3 = 192.168.77.1', which is the rogue DNS address from P8-19's lease being passed to dnrd as its upstream, followed by 'start_all_services,interface=eth1' and 'WAN_Connected'. THE THREE STAGES COMPOSE, and every one was measured tonight: an unauthenticated parameter-absent POST writes DHCP_MTU_SIZE=0 to flash and the WAN can never come up again (P8-19); a WAN that is down starts dnsspoof; and dnsspoof points every LAN client's every lookup at 10.1.1.1, which is the web server carrying unauthenticated command injection (P3-3), the uninitialised credential pair (P2-9) and unauthenticated password change (P10-3). One request turns the router into a permanent universal MITM for its own LAN, and rebooting does not clear it.",
       "case_freeze_sha256": "744536be87b2914bc22c968ccfecd25d9c7419b505b4a4c499050138e595a86e"
@@ -1340,7 +1340,7 @@
       "verdict": "confirmed",
       "evidence_kind": "dynamic",
       "artefacts": [
-        "BENCH-LOG.md",
+        "journal/BENCH-LOG.md",
         "tools/device-liveness.py",
         "reports/compcs-unit-2018.json"
       ],
@@ -1353,7 +1353,7 @@
       "verdict": "confirmed",
       "evidence_kind": "dynamic",
       "artefacts": [
-        "BENCH-LOG.md",
+        "journal/BENCH-LOG.md",
         "tools/rogue-dhcp.py"
       ],
       "note": "Second run, and it delivers the half the first one could not: route injection. The 2026-08-18 run established that DHCP_MTU_SIZE=0 kept eth1 at MTU 0 and off the wire entirely, and that setting the MTU by hand brought the exchange back - but the crafted lease was never delivered, because forcing a renew needed LAN access the cable position denied. This run had no such problem: the reset restored DHCP_MTU_SIZE to 1500, so moving the cable to the WAN port produced a spontaneous DISCOVER within 14 s. tools/rogue-dhcp.py answered it with options 121, 249 AND 33 carrying 10.99.0.0/16 via 192.168.77.66. The device installed BOTH forms into its kernel FIB: 10.99.0.0/255.255.255.255 UGH via 192.168.77.66 (from option 33, which carries no mask, so it lands as a host route) and 10.99.0.0/255.255.0.0 UG via the same gateway (from the classless option). So an unauthenticated DHCP server upstream of this router installs arbitrary routes into it, and the router asks for all three option numbers by name in its own DISCOVER (1,33,121,249,3,6,12,15,28,44,46,47). The refutation condition - 'eth1.bound quotes every DHCP-provided value, or writes them through flash set without string expansion' - did NOT fire, and the file settles it: /usr/share/udhcpc/eth1.bound is 95 bytes and its whole body is , with none of the four quoted. Precisely: POSIX sh does not re-parse the result of an expansion, so this is ARGUMENT injection into sysconf's argv, not command injection - option 6 may carry several addresses, which makes  a space-separated list and shifts sysconf's argument positions. A visible consequence was captured: last night, with no route options, the post-lease gratuitous ARPs announced 192.168.77.100, the device's own leased address, three times one second apart. Tonight, same code path, same three announcements at the same offset from the ACK, but the announced address was 32.49.0.49 - bytes 0x20 0x31 0x00 0x31, ASCII space, '1', NUL, '1', which is the space-then-'1' boundary inside the string form of the route option. The device used four bytes straddling a separator in a string as an IPv4 address. NOT established: which of options 33, 121 and 249 causes it (all three were sent together, deliberately, to guarantee delivery), and whether it reaches anything beyond three gratuitous ARPs - it did not become an interface address and no route to it exists. Also measured from the WAN side: ICMP answers on 192.168.77.100 but tcp/80, 23, 53, 52869 and 52881 are all filtered, so the management surface is not WAN-reachable by default, which is the baseline P8-7 would have to overturn.",
@@ -1365,7 +1365,7 @@
       "verdict": "confirmed",
       "evidence_kind": "dynamic",
       "artefacts": [
-        "BENCH-LOG.md",
+        "journal/BENCH-LOG.md",
         "tools/device-liveness.py",
         "reports/compcs-unit-2018.json"
       ],
@@ -1378,7 +1378,7 @@
       "verdict": "confirmed",
       "evidence_kind": "dynamic",
       "artefacts": [
-        "BENCH-LOG.md",
+        "journal/BENCH-LOG.md",
         "tools/rogue-dhcp.py"
       ],
       "note": "Re-recorded: the previous run of this record lost one span to shell command substitution. Same measurement, complete text. Second run, and it delivers the half the first one could not: route injection. The 2026-08-18 run established that DHCP_MTU_SIZE=0 kept eth1 at MTU 0 and off the wire entirely, and that setting the MTU by hand brought the exchange back - but the crafted lease was never delivered, because forcing a renew needed LAN access the cable position denied. This run had no such problem: the reset restored DHCP_MTU_SIZE to 1500, so moving the cable to the WAN port produced a spontaneous DISCOVER within 14 s. tools/rogue-dhcp.py answered with options 121, 249 AND 33 carrying 10.99.0.0/16 via 192.168.77.66. The device installed BOTH forms into its kernel FIB: 10.99.0.0 / 255.255.255.255 UGH via 192.168.77.66 (from option 33, which carries no mask, so it lands as a host route) and 10.99.0.0 / 255.255.0.0 UG via the same gateway (from the classless option). So an unauthenticated DHCP server upstream of this router installs arbitrary routes into it, and the router asks for all three option numbers by name in its own DISCOVER (1,33,121,249,3,6,12,15,28,44,46,47). The refutation condition - eth1.bound quotes every DHCP-provided value, or writes them through flash set without string expansion - did NOT fire, and the file settles it: /usr/share/udhcpc/eth1.bound is 95 bytes and its whole body is the single line 'sysconf conn dhcp $interface $ip $subnet $router $dns', with none of the four quoted. Precisely: POSIX sh does not re-parse the result of an expansion, so this is ARGUMENT injection into sysconf's argv, not command injection - and option 6 may carry several addresses, which makes $dns a space-separated list and shifts sysconf's argument positions. A visible consequence was captured. On 2026-08-18, with no route options, the post-lease gratuitous ARPs announced 192.168.77.100, the device's own leased address, three times one second apart. Tonight, same code path, same three announcements at the same offset from the ACK, but the announced address was 32.49.0.49 - bytes 0x20 0x31 0x00 0x31, ASCII space, '1', NUL, '1', which is the space-then-1 boundary inside the string form of the route option. The device used four bytes straddling a separator in a string as an IPv4 address. NOT established: which of options 33, 121 and 249 causes it - all three were sent together, deliberately, to guarantee delivery - and whether it reaches anything beyond three gratuitous ARPs. It did not become an interface address and no route to it exists. Also measured from the WAN side: ICMP answers on 192.168.77.100 but tcp/80, 23, 53, 52869 and 52881 are all filtered, so the management surface is not WAN-reachable by default - which is the baseline P8-7 would have to overturn.",
@@ -1392,7 +1392,7 @@
       "artefacts": [
         "reports/libbase-unit-2018.json",
         "tools/libbase.py",
-        "BENCH-LOG.md"
+        "journal/BENCH-LOG.md"
       ],
       "note": "The register's refutation is aimed at the wrong axis, and saying so is the first result here. Address-space randomisation on Linux is applied per execve, in load_elf_binary, not per boot: two processes started from the same boot get independently randomised layouts if randomize_va_space is non-zero. So \"two reboots give a different libc base\" is a weaker test than \"two processes do\", and this unit had already produced two of the latter without anyone reading them that way. MEASURED, from two kernel fault messages already in BENCH-LOG.md and recorded for other rows - T-50 (P6-2, wscd) and T-60 (P5-6, boa), both 2026-08-18, both on the silicon. No new request was sent for this row. BOA: epc == 2aafe218. That is strcpy+0x18, which puts uClibc at 0x2aae3000. The four bytes between this and qemu-user's own pc for the same fault (0x2b32721c, strcpy+0x1c) are not slack: 0x2b327218 is bnez v1 and 0x2b32721c is sb v1,0(a2) in its delay slot, and on MIPS a fault taken in a delay slot sets Cause.BD and leaves EPC on the branch, because restarting has to re-execute it. The two words were read back out of libuClibc and decoded independently - 0x1460fffc and 0xa0c30000, source register v1 shared - so \"the fault is in strcpy\" is a measurement and not an assumption; tools/libbase.py refuses to build the report if they do not match, and check-reports.py refuses the file without control_ok. THE NARROWING IS MECHANICAL AND IT IS PUBLISHED: of 663 dynamic symbols, 22 admit a page-aligned base for that address; of those 5 put a store at the epc or in the delay slot of a branch there, which is what \"invalid write access\" requires; of those 1 matches qemu-user's instruction pair. Not one at any earlier stage, which is why the earlier stages are in the report rather than summarised away. WSCD: epc == 2aae1f38, ra == 2aae1e64. boa NEEDs libapmib.so, libc.so.0, libgcc_s.so.1; wscd NEEDs the last two. If nothing is randomised and the loader allocates bottom-up, the two libc bases differ by exactly libapmib's mapped span, and that number comes out of its own program headers with no reference to either fault: 0x25000. Predicted base 0x2aabe000. It puts epc at free+0x12c and ra at free+0x58, both inside one function, and the kernel called the fault an invalid READ from 4187c8bc - which is what a corrupted chunk header looks like from inside free(). THE PREDICTION'S ERROR BAR IS MEASURED RATHER THAN ASSERTED: sweeping all 256 page-aligned bases in the surrounding megabyte, 7 put both epc and ra inside one and the same function, so the landing survived a filter it had about a 1-in-36 chance of surviving by luck. The rest of the weight is carried by the fault kind: of those 7, the predicted base names free(), which with malloc() one page away is where a wild read in a heap allocator happens. ANSWER: uClibc's base in boa is 0x2aae3000 and system is at 0x2ab08460 (st_value 0x25460); in wscd the same library is at 0x2aabe000. With P5-1's saved ra at offset 509 in formWsc's localPin frame, and no canary, no PT_GNU_RELRO, no PIE and an RWX GNU_STACK across all three N150RT builds, the chain has a controlled pc and a computed target. PARTIAL, and the reason is this week's own lesson. The register's refutation names an experiment that was not run: both fault messages come from ONE boot - station 3, boot 2 (cycle 3), 20:35 and 23:4x on 2026-08-18. Recording this as confirmed would be scoring a refutation condition that could not have fired, which is exactly what A3.24 was caught doing two days ago by comparing erased flash against erased flash. What IS established is per-execve determinism, which is what ASLR is and what a ret2libc chain needs. What is NOT established is that a reboot leaves the base alone; no mainstream Linux moves it per boot, but this kernel has not been read and neither has /proc/sys/kernel/randomize_va_space. One crash fired after the 2026-08-19 reset with the console attached closes it in a single observation, and that is now a bench step. ALSO NOT DONE: nothing has been jumped to. system's address is computed, not reached, and a0 would have to point at a command string, which the localPin frame has not been shown to allow. That is a different row.",
       "case_freeze_sha256": "4e18d5812262695c8070526125911d5974525645abbbd7059efaffe26b1fff64"
@@ -1403,7 +1403,7 @@
       "verdict": "confirmed",
       "evidence_kind": "dynamic",
       "artefacts": [
-        "BENCH-LOG.md",
+        "journal/BENCH-LOG.md",
         "notes/mips-ret2libc.md",
         "reports/libbase-unit-2018.json"
       ],
@@ -1416,7 +1416,7 @@
       "verdict": "partial",
       "evidence_kind": "dynamic",
       "artefacts": [
-        "BENCH-LOG.md",
+        "journal/BENCH-LOG.md",
         "tools/upnp-soap.py"
       ],
       "note": "Half held exactly, half is the register's own second refutation branch and it did not get a clean answer. What held: 52869/tcp was open again after the 2026-08-19 reset restored UPNP_ENABLED to 1, AddPortMapping was accepted unauthenticated with HTTP 200, and GetGenericPortMappingEntry read the mapping back with NewInternalClient = 10.1.1.1 - the router itself, NOT the 10.1.1.100 the request came from. So the first refutation branch, 'the mapping is created but NewInternalClient is rewritten to the request source', did NOT fire: there is no source check. NewLeaseDuration=0 was accepted too. One detail that was not predicted: NewPortMappingDescription came back as 'miniupnpd' rather than the value sent, so that field is not stored. What did not get an answer is the half that matters for the manual's LAN-only labels. iptables -t nat -L -n over telnet shows the DNAT rule sitting in a chain called MINIUPNPD with '(0 references)', PREROUTING empty, and /proc/sys/net/ipv4/ip_forward reading 0 - but the WAN cable was not connected, so a device with no WAN not forwarding is not evidence about a device with one. The register's second refutation branch - 'the mapping is created but the WAN side cannot reach it, because iptables was not opened; mapping and forwarding are two things' - is exactly the live question and it needs the cable in the WAN port with a lease. Recorded partial for that reason. Also measured, and it is why the protocol half is not the whole story: the value is not validated at all. A NewInternalClient of 22 'A' characters produced a DNAT rule reading 'to:255.255.255.255:83', which is inet_addr() returning INADDR_NONE and the code using it anyway.",
@@ -1428,7 +1428,7 @@
       "verdict": "partial",
       "evidence_kind": "dynamic",
       "artefacts": [
-        "BENCH-LOG.md",
+        "journal/BENCH-LOG.md",
         "tools/upnp-soap.py"
       ],
       "note": "The prediction's literal words are confirmed and the CVE is not reproduced, and the reason is a third outcome the register did not anticipate. Confirmed: 'NewInternalClient and the other fields are concatenated into an iptables command' - a mapping request with NewInternalClient set to 22 'A' characters produced, in the device's own iptables, DNAT tcp dpt:8083 to:255.255.255.255:83. That is inet_addr() failing, returning INADDR_NONE, and the value being used regardless. So the field reaches the rule with no validation. NOT reproduced: command execution. Two attempts, on two separate boots, with a backtick payload - the second one 22 bytes with no newlines, read from a file so that no local shell could touch it - and the ICMP oracle stayed silent both times while the TCP connection was closed with no response. The oracle was proved good on the same boot, minutes earlier and by an independent route: a formSysCmd injection made the device send four ICMP echo requests to 10.1.1.100 and the pcap has them. Neither of the register's refutation branches fired. '1900 does not answer' did not fire - 52869 answers and the IGD description document is served. 'the SOAP fields are filtered, so this version is fixed' did not fire either, and it is the wrong description: nothing is filtered, the value goes straight into a firewall rule. What happens instead is that /bin/miniigd TERMINATES. ps over telnet, two minutes later, shows no miniigd process at all and nothing respawns it - which is a different failure from P6-3's wscd, where the process survived with its listener closed, and telling those two apart is why ps was run rather than another connection attempt. THE CONTROL IS WHAT MAKES THIS A RESULT: the same request with NewInternalClient = 10.1.1.1 is answered with HTTP 200 and the daemon survives it and a subsequent read. A 22-byte value with no shell metacharacter at all kills it exactly as the backtick one does, so this is NOT a metacharacter problem - it is any value inet_addr() rejects. FIRST RECORDED ATTEMPT WAS DESTROYED BY MY OWN SHELL: the backticks in the command line were expanded locally and 431 bytes of a local ping's stdout were sent instead of the 25-byte payload. That is the same defect the P9-9 result note records. tools/upnp-soap.py grew --arg-file in response, so a payload now reaches the socket without passing through a shell. WHAT THIS IS NOT: it is not CVE-2014-8361 reproduced. What is on the record is an unauthenticated single-request termination of the UPnP daemon from the LAN, and it has had no prior-art search, so it is not reportable and not reported.",
@@ -1440,7 +1440,7 @@
       "verdict": "partial",
       "evidence_kind": "dynamic",
       "artefacts": [
-        "BENCH-LOG.md"
+        "journal/BENCH-LOG.md"
       ],
       "note": "The flag is back and the helper is absent, and the vector was still not delivered. flash get ALG_SIP_ENABLED reads 1 on the device after the 2026-08-19 reset, so the blocker recorded on 2026-08-18 - this project's own W05 POST round having set it to 0 - is gone. What is measured tonight, over telnet: /proc/net/nf_conntrack_expect is empty; /proc/sys/net/netfilter/ contains only the generic, icmp, tcp and udp conntrack knobs and NO SIP entry; and /proc/modules does not exist at all, so this kernel is built without loadable module support and a helper is either compiled in or absent. Nothing named SIP is compiled in. That is a stronger statement than 2026-08-18's, which rested on the flag being 0. It is still NOT an answer to this row. CVE-2022-27255 is delivered by one UDP packet to 5060 from the WAN side, the session had one Ethernet cable and it was in a LAN port, and no packet was sent. The register's refutation condition is 'a crash, so the branch judgement is wrong' and it could not have fired tonight - which is the same defect A3.24 was caught in on 2026-08-19, so this is partial and not confirmed. What would settle it is the cable in the WAN port with tools/rogue-dhcp.py giving a lease, and that is a W08 item with the prediction already written in BENCH-LOG.md 2026-08-19.",
       "case_freeze_sha256": "a0bd83f6e646d9d3ed11b6ae4b155161761e56de3cbbe2b100202caca8d6fd10"
@@ -1469,8 +1469,80 @@
       ],
       "note": "J 80500000 handed control to a 156-byte image the device has never seen: the loader printed ---Jump to address=80500000 (0x8040B35C) and the payload then printed *** N150RT RAMBOOT P9-12 4baee517 *** repeatedly. The nonce and the marker occur zero times in the 4 MiB flash dump and zero times in the decompressed loader stage 2, checked before the build. Zero flash bytes written: AutoBurning=0 echoed in this same boot, autoburn read at exactly one place (0x80401B9C) where beqz skips the burn routine, and the cr6c header plus the boot loader head verified unchanged afterwards. The upload was also proved to land by a byte-identical TFTP round trip before any jump. First attempt truncated at 16 bytes per iteration (the 16550 FIFO depth) because the payload read a register in the MIPS-I load delay slot; fixed and re-run as a single-variable experiment.",
       "case_freeze_sha256": "40c5855c6c90806845aaae08d59efa4237d71ea97fbce02177744acaf5052505"
+    },
+    {
+      "id": "P9-14",
+      "date": "2026-08-21",
+      "verdict": "confirmed",
+      "evidence_kind": "dynamic",
+      "artefacts": [
+        "journal/BENCH-LOG.md"
+      ],
+      "note": "四格 FLW 只差第四個參數（無 / 0 / 5 / DEADBEEF），印出來的那一行逐字相同，flash# 永遠是 1。四格全部答 N，Abort!，零 flash 寫入。li a2,1（0x80409BE4）是那個 %d 的唯一來源。順帶：裝置自己印出的 ? 說明字串含 ': Write offset-data to SPI from RAM'，手抄那份把它截掉了。",
+      "case_freeze_sha256": "124aef6a53dca20aea1f57b0161cae38bd823e01470a2235c09cec13e299fd88"
+    },
+    {
+      "id": "P9-15",
+      "date": "2026-08-21",
+      "verdict": "confirmed",
+      "evidence_kind": "dynamic",
+      "artefacts": [
+        "journal/BENCH-LOG.md"
+      ],
+      "note": "不跳轉的開關實驗：probe 活 -> EW 清掉 PCRP0-PCRP4 的 bit 0 -> probe 死 -> EW 寫回原值 -> probe 活。三個獨立訊號一致（DATA 回應、ip neigh REACHABLE/FAILED、rx_packets 2->2->4），中斷全程未動，無電源循環。同一次 DW 裡 0xBB80411C/0x20 的 bit 0 是 0，所以該欄位不是卡在 1。另：J 之後直接讀那五個暫存器，全部已被清成 ...38，沒有人碰過它們 —— 0x804092F4 那一段執行過的直接證據。",
+      "case_freeze_sha256": "616b50e8a97c5633f7e52ab8e1701f34c09ef40785802b755348b3244cff9f94"
+    },
+    {
+      "id": "P9-16",
+      "date": "2026-08-21",
+      "verdict": "confirmed",
+      "evidence_kind": "dynamic",
+      "artefacts": [
+        "journal/BENCH-LOG.md"
+      ],
+      "note": "EB 打入 03E00008 00000000（jr ra; nop）於 0x80540000，DW 驗過，J 80540000 之後主控台印 ---Jump to address=80540000 並回到 <RealTek>，且回來之後 DW/EW 照常工作。J 是 jalr 不是 jr，payload 可返回，不需要電源循環。推翻 runsheet Part B「J 之後沒有軟體的路回去」。",
+      "case_freeze_sha256": "31d52c8e590b6a96f1f0cc29a886a21daa3bd009b51302d2d3c8c93ad4375aad"
+    },
+    {
+      "id": "P9-18",
+      "date": "2026-08-22",
+      "verdict": "partial",
+      "evidence_kind": "dynamic",
+      "artefacts": [
+        "journal/BENCH-LOG.md",
+        "journal/runsheet.md",
+        "tools/loader-tftp.py"
+      ],
+      "note": "Three of the four cells hold, one is refuted, and the refuted one has no refutation branch written for it - so it is recorded, not scored. GIMR0 (0xB8003000) = 0x00008100: bit 15 = 1, so request_IRQ(15,\"eth0\") ran and stop conditions 1 and 2 do not fire; bit 27 = 0 as predicted. IRR1 (0xB800300C) = 0x30050004, bits 28-31 = 3, so refutation (c) does not fire and the irq-15-is-eth0 mapping keeps its second source. Reading the whole line rather than the one nibble was free and gave more: source 8 -> priority 4, source 12 -> priority 5, source 15 -> priority 3, while GIMR0 unmasks only 8 and 15. REFUTED: IRR3 (0xB8003014) reads 0x00000000 and the prediction said bits 12-15 = 3, from 0x8040A398 writing source 27's priority. That slot is never written. It is consistent with GIMR0 bit 27 being clear but NOT for the reason the prediction gave, so the installs table's source-27 row is downgraded. THE NO-BET CELL LANDED: bit 8 = 1, so 0x80402FB8's GIMR0 |= 0x100 is on the ethernet-init path. The instruction frozen with that cell was to go read 0x80402F80's callers; that is now a desk question, not an answer. FOURTH CELL CONFIRMED, and it settles the correction the desk made on 2026-08-22: with the escape window taken and IPCONFIG never typed, a TFTP read request to the compiled-in 192.168.1.6 returned DATA opcode 3 from 192.168.1.6:2098, rx_packets 0 -> 2, ip neigh REACHABLE. Refutation (d) does not fire. P9-4's conclusion is untouched; the sentence explaining it stays corrected. UNPLANNED, and it is a second independent witness for that same cell: the loader's MAC at 192.168.1.6 was 56:aa:a5:5a:7d:e8 and became 56:0a:01:01:01:e8 after IPCONFIG 10.1.1.1. 0a 01 01 01 is 10.1.1.1, so the middle four bytes are written by IPCONFIG's handler and not by the stack bring-up - meaning the stack was answering at 192.168.1.6 carrying a MAC that could not have come from IPCONFIG, because IPCONFIG had never run. The recorded model, that the loader synthesises its MAC from its IP, is right about the mechanism and wrong about when. INSTRUMENT DEFECT FOUND IN THE RUNSHEET: A2.9 step 0 does not bring the host interface up, and it was administratively DOWN. Run as written it would have produced a false negative on a cell that can only be measured once per boot.",
+      "case_freeze_sha256": "5f64267a4d4f370e7b45945526d2c6af43f24399e1b86c3dc1b2c4a6ee8978ed"
+    },
+    {
+      "id": "P9-19",
+      "date": "2026-08-22",
+      "verdict": "partial",
+      "evidence_kind": "dynamic",
+      "artefacts": [
+        "journal/BENCH-LOG.md",
+        "journal/runsheet.md",
+        "tools/console-lint.py"
+      ],
+      "note": "Four cells confirmed, one half-refuted, and the instrument accounted for a rejection the operator never reported. 2a CONFIRMED WITH ITS CONTROL IN THE SAME SESSION: ' DW 80540000 2' with one leading space -> Unknown command !; the identical line without the space -> 80540000: A9FDA5F8 40713F77 AB0C8A74 B7566FE0. One variable, one session. The control was initially skipped and had to be asked for: without it, 'rejected because of the space' and 'that command does not work right now' are indistinguishable. 2b SPLIT: the TAB expanded to EXACTLY eight spaces, three times in one log, which is the load-bearing half and is what explains 2026-08-21. But the predicted Unknown command ! did NOT follow - both TAB+Enter cycles returned a silent prompt. The prediction conflated two paths the dispatcher keeps apart: a line of only whitespace takes the silent blez path at 0x804091C8, while whitespace followed by a token gets the complaint. 2c CONFIRMED BYTE-EXACTLY, and it is the reproduction this row exists for: TAB pressed and NOT followed by Enter, a TFTP probe fired from the host, then DW 80540000 2 typed straight after the <RealTek> that appeared - rejected. The log shows no space between <RealTek> and DW on that line, because the echo shows only what was typed after the repaint while the buffer still held the eight spaces from before it. The mechanism and the illusion are in the same four lines. 2d CONFIRMED as the control: one bare Enter returns a silent prompt with no complaint, and the identical line then executes. 2e CONFIRMED: console-lint over the session log reports 33 prompts (1 printed by the TFTP path), 3 rejections, 0 unexplained, exit 0, and reconstructs 2c's real buffer contents as eight spaces followed by DW 80540000 2 - the line the device saw and the screen never showed. IT ALSO CAUGHT A THIRD REJECTION NOBODY REPORTED: control-bytes at offset 0x198, line \\x1b[A\\x1b, an arrow key, in a session whose runsheet preamble forbids them. That is the tool doing the job the operator's account did not do.",
+      "case_freeze_sha256": "04456435dc830bd2451ff8e7e01fd03c57728528a0c12975245a0995399627ba"
+    },
+    {
+      "id": "P9-17",
+      "date": "2026-08-22",
+      "verdict": "partial",
+      "evidence_kind": "dynamic",
+      "artefacts": [
+        "journal/BENCH-LOG.md",
+        "journal/runsheet.md",
+        "tools/mkramboot.py"
+      ],
+      "note": "The control failed as predicted, the mechanism is confirmed one layer BELOW where the prediction placed it, and the prediction's own success criterion is refuted. All five refutation branches were checked. B (GIMR0 restored, IE left clear): the payload ran - DW B8003000 1 read back 00008100 where J clears it to zero - the five PHY bits were restored to ...39, and the probe stayed dead on three signals sharing no code: no TFTP reply in 3 attempts, rx_packets 4 -> 4, ip neigh STALE -> FAILED. Refutation (a) does not fire. C (GIMR0 + IE; only the five words on the second EW line were rewritten, so it is a true single variable): the instant the payload set IE the console printed File Start: 80500000,length=00000000 and **TFTP GET File probe,Size 00000000 Byte WITH NO PROBE HAVING BEEN SENT. That is B's timed-out request, which had been sitting in the receive path with the interrupt pending and masked, being taken the moment IE went to 1. Unplanned second witness for the same thing: 0xB8003004 read 88000004 before any jump, 88000104 after B's jump with IE still clear, and 88000004 again after C's jump. CONFIRMED ON THE WIRE: with a deliberately deleted neighbour entry, tshark shows ARP request -> ARP reply from 56:0a:01:01:01:e8 in 0.9 ms. IE is what packet reception was missing, and restoring GIMR0 alone could never have supplied it. REFUTED: the prediction said DATA comes back. It does not. The same capture shows three TFTP read requests and zero replies, and the console printed nothing during them. THE NEGATIVE HALF IS THE VALUABLE HALF, because it kills both candidates the register was holding in reserve: the switch passes frames in both directions and the stack under TFTP is alive, so neither 'the switch needs more than bit 0' nor 'cache maintenance or the payload disturbed something else' survives. What is left is narrower and new - the TFTP service's own state - and it has evidence rather than a guess behind it: at C's jump the console printed the transfer spinner and then a prompt with NO Success! line, where 2c's healthy transaction printed *TFTP Client Download Success! and .Success!. console-lint independently classified that prompt as a real command-loop prompt rather than a TFTP repaint, and counted exactly one repaint in the whole log. Two readings that share no mechanism agree the transfer started and never completed. THAT IS A CANDIDATE, NOT A CONCLUSION. Refutations (c), (d) and (e) do not fire: J returned to the prompt twice with a TWENTY-word payload, so P9-16's return path holds well beyond the two instructions it was measured at; the console stayed responsive after IE was set, so there was no interrupt storm; and DW 80540000 20 matched mkramboot's listing word for word both times, against known garbage (A9FDA5F8 40713F77 AB0C8A74 B7566FE0) rather than against zeros, so the read-back could have failed. THE PAYLOADS WERE REBUILT AT THE BENCH: step 1 read GIMR0 as 0x00008100 while the desk had predicted 0x8000. The runsheet's rule - use the read-back number, never the desk prediction - is what caught it.",
+      "case_freeze_sha256": "8ea19e67b2f1240a4c6f3464278da346d75f369e05afcd38443e7b89abceef48"
     }
   ],
   "register": "test-cases.toml",
-  "register_freeze_sha256": "90181162481334794e2ef19a52f66ee9c22bfee70cd0659a2490f79768011d9e"
+  "register_freeze_sha256": "7ade245482e61ad14ab273cc12f04d1a9e0ae742cdd31e8b0ce44e8fe93285c7"
 }

@@ -36,7 +36,7 @@ of the kernel section and therefore full of compressed data — not `FF`. So the
 device is not behaving like a 2 MB part. Suggestive, not conclusive: a part can
 also return `FF` for out-of-range rather than wrapping.
 
-Photographs: see [§7](#7-photographs).
+Photographs: see [§7](#7-the-board).
 
 ---
 
@@ -46,7 +46,7 @@ W01 never saw this chip. It read the vendor container's own burn addresses out o
 the two `.web` images, found that the flash map extends to **3.57 MiB**, and
 concluded that the widely published "2 MB" figure is *impossible* — the firmware
 does not fit in the part the spec sheet claims. That went into
-[`PROGRESS.md` § Corrections](../PROGRESS.md#corrections-to-the-original-plan)
+[`PROGRESS.md` § Corrections](../journal/PROGRESS.md#corrections-to-the-original-plan)
 three weeks before the hardware arrived, as a prediction: **≥ 4 MB**.
 
 The package says 32 Mbit. The prediction holds.
@@ -294,7 +294,7 @@ the `J2` pins, both with the adapter unplugged.
 
 It matters because the alternative — a ground-referenced GPIO with a pull-up —
 behaves differently when shorted, and shorting an unidentified pair was proposed and
-rejected during disassembly. See [`LOG.md`](../LOG.md).
+rejected during disassembly. See [`LOG.md`](../journal/LOG.md).
 
 ### 7.5 What was redacted, and why
 
@@ -387,6 +387,6 @@ usually a better source about itself than any document written about it** — an
 when a datasheet and a binary disagree, the correct instinct is to suspect the
 datasheet. That instinct is what produced a prediction here instead of a surprise.
 
-The second thing version 1 got wrong lives in [`LOG.md`](../LOG.md): the first
+The second thing version 1 got wrong lives in [`LOG.md`](../journal/LOG.md): the first
 physical action taken on this board was an attempt to desolder the antenna feed at
 450 °C, for no reason that survives being asked "which gate does this serve?".

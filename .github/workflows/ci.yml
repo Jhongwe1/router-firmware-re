@@ -10,7 +10,7 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, 'w*']
   pull_request:
   workflow_dispatch:
 
@@ -92,8 +92,8 @@ jobs:
       - name: The ledger matches the register it is generated from
         run: |
           python3 tools/rtcase.py render
-          git diff --exit-code -- test-ledger.md \
-            || { echo "test-ledger.md is out of date — run \`make ledger\`"; exit 1; }
+          git diff --exit-code -- journal/test-ledger.md \
+            || { echo "journal/test-ledger.md is out of date — run \`make ledger\`"; exit 1; }
 
   bench-guards:
     name: bench tooling refuses what it claims to refuse
@@ -138,6 +138,43 @@ jobs:
         run: python3 tools/check-benchlog.py
       - name: bench-log checker — prove it can fail, and that it sees every card
         run: bash tools/test-check-benchlog.sh
+
+      # README.md linked to `plan/` for eleven weeks in the one sentence the
+      # whole gate board rests on. `plan/` is gitignored, so it was a 404 on
+      # GitHub and present on every machine that could have noticed. This asks
+      # git rather than the file system, which is the only place the two differ,
+      # and it belongs here rather than only in `make ci` because the 404 is
+      # something only a reader of the published repository ever experiences.
+      - name: links — every relative link resolves to a committed file
+        run: python3 tools/check-links.py
+      - name: link checker — prove it can fail
+        run: bash tools/test-check-links.sh
+
+      # count-checks.sh diagnosed this in its own header in August and was never
+      # wired into anything: the front page said 592 where a recount said 593,
+      # and 130 registered tests where the register held 141 — on the same page
+      # that said 141 further down. It asserts an *agreement*, not a constant,
+      # so a suite that grows moves the prose instead of reddening the build.
+      - name: numbers — the front door agrees with what generates it
+        run: python3 tools/check-numbers.py
+
+      # W07 fixed six files that asserted `52869/tcp open` in the present tense
+      # and did not sweep the rest; eight files still said "No device has been
+      # powered on" six weeks after the device was first powered. The register is
+      # the deliverable here, not the scanner — it cannot find a NEW expired
+      # assertion, and says so.
+      - name: expired assertions — nothing published outlives the fact it describes
+        run: python3 tools/check-expired.py
+      - name: expired-assertion checker — prove it can fail
+        run: bash tools/test-check-expired.sh
+
+      # The gate criteria are lifted out of plan/, which is not in this
+      # repository, so this step can only report that it cannot run. It is here
+      # so that the skip is visible: `make ci` on the author's machine is where
+      # it actually fires, and a check that silently passes where its input is
+      # absent is instrument bug 24.
+      - name: gates — docs/gates.md still matches the plans it came from
+        run: python3 tools/extract-gates.py --check
 
       # The four below were outside every CI list until 2026-08-17. Three of
       # them predate this job and were simply never added — 35 cases, none
@@ -189,6 +226,15 @@ jobs:
       # assembled, disassembled and looked correct.
       - name: RAM payload — the seven bugs the build has to reject
         run: bash tools/test-mkramboot.sh
+
+      # Added 2026-08-22 in the same commit as the tool. Half the cases assert
+      # a finding fires on a fixture carrying exactly one mechanism; the other
+      # half assert silence on a clean session and an explicit `unexplained` on
+      # a rejection none of the rules covers. The second half is the load-bearing
+      # one: a log reader that recognises three patterns and says nothing about
+      # the rest looks identical to one that understands the device.
+      - name: console log — the reader that has to say when it does not know
+        run: bash tools/test-console-lint.sh
 
       # And two more that were in `make ci` and not here — the same divergence
       # this job's own header describes, found again on 2026-08-18 and this time

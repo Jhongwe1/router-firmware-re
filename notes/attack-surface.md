@@ -142,7 +142,7 @@ Worth a look after Boa:
 > The immediate consequence: **`UPNP_ENABLED` is `1`** in this unit's live
 > config *and* in its factory default, so the correct prediction for UPnP is
 > that it is **running**, not off. Tracked as `P1-10` in
-> [`test-ledger.md`](../test-ledger.md), with the three CVEs behind
+> [`test-ledger.md`](../journal/test-ledger.md), with the three CVEs behind
 > it (`P6-1`–`P6-3`) reinstated. Nothing here is confirmed until a port
 > responds; the point is that the previous reading rested on the wrong file.
 >
@@ -191,7 +191,7 @@ Named so they are not silently forgotten:
   `syscmd.htm` ships in 2015 and 2016 with the handler absent, and is gone in
   2018 with the handler present ([`w6cg-web-ui.md`](w6cg-web-ui.md)).
 - **Wireless firmware / driver** — `/lib/modules`, untouched.
-- **The physical surface** — UART, SPI flash, JTAG. W02, blocked on hardware.
+- **The physical surface** — UART, SPI flash, JTAG. **Done in W02**: the UART header is populated and gives a boot log and a loader prompt but no shell ([`uart-pinout.md`](uart-pinout.md)); the flash was read through the loader, not through the SPI clip, which measured **1.70 V on a 3.3 V part** and read nothing; JTAG was never attempted.
 
 ### Struck off this list in W04
 

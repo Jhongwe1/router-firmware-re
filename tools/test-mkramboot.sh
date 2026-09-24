@@ -235,6 +235,126 @@ broken "a label that disagrees with the layout is caught" \
        's/L_EMIT, sb(A0, T0, 0)/0x40, sb(A0, T0, 0)/' \
        "layout drift"
 
+# ---------------------------------------------------------------------------
+# --irq-restore: the second payload, and the reasons it is allowed to refuse
+# ---------------------------------------------------------------------------
+echo
+echo "=== --irq-restore ==="
+
+GIMR=00008000
+accepts "an irq-restore build with the predicted GIMR0" --irq-restore "$GIMR"
+accepts "the same build with --no-set-ie" --irq-restore "$GIMR" --no-set-ie
+
+refuses "a GIMR0 of zero" "already wrote" --irq-restore 0
+refuses "a GIMR0 with the eth0 bit clear" "bit 15 clear" --irq-restore 100
+accepts "...unless the override says the device really read it back" \
+        --irq-restore 100 --allow-no-eth-bit
+refuses "an unaligned load address" "word aligned" --irq-restore "$GIMR" --load 80540002
+refuses "a load address outside KSEG" "KSEG" --irq-restore "$GIMR" --load 00300000
+refuses "a payload larger than --max-bytes" "max-bytes" \
+        --irq-restore "$GIMR" --max-bytes 32
+refuses "a GIMR0 that is not hex" "not hex" --irq-restore zzzz
+
+# The single-variable claim, checked rather than asserted: the two variants must
+# differ in exactly five words, and all five must land on the SECOND `EW` line.
+# If they ever straddle both lines the operator retypes two commands to change
+# one thing, and that is two experiments.
+"$PY" "$TOOL" --irq-restore "$GIMR" -o "$TMP/ie.bin" >/dev/null 2>&1
+"$PY" "$TOOL" --irq-restore "$GIMR" --no-set-ie -o "$TMP/noie.bin" >/dev/null 2>&1
+if "$PY" - "$TMP/ie.bin" "$TMP/noie.bin" <<'PYEOF'
+import struct, sys
+a = open(sys.argv[1], "rb").read()
+b = open(sys.argv[2], "rb").read()
+assert len(a) == len(b) == 0x50, (len(a), len(b))
+wa = [struct.unpack_from(">I", a, o)[0] for o in range(0, len(a), 4)]
+wb = [struct.unpack_from(">I", b, o)[0] for o in range(0, len(b), 4)]
+diff = [i for i, (x, y) in enumerate(zip(wa, wb)) if x != y]
+assert diff == [10, 12, 13, 14], diff        # 0x28, 0x30, 0x34, 0x38
+assert all(i >= 10 for i in diff), diff      # all on the second ten-word line
+# and the five CP0 words are the loader's own sti, copied verbatim
+assert wa[10:15] == [0x40016000, 0x00000000, 0x3421001F, 0x3821001E, 0x40816000], \
+    [hex(w) for w in wa[10:15]]
+assert wa[-2] == 0x03E00008 and wa[-1] == 0, [hex(w) for w in wa[-2:]]
+PYEOF
+then
+  ok "the two variants differ in the CP0 block only, all of it on the second EW line"
+else
+  bad "the two variants do not differ the way the experiment assumes"
+fi
+
+# The line-length bound is the loader's, and it is the one that silently
+# truncates rather than erroring, so the tool has to be the thing that notices.
+if "$PY" - <<'PYEOF'
+import sys
+sys.path.insert(0, "tools")
+import importlib.util
+spec = importlib.util.spec_from_file_location("mk", "tools/mkramboot.py")
+mk = importlib.util.module_from_spec(spec); spec.loader.exec_module(mk)
+img, _ = mk.build_irq_restore(0x8000, True)
+mk.ew_lines(0x80540000, img)                       # the default split fits
+try:
+    mk.ew_lines(0x80540000, img, per_line=20)      # one line, 20 values
+except ValueError as e:
+    assert "GetLine takes 128" in str(e) or "slots" in str(e), str(e)
+else:
+    raise SystemExit("a 20-value EW line was accepted; GetLine would truncate it")
+PYEOF
+then
+  ok "an EW line past the loader's 128-character buffer is refused, not truncated"
+else
+  bad "the EW line bound is not enforced"
+fi
+
+# The report has to carry what a reader would otherwise take on trust.
+"$PY" "$TOOL" --irq-restore "$GIMR" --load 80540000 --report "$TMP/irq.json" >/dev/null 2>&1
+if "$PY" - "$TMP/irq.json" <<'PYEOF'
+import json, sys
+d = json.load(open(sys.argv[1]))
+assert d["mode"] == "irq-restore" and d["set_ie"] is True
+assert d["gimr0"] == "0x00008000" and d["returns_to"] == "0x80409368"
+assert d["simulated_status_out"] == "0x1000FF01", d["simulated_status_out"]
+assert len(d["ew_lines"]) == 2 and all(len(l) <= 128 for l in d["ew_lines"])
+PYEOF
+then
+  ok "the JSON transcript carries the simulated CP0 result and the EW lines"
+else
+  bad "the JSON transcript is missing what the bench would have to take on trust"
+fi
+
+# Two mutants, each removing one property the experiment depends on.
+irq_broken() {
+  local why="$1"; local sedexpr="$2"; local want="$3"
+  local copy="$TMP/irqbroken.py"
+  sed "$sedexpr" "$TOOL" > "$copy"
+  if cmp -s "$copy" "$TOOL"; then
+    bad "$why -- the patch changed nothing, so this case proves nothing"
+    return
+  fi
+  local out
+  out="$("$PY" "$copy" --irq-restore "$GIMR" 2>&1)"
+  if [ $? -eq 0 ]; then
+    bad "$why -- the broken build SUCCEEDED"
+  elif ! printf '%s' "$out" | grep -qi -- "$want"; then
+    bad "$why -- it failed but not with '$want':"
+    printf '%s\n' "$out" | sed 's/^/        /'
+  else
+    ok "$why"
+  fi
+}
+
+# If the payload does not end in `jr ra` it is a one-way trip, and P9-16's
+# result -- that a payload can come back -- is being thrown away silently.
+irq_broken "a payload that never returns is caught" \
+           's|(0x48, jr(RA), "jr      ra|(0x48, NOP, "nop  ; was jr ra|' \
+           "instruction fetch outside the image"
+
+# If the store goes anywhere but GIMR0 the simulator must stop, because a
+# payload that writes a register nobody chose is how a zero-write section stops
+# being a zero-write section.
+irq_broken "a word store to an address the payload may not touch is caught" \
+           's|sw(T1, T2, GIMR0 \& 0xFFFF)|sw(T1, T2, 0x3004)|' \
+           "not allowed to touch"
+
 echo
 echo "=== summary ==="
 echo "  $pass passed, $fail failed"

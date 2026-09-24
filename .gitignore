@@ -94,3 +94,14 @@ Thumbs.db
 # can check and that a reader cannot regenerate without the same toolchain
 # version. `make alignfix-test` rebuilds it in a temporary directory.
 tools/alignfix/*.so
+
+# The agent configuration file. Same category as .vscode/ or .cursorrules:
+# it configures a tool, it is not part of the work. docs/how-this-was-built.md
+# is the part a reader actually needs, and it is committed.
+CLAUDE.md
+
+# tools/test-check-runsheet.sh writes its fixture at the repository root, because
+# the checker resolves a runsheet's relative links against the runsheet's own
+# directory. It is removed on exit - but a `git add -A` that races a test run
+# stages it, which happened twice on 2026-09-25.
+rs-selftest-*.md

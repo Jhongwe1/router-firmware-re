@@ -227,9 +227,9 @@
 
 | 主張 | 證據 | 它證明我會什麼 |
 |---|---|---|
-| **一條跨四層、每一環都能單獨指出來的證據鏈** —— HTTP 回應 → flash 位移 `0xC000` → `fwrecon compcs` 解出 `USER_PASSWORD` 明文 → **那組明文直接通過 HTTP Basic 認證**,開啟其餘 68 個被擋頁面。而且它**順手關掉 W02 開放 #11**(「沒有第二個儀器讀過這顆 flash」),因為兩條讀取路徑不共用程式碼 | `sha256 e09cbf84…` 兩邊相同;[`BENCH-LOG.md` R4](../BENCH-LOG.md) | **知道一個「已知漏洞」和一條「自己走完的鏈」差在哪**。CVE-2019-19822 誰都能引用;能指著同一組 bytes 說「這是我用兩個不同儀器分別讀到的」不行 |
-| **四條預測被自己事先寫下的條件反證** —— 豁免字串注入十二種全部失敗(`X-3` 不成立)、session 模型根本不存在(不是反組譯指到的那個全域)、`check_host` 不在授權路徑上、docroot 不等於出貨的 143 檔 | [`test-ledger.md`](../test-ledger.md);22/31 已評分,14 成立 / 4 反證 / 4 部分 | **把「我猜對了幾條」變成一個實驗結果**。反證的那四條每一條都指向一個具體的推理缺陷,而且**是被測試前凍結的那句話反證的** —— 事後才寫的條件證明不了任何東西 |
-| **兩個「自報身分對不上」的發現,而且兩個都改變別人怎麼找這台機器** —— UPnP daemon 送 `Server: miniupnpd/1.4`,但 rootfs 裡只有 `/bin/miniigd`、**沒有 `mini_upnpd` 這個 binary**,而那個 banner 字串就在 `miniigd` 自己的字串表裡;`/etc/version` 有 `CX`,`boa` 和線上的 `status.htm` 沒有,**而 CVE-2024-51228 索引用的是有 `CX` 的那個** | [`BENCH-LOG.md` R3 / R8](../BENCH-LOG.md);三個來源逐一比對 | **知道識別字串本身就是一個攻擊面/研究面的問題**。第一個換掉整組適用的 CVE;第二個解釋了為什麼這個專案自己花了兩週才找到那個 CVE,而且它可以推廣到任何遠端指紋這個型號的人 |
+| **一條跨四層、每一環都能單獨指出來的證據鏈** —— HTTP 回應 → flash 位移 `0xC000` → `fwrecon compcs` 解出 `USER_PASSWORD` 明文 → **那組明文直接通過 HTTP Basic 認證**,開啟其餘 68 個被擋頁面。而且它**順手關掉 W02 開放 #11**(「沒有第二個儀器讀過這顆 flash」),因為兩條讀取路徑不共用程式碼 | `sha256 e09cbf84…` 兩邊相同;[`BENCH-LOG.md` R4](../journal/BENCH-LOG.md) | **知道一個「已知漏洞」和一條「自己走完的鏈」差在哪**。CVE-2019-19822 誰都能引用;能指著同一組 bytes 說「這是我用兩個不同儀器分別讀到的」不行 |
+| **四條預測被自己事先寫下的條件反證** —— 豁免字串注入十二種全部失敗(`X-3` 不成立)、session 模型根本不存在(不是反組譯指到的那個全域)、`check_host` 不在授權路徑上、docroot 不等於出貨的 143 檔 | [`test-ledger.md`](../journal/test-ledger.md);22/31 已評分,14 成立 / 4 反證 / 4 部分 | **把「我猜對了幾條」變成一個實驗結果**。反證的那四條每一條都指向一個具體的推理缺陷,而且**是被測試前凍結的那句話反證的** —— 事後才寫的條件證明不了任何東西 |
+| **兩個「自報身分對不上」的發現,而且兩個都改變別人怎麼找這台機器** —— UPnP daemon 送 `Server: miniupnpd/1.4`,但 rootfs 裡只有 `/bin/miniigd`、**沒有 `mini_upnpd` 這個 binary**,而那個 banner 字串就在 `miniigd` 自己的字串表裡;`/etc/version` 有 `CX`,`boa` 和線上的 `status.htm` 沒有,**而 CVE-2024-51228 索引用的是有 `CX` 的那個** | [`BENCH-LOG.md` R3 / R8](../journal/BENCH-LOG.md);三個來源逐一比對 | **知道識別字串本身就是一個攻擊面/研究面的問題**。第一個換掉整組適用的 CVE;第二個解釋了為什麼這個專案自己花了兩週才找到那個 CVE,而且它可以推廣到任何遠端指紋這個型號的人 |
 
 ### 這週沒證明什麼
 
@@ -327,9 +327,9 @@ kernel 自己的介面計數器是 `RX: 0 packets / TX: 12`。**送得出去、�
 
 | 主張 | 證據 | 它證明我會什麼 |
 |---|---|---|
-| **一個靜態讀法被拿去做出可否證的預測,而且預測命中了它沒看過的資料** —— 76 個出貨頁面全對,外加四個合成路徑、三個「閘門點名但沒出貨」的檔名、以及 `/boafrm/formLogin.htm` 這個第 57 個端點。而**它不是繞過**,理由比「試了沒用」精確:豁免比對和開檔用的是同一個正規化路徑,所以任何裝飾到足以取得豁免的路徑,伺服器都開不到 | [`notes/auth-flow-2018.md`](../notes/auth-flow-2018.md);[`BENCH-LOG.md`](../BENCH-LOG.md) 2026-08-17 下午 | **知道「測試失敗」是關於測試的證據,不是關於機制的證據**。早上那個錯誤是拿一個失敗的利用嘗試去推翻一份正確的反組譯,而分辨這兩件事是這一行最常出錯的地方 |
+| **一個靜態讀法被拿去做出可否證的預測,而且預測命中了它沒看過的資料** —— 76 個出貨頁面全對,外加四個合成路徑、三個「閘門點名但沒出貨」的檔名、以及 `/boafrm/formLogin.htm` 這個第 57 個端點。而**它不是繞過**,理由比「試了沒用」精確:豁免比對和開檔用的是同一個正規化路徑,所以任何裝飾到足以取得豁免的路徑,伺服器都開不到 | [`notes/auth-flow-2018.md`](../notes/auth-flow-2018.md);[`BENCH-LOG.md`](../journal/BENCH-LOG.md) 2026-08-17 下午 | **知道「測試失敗」是關於測試的證據,不是關於機制的證據**。早上那個錯誤是拿一個失敗的利用嘗試去推翻一份正確的反組譯,而分辨這兩件事是這一行最常出錯的地方 |
 | **一個開機循環都沒燒就反證掉 `P9-1`,靠的是把 bootloader 從 flash 裡解壓出來** —— 整顆 4 MiB 裡 `grep FLR` 找不到東西,因為指令直譯器是 `0x0012F0` 起的一段 LZMA(17,334 → 56,592)。13 個 cmdline 形狀的針 0 命中,而**同一次掃描被證明找得到 `?` 印的全部 17 個指令**;工具在找不齊時拒絕出報告 | [`tools/loader-unpack.py`](../tools/loader-unpack.py) + `tools/test-loader-unpack.sh` 7 案;[`reports/bootloader-unit-2018.json`](../reports/bootloader-unit-2018.json) | **知道「找不到」什麼時候是證據、什麼時候是自己沒找對地方**。一個宣稱「這裡沒有 X」的報告,如果不能在同一次執行裡證明自己找得到已知存在的東西,那個宣稱值零 |
-| **一輪未認證的 POST 把裝置唯一的 web server 弄掉了,而它同時把出廠預設區覆蓋成現行設定** —— 前後各一份 64 KiB 快照,逐欄位歸因:`H601` 未動,`COMPCS` 動 19 欄,`COMPDS` 動 23 欄(同樣那 19 個**加上原本區分兩者的 4 個**,而且每一個都移到 `COMPCS` 的值)。所以在這個 build 上,「恢復原廠設定」還原的是最後被寫進去的那一份 | [`BENCH-LOG.md`](../BENCH-LOG.md) T-14;`config-region-20260817-{1102-pre,post}.bin` | **知道「我改了什麼」和「我能證明是我改的」差在哪**。歸因需要的對照組是免費的:掃描前那份快照與 8/16 的完整 dump 逐 byte 相同,而那期間這台開過機、跑過完整 GET 輪、登入成功過 —— **所以開機和讀取不改設定區,這是量出來的,不是假設的** |
+| **一輪未認證的 POST 把裝置唯一的 web server 弄掉了,而它同時把出廠預設區覆蓋成現行設定** —— 前後各一份 64 KiB 快照,逐欄位歸因:`H601` 未動,`COMPCS` 動 19 欄,`COMPDS` 動 23 欄(同樣那 19 個**加上原本區分兩者的 4 個**,而且每一個都移到 `COMPCS` 的值)。所以在這個 build 上,「恢復原廠設定」還原的是最後被寫進去的那一份 | [`BENCH-LOG.md`](../journal/BENCH-LOG.md) T-14;`config-region-20260817-{1102-pre,post}.bin` | **知道「我改了什麼」和「我能證明是我改的」差在哪**。歸因需要的對照組是免費的:掃描前那份快照與 8/16 的完整 dump 逐 byte 相同,而那期間這台開過機、跑過完整 GET 輪、登入成功過 —— **所以開機和讀取不改設定區,這是量出來的,不是假設的** |
 
 ### 這週沒證明什麼
 
@@ -928,3 +928,206 @@ of skipping it would have been a disclosure report naming the wrong CVE.
   having rewritten both regions. It is left in `BENCH-LOG.md` as written, with the
   refutation firing against it, because a register whose predictions are edited
   after the fact is a register that predicts nothing.
+
+## W08, the interrupt desk session — 2026-08-22
+
+**One line:** the loader's TFTP turned out to be interrupt-driven, the first
+version of that reading concluded the exact opposite from observations that were
+all individually correct, and the thing that caught it was changing the question
+rather than looking harder.
+
+**1. A conclusion reversed by asking a different question.**
+Deciding whether the loader ever enables interrupts began as a search for
+Realtek's `sti` idiom — `mfc0 $1,$12 / ori $1,1 / mtc0 $1,$12`. None exist.
+Seven `cli` sites of the matching shape do. The conclusion written from that was
+"the loader runs masked, therefore its TFTP is polled", and it is backwards:
+this build writes `ori $1,0x1f / xori $1,0x1e`, which sets bit 0 and clears bits
+1 to 4. The instrument now evaluates every `mtc0 $12` in the image with a
+four-valued per-bit lattice and reports what bit 0 *is*, not whether the
+instruction sequence *looks* like something.
+*Evidence:* `reports/bootloader-unit-2018.json` §`interrupt_wiring`;
+`notes/loader-interrupts-and-console.md`; `tools/test-loader-unpack.sh` cases
+25–27, two of which differ in one bit of one immediate.
+*What it demonstrates:* a pattern match answers "is this the shape I expected",
+and the question was "what is the value afterwards". The first has a failure
+mode no test can cover — you can only think of the shapes you can think of.
+**And the error pointed the wrong way**: it would have excluded the correct
+cause from the three that survived the bench, with a sentence that sounds
+well-founded.
+
+**2. A six-day-old console log that answered a one-day-old question.**
+The `Unknown command !` that a clean `EB` line drew on 2026-08-21 was caused by
+eight spaces already sitting in the loader's line buffer, behind a `<RealTek>`
+that the TFTP completion path had printed **from inside the ethernet interrupt
+handler** — `0x80401CD0`, passing a second copy of the prompt string at
+`0x8040A894`. The tokeniser stores `argv[0]` before it tests for a space
+(`0x80407290` then `0x804072D4`), so `argv[0]` was the empty string.
+*Evidence:* `$FWRE_WORK/dumps/w08-a28.log`, unchanged since the night it was
+captured; `tools/console-lint.py`, which reproduces the diagnosis and reports an
+unexplained rejection as a non-zero exit.
+*What it demonstrates:* the reason it took a day is worth more than the answer.
+The search for who prints the prompt was a **cross-reference on one address**.
+It returned one result, the result was correct, and the inference drawn from it —
+*the prompt has one owner* — was false, because the same text is in the image
+twice. A cross-reference answers "who uses this address"; the question was "who
+prints this text".
+
+**3. A pointer at a rule that does not exist.**
+`runsheet.md` `A2.8` ends step 4 with *"see stop condition 5 below"*, and `A2.8`
+carries no numbered stop conditions at all — the nearest list is `A2.7`'s, above
+rather than below, with four items. `BENCH-LOG.md` then quoted the same number
+back as though it were a rule.
+*Evidence:* `runsheet.md` `A2.8` 收尾, now five conditions;
+`tools/check-runsheet.py` and four cases in `tools/test-check-runsheet.sh`.
+*What it demonstrates:* the rule's content was there the whole time; what was
+missing was that it was numbered and placed where the pointer points. **A
+pointer at a rule that does not exist is worse than no pointer** — the reader
+believes something is holding them and nothing is. One of the four new guard
+cases passed before the checker's own regular expression was fixed, which is the
+same lesson one level down: the case caught the check being empty, not the
+document.
+
+### What this session did not prove
+
+- **Nothing was sent to the device.** Every claim is "the code reads as", and
+  `P9-17`, `P9-18` and `P9-19` are frozen before the next power-on. The whole
+  interrupt story could still be refuted by one `DW B8003000 1`.
+- **The `eth0` ISR was not traced to the TFTP handler.** It reaches
+  `0x80402040`, which dispatches on EtherType; the rest is a call-graph reading
+  with no device observable behind it.
+- **`GIMR0`'s bit 8 is not predicted.** Two possible writers, and the call graph
+  between them was not chased. Both outcomes are written down with the
+  instruction that settles them — deliberately, because a prediction that names
+  its own undecided bits survives a hostile reader and a confident wrong number
+  does not.
+- **Whether the eight spaces were a TAB or eight spacebars is undecidable from
+  the record.** Both leave the same echo and the same buffer. The cause of the
+  rejection is settled; the keystroke is not.
+- **The status census is a straight-line reading over a bounded window**, and it
+  can cross a function boundary. It is exact for the `sti` claim, which needs
+  four instructions of context; it reports five writes as *undetermined* and
+  prints where each one's value came from rather than guessing.
+- **The TFTP filename `%s` at `0x804011FC` was read and not chased.** It puts
+  attacker-supplied text on the operator's console with no length check beyond a
+  42-byte floor on the request. It requires the escape window to have been
+  caught, so it crosses no boundary a UART cable has not, and it is a note entry
+  rather than a register row — which is a judgement, not a measurement.
+
+## W08, the close — the write-up draft, six cuts, and a control that was designed to fail — 2026-08-22
+
+### 一句話
+
+> I finished the fourteen-chapter draft, **cut six register rows with written
+> reasons instead of running them**, and closed the last three at the bench with
+> **zero flash writes** — recording all three as `partial`, because each carries
+> a clause its own frozen prediction got wrong. W08 closes **8 / 8, 0
+> outstanding**. The best result of the night was one the device volunteered:
+> **it answered a request that had already timed out**, the instant a twenty-word
+> RAM payload re-enabled interrupts.
+
+### 三個可辯護的點
+
+| 主張 | 證據 | 它證明我會什麼 |
+|---|---|---|
+| **`J`'s network kill is the masked interrupt — at the reception layer, and not at the layer the prediction named.** Two payloads differing in exactly five words: restore the interrupt mask only, and TFTP stays dead on three signals sharing no code; restore the mask *and* the CPU's `IE`, and the loader answers ARP in 0.9 ms on the wire. **It still does not answer TFTP**, so the row is `partial` | `BENCH-LOG.md` `T-99`/`T-100`; `/tmp/w08-c-wire.pcap` (5 frames); `tools/mkramboot.py --irq-restore`, whose simulator refuses a payload that does not return through `ra` | Designing an experiment whose **control is the half predicted to fail**, and then reporting the half that failed. Without B, C is only "I changed something and it got better" |
+| **The loader's TFTP stack is up at its compiled-in `192.168.1.6` before `IPCONFIG` is ever typed**, which corrects a sentence this register had recorded. Witnessed twice, the second time by accident: the loader's MAC is `56:aa:a5:5a:7d:e8` there and `56:0a:01:01:01:e8` after `IPCONFIG 10.1.1.1` — so the middle four bytes are written by `IPCONFIG`'s handler, meaning **the stack was serving with a MAC that could not have come from `IPCONFIG`, because `IPCONFIG` had never run** | `BENCH-LOG.md` `T-97`; `dumps/w08-p918-default-ip.json`; `PROGRESS.md` W08 Day 2 | Noticing that a number I was not measuring had changed, and turning it into a second independent witness instead of an aside. The recorded model had the mechanism right and the timing wrong |
+| **A console rejection from the previous session was reproduced on command, and an instrument accounted for every rejection in the log including one nobody reported.** TAB expands to exactly eight spaces; the `<RealTek>` after a TFTP completion is painted by the `eth0` ISR and does not clear the line buffer; a command typed after it is rejected while the echo shows no leading space at all | `tools/console-lint.py`: 33 prompts (1 TFTP-printed), 3 rejections, **0 unexplained**, exit 0; it reconstructed the buffer the device actually saw, and flagged `\x1b[A\x1b` at offset `0x198` | Building the checker that reads a verbatim log the way the dispatcher does, rather than trusting the operator's account of it — which in this session was incomplete |
+
+### 這週沒證明什麼
+
+- **No second instrument has read this unit's flash, and now it never will under
+  this project.** `P9-5`, `P9-6` and `P9-7` are cut. Every byte-level claim still
+  comes through one path: the loader's own `FLR`, over the device's own UART. Two
+  reads agreeing proves the transfer is stable, not that it is correct. **The
+  JEDEC id has never been read** — `Eon EN25QH32B` rests on the ink on the
+  package, and `flashrom` agreeing on 4096 KiB is not a second source because its
+  database is keyed on that same name.
+- **Open item 97 is not answered, and cutting three rows did not answer it.** The
+  part sits at 1.70 V against a 3.3 V supply across three supplies. Whether that
+  is the board clamping or resistance in the clip path **was never separated**.
+  "We chose not to measure it" and "we found out why" are different sentences and
+  the register says the first one.
+- **No modified image has ever been written to this device.** `P9-10` is cut as a
+  deliberate trade, so `P8-10`'s outbound plain-HTTP upgrade path and `P9-13`'s
+  checksum-only acceptance stay **static readings for good** — a supply-chain
+  class named and never executed. The chain in chapter 10 ends at a flash byte
+  changed by an HTTP request and does not extend to a modified image booting.
+- **`fwrecon compcs` still prints "The device itself would reject this blob"**,
+  and the only test that would have measured it was `P9-6`. That sentence is now
+  a permanent unmeasured claim about device behaviour made by this project's own
+  tool. It is kept by decision and listed rather than quietly left.
+- **Why the loader's TFTP service stops answering is unknown.** With reception
+  restored it replies to ARP and ignores TFTP with the console silent. The
+  candidate — a transfer left incomplete by the queued request taken when `IE`
+  went high — has two agreeing readings behind it and **no measurement**. It is
+  open item 103.
+- **`IRR3` carried a prediction with no refutation condition**, and it read zero
+  against a predicted 3. It is recorded and **not scored**, because a prediction
+  without a written failure condition leaves me holding the power to decide
+  afterwards whether it counted. This time the direction happened to be against
+  me. That is luck, not method.
+- **No wireless test has been run at any point in this project.** Nine rows
+  across `P7-*` are cut. For most of them a US$30 adapter is the whole blocker;
+  for `P7-3`, `P7-6` and `P7-9` it is not, and buying one should not bring them
+  back.
+- **The ten-minute read test on the draft has not been run**, and the draft has
+  not been edited. W09 is the editing week; W08's DoD was content in all fourteen
+  chapters, and that is what was met.
+
+## W09 — publication: a front door, three new checkers, and four chapters that disagreed with my own notes — 2026-09-25
+
+### 一句話
+
+> I spent the publication week writing three instruments to hold this repository's
+> own documents to account, **and 31 of their first 39 findings were the
+> instruments themselves** — all four new bugs wrong in the same direction, which
+> is a direction the previous fifty-six were not. Following one of the surviving
+> findings — *six builds* in three notes against *five builds* in the write-up —
+> turned up the worst content defect this project has shipped: the provenance
+> chapter carried a row for **an image that exists in exactly one file in this
+> repository, namely that chapter**, and the cross-build chapter's `root_form[]`
+> row was wrong in all three columns, **in the direction that made the builds look
+> alike**. Neither disagreed with the evidence. Both disagreed with my own notes,
+> and nothing was comparing the two.
+
+### 三個可辯護的點
+
+| 主張 | 證據 | 它展示了什麼 |
+|---|---|---|
+| **The `plan/` 404 was not a broken link, it was a checker that asked the wrong system.** `README.md` rested its entire gate-board credibility on *"go and look at the standard, it was written first"* and sent the reader to a gitignored directory. It survived eleven weeks because **`plan/` exists** — `ls` finds it, every editor opens it, and any check built on `os.path.exists` passes. [`tools/check-links.py`](../tools/check-links.py) asks `git ls-files` instead, which is the only place the file system and the repository disagree | `tools/check-links.py` · `tools/test-check-links.sh` (20 cases, including the on-disk-but-untracked case as its own) · 1,251 links now resolve | Knowing that the reader's view and the author's view of a repository are different systems, and testing the reader's |
+| **A number on the front door was replaced by an agreement, not a constant.** `count-checks.sh` diagnosed this drift in its own header in August and was never wired in, for a reason that was half right — pinning the total would redden the build every time a suite grew. [`tools/check-numbers.py`](../tools/check-numbers.py) asserts that the prose equals the recount, which goes red only when the prose is stale. Its first version scanned prose grammar and **13 of its 18 findings were its own**, because English gives *"141 registered tests"* and *"Three registered tests are frozen against it"* the same shape; rewritten as a claim-site table where **a site that stops matching is itself a failure** | `tools/check-numbers.py`, 36 claim sites · the drift it caught: 592→613→626 checks, 130→141 tests, 21→23 suites | Choosing a checkable invariant over a checkable value, and preferring declared coverage to the appearance of universal coverage |
+| **The write-up's numbers were checked against the reports and four of them were wrong** — `V4.1.5cu` (an image with no `SOURCES.json` entry, no manifest row, no report, and no second mention anywhere), three analysed images missing from the provenance table, `root_form[] 57 \| 58 \| 57` where the reports say `59 \| 57 \| 49`, and `<the nine offsets>` left as a literal placeholder in chapter 10's key evidence block. Every **other** row in that table checks out against `reports/` — the gate row `5 \| 6 \| 8` is exactly `findings_by_rule.R2` in the three gate reports | `writeup/02-corpus.md`, `07-across.md`, `10-chain.md`, each with its own correction section · `notes/three-way-read.md:107` had the right numbers from W04-2 | Auditing my own flagship document against its sources rather than re-reading it, and publishing the result in the document itself |
+
+### 這週沒證明什麼
+
+- **That a stranger understands this in ten minutes.** G5 clause 1 is split for
+  this reason and clause 1b is **not ticked**. Everything measurable about the
+  front door is measured — 127 lines before the first fold, 1,251 resolving
+  links, 36 agreeing numbers, four index files where there were none — and every
+  one of those is a **proxy**. The difference between *a stranger could* and *a
+  stranger did* is a person, and there has not been one. This is deliberately
+  the same treatment G4 clause 3b got.
+
+- **That the remaining chapters are right.** Four were audited against
+  `reports/` because one number disagreed. **Eleven were not.** The audit that
+  found `57 | 58 | 57` was not a systematic pass; it was one thread pulled, and
+  it happened to unravel. Open item 110 exists because **nothing compares a
+  measurement quoted in `writeup/` against the report it came from**, and
+  `check-numbers.py` deliberately does not — it covers front-door *totals* with
+  a named owner, not a single measured value cited mid-chapter. The honest
+  reading of four defects found in four chapters examined is **not** "the rest
+  are fine".
+
+- **That the instrument bugs are slowing down.** Four in one desk session, on a
+  day that measured nothing, is the highest rate this project has recorded. The
+  flattering reading is that the instruments are getting worse; the accurate one
+  is that **this was the first week the instruments were pointed at the
+  repository rather than at the router**, and a new target always yields. Sixty
+  is a lower bound on bugs that existed, not a count of bugs that exist.
+
+- **That the identifier decision is right.** The bench host's NIC MAC stays in
+  38 places, argued in `docs/disclosure.md` under a fourth category the
+  publication rule never named. The argument is that a MAC on an isolated lab
+  segment identifies nothing reachable — and it is an argument, not a
+  measurement. What changed this week is only that it is now made **on purpose**
+  rather than by a rule whose wording was narrower than its own reason.
