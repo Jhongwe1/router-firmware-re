@@ -105,3 +105,8 @@ CLAUDE.md
 # directory. It is removed on exit - but a `git add -A` that races a test run
 # stages it, which happened twice on 2026-09-25.
 rs-selftest-*.md
+
+# One-shot patch scripts written at the repo root during a session. One of them
+# (.wire2.py) reached main on 2026-09-25 because its cleanup was chained behind
+# `&&` after an assert that failed, and `git add -A` picked it up.
+.*.py
